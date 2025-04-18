@@ -549,9 +549,7 @@ ircClient.on('PRIVMSG', (response) => {
   const { channelName, message, timestamp } = response;
 
   // Find the server and channel
-  const server = useStore.getState().servers.find(s =>
-    s.channels.some(c => c.name === channelName)
-  );
+  const server = useStore.getState().servers.find(s => s.id === response.serverId);
 
   if (server) {
     const channel = server.channels.find(c => c.name === channelName);
