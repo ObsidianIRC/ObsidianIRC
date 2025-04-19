@@ -216,7 +216,7 @@ class IRCClient {
             timestamp: new Date(),
           });
         } 
-      } else if (line.split(' ')[2] == '353') {
+      } else if (line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/)) {
         const match = line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/);
         if (match) {
           const [, channelName, names] = match;
