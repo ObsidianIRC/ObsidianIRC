@@ -595,6 +595,7 @@ ircClient.on('JOIN', ({ serverId, username, channelName }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const existingChannel = server.channels.find((channel) => channel.name === channelName);
+
         if (!existingChannel) {
           const newChannel: Channel = {
             id: uuidv4(),
@@ -607,18 +608,44 @@ ircClient.on('JOIN', ({ serverId, username, channelName }) => {
             messages: [],
             users: [],
           };
+
           return {
             ...server,
             channels: [...server.channels, newChannel],
           };
+        } else {
+          const updatedChannels = server.channels.map((channel) => {
+            if (channel.name === channelName) {
+              const userAlreadyExists = channel.users.some((user) => user.username === username);
+              if (!userAlreadyExists) {
+                return {
+                  ...channel,
+                  users: [
+                    ...channel.users,
+                    {
+                      id: uuidv4(),     // Again, give them a unique ID
+                      username,
+                      isOnline: true,
+                    },
+                  ],
+                };
+              }
+            }
+            return channel;
+          });
+
+          return { ...server, channels: updatedChannels };
         }
       }
+
       return server;
     });
 
     return { servers: updatedServers };
   });
 });
+
+
 
 ircClient.on('ready', ({ serverId, serverName, nickname }) => {
   console.log(`Server ready: serverId=${serverId}, serverName=${serverName}`);

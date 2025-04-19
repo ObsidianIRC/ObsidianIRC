@@ -175,9 +175,10 @@ class IRCClient {
           this.triggerEvent('JOIN', { serverId, username, channelName });
         }
       } else if (line.includes('PART')) {
-          const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART :?([#&][^\s,\x07]{1,199})$/);        if (match) {
-          const [, username, channelName] = match;
-          this.triggerEvent('PART', { serverId, username, channelName });
+        const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART ([^ ]+)(?: :(.+))?$/); 
+        if (match) {
+          const [, username, channelName, reason] = match;
+          this.triggerEvent('PART', { serverId, username, channelName, reason });
         }
       } else if (line.includes('PRIVMSG')) {
         const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PRIVMSG ([^ ]+) :(.+)$/);
