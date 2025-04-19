@@ -56,7 +56,7 @@ const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({ me
         </div>
         <div className={`flex-1 ${isCurrentUser ? 'text-white' : ''}`}>
           <div className="flex items-center">
-            <span className="font-medium text-white">{message.userId === 'system' ? 'System' : message.userId.split('-')[0]}</span>
+            <span className="font-bold text-white">{message.userId === 'system' ? 'System' : message.userId.split('-')[0]}</span>
             <span className="ml-2 text-xs text-discord-text-muted">{formatTime(new Date(message.timestamp))}</span>
           </div>
           <div>

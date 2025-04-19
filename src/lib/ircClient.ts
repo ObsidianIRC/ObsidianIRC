@@ -206,7 +206,6 @@ class IRCClient {
         if (match) {
           const [, channelName, names] = match;
           const newUsers = parseNamesResponse(names); // Parse the user list
-          console.log(`Parsed users for channel ${channelName}:`, newUsers);
 
           // Find the server and channel
           const server = this.servers.get(serverId);
@@ -223,13 +222,11 @@ class IRCClient {
                 }
               });
 
-              channel.users = mergedUsers; // Update the channel's user list
-              console.log(`Updated user list for channel ${channelName}:`, channel.users);
+              // Update the channel's user list
+              channel.users = mergedUsers;
 
               // Trigger an event to notify the UI
               this.triggerEvent('NAMES', { serverId, channelName, users: mergedUsers });
-            } else {
-              console.warn(`Channel ${channelName} not found on server ${serverId}`);
             }
           } else {
             console.warn(`Server ${serverId} not found while processing NAMES response`);
@@ -249,7 +246,6 @@ class IRCClient {
           // Trigger an event to notify the UI
           this.triggerEvent('CAP ACK', { serverId: serverId, cliCaps: caps });
         }
-        else console.log("CAP ACK not matched");
       }
     }
   }
