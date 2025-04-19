@@ -808,6 +808,30 @@ ircClient.on('CAP ACK', ({ serverId, cliCaps }) => {
     console.log(`Preventing CAP END for server ${serverId}`);
   }
 });
+
+ircClient.on('ISUPPORT', ({ serverId, capabilities }) => {
+  const paramsArray = capabilities;
+  console.log(capabilities);
+  // Check if the server supports FAVICON
+  for (let i = 0; i < paramsArray.length; i++) {
+    console.log(`ISUPPORT param: ${paramsArray[i]}`);
+    if (paramsArray[i].startsWith('FAVICON=')) {
+      const favicon = paramsArray[i].substring(8);
+      // set the favicon as the server's icon in the serverList
+      useStore.setState(state => {
+        const updatedServers = state.servers.map(server => {
+          if (server.id === serverId) {
+            return { ...server, icon: favicon };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      }
+      );
+      console.log(`Server ${serverId} supports FAVICON: ${favicon}`);
+    }
+  }
+});
 // Load saved servers on store initialization
 useStore.getState().loadSavedServers();
 

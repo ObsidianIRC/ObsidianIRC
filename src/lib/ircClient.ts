@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Channel, Message, Server, User } from '../types';
 import useStore from '../store';
-import { parseNamesResponse, parseMessageTags } from './ircUtils';
+import { parseNamesResponse, parseMessageTags, parse005 } from './ircUtils';
 
 class IRCClient {
   private sockets: Map<string, WebSocket> = new Map(); // Map of serverId to WebSocket
@@ -168,37 +168,37 @@ class IRCClient {
           const [, serverName, nickname] = match;
           this.triggerEvent('ready', { serverId, serverName, nickname });
         }
-      } else if (line.includes('NICK')) {
+      } else if (line.split(' ')[2] == 'NICK') {
         const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ NICK (.+)$/);
         if (match) {
           const [, messageTags, oldNick, newNick] = match;
           this.triggerEvent('NICK', { serverId, messageTags, oldNick, newNick });
         }
-      } else if (line.includes('QUIT')) {
+      } else if (line.split(' ')[2] == 'QUIT') {
         const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ QUIT :(.+)$/);
         if (match) {
           const [, username, reason] = match;
           this.triggerEvent('QUIT', { serverId, username, reason });
         }
-      } else if (line.includes('JOIN')) {
+      } else if (line.split(' ')[2] == 'JOIN') {
         const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ JOIN :?([#&][^\s,\x07]{1,199})$/);
         if (match) {
           const [, username, channelName] = match;
           this.triggerEvent('JOIN', { serverId, username, channelName });
         }
-      } else if (line.includes('PART')) {
+      } else if (line.split(' ')[2] == 'PART') {
         const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART ([^ ]+)(?: :(.+))?$/); 
         if (match) {
           const [, username, channelName, reason] = match;
           this.triggerEvent('PART', { serverId, username, channelName, reason });
         }
-      } else if (line.includes('KICK')) {
+      } else if (line.split(' ')[2] == 'KICK') {
         const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ KICK (.+) (.+) :(.+)$/); 
         if (match) {
           const [, messageTags, username, channelName, target, reason] = match;
           this.triggerEvent('KICK', { serverId, messageTags, username, channelName, target, reason });
         }
-      } else if (line.includes('PRIVMSG')) {
+      } else if (line.split(' ')[2] == 'PRIVMSG') {
         const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PRIVMSG ([^ ]+) :(.+)$/);
         if (match) {
           const [, mtags, sender, target, message] = match;
@@ -216,7 +216,7 @@ class IRCClient {
             timestamp: new Date(),
           });
         } 
-      } else if (line.includes('353')) {
+      } else if (line.split(' ')[2] == '353') {
         const match = line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/);
         if (match) {
           const [, channelName, names] = match;
@@ -252,15 +252,22 @@ class IRCClient {
         if (match) {
           const [, , caps] = match;
           // Trigger an event to notify the UI
-          this.triggerEvent('CAP LS', { serverId: serverId, cliCaps: caps });
+          this.triggerEvent('CAP LS', { serverId, cliCaps: caps });
         }
       } else if (line.match(/:[^ ]+ CAP (.*) ACK :(.*)/)) {
         const match = line.match(/:[^ ]+ CAP (.*) ACK :(.*)/);
         if (match) {
           const [, , caps] = match;
           // Trigger an event to notify the UI
-          this.triggerEvent('CAP ACK', { serverId: serverId, cliCaps: caps });
+          this.triggerEvent('CAP ACK', { serverId, cliCaps: caps });
         }
+      } else if (line.split(' ')[1] == "005") {
+        console.log("005 detected");
+        const capabilities = parse005(line);
+        this.triggerEvent('ISUPPORT', { serverId, capabilities });
+      }
+      else if (line.includes('005')) {
+        console.log("005 detected abnormally");
       }
     }
   }

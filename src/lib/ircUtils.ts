@@ -38,3 +38,18 @@ export function parseMessageTags(tags: string): { [key: string]: string } {
   });
   return parsedTags;
 }
+
+export function parse005(line: string): string[] {
+  // Match and remove the prefix up to and including the nick
+  const prefixMatch = line.match(/^:[^\s]+ 005 [^\s]+ /);
+  if (!prefixMatch) return [];
+
+  const remaining = line.slice(prefixMatch[0].length);
+  const trailingIndex = remaining.indexOf(' :');
+
+  const tokenString = trailingIndex !== -1
+      ? remaining.slice(0, trailingIndex)
+      : remaining;
+
+  return tokenString.trim().split(/\s+/);
+}
