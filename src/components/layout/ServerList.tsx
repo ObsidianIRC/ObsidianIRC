@@ -101,7 +101,7 @@ export const ServerList: React.FC = () => {
               ${selectedServerId === server.id ? 'h-10' : 'h-0 group-hover:h-5'}
             `} />
             {server.icon ? (
-              <img src={server.icon} alt={server.name} className="w-7 h-7 rounded-full" />
+              <img src={server.icon} alt={server.name} className="w-9 h-9 rounded-full" />
             ) : (
               <div className="text-xl font-semibold text-white">
                 {getServerInitial(server.name)}
