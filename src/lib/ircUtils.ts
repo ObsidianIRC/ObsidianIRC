@@ -26,3 +26,15 @@ function parseStatus(prefix: string): 'online' | 'idle' | 'dnd' | 'offline' | un
   if (prefix.includes('+')) return 'dnd';   // Voiced
   return 'offline'; // Default
 }
+
+export function parseMessageTags(tags: string): { [key: string]: string } {
+  const parsedTags: { [key: string]: string } = {};
+  const tagPairs = tags.substring(1).split(';');
+  tagPairs.forEach(tag => {
+    const [key, value] = tag.split('=');
+    if (value) {
+      parsedTags[key] = value;
+    }
+  });
+  return parsedTags;
+}

@@ -546,8 +546,8 @@ ircClient.on('disconnect', (response: { serverId: string }) => {
 });
 
 ircClient.on('PRIVMSG', (response) => {
-  const { channelName, message, timestamp } = response;
-
+  const { messageTags, channelName, message, timestamp } = response;
+  
   // Find the server and channel
   const server = useStore.getState().servers.find(s => s.id === response.serverId);
 

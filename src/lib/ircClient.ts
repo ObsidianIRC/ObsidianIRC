@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Channel, Message, Server, User } from '../types';
 import useStore from '../store';
-import { parseNamesResponse } from './ircUtils';
+import { parseNamesResponse, parseMessageTags } from './ircUtils';
 
 class IRCClient {
   private sockets: Map<string, WebSocket> = new Map(); // Map of serverId to WebSocket
@@ -187,13 +187,16 @@ class IRCClient {
           this.triggerEvent('PART', { serverId, username, channelName, reason });
         }
       } else if (line.includes('PRIVMSG')) {
-        const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PRIVMSG ([^ ]+) :(.+)$/);
+        const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PRIVMSG ([^ ]+) :(.+)$/);
         if (match) {
-          const [, sender, target, message] = match;
+          const [, mtags, sender, target, message] = match;
           const isChannel = target.startsWith('#');
           const channelName = isChannel ? target : sender;
+
+          const messageTags = parseMessageTags(mtags);
   
           this.triggerEvent('PRIVMSG', {
+            messageTags,
             serverId,
             sender,
             channelName,
