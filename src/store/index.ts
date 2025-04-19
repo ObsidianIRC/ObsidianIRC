@@ -743,6 +743,26 @@ ircClient.on('PART', ({ username, channelName }) => {
   });
 });
 
+ircClient.on('KICK', ({ username, target, channelName, reason }) => {
+  console.log(`User ${target} was kicked from channel ${channelName} by ${username} for reason: ${reason}`);
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      const updatedChannels = server.channels.map((channel) => {
+        if (channel.name === channelName) {
+          return {
+            ...channel,
+            users: channel.users.filter((user) => user.username !== target), // Remove the user
+          };
+        }
+        return channel;
+      });
+      return { ...server, channels: updatedChannels };
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
 ircClient.on('CAP LS', ({ serverId, cliCaps }) => {
   const ourCaps = [
     'multi-prefix',
