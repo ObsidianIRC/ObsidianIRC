@@ -168,6 +168,12 @@ class IRCClient {
           const [, serverName, nickname] = match;
           this.triggerEvent('ready', { serverId, serverName, nickname });
         }
+      } else if (line.includes('QUIT')) {
+        const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ QUIT :(.+)$/);
+        if (match) {
+          const [, username, reason] = match;
+          this.triggerEvent('QUIT', { serverId, username, reason });
+        }
       } else if (line.includes('JOIN')) {
         const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ JOIN :?([#&][^\s,\x07]{1,199})$/);
         if (match) {

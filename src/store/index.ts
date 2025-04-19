@@ -645,7 +645,23 @@ ircClient.on('JOIN', ({ serverId, username, channelName }) => {
   });
 });
 
+ircClient.on('QUIT', ({ serverId, username, reason }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          const updatedUsers = channel.users.filter((user) => user.username !== username);
+          return { ...channel, users: updatedUsers };
+        });
 
+        return { ...server, channels: updatedChannels };
+      }
+      return server;
+    });
+
+    return { servers: updatedServers };
+  });
+});
 
 ircClient.on('ready', ({ serverId, serverName, nickname }) => {
   console.log(`Server ready: serverId=${serverId}, serverName=${serverName}`);
