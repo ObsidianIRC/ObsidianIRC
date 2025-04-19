@@ -144,17 +144,20 @@ export const ChannelList: React.FC = () => {
                           <FaHashtag className="shrink-0" />
                           <span className="truncate">{channel.name.replace(/^#/, '')}</span>
                         </div>
-                        <button
-                          className="text-discord-red hover:text-white"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent selecting the channel
-                            if (selectedServerId) {
-                              leaveChannel(selectedServerId, channel.name);
-                            }
-                          }}
-                        >
-                          <FaTrash />
-                        </button>
+                        {/* Trash Button */}
+                        {selectedChannelId === channel.id && (
+                          <button
+                            className="hidden group-hover:block text-discord-red hover:text-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (selectedServerId) {
+                                leaveChannel(selectedServerId, channel.name);
+                              }
+                            }}
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
                       </div>
                     ))}
                 </div>

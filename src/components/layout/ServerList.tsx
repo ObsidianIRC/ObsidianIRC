@@ -107,15 +107,20 @@ export const ServerList: React.FC = () => {
                 {getServerInitial(server.name)}
               </div>
             )}
-            <button
-              className="absolute -bottom-2 -right-2 w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent selecting the server
-                deleteServer(server.id);
-              }}
-            >
-              <FaTrash />
-            </button>
+            {selectedServerId === server.id && (
+              <div className="group-hover:opacity-100 opacity-0 transition-opacity duration-200">
+                <button
+                  className="absolute -bottom-2 -right-2 w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteServer(server.id);
+                  }}
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            )}
+
             <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
               {server.name}
             </div>
