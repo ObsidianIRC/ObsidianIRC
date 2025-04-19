@@ -678,6 +678,51 @@ ircClient.on('PART', ({ username, channelName }) => {
   });
 });
 
+ircClient.on('CAP LS', ({ serverId, cliCaps }) => {
+  const ourCaps = [
+    'multi-prefix',
+    'message-tags',
+    'server-time',
+    'echo-message',
+    'message-tags',
+    'userhost-in-names',
+    'draft/chathistory'
+  ];
+
+  const caps = cliCaps.split(' ');
+  let toRequest = "CAP REQ :";
+  for (const cap of caps) {
+    if (ourCaps.includes(cap)) {
+      if (toRequest.length + cap.length + 1 > 400) {
+        ircClient.sendRaw(serverId, toRequest);
+        toRequest = "CAP REQ :";
+      }
+      toRequest += cap + " ";
+      console.log(`Requesting capability: ${cap}`);
+    }
+  }
+  if (toRequest.length > 9) {
+    ircClient.sendRaw(serverId, toRequest);
+  }
+  console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
+});
+
+ircClient.on('CAP ACK', ({ serverId, cliCaps }) => {
+  const caps = cliCaps.split(' ');
+  for (const cap of caps) {
+    ircClient.capAck(serverId, cap);
+    console.log(`Capability acknowledged: ${cap}`);
+  }
+  if (!ircClient.preventCapEnd)
+  {
+    console.log(`Sending CAP END for server ${serverId}`);
+    ircClient.sendRaw(serverId, 'CAP END');
+  }
+  else
+  {
+    console.log(`Preventing CAP END for server ${serverId}`);
+  }
+});
 // Load saved servers on store initialization
 useStore.getState().loadSavedServers();
 

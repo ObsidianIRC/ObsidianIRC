@@ -8,6 +8,7 @@ class IRCClient {
   private servers: Map<string, Server> = new Map();
   private currentUser: User | null = null;
   private eventCallbacks: { [event: string]: ((response: any) => void)[] } = {};
+  public preventCapEnd: boolean = false;
 
   connect(
     host: string,
@@ -22,8 +23,6 @@ class IRCClient {
       socket.onopen = () => {
         // Send IRC commands to register the user
         socket.send(`CAP LS 302`);
-        socket.send(`CAP REQ :server-time message-tags echo-message multi-prefix userhost-in-names draft/chathistory`);
-        socket.send(`CAP END`);
         socket.send(`NICK ${nickname}`);
         socket.send(`USER ${nickname} 0 * :${nickname}`);
         if (password) {
@@ -150,14 +149,19 @@ class IRCClient {
     }
   }
 
+  capAck(serverId: string, capabilities: string): void {
+    this.triggerEvent('CAP_ACKNOWLEGED', { serverId, capabilities });
+  }
+
   private handleMessage(data: string, serverId: string): void {
     console.log(`IRC Message from serverId=${serverId}:`, data);
 
     const lines = data.split('\r\n');
     for (const line of lines) {
-      if (line.startsWith('PING')) {
-        const key = (line.split(' ')[1] == "PING") ? line.split(' ')[2] : line.split(' ')[1];
+      if (line.split(' ')[1] == "PING" || line.split(' ')[0] == "PING") {
+        const key = (line.split(' ')[0] == "PING") ? line.split(' ')[1] : line.split(' ')[2];
         this.sendRaw(serverId, `PONG ${key}`);
+        console.log(`PONG sent to server ${serverId} with key ${key}`);
       } else if (line.includes(' 001 ')) {
         const match = line.match(/^(?:@[^ ]+ )?:([^ ]+)\s001\s([^ ]+)\s/);
         if (match) {
@@ -190,7 +194,7 @@ class IRCClient {
             timestamp: new Date(),
           });
         } 
-      } else if (line.includes('353')) { // Handle NAMES response
+      } else if (line.includes('353')) {
         const match = line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/);
         if (match) {
           const [, channelName, names] = match;
@@ -224,8 +228,22 @@ class IRCClient {
             console.warn(`Server ${serverId} not found while processing NAMES response`);
           }
         }
+      } else if (line.includes('CAP * LS')) {
+        const match = line.match(/^(?:@\S+\s)?:(\S+)\sCAP\s\*\sLS\s(?:\*\s)?:(.+)$/);
+        if (match) {
+          const [, , caps] = match;
+          // Trigger an event to notify the UI
+          this.triggerEvent('CAP LS', { serverId: serverId, cliCaps: caps });
+        }
+      } else if (line.match(/:[^ ]+ CAP (.*) ACK :(.*)/)) {
+        const match = line.match(/:[^ ]+ CAP (.*) ACK :(.*)/);
+        if (match) {
+          const [, , caps] = match;
+          // Trigger an event to notify the UI
+          this.triggerEvent('CAP ACK', { serverId: serverId, cliCaps: caps });
+        }
+        else console.log("CAP ACK not matched");
       }
-      // Handle other IRC messages...
     }
   }
 
