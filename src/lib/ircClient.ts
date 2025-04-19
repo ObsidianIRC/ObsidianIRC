@@ -164,10 +164,15 @@ class IRCClient {
           this.triggerEvent('ready', { serverId, serverName, nickname });
         }
       } else if (line.includes('JOIN')) {
-        const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ JOIN :([#&][^\s,\x07]{1,199})$/);
+        const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ JOIN :?([#&][^\s,\x07]{1,199})$/);
         if (match) {
           const [, username, channelName] = match;
           this.triggerEvent('JOIN', { serverId, username, channelName });
+        }
+      } else if (line.includes('PART')) {
+          const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART :?([#&][^\s,\x07]{1,199})$/);        if (match) {
+          const [, username, channelName] = match;
+          this.triggerEvent('PART', { serverId, username, channelName });
         }
       } else if (line.includes('PRIVMSG')) {
         const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PRIVMSG ([^ ]+) :(.+)$/);
@@ -183,7 +188,7 @@ class IRCClient {
             message,
             timestamp: new Date(),
           });
-        }
+        } 
       } else if (line.includes('353')) { // Handle NAMES response
         const match = line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/);
         if (match) {

@@ -50,6 +50,40 @@ export const ServerList: React.FC = () => {
 
       <div className="w-8 h-0.5 bg-discord-dark-100 rounded-full my-2" />
 
+      {/* Options Button */}
+      <div className="relative mb-2">
+        <div
+          className="w-12 h-12 bg-discord-dark-400 hover:bg-discord-green rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer group"
+          onClick={toggleOptions}
+        >
+          <FaEllipsisH className="text-discord-green group-hover:text-discord-dark-600" />
+        </div>
+
+        {/* Dropdown Menu */}
+        {isOptionsOpen && (
+          <div
+            className="absolute top-14 left-0 bg-discord-dark-400 text-white rounded shadow-lg w-40 z-50"
+            style={{ zIndex: 9999 }} // Ensure it renders above other components
+          >
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
+              onClick={() => {
+                toggleAddServerModal(true);
+                setIsOptionsOpen(false);
+              }}
+            >
+              Add Server
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
+              onClick={() => setIsOptionsOpen(false)}
+            >
+              Option 2
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Server list */}
       <div className="flex flex-col space-y-2 w-full items-center">
         {servers.map(server => (
@@ -87,40 +121,6 @@ export const ServerList: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Options Button */}
-      <div className="relative mt-2">
-        <div
-          className="w-12 h-12 bg-discord-dark-400 hover:bg-discord-green rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer group"
-          onClick={toggleOptions}
-        >
-          <FaEllipsisH className="text-discord-green group-hover:text-discord-dark-600" />
-        </div>
-
-        {/* Dropdown Menu */}
-        {isOptionsOpen && (
-          <div
-            className="absolute top-14 left-0 bg-discord-dark-400 text-white rounded shadow-lg w-40 z-50"
-            style={{ zIndex: 9999 }} // Ensure it renders above other components
-          >
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
-              onClick={() => {
-                toggleAddServerModal(true);
-                setIsOptionsOpen(false);
-              }}
-            >
-              Add Server
-            </button>
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
-              onClick={() => setIsOptionsOpen(false)}
-            >
-              Option 2
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
