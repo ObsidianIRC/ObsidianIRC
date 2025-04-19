@@ -645,6 +645,28 @@ ircClient.on('JOIN', ({ serverId, username, channelName }) => {
   });
 });
 
+// Handle user changing their nickname
+ircClient.on('NICK', ({ serverId, oldNick, newNick }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            if (user.username === oldNick) {
+              return { ...user, username: newNick }; // Update the username
+            }
+            return user;
+          });
+          return { ...channel, users: updatedUsers };
+        });
+        return { ...server, channels: updatedChannels };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
+});
+
 ircClient.on('QUIT', ({ serverId, username, reason }) => {
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {

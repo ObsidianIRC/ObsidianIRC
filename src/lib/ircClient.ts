@@ -168,6 +168,12 @@ class IRCClient {
           const [, serverName, nickname] = match;
           this.triggerEvent('ready', { serverId, serverName, nickname });
         }
+      } else if (line.includes('NICK')) {
+        const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ NICK (.+)$/);
+        if (match) {
+          const [, messageTags, oldNick, newNick] = match;
+          this.triggerEvent('NICK', { serverId, messageTags, oldNick, newNick });
+        }
       } else if (line.includes('QUIT')) {
         const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ QUIT :(.+)$/);
         if (match) {
@@ -196,8 +202,8 @@ class IRCClient {
           const messageTags = parseMessageTags(mtags);
   
           this.triggerEvent('PRIVMSG', {
-            messageTags,
             serverId,
+            messageTags,
             sender,
             channelName,
             message,
