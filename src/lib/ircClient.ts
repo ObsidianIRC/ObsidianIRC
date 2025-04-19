@@ -22,7 +22,7 @@ class IRCClient {
       socket.onopen = () => {
         // Send IRC commands to register the user
         socket.send(`CAP LS 302`);
-        socket.send(`CAP REQ :message-tags echo-message multi-prefix userhost-in-names`);
+        socket.send(`CAP REQ :server-time message-tags echo-message multi-prefix userhost-in-names draft/chathistory`);
         socket.send(`CAP END`);
         socket.send(`NICK ${nickname}`);
         socket.send(`USER ${nickname} 0 * :${nickname}`);
@@ -100,6 +100,7 @@ class IRCClient {
       }
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
+      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
       const channel: Channel = {
         id: uuidv4(),
         name: channelName,
@@ -155,7 +156,7 @@ class IRCClient {
     const lines = data.split('\r\n');
     for (const line of lines) {
       if (line.startsWith('PING')) {
-        const key = line.split(' ')[1];
+        const key = (line.split(' ')[1] == "PING") ? line.split(' ')[2] : line.split(' ')[1];
         this.sendRaw(serverId, `PONG ${key}`);
       } else if (line.includes(' 001 ')) {
         const match = line.match(/^(?:@[^ ]+ )?:([^ ]+)\s001\s([^ ]+)\s/);

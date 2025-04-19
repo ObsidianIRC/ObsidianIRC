@@ -38,9 +38,6 @@ export const ChannelList: React.FC = () => {
     }
   };
 
-  console.log('Rendering channels:', selectedServer?.channels);
-  console.log('Channels in selectedServer:', selectedServer?.channels);
-
   return (
     <div className="h-full flex flex-col text-discord-channels-default">
       {/* Server header */}
