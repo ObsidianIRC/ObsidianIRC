@@ -3,7 +3,7 @@ export interface User {
   username: string;
   avatar?: string;
   isOnline: boolean;
-  status?: 'online' | 'idle' | 'dnd' | 'invisible' | 'offline';
+  status?: "online" | "idle" | "dnd" | "invisible" | "offline";
 }
 
 export interface Server {
@@ -37,7 +37,7 @@ export interface Message {
   userId: string;
   channelId: string;
   serverId: string;
-  type: 'message' | 'system' | 'error' | 'join' | 'leave' | 'nick';
+  type: "message" | "system" | "error" | "join" | "leave" | "nick";
   mentioned: string[];
 }
 
@@ -53,20 +53,15 @@ export interface CommandResponse {
   data?: unknown;
 }
 
-export type CommandHandler = (args: string[], channel: Channel, server: Server) => CommandResponse;
+export type CommandHandler = (
+  args: string[],
+  channel: Channel,
+  server: Server,
+) => CommandResponse;
 
 export interface Command {
   name: string;
   description: string;
   usage: string;
   handler: CommandHandler;
-}
-
-export interface IRCClient {
-  getCurrentUser(): User;
-  disconnect(serverId?: string): void;
-  leaveChannel(serverId: string, channelId: string): boolean;
-  markChannelAsRead(serverId: string, channelId: string): void;
-  on(event: string, callback: (response: any) => void): void;
-  getServers(): Server[];
 }

@@ -1,7 +1,7 @@
-import type React from 'react';
-import { useState } from 'react';
-import { FaEllipsisH, FaTrash } from 'react-icons/fa';
-import useStore from '../../store';
+import type React from "react";
+import { useState } from "react";
+import { FaEllipsisH, FaTrash } from "react-icons/fa";
+import useStore from "../../store";
 
 export const ServerList: React.FC = () => {
   const {
@@ -28,14 +28,16 @@ export const ServerList: React.FC = () => {
         className={`
           mb-2 w-12 h-12 rounded-lg flex items-center justify-center
           transition-all duration-200 group relative
-          ${selectedServerId === null ? 'bg-discord-primary ' : 'bg-discord-dark-400 hover:bg-discord-primary'}
+          ${selectedServerId === null ? "bg-discord-primary " : "bg-discord-dark-400 hover:bg-discord-primary"}
         `}
         onClick={() => selectServer(null)}
       >
-        <div className={`
+        <div
+          className={`
           absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200
-          ${selectedServerId === null ? 'h-10' : 'h-0 group-hover:h-5'}
-        `} />
+          ${selectedServerId === null ? "h-10" : "h-0 group-hover:h-5"}
+        `}
+        />
         <div className="text-white text-xl">
           <img
             src="./images/obsidian.png"
@@ -86,22 +88,28 @@ export const ServerList: React.FC = () => {
 
       {/* Server list */}
       <div className="flex flex-col space-y-2 w-full items-center">
-        {servers.map(server => (
+        {servers.map((server) => (
           <div
             key={server.id}
             className={`
               w-12 h-12 rounded-lg flex items-center justify-center
               transition-all duration-200 cursor-pointer group relative
-              ${selectedServerId === server.id ? 'bg-discord-primary' : 'bg-discord-dark-400 hover:bg-discord-primary'}
+              ${selectedServerId === server.id ? "bg-discord-primary" : "bg-discord-dark-400 hover:bg-discord-primary"}
             `}
             onClick={() => selectServer(server.id)}
           >
-            <div className={`
+            <div
+              className={`
               absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200
-              ${selectedServerId === server.id ? 'h-10' : 'h-0 group-hover:h-5'}
-            `} />
+              ${selectedServerId === server.id ? "h-10" : "h-0 group-hover:h-5"}
+            `}
+            />
             {server.icon ? (
-              <img src={server.icon} alt={server.name} className="w-9 h-9 rounded-full" />
+              <img
+                src={server.icon}
+                alt={server.name}
+                className="w-9 h-9 rounded-full"
+              />
             ) : (
               <div className="text-xl font-semibold text-white">
                 {getServerInitial(server.name)}

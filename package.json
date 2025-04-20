@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build --outDir dist",
-    "lint": "bunx biome lint --write && bunx tsc --noEmit",
-    "format": "bunx biome format --write",
+    "lint": "biome lint --write && bunx tsc --noEmit",
+    "lint:unsafe": "biome lint --write --unsafe && bunx tsc --noEmit",
+    "format": "biome format --write",
     "preview": "vite preview"
   },
   "dependencies": {
