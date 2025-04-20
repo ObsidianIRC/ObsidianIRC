@@ -1,15 +1,15 @@
 import type React from "react";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  FaHashtag,
+  FaAt,
   FaBell,
-  FaPenAlt,
-  FaSearch,
-  FaUserPlus,
   FaGift,
   FaGrinAlt,
+  FaHashtag,
+  FaPenAlt,
   FaPlus,
-  FaAt,
+  FaSearch,
+  FaUserPlus,
 } from "react-icons/fa";
 import useStore from "../../store";
 import type { Message as MessageType } from "../../types";

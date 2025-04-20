@@ -22,4 +22,10 @@ npm run format
 ```
 
 ## Git Hooks
-We use git pre-commit hooks to enforce coding style.
+We use [lefthook](https://github.com/evilmartians/lefthook) for managing git hooks.
+We have commit hooks to enforce coding style. You can install the hoooks with:
+```sh
+npm run commit-hook-install
+```
+
+Now every time you commit the lint and format commands will run automatically.

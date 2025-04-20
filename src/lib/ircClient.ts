@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Channel, Server, User } from "../types";
-import { parseNamesResponse, parseMessageTags, parseFavicon } from "./ircUtils";
+import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
 
 class IRCClient {
   private sockets: Map<string, WebSocket> = new Map(); // Map of serverId to WebSocket
@@ -281,7 +281,7 @@ class IRCClient {
                 ) {
                   mergedUsers.push(newUser);
                 }
-              };
+              }
 
               // Update the channel's user list
               channel.users = mergedUsers;

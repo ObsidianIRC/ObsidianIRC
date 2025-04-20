@@ -1,14 +1,14 @@
 import type React from "react";
 import { useState } from "react";
 import {
-  FaHashtag,
-  FaVolumeUp,
-  FaPlus,
-  FaCog,
-  FaUserPlus,
   FaChevronDown,
   FaChevronRight,
+  FaCog,
+  FaHashtag,
+  FaPlus,
   FaTrash,
+  FaUserPlus,
+  FaVolumeUp,
 } from "react-icons/fa";
 import useStore from "../../store";
 

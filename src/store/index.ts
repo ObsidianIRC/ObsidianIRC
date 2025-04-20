@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import type { Channel, Message, Server, User } from "../types";
-import ircClient from "../lib/ircClient";
 import { v4 as uuidv4 } from "uuid";
+import { create } from "zustand";
+import ircClient from "../lib/ircClient";
+import type { Channel, Message, Server, User } from "../types";
 
 const LOCAL_STORAGE_KEY = "savedServers";
 
@@ -128,7 +128,7 @@ const useStore = create<AppState>((set, get) => ({
         if (serverName === host) {
           for (const channelName of channelsToJoin) {
             ircClient.joinChannel(server.id, channelName);
-          };
+          }
 
           // Update the UI state to reflect the first joined channel
           set((state) => ({
@@ -411,7 +411,7 @@ const useStore = create<AppState>((set, get) => ({
           if (serverName === host) {
             for (const channelName of channels) {
               ircClient.joinChannel(server.id, channelName);
-            };
+            }
 
             // Update the UI state to reflect the first joined channel
             set((state) => ({
@@ -773,7 +773,7 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
       if (channelName) {
         ircClient.joinChannel(serverId, channelName);
       }
-    };
+    }
 
     // Update the UI state to reflect the first joined channel
     useStore.setState((state) => ({

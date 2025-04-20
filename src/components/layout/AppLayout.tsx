@@ -1,10 +1,10 @@
 import type React from "react";
 import { useEffect } from "react";
-import { ServerList } from "./ServerList";
+import useStore from "../../store";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
-import useStore from "../../store";
+import { ServerList } from "./ServerList";
 
 export const AppLayout: React.FC = () => {
   const {

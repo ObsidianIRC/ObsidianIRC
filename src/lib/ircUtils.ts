@@ -5,7 +5,7 @@ export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
   const regex = /([~&@%+]*)([^\s!]+)!/g; // Match status prefixes and nicknames
 
-  let match: RegExpExecArray | null
+  let match: RegExpExecArray | null;
   do {
     match = regex.exec(namesResponse);
     if (match === null) break;
@@ -16,7 +16,7 @@ export function parseNamesResponse(namesResponse: string): User[] {
       status: parseStatus(prefix),
       isOnline: true,
     });
-  } while (match !== null)
+  } while (match !== null);
   return users;
 }
 
@@ -38,7 +38,7 @@ export function parseMessageTags(tags: string): { [key: string]: string } {
     if (value) {
       parsedTags[key] = value;
     }
-  };
+  }
   return parsedTags;
 }
 
