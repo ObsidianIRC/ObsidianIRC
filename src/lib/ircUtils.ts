@@ -39,7 +39,7 @@ export function parseMessageTags(tags: string): { [key: string]: string } {
   return parsedTags;
 }
 
-export function parse005(line: string): string[] {
+export function parseFavicon(line: string): string[] {
   // Match and remove the prefix up to and including the nick
   const prefixMatch = line.match(/^:[^\s]+ 005 [^\s]+ /);
   if (!prefixMatch) return [];
@@ -48,8 +48,8 @@ export function parse005(line: string): string[] {
   const trailingIndex = remaining.indexOf(' :');
 
   const tokenString = trailingIndex !== -1
-      ? remaining.slice(0, trailingIndex)
-      : remaining;
+    ? remaining.slice(0, trailingIndex)
+    : remaining;
 
   return tokenString.trim().split(/\s+/);
 }

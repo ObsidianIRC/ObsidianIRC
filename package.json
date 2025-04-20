@@ -1,9 +1,9 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "obsidianirc-client",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://poo.today/discoirc/",
+  "homepage": "https://github.com/ObsidianIRC/ObsidianIRC",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build --outDir dist",

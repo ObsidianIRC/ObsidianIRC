@@ -38,7 +38,7 @@ export const ServerList: React.FC = () => {
         `} />
         <div className="text-white text-xl">
           <img
-            src="./images/discoirc.png"
+            src="./images/obsidian.png"
             alt="Home"
             className="w-full h-full rounded-lg" // Ensure the image has rounded corners
           />

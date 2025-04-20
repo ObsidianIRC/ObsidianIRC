@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Channel, Message, Server, User } from '../types';
-import useStore from '../store';
-import { parseNamesResponse, parseMessageTags, parse005 } from './ircUtils';
+import type { Channel, Server, User } from '../types';
+import { parseNamesResponse, parseMessageTags, parseFavicon } from './ircUtils';
 
 class IRCClient {
   private sockets: Map<string, WebSocket> = new Map(); // Map of serverId to WebSocket
@@ -187,13 +186,13 @@ class IRCClient {
           this.triggerEvent('JOIN', { serverId, username, channelName });
         }
       } else if (line.split(' ')[2] == 'PART') {
-        const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART ([^ ]+)(?: :(.+))?$/); 
+        const match = line.match(/^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART ([^ ]+)(?: :(.+))?$/);
         if (match) {
           const [, username, channelName, reason] = match;
           this.triggerEvent('PART', { serverId, username, channelName, reason });
         }
       } else if (line.split(' ')[2] == 'KICK') {
-        const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ KICK (.+) (.+) :(.+)$/); 
+        const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ KICK (.+) (.+) :(.+)$/);
         if (match) {
           const [, messageTags, username, channelName, target, reason] = match;
           this.triggerEvent('KICK', { serverId, messageTags, username, channelName, target, reason });
@@ -206,7 +205,7 @@ class IRCClient {
           const channelName = isChannel ? target : sender;
 
           const messageTags = parseMessageTags(mtags);
-  
+
           this.triggerEvent('PRIVMSG', {
             serverId,
             messageTags,
@@ -215,7 +214,7 @@ class IRCClient {
             message,
             timestamp: new Date(),
           });
-        } 
+        }
       } else if (line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/)) {
         const match = line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/);
         if (match) {
@@ -263,7 +262,7 @@ class IRCClient {
         }
       } else if (line.split(' ')[1] == "005") {
         console.log("005 detected");
-        const capabilities = parse005(line);
+        const capabilities = parseFavicon(line);
         this.triggerEvent('ISUPPORT', { serverId, capabilities });
       }
       else if (line.includes('005')) {
