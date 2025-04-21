@@ -1,0 +1,29 @@
+# This creates PR previews like https://<branch-name>.obsidianirc.pages.dev
+# From main it should deploy to https://obsidianirc.pages.dev
+
+name: Deploy to Cloudflare Pages
+
+on: [push]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: npm install && npm run build
+      - name: Deploy
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=obsidianirc
+      - name: print pages-deployment-alias-url
+        env:
+          DEPLOYMENT_ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+        run: echo $DEPLOYMENT_ALIAS_URL

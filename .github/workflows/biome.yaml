@@ -1,4 +1,4 @@
-name: Code quality
+name: Linting and Formatting
 
 on:
   push:

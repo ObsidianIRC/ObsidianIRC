@@ -2,6 +2,10 @@ name: Build and Push Multi-Arch Docker Image
 
 on:
   push:
+    branches:
+      - main
+    tags:
+    - 'v*.*.*'
 
 env:
   IMAGE_NAME: mattfly/obsidian
@@ -33,6 +37,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
           cache-from: type=gha,scope=${{env.IMAGE_NAME}}
           cache-to: type=gha,mode=max,scope=${{env.IMAGE_NAME}}
