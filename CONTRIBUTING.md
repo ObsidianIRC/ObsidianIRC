@@ -1,4 +1,4 @@
-# Contribuiting
+# Contributing
 
 ## Clone and setup the repository
 ```sh

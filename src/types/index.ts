@@ -17,6 +17,15 @@ export interface Server {
   users: User[];
 }
 
+export interface ServerConfig {
+  id: string;
+  host: string;
+  port: number;
+  nickname: string;
+  password?: string;
+  channels: string[];
+}
+
 export interface Channel {
   id: string;
   name: string;

@@ -1,9 +1,18 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
-import type { Channel, Message, Server, User } from "../types";
+import type { Channel, Message, Server, ServerConfig, User } from "../types";
 
 const LOCAL_STORAGE_KEY = "savedServers";
+
+// Load saved servers from localStorage
+function loadSavedServers(): ServerConfig[] {
+  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+}
+
+function saveServersToLocalStorage(servers: ServerConfig[]) {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(servers));
+}
 
 interface UIState {
   selectedServerId: string | null;
@@ -102,16 +111,14 @@ const useStore = create<AppState>((set, get) => ({
       const server = await ircClient.connect(host, port, nickname, password);
 
       // Save server to localStorage
-      const savedServers = JSON.parse(
-        localStorage.getItem(LOCAL_STORAGE_KEY) || "[]",
-      );
+      const savedServers: ServerConfig[] = loadSavedServers();
       const savedServer = savedServers.find(
-        (s: any) => s.host === host && s.port === port,
+        (s) => s.host === host && s.port === port,
       );
       const channelsToJoin = savedServer?.channels || [];
 
       const updatedServers = savedServers.filter(
-        (s: any) => s.host !== host || s.port !== port,
+        (s) => s.host !== host || s.port !== port,
       );
       updatedServers.push({
         id: server.id, // Include the server ID here
@@ -121,7 +128,7 @@ const useStore = create<AppState>((set, get) => ({
         password,
         channels: channelsToJoin,
       });
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedServers));
+      saveServersToLocalStorage(updatedServers);
 
       // Listen for the "ready" event to join channels
       ircClient.on("ready", ({ serverName }) => {
@@ -206,13 +213,11 @@ const useStore = create<AppState>((set, get) => ({
         });
 
         // Update localStorage with the new channel
-        const savedServers = JSON.parse(
-          localStorage.getItem(LOCAL_STORAGE_KEY) || "[]",
-        );
-        const savedServer = savedServers.find((s: any) => s.id === serverId);
+        const savedServers = loadSavedServers();
+        const savedServer = savedServers.find((s) => s.id === serverId);
         if (savedServer) {
           savedServer.channels.push(channel.name);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(savedServers));
+          saveServersToLocalStorage(savedServers);
         }
 
         // Update the selected channel if the server matches the current selection
@@ -248,9 +253,7 @@ const useStore = create<AppState>((set, get) => ({
       });
 
       // Update localStorage to remove the channel
-      const savedServers = JSON.parse(
-        localStorage.getItem(LOCAL_STORAGE_KEY) || "[]",
-      );
+      const savedServers = loadSavedServers();
       const savedServer = savedServers.find(
         (s: { host: string }) =>
           s.host ===
@@ -263,7 +266,7 @@ const useStore = create<AppState>((set, get) => ({
           updatedServers
             .find((s) => s.id === serverId)
             ?.channels.map((c) => c.name) || [];
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(savedServers));
+        saveServersToLocalStorage(savedServers);
       }
 
       return { servers: updatedServers };
@@ -399,9 +402,7 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   loadSavedServers: async () => {
-    const savedServers = JSON.parse(
-      localStorage.getItem(LOCAL_STORAGE_KEY) || "[]",
-    );
+    const savedServers = loadSavedServers();
     for (const { host, port, nickname, password, channels } of savedServers) {
       try {
         const server = await get().connect(host, port, nickname, password);
@@ -436,14 +437,12 @@ const useStore = create<AppState>((set, get) => ({
       );
 
       // Remove server from localStorage
-      const savedServers = JSON.parse(
-        localStorage.getItem(LOCAL_STORAGE_KEY) || "[]",
-      );
+      const savedServers = loadSavedServers();
       const updatedServers = savedServers.filter(
-        (s: any) =>
+        (s) =>
           s.host !== serverToDelete?.host || s.port !== serverToDelete?.port,
       );
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedServers));
+      saveServersToLocalStorage(updatedServers);
 
       // Update state
       const remainingServers = state.servers.filter(
@@ -566,40 +565,42 @@ const useStore = create<AppState>((set, get) => ({
 }));
 
 // Set up event listeners for IRC client events
-ircClient.on(
-  "message",
-  (response: { serverId: string; channelId: string; message: Message }) => {
-    const { serverId, channelId, message } = response;
-    console.log(`MSG: ${message}`);
-    useStore.getState().addMessage(message);
-  },
-);
+//
+// TODO: We should have actual events here, The commended ones are never fired and seems to be causing a bug with the state management
+// ircClient.on(
+//   "message",
+//   (response: { serverId: string; channelId: string; message: Message }) => {
+//     const { serverId, channelId, message } = response;
+//     console.log(`MSG: ${message}`);
+//     useStore.getState().addMessage(message);
+//   },
+// );
 
-ircClient.on("system_message", (response: { message: Message }) => {
-  const { message } = response;
-  useStore.getState().addMessage(message);
-});
+// ircClient.on("system_message", (response: { message: Message }) => {
+//   const { message } = response;
+//   useStore.getState().addMessage(message);
+// });
 
-ircClient.on("connect", (response: { servers: Server[] }) => {
-  const { servers } = response;
-  useStore.setState({ servers });
-});
+// ircClient.on("connect", (response: { servers: Server[] }) => {
+//   const { servers } = response;
+//   useStore.setState({ servers });
+// });
 
-ircClient.on("disconnect", (response: { serverId: string }) => {
-  const { serverId } = response;
-  if (serverId) {
-    // Update specific server status
-    useStore.setState((state) => ({
-      servers: state.servers.map((server) =>
-        server.id === serverId ? { ...server, isConnected: false } : server,
-      ),
-    }));
-  } else {
-    // Refresh servers list
-    const servers = ircClient.getServers();
-    useStore.setState({ servers });
-  }
-});
+// ircClient.on("disconnect", (response: { serverId: string }) => {
+//   const { serverId } = response;
+//   if (serverId) {
+//     // Update specific server status
+//     useStore.setState((state) => ({
+//       servers: state.servers.map((server) =>
+//         server.id === serverId ? { ...server, isConnected: false } : server,
+//       ),
+//     }));
+//   } else {
+//     // Refresh servers list
+//     const servers = ircClient.getServers();
+//     useStore.setState({ servers });
+//   }
+// });
 
 ircClient.on("PRIVMSG", (response) => {
   const { messageTags, channelName, message, timestamp } = response;
@@ -762,10 +763,8 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
     return { servers: updatedServers };
   });
 
-  const savedServers = JSON.parse(
-    localStorage.getItem(LOCAL_STORAGE_KEY) || "[]",
-  );
-  const savedServer = savedServers.find((s: any) => s.id === serverId);
+  const savedServers = loadSavedServers();
+  const savedServer = savedServers.find((s) => s.id === serverId);
 
   if (savedServer) {
     console.log(`Joining saved channels for serverId=${serverId}`);
@@ -780,7 +779,7 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
       ui: {
         ...state.ui,
         selectedServerId: serverId,
-        selectedChannelId: savedServer.channels[0]?.id || null,
+        selectedChannelId: savedServer.channels[0] || null,
       },
     }));
   } else {

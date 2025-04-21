@@ -2,11 +2,57 @@ import { v4 as uuidv4 } from "uuid";
 import type { Channel, Server, User } from "../types";
 import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
 
+interface EventMap {
+  ready: { serverId: string; serverName: string; nickname: string };
+  NICK: {
+    serverId: string;
+    messageTags: string;
+    oldNick: string;
+    newNick: string;
+  };
+  QUIT: { serverId: string; username: string; reason: string };
+  JOIN: { serverId: string; username: string; channelName: string };
+  PART: {
+    serverId: string;
+    username: string;
+    channelName: string;
+    reason?: string;
+  };
+  KICK: {
+    serverId: string;
+    messageTags: string;
+    username: string;
+    channelName: string;
+    target: string;
+    reason: string;
+  };
+  PRIVMSG: {
+    serverId: string;
+    messageTags: Record<string, string>;
+    sender: string;
+    channelName: string;
+    message: string;
+    timestamp: Date;
+  };
+  NAMES: { serverId: string; channelName: string; users: User[] };
+  "CAP LS": { serverId: string; cliCaps: string };
+  "CAP ACK": { serverId: string; cliCaps: string };
+  ISUPPORT: { serverId: string; capabilities: string[] };
+  CAP_ACKNOWLEDGED: { serverId: string; capabilities: string };
+}
+
+type EventKey = keyof EventMap;
+type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
+
 class IRCClient {
-  private sockets: Map<string, WebSocket> = new Map(); // Map of serverId to WebSocket
+  private sockets: Map<string, WebSocket> = new Map();
   private servers: Map<string, Server> = new Map();
   private currentUser: User | null = null;
-  private eventCallbacks: { [event: string]: ((response: any) => void)[] } = {};
+
+  private eventCallbacks: {
+    [K in EventKey]?: EventCallback<K>[];
+  } = {};
+
   public preventCapEnd = false;
 
   connect(
@@ -39,7 +85,7 @@ class IRCClient {
         };
 
         this.servers.set(server.id, server);
-        this.sockets.set(server.id, socket); // Associate the WebSocket with the server
+        this.sockets.set(server.id, socket);
         this.currentUser = {
           id: uuidv4(),
           username: nickname,
@@ -58,15 +104,13 @@ class IRCClient {
       socket.onerror = (error) => {
         reject(new Error(`Failed to connect to ${host}:${port}: ${error}`));
       };
+
       socket.onmessage = (event) => {
         const serverId = Array.from(this.servers.keys()).find(
           (id) => this.sockets.get(id) === socket,
         );
         if (serverId) {
-          const server = this.servers.get(serverId);
-          if (server) {
-            this.handleMessage(event.data, serverId);
-          }
+          this.handleMessage(event.data, serverId);
         }
       };
     });
@@ -94,15 +138,12 @@ class IRCClient {
   joinChannel(serverId: string, channelName: string): Channel {
     const server = this.servers.get(serverId);
     if (server) {
-      const existingChannel = server.channels.find(
-        (channel) => channel.name === channelName,
-      );
-      if (existingChannel) {
-        return existingChannel;
-      }
+      const existing = server.channels.find((c) => c.name === channelName);
+      if (existing) return existing;
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
       this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+
       const channel: Channel = {
         id: uuidv4(),
         name: channelName,
@@ -114,7 +155,7 @@ class IRCClient {
         messages: [],
         users: [],
       };
-      server.channels.push(channel); // Ensure the channel is added to the server
+      server.channels.push(channel);
       return channel;
     }
     throw new Error(`Server with ID ${serverId} not found`);
@@ -124,40 +165,26 @@ class IRCClient {
     const server = this.servers.get(serverId);
     if (server) {
       this.sendRaw(serverId, `PART ${channelName}`);
-      server.channels = server.channels.filter(
-        (channel) => channel.name !== channelName,
-      );
+      server.channels = server.channels.filter((c) => c.name !== channelName);
     }
   }
 
   sendMessage(serverId: string, channelId: string, content: string): void {
     const server = this.servers.get(serverId);
-    if (server) {
-      const channel = server.channels.find((ch) => ch.id === channelId);
-      if (channel) {
-        this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
-      } else {
-        throw new Error(
-          `Channel with ID ${channelId} not found on server ${server.name}`,
-        );
-      }
-    } else {
-      throw new Error(`Server with ID ${serverId} not found`);
-    }
+    if (!server) throw new Error(`Server ${serverId} not found`);
+    const channel = server.channels.find((c) => c.id === channelId);
+    if (!channel) throw new Error(`Channel ${channelId} not found`);
+    this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
   }
 
   markChannelAsRead(serverId: string, channelId: string): void {
     const server = this.servers.get(serverId);
-    if (server) {
-      const channel = server.channels.find((ch) => ch.id === channelId);
-      if (channel) {
-        channel.unreadCount = 0;
-      }
-    }
+    const channel = server?.channels.find((c) => c.id === channelId);
+    if (channel) channel.unreadCount = 0;
   }
 
   capAck(serverId: string, capabilities: string): void {
-    this.triggerEvent("CAP_ACKNOWLEGED", { serverId, capabilities });
+    this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, capabilities });
   }
 
   private handleMessage(data: string, serverId: string): void {
@@ -325,18 +352,18 @@ class IRCClient {
     }
   }
 
-  on(event: string, callback: (response: any) => void): void {
+  on<K extends EventKey>(event: K, callback: EventCallback<K>): void {
     if (!this.eventCallbacks[event]) {
       this.eventCallbacks[event] = [];
     }
-    this.eventCallbacks[event].push(callback);
+    this.eventCallbacks[event]?.push(callback);
   }
 
-  private triggerEvent(event: string, data: any): void {
-    if (this.eventCallbacks[event]) {
-      for (const callback of this.eventCallbacks[event]) {
-        callback(data);
-      }
+  private triggerEvent<K extends EventKey>(event: K, data: EventMap[K]): void {
+    const cbs = this.eventCallbacks[event];
+    if (!cbs) return;
+    for (const cb of cbs) {
+      cb(data);
     }
   }
 
