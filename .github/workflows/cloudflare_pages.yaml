@@ -26,4 +26,7 @@ jobs:
       - name: print pages-deployment-alias-url
         env:
           DEPLOYMENT_ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
-        run: echo $DEPLOYMENT_ALIAS_URL
+        run: |
+          echo "## Cloudflare Pages Deployment URL 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment URL: $DEPLOYMENT_ALIAS_URL" >> $GITHUB_STEP_SUMMARY
+          echo "url=$DEPLOYMENT_ALIAS_URL" >> $GITHUB_OUTPUT

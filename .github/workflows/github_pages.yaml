@@ -6,8 +6,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -23,6 +21,7 @@ jobs:
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.GH_PAGES_TOKEN }}
+          personal_token: ${{ secrets.GH_PAGES_TOKEN }}
           publish_dir: ./dist
-
+          external_repository: obsidianirc/obsidianirc.github.io
+          publish_branch: main
