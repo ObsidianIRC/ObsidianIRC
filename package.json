@@ -11,12 +11,15 @@
     "lint:unsafe": "biome lint --write --unsafe",
     "format": "biome format --write",
     "check": "biome check",
+    "fix": "biome check --write",
+    "fix:unsafe": "biome check --write --unsafe",
     "preview": "vite preview",
     "commit-hook-install": "lefthook install",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:debug": "vitest --inspect-brk --browser --no-file-parallelism"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",

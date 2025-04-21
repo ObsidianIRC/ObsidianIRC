@@ -57,6 +57,7 @@ export const ServerList: React.FC = () => {
         <div
           className="w-12 h-12 bg-discord-dark-400 hover:bg-discord-green rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer group"
           onClick={toggleOptions}
+          data-testid="server-list-options-button"
         >
           <FaEllipsisH className="text-discord-green group-hover:text-discord-dark-600" />
         </div>
