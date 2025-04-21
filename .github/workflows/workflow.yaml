@@ -1,10 +1,10 @@
-name: Linting and Formatting
+name: Lint and Tests
 
 on:
   push:
 
 jobs:
-  quality:
+  biome:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -15,3 +15,14 @@ jobs:
           version: latest
       - name: Run Biome
         run: biome ci .
+
+  build:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Dependencies install
+      run: npm ci
+    - name: Test
+      run: npm run test
