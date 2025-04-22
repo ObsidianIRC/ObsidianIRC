@@ -54,6 +54,7 @@ class IRCClient {
   } = {};
 
   public preventCapEnd = false;
+  public version = "1.0.0-beta";
 
   connect(
     host: string,
