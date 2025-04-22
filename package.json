@@ -1,15 +1,18 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "obsidianirc-client",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://poo.today/discoirc/",
+  "homepage": "https://github.com/ObsidianIRC/ObsidianIRC",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build --outDir dist",
-    "lint": "bunx biome lint --write && bunx tsc --noEmit",
-    "format": "bunx biome format --write",
-    "preview": "vite preview"
+    "lint": "biome lint --write",
+    "lint:unsafe": "biome lint --write --unsafe",
+    "format": "biome format --write",
+    "check": "biome check",
+    "preview": "vite preview",
+    "commit-hook-install": "lefthook install"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
@@ -25,22 +28,14 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.18.0",
     "@biomejs/biome": "1.9.4",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
-    "@typescript-eslint/eslint-plugin": "^8.20.0",
     "@typescript-eslint/parser": "^8.20.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
-    "eslint": "^9.18.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-import-resolver-typescript": "^3.7.0",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-react": "^7.37.4",
-    "eslint-plugin-react-hooks": "^5.1.0",
-    "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
+    "lefthook": "^1.11.10",
     "postcss": "^8.5.1",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.10",

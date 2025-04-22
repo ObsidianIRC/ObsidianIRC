@@ -1,29 +1,42 @@
-import type React from 'react';
-import { useState, useRef, useEffect } from 'react';
-import { FaHashtag, FaBell, FaPenAlt, FaSearch, FaUserPlus, FaGift, FaGrinAlt, FaPlus, FaAt } from 'react-icons/fa';
-import useStore from '../../store';
-import type { Message as MessageType } from '../../types';
-import EmojiSelector from '../ui/EmojiSelector';
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  FaAt,
+  FaBell,
+  FaGift,
+  FaGrinAlt,
+  FaHashtag,
+  FaPenAlt,
+  FaPlus,
+  FaSearch,
+  FaUserPlus,
+} from "react-icons/fa";
+import useStore from "../../store";
+import type { Message as MessageType } from "../../types";
+import EmojiSelector from "../ui/EmojiSelector";
 
-const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({ message, showDate }) => {
+const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({
+  message,
+  showDate,
+}) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
-  const isSystem = message.type === 'system';
+  const isSystem = message.type === "system";
 
   // Format timestamp
   const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(date);
   };
 
   // Format date for message groups
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
     }).format(date);
   };
 
@@ -33,7 +46,9 @@ const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({ me
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
           <span>{message.content}</span>
-          <div className="text-xs opacity-70">{formatTime(new Date(message.timestamp))}</div>
+          <div className="text-xs opacity-70">
+            {formatTime(new Date(message.timestamp))}
+          </div>
         </div>
       </div>
     );
@@ -54,18 +69,27 @@ const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({ me
             {message.userId.charAt(0).toUpperCase()}
           </div>
         </div>
-        <div className={`flex-1 ${isCurrentUser ? 'text-white' : ''}`}>
+        <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
           <div className="flex items-center">
-            <span className="font-bold text-white">{message.userId === 'system' ? 'System' : message.userId.split('-')[0]}</span>
-            <span className="ml-2 text-xs text-discord-text-muted">{formatTime(new Date(message.timestamp))}</span>
+            <span className="font-bold text-white">
+              {message.userId === "system"
+                ? "System"
+                : message.userId.split("-")[0]}
+            </span>
+            <span className="ml-2 text-xs text-discord-text-muted">
+              {formatTime(new Date(message.timestamp))}
+            </span>
           </div>
           <div>
             {/* Handle mentions in the message content */}
             {message.content.split(/(@\w+)/).map((part, i) => {
               const uniqueKey = `${message.id}-${i}-${part}`;
-              if (part.startsWith('@')) {
+              if (part.startsWith("@")) {
                 return (
-                  <span key={uniqueKey} className="bg-discord-dark-500 bg-opacity-30 text-discord-text-link rounded px-0.5">
+                  <span
+                    key={uniqueKey}
+                    className="bg-discord-dark-500 bg-opacity-30 text-discord-text-link rounded px-0.5"
+                  >
                     {part}
                   </span>
                 );
@@ -80,7 +104,7 @@ const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({ me
 };
 
 export const ChatArea: React.FC = () => {
-  const [messageText, setMessageText] = useState('');
+  const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,16 +116,21 @@ export const ChatArea: React.FC = () => {
   } = useStore();
 
   // Get selected server and channel
-  const selectedServer = servers.find(s => s.id === selectedServerId);
-  const selectedChannel = selectedServer?.channels.find(c => c.id === selectedChannelId);
+  const selectedServer = servers.find((s) => s.id === selectedServerId);
+  const selectedChannel = selectedServer?.channels.find(
+    (c) => c.id === selectedChannelId,
+  );
 
   // Get messages for current channel
-  const channelKey = selectedServerId && selectedChannelId ? `${selectedServerId}-${selectedChannelId}` : '';
+  const channelKey =
+    selectedServerId && selectedChannelId
+      ? `${selectedServerId}-${selectedChannelId}`
+      : "";
   const channelMessages = channelKey ? messages[channelKey] || [] : [];
 
   // Auto scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   });
 
   // Focus input on channel change
@@ -110,15 +139,15 @@ export const ChatArea: React.FC = () => {
   });
 
   const handleSendMessage = () => {
-    if (messageText.trim() === '') return;
+    if (messageText.trim() === "") return;
     if (selectedServerId && selectedChannelId) {
       sendMessage(selectedServerId, selectedChannelId, messageText);
-      setMessageText('');
+      setMessageText("");
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -136,7 +165,9 @@ export const ChatArea: React.FC = () => {
         <div className="flex items-center">
           <FaHashtag className="text-discord-text-muted mr-2" />
           <h2 className="font-bold text-white">
-            {selectedChannel ? selectedChannel.name.replace(/^#/, '') : 'welcome'}
+            {selectedChannel
+              ? selectedChannel.name.replace(/^#/, "")
+              : "welcome"}
           </h2>
           {selectedChannel?.topic && (
             <>
@@ -174,8 +205,12 @@ export const ChatArea: React.FC = () => {
           const previousMessage = channelMessages[index - 1];
           const showDate =
             index === 0 || // First message in the channel
-            new Date(item.timestamp).getTime() - new Date(previousMessage?.timestamp).getTime() > 5 * 60 * 1000; // 5 minutes gap
-          return <MessageItem key={item.id} message={item} showDate={showDate} />;
+            new Date(item.timestamp).getTime() -
+              new Date(previousMessage?.timestamp).getTime() >
+              5 * 60 * 1000; // 5 minutes gap
+          return (
+            <MessageItem key={item.id} message={item} showDate={showDate} />
+          );
         })}
         <div ref={messagesEndRef} />
       </div>
@@ -193,7 +228,7 @@ export const ChatArea: React.FC = () => {
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Message #${selectedChannel.name.replace(/^#/, '')}`}
+              placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
             />
             <button

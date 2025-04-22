@@ -1,6 +1,6 @@
-import React from 'react';
-import { FaTimes } from 'react-icons/fa';
-import useStore from '../../store';
+import type React from "react";
+import { FaTimes } from "react-icons/fa";
+import useStore from "../../store";
 
 const UserSettings: React.FC = () => {
   const { toggleUserProfileModal, currentUser } = useStore();
@@ -25,7 +25,7 @@ const UserSettings: React.FC = () => {
             </label>
             <input
               type="text"
-              value={currentUser?.username || ''}
+              value={currentUser?.username || ""}
               readOnly
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none"
             />
@@ -37,7 +37,7 @@ const UserSettings: React.FC = () => {
             </label>
             <select
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none"
-              defaultValue={currentUser?.status || 'online'}
+              defaultValue={currentUser?.status || "online"}
             >
               <option value="online">Online</option>
               <option value="idle">Idle</option>

@@ -1,11 +1,11 @@
-import React from 'react';
+import type React from "react";
 
 interface EmojiSelectorProps {
   onSelect: (emoji: string) => void;
   onClose: () => void;
 }
 
-const emojis = ['😀', '😂', '😍', '👍', '🎉', '❤️', '🔥', '😎', '💯', '🎶'];
+const emojis = ["😀", "😂", "😍", "👍", "🎉", "❤️", "🔥", "😎", "💯", "🎶"];
 
 const EmojiSelector: React.FC<EmojiSelectorProps> = ({ onSelect, onClose }) => {
   return (

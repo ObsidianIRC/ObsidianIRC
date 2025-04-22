@@ -1,7 +1,16 @@
-import type React from 'react';
-import { useState } from 'react';
-import { FaHashtag, FaVolumeUp, FaPlus, FaCog, FaUserPlus, FaChevronDown, FaChevronRight, FaTrash } from 'react-icons/fa';
-import useStore from '../../store';
+import type React from "react";
+import { useState } from "react";
+import {
+  FaChevronDown,
+  FaChevronRight,
+  FaCog,
+  FaHashtag,
+  FaPlus,
+  FaTrash,
+  FaUserPlus,
+  FaVolumeUp,
+} from "react-icons/fa";
+import useStore from "../../store";
 
 export const ChannelList: React.FC = () => {
   const {
@@ -16,24 +25,26 @@ export const ChannelList: React.FC = () => {
 
   const [isTextChannelsOpen, setIsTextChannelsOpen] = useState(true);
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
-  const [newChannelName, setNewChannelName] = useState('');
+  const [newChannelName, setNewChannelName] = useState("");
 
-  const selectedServer = servers.find(server => server.id === selectedServerId);
+  const selectedServer = servers.find(
+    (server) => server.id === selectedServerId,
+  );
 
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
-      const channelName = newChannelName.trim().startsWith('#')
+      const channelName = newChannelName.trim().startsWith("#")
         ? newChannelName.trim()
         : `#${newChannelName.trim()}`;
 
       joinChannel(selectedServerId, channelName);
       selectChannel(channelName); // Ensure the new channel is selected
-      setNewChannelName('');
+      setNewChannelName("");
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleAddChannel();
     }
   };
@@ -43,7 +54,7 @@ export const ChannelList: React.FC = () => {
       {/* Server header */}
       <div className="px-4 h-12 shadow-md flex items-center justify-between border-b border-discord-dark-400">
         <h1 className="font-bold text-white truncate">
-          {selectedServer?.name || 'Home'}
+          {selectedServer?.name || "Home"}
         </h1>
         <button className="text-discord-channels-default hover:text-white">
           <FaChevronDown />
@@ -55,11 +66,13 @@ export const ChannelList: React.FC = () => {
         {/* Home/Direct Messages view */}
         {!selectedServer && (
           <div className="px-2">
-            <div className="text-discord-channels-default font-medium mb-1 text-xs">HOME</div>
+            <div className="text-discord-channels-default font-medium mb-1 text-xs">
+              HOME
+            </div>
             <div
               className={`
                 px-2 py-1 mb-1 rounded flex items-center gap-2 cursor-pointer
-                ${selectedChannelId === null ? 'bg-discord-dark-400 text-white' : 'hover:bg-discord-dark-100 hover:text-discord-channels-active'}
+                ${selectedChannelId === null ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
               `}
               onClick={() => selectChannel(null)}
             >
@@ -83,17 +96,20 @@ export const ChannelList: React.FC = () => {
                 ) : (
                   <FaChevronRight className="text-xs mr-1" />
                 )}
-                <span className="uppercase text-xs font-semibold tracking-wide">Text Channels</span>
-                <FaPlus className="ml-auto opacity-0 group-hover:opacity-100 cursor-pointer"
+                <span className="uppercase text-xs font-semibold tracking-wide">
+                  Text Channels
+                </span>
+                <FaPlus
+                  className="ml-auto opacity-0 group-hover:opacity-100 cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (newChannelName === '') setNewChannelName('#');
+                    if (newChannelName === "") setNewChannelName("#");
                   }}
                 />
               </div>
 
               {/* Add Channel Input */}
-              {newChannelName !== '' && (
+              {newChannelName !== "" && (
                 <div className="px-2 py-1 mb-1">
                   <div className="flex items-center bg-discord-dark-400 rounded overflow-hidden">
                     <span className="pl-2 pr-1 text-discord-channels-default">
@@ -103,7 +119,11 @@ export const ChannelList: React.FC = () => {
                       type="text"
                       className="bg-transparent border-none outline-none py-1 w-full text-discord-channels-active"
                       placeholder="channel-name"
-                      value={newChannelName.startsWith('#') ? newChannelName.slice(1) : newChannelName}
+                      value={
+                        newChannelName.startsWith("#")
+                          ? newChannelName.slice(1)
+                          : newChannelName
+                      }
                       onChange={(e) => setNewChannelName(`#${e.target.value}`)}
                       onKeyDown={handleKeyDown}
                       autoFocus
@@ -116,7 +136,7 @@ export const ChannelList: React.FC = () => {
                     </button>
                     <button
                       className="px-2 text-discord-red hover:bg-discord-dark-300"
-                      onClick={() => setNewChannelName('')}
+                      onClick={() => setNewChannelName("")}
                     >
                       ✕
                     </button>
@@ -127,22 +147,25 @@ export const ChannelList: React.FC = () => {
               {isTextChannelsOpen && (
                 <div className="ml-2">
                   {selectedServer.channels
-                    .filter((channel, index, self) =>
-                      index === self.findIndex(c => c.id === channel.id) // Ensure unique channels by ID
+                    .filter(
+                      (channel, index, self) =>
+                        index === self.findIndex((c) => c.id === channel.id), // Ensure unique channels by ID
                     )
-                    .filter(channel => !channel.isPrivate)
-                    .map(channel => (
+                    .filter((channel) => !channel.isPrivate)
+                    .map((channel) => (
                       <div
                         key={channel.id}
                         className={`
                           px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
-                          ${selectedChannelId === channel.id ? 'bg-discord-dark-400 text-white' : 'hover:bg-discord-dark-100 hover:text-discord-channels-active'}
+                          ${selectedChannelId === channel.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                         `}
                         onClick={() => selectChannel(channel.id)}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <FaHashtag className="shrink-0" />
-                          <span className="truncate">{channel.name.replace(/^#/, '')}</span>
+                          <span className="truncate">
+                            {channel.name.replace(/^#/, "")}
+                          </span>
                         </div>
                         {/* Trash Button */}
                         {selectedChannelId === channel.id && (
@@ -175,7 +198,9 @@ export const ChannelList: React.FC = () => {
                 ) : (
                   <FaChevronRight className="text-xs mr-1" />
                 )}
-                <span className="uppercase text-xs font-semibold tracking-wide">Voice Channels</span>
+                <span className="uppercase text-xs font-semibold tracking-wide">
+                  Voice Channels
+                </span>
                 <FaPlus className="ml-auto opacity-0 group-hover:opacity-100 cursor-pointer" />
               </div>
 
@@ -221,19 +246,33 @@ export const ChannelList: React.FC = () => {
           <div className="relative">
             <div className="w-8 h-8 rounded-full bg-discord-dark-100 flex items-center justify-center">
               {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.username} className="w-8 h-8 rounded-full" />
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.username}
+                  className="w-8 h-8 rounded-full"
+                />
               ) : (
-                <span className="text-white">{currentUser?.username?.charAt(0)?.toUpperCase()}</span>
+                <span className="text-white">
+                  {currentUser?.username?.charAt(0)?.toUpperCase()}
+                </span>
               )}
             </div>
-            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${currentUser?.status === 'online' ? 'bg-discord-green' : currentUser?.status === 'idle' ? 'bg-discord-yellow' : currentUser?.status === 'dnd' ? 'bg-discord-red' : 'bg-discord-dark-500'}`} />
+            <div
+              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${currentUser?.status === "online" ? "bg-discord-green" : currentUser?.status === "idle" ? "bg-discord-yellow" : currentUser?.status === "dnd" ? "bg-discord-red" : "bg-discord-dark-500"}`}
+            />
           </div>
           <div>
-            <div className="text-white font-medium text-sm">{currentUser?.username || 'User'}</div>
+            <div className="text-white font-medium text-sm">
+              {currentUser?.username || "User"}
+            </div>
             <div className="text-xs text-discord-channels-default">
-              {currentUser?.status === 'online' ? 'Online' :
-               currentUser?.status === 'idle' ? 'Idle' :
-               currentUser?.status === 'dnd' ? 'Do Not Disturb' : 'Offline'}
+              {currentUser?.status === "online"
+                ? "Online"
+                : currentUser?.status === "idle"
+                  ? "Idle"
+                  : currentUser?.status === "dnd"
+                    ? "Do Not Disturb"
+                    : "Offline"}
             </div>
           </div>
         </div>

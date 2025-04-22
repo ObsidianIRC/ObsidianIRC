@@ -1,52 +1,56 @@
-import type React from 'react';
-import { useState } from 'react';
-import { FaTimes } from 'react-icons/fa';
-import useStore from '../../store';
+import type React from "react";
+import { useState } from "react";
+import { FaTimes } from "react-icons/fa";
+import useStore from "../../store";
 
 export const AddServerModal: React.FC = () => {
-  const {
-    toggleAddServerModal,
-    connect,
-    isConnecting,
-    connectionError
-  } = useStore();
+  const { toggleAddServerModal, connect, isConnecting, connectionError } =
+    useStore();
 
-  const [serverName, setServerName] = useState('');
-  const [serverHost, setServerHost] = useState('irc.example.com');
-  const [serverPort, setServerPort] = useState('443');
-  const [nickname, setNickname] = useState(`user${Math.floor(Math.random() * 1000)}`);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [serverName, setServerName] = useState("");
+  const [serverHost, setServerHost] = useState("irc.example.com");
+  const [serverPort, setServerPort] = useState("443");
+  const [nickname, setNickname] = useState(
+    `user${Math.floor(Math.random() * 1000)}`,
+  );
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!serverName.trim()) {
-      setError('Server name is required');
+      setError("Server name is required");
       return;
     }
 
     if (!serverHost.trim()) {
-      setError('Server host is required');
+      setError("Server host is required");
       return;
     }
 
     if (!serverPort.trim() || Number.isNaN(Number.parseInt(serverPort))) {
-      setError('Valid server port is required');
+      setError("Valid server port is required");
       return;
     }
 
     if (!nickname.trim()) {
-      setError('Nickname is required');
+      setError("Nickname is required");
       return;
     }
 
     try {
-      await connect(serverHost, Number.parseInt(serverPort), nickname, password);
+      await connect(
+        serverHost,
+        Number.parseInt(serverPort),
+        nickname,
+        password,
+      );
       toggleAddServerModal(false);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      const errorMessage =
+        err instanceof Error ? err.message : "Unknown error occurred";
       setError(errorMessage);
     }
   };
@@ -147,9 +151,9 @@ export const AddServerModal: React.FC = () => {
             <button
               type="submit"
               disabled={isConnecting}
-              className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-opacity-80'}`}
+              className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-80"}`}
             >
-              {isConnecting ? 'Connecting...' : 'Connect'}
+              {isConnecting ? "Connecting..." : "Connect"}
             </button>
           </div>
         </form>
