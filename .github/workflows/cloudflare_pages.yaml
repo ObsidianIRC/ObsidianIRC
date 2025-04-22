@@ -3,12 +3,17 @@
 
 name: Deploy to Cloudflare Pages
 
-on: [push]
+on:
+  pull_request:
+  push:
+      branches:
+        - main
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
@@ -16,13 +21,15 @@ jobs:
         uses: actions/checkout@v4
       - name: Build
         run: npm install && npm run build
+
       - name: Deploy
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=obsidianirc
+          command: "pages deploy dist --project-name=obsidianirc ${{ github.event_name == 'pull_request' && format('--branch={0}', github.head_ref) || '' }}"
+
       - name: print pages-deployment-alias-url
         env:
           DEPLOYMENT_ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
@@ -30,3 +37,14 @@ jobs:
           echo "## Cloudflare Pages Deployment URL 🚀" >> $GITHUB_STEP_SUMMARY
           echo "Deployment URL: $DEPLOYMENT_ALIAS_URL" >> $GITHUB_STEP_SUMMARY
           echo "url=$DEPLOYMENT_ALIAS_URL" >> $GITHUB_OUTPUT
+
+      - name: maintain-comment
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions-cool/maintain-one-comment@v3
+        with:
+          body: |
+            [![Pages Preview](https://img.shields.io/badge/Pages%20Preview-obsidianirc-blue?style=flat-square)](${{ steps.deploy.outputs.pages-deployment-alias-url }})
+            Preview URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+
+            Automated deployment preview for the PR in the Cloudflare Pages.
+          emojis: 'rocket, eyes, +1, -1'

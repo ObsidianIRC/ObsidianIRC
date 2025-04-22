@@ -5,6 +5,7 @@ on:
 
 jobs:
   biome:
+    name: Lint and Formating
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,6 +18,7 @@ jobs:
         run: biome ci .
 
   build:
+    name: Build and Test
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
