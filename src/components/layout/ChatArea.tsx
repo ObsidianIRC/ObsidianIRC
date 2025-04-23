@@ -11,9 +11,9 @@ import {
   FaSearch,
   FaUserPlus,
 } from "react-icons/fa";
-import type { Message as MessageType } from "../../types";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
+import type { Message as MessageType } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
 
 const MessageItem: React.FC<{
