@@ -14,11 +14,13 @@ import {
 import useStore from "../../store";
 import type { Message as MessageType } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
+import ircClient from "../../lib/ircClient";
 
-const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({
-  message,
-  showDate,
-}) => {
+const MessageItem: React.FC<{
+  message: MessageType;
+  showDate: boolean;
+  showHeader: boolean;
+}> = ({ message, showDate, showHeader }) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
@@ -99,22 +101,31 @@ const MessageItem: React.FC<{ message: MessageType; showDate: boolean }> = ({
         </div>
       )}
       <div className="flex">
-        <div className="mr-4">
-          <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
-            {message.userId.charAt(0).toUpperCase()}
+        {showHeader && (
+          <div className="mr-4">
+            <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
+              {message.userId.charAt(0).toUpperCase()}
+            </div>
           </div>
-        </div>
+        )}
+        {!showHeader && (
+          <div className="mr-4">
+            <div className="w-10" />
+          </div>
+        )}
         <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
-          <div className="flex items-center">
-            <span className="font-bold text-white">
-              {message.userId === "system"
-                ? "System"
-                : message.userId.split("-")[0]}
-            </span>
-            <span className="ml-2 text-xs text-discord-text-muted">
-              {formatTime(new Date(message.timestamp))}
-            </span>
-          </div>
+          {showHeader && (
+            <div className="flex items-center">
+              <span className="font-bold text-white">
+                {message.userId === "system"
+                  ? "System"
+                  : message.userId.split("-")[0]}
+              </span>
+              <span className="ml-2 text-xs text-discord-text-muted">
+                {formatTime(new Date(message.timestamp))}
+              </span>
+            </div>
+          )}
           <div>
             {/* Handle mentions in the message content */}
             {message.content.split(/(@\w+)/).map((part, i) => {
@@ -143,6 +154,7 @@ export const ChatArea: React.FC = () => {
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { currentUser } = useStore();
   const {
     servers,
     ui: { selectedServerId, selectedChannelId },
@@ -176,7 +188,47 @@ export const ChatArea: React.FC = () => {
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
     if (selectedServerId && selectedChannelId) {
-      sendMessage(selectedServerId, selectedChannelId, messageText);
+      if (messageText.startsWith("/")) {
+        // Handle command
+        // TODO: Implement proper command registry
+        const command = messageText.substring(1).trim();
+        const [commandName, ...args] = command.split(" ");
+        if (commandName === "nick") {
+          ircClient.sendRaw(selectedServerId, `NICK ${args[0]}`);
+        } else if (commandName === "join") {
+          ircClient.joinChannel(selectedServerId, args[0]);
+          ircClient.triggerEvent("JOIN", {
+            serverId: selectedServerId,
+            username: currentUser?.username ? currentUser.username : "",
+            channelName: args[0],
+          });
+        } else if (commandName === "part") {
+          ircClient.leaveChannel(selectedServerId, args[0]);
+          ircClient.triggerEvent("PART", {
+            serverId: selectedServerId,
+            username: currentUser?.username ? currentUser.username : "",
+            channelName: args[0],
+          });
+        } else if (commandName === "msg") {
+          const [target, ...messageParts] = args;
+          const message = messageParts.join(" ");
+          ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
+        } else if (commandName === "me") {
+          const actionMessage = messageText.substring(4).trim();
+          ircClient.sendRaw(
+            selectedServerId,
+            `PRIVMSG ${selectedChannel ? selectedChannel.name : ""} :\u0001ACTION ${actionMessage}\u0001`,
+          );
+        } else {
+          // Handle other commands
+          ircClient.sendRaw(
+            selectedServerId,
+            `${commandName} :${args.join(" ")}`,
+          );
+        }
+      } else {
+        sendMessage(selectedServerId, selectedChannelId, messageText);
+      }
       setMessageText("");
     }
   };
@@ -236,15 +288,26 @@ export const ChatArea: React.FC = () => {
 
       {/* Messages area */}
       <div className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal">
-        {channelMessages.map((item, index) => {
+        {channelMessages.map((message, index) => {
           const previousMessage = channelMessages[index - 1];
-          const showDate =
-            index === 0 || // First message in the channel
-            new Date(item.timestamp).getTime() -
-              new Date(previousMessage?.timestamp).getTime() >
-              5 * 60 * 1000; // 5 minutes gap
+          const showHeader =
+            !previousMessage ||
+            previousMessage.userId !== message.userId ||
+            new Date(message.timestamp).getTime() -
+              new Date(previousMessage.timestamp).getTime() >
+              5 * 60 * 1000;
+
           return (
-            <MessageItem key={item.id} message={item} showDate={showDate} />
+            <MessageItem
+              key={message.id}
+              message={message}
+              showDate={
+                index === 0 ||
+                new Date(message.timestamp).toDateString() !==
+                  new Date(channelMessages[index - 1]?.timestamp).toDateString()
+              }
+              showHeader={showHeader}
+            />
           );
         })}
         <div ref={messagesEndRef} />

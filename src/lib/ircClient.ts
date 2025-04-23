@@ -360,7 +360,7 @@ class IRCClient {
     this.eventCallbacks[event]?.push(callback);
   }
 
-  private triggerEvent<K extends EventKey>(event: K, data: EventMap[K]): void {
+  triggerEvent<K extends EventKey>(event: K, data: EventMap[K]): void {
     const cbs = this.eventCallbacks[event];
     if (!cbs) return;
     for (const cb of cbs) {
