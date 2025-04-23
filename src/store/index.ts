@@ -908,10 +908,16 @@ ircClient.on("PRIVMSG", (response) => {
 
   const parv = message.split(" ");
   if (parv[0] === "\u0001VERSION\u0001") {
-    ircClient.sendRaw(server.id, `NOTICE ${response.sender} :\u0001VERSION ObsidianIRC v${ircClient.version}\u0001`);
+    ircClient.sendRaw(
+      server.id,
+      `NOTICE ${response.sender} :\u0001VERSION ObsidianIRC v${ircClient.version}\u0001`,
+    );
   }
   if (parv[0] === "\u0001PING") {
-    ircClient.sendRaw(server.id, `NOTICE ${response.sender} :\u0001PING ${parv[1]}\u0001`);
+    ircClient.sendRaw(
+      server.id,
+      `NOTICE ${response.sender} :\u0001PING ${parv[1]}\u0001`,
+    );
   }
   if (parv[0] === "\u0001TIME\u0001") {
     const date = new Date();
@@ -921,7 +927,6 @@ ircClient.on("PRIVMSG", (response) => {
     );
   }
 });
-
 
 // Load saved servers on store initialization
 useStore.getState().loadSavedServers();
