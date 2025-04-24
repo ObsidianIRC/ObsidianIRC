@@ -1,5 +1,5 @@
-import type { User } from "../types";
 import useStore from "../store";
+import type { User } from "../types";
 import type { Message } from "../types";
 
 export function parseNamesResponse(namesResponse: string): User[] {

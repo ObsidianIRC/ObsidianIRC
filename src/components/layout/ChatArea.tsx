@@ -10,8 +10,8 @@ import {
   FaPlus,
   FaReply,
   FaSearch,
-  FaUserPlus,
   FaTimes,
+  FaUserPlus,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";

@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
-import type { Channel, Message, Server, ServerConfig, User } from "../types";
 import { findChannelMessageById } from "../lib/ircUtils";
+import type { Channel, Message, Server, ServerConfig, User } from "../types";
 
 const LOCAL_STORAGE_KEY = "savedServers";
 
