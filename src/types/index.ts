@@ -47,6 +47,8 @@ export interface Message {
   channelId: string;
   serverId: string;
   type: "message" | "system" | "error" | "join" | "leave" | "nick";
+  reacts: string[];
+  replyMessage: Message | null | undefined;
   mentioned: string[];
 }
 

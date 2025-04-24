@@ -8,8 +8,10 @@ import {
   FaHashtag,
   FaPenAlt,
   FaPlus,
+  FaReply,
   FaSearch,
   FaUserPlus,
+  FaTimes,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
@@ -20,11 +22,11 @@ const MessageItem: React.FC<{
   message: MessageType;
   showDate: boolean;
   showHeader: boolean;
-}> = ({ message, showDate, showHeader }) => {
+  setReplyTo: (msg: MessageType) => void;
+}> = ({ message, showDate, showHeader, setReplyTo }) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
-
   // Format timestamp
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -92,7 +94,7 @@ const MessageItem: React.FC<{
   }
 
   return (
-    <div className="px-4 py-1 hover:bg-discord-message-hover group">
+    <div className="px-4 py-1 hover:bg-discord-message-hover group relative">
       {showDate && (
         <div className="flex items-center text-xs text-discord-text-muted mb-2">
           <div className="flex-grow border-t border-discord-dark-400" />
@@ -127,6 +129,13 @@ const MessageItem: React.FC<{
             </div>
           )}
           <div>
+            {message.replyMessage && (
+              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mb-2 pl-1 pr-2">
+                ┌ Replying to{" "}
+                <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
+                {message.replyMessage.content}
+              </div>
+            )}
             {/* Handle mentions in the message content */}
             {message.content.split(/(@\w+)/).map((part, i) => {
               const uniqueKey = `${message.id}-${i}-${part}`;
@@ -145,11 +154,26 @@ const MessageItem: React.FC<{
           </div>
         </div>
       </div>
+      <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
+        <button
+          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+          onClick={() => setReplyTo(message)}
+        >
+          <FaReply />
+        </button>
+        <button
+          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+          onClick={() => console.log("React to", message.id)}
+        >
+          <FaGrinAlt />
+        </button>
+      </div>
     </div>
   );
 };
 
 export const ChatArea: React.FC = () => {
+  const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -227,9 +251,13 @@ export const ChatArea: React.FC = () => {
           );
         }
       } else {
-        sendMessage(selectedServerId, selectedChannelId, messageText);
+        ircClient.sendRaw(
+          selectedServerId,
+          `${localReplyTo ? `@+reply=${localReplyTo.id} ` : ""}PRIVMSG ${selectedChannel?.name ?? ""} :${messageText}`,
+        );
       }
       setMessageText("");
+      setLocalReplyTo(null);
     }
   };
 
@@ -307,6 +335,7 @@ export const ChatArea: React.FC = () => {
                   new Date(channelMessages[index - 1]?.timestamp).toDateString()
               }
               showHeader={showHeader}
+              setReplyTo={setLocalReplyTo}
             />
           );
         })}
@@ -320,6 +349,18 @@ export const ChatArea: React.FC = () => {
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
               <FaPlus />
             </button>
+            {localReplyTo && (
+              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 pl-1 pr-2">
+                Replying to <strong>{localReplyTo.userId}</strong>
+                <button
+                  className="ml-1 text-xs text-discord-text-muted hover:text-discord-text-normal"
+                  onClick={() => setLocalReplyTo(null)}
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            )}
+
             <input
               ref={inputRef}
               type="text"

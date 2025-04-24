@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
 import type { Channel, Message, Server, ServerConfig, User } from "../types";
+import { findChannelMessageById } from "../lib/ircUtils";
 
 const LOCAL_STORAGE_KEY = "savedServers";
 
@@ -612,15 +613,27 @@ ircClient.on("PRIVMSG", (response) => {
 
   if (server) {
     const channel = server.channels.find((c) => c.name === channelName);
+    const replyTo = null;
+
     if (channel) {
+      const replyId = messageTags["+reply"]
+        ? messageTags["+reply"].trim()
+        : null;
+
+      const replyMessage = replyId
+        ? findChannelMessageById(server.id, channel.id, replyId)
+        : null;
+
       const newMessage = {
-        id: uuidv4(),
+        id: messageTags.msgid,
         content: message,
         timestamp,
         userId: response.sender,
         channelId: channel.id,
         serverId: server.id,
         type: "message" as const,
+        reacts: [],
+        replyMessage: replyMessage,
         mentioned: [], // Add logic for mentions if needed
       };
 
