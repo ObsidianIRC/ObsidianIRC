@@ -15,9 +15,8 @@ import {
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
-import type { Message as MessageType } from "../../types";
+import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
-import type { User } from "../../types";
 
 const EMPTY_ARRAY: User[] = [];
 
