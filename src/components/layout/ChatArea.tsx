@@ -311,7 +311,7 @@ export const ChatArea: React.FC = () => {
 
       const currentTime = Date.now();
       if (currentTime - lastTypingTime < 5000) return;
-      
+
       lastTypingTime = currentTime;
       ircClient.sendRaw(
         selectedServerId ?? "",
