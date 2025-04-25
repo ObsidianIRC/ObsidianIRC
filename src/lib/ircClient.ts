@@ -34,6 +34,13 @@ interface EventMap {
     message: string;
     timestamp: Date;
   };
+  TAGMSG: {
+    serverId: string;
+    messageTags: Record<string, string>;
+    sender: string;
+    channelName: string;
+    timestamp: Date;
+  };
   NAMES: { serverId: string; channelName: string; users: User[] };
   "CAP LS": { serverId: string; cliCaps: string };
   "CAP ACK": { serverId: string; cliCaps: string };
@@ -279,6 +286,25 @@ class IRCClient {
             sender,
             channelName,
             message,
+            timestamp: new Date(),
+          });
+        }
+      } else if (line.split(" ")[2] === "TAGMSG") {
+        const match = line.match(
+          /^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ TAGMSG ([^ ]+)$/,
+        );
+        if (match) {
+          const [, mtags, sender, target] = match;
+          const isChannel = target.startsWith("#");
+          const channelName = isChannel ? target : sender;
+
+          const messageTags = parseMessageTags(mtags);
+
+          this.triggerEvent("TAGMSG", {
+            serverId,
+            messageTags,
+            sender,
+            channelName,
             timestamp: new Date(),
           });
         }

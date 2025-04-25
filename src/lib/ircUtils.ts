@@ -38,7 +38,7 @@ export function parseMessageTags(tags: string): { [key: string]: string } {
   for (const tag of tagPairs) {
     const [key, value] = tag.split("=");
     if (value) {
-      parsedTags[key] = value;
+      parsedTags[key] = value.trim();
     }
   }
   return parsedTags;
@@ -72,3 +72,12 @@ export const findChannelMessageById = (
   const messages = getChannelMessages(serverId, channelId);
   return messages.find((message) => message.id === messageId);
 };
+
+export function getCurrentTypingUsers(
+  serverId: string,
+  channelId: string,
+): User[] {
+  const state = useStore.getState();
+  const key = `${serverId}-${channelId}`;
+  return state.typingUsers[key] || [];
+}

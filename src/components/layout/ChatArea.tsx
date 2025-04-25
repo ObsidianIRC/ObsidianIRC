@@ -17,6 +17,33 @@ import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
+import type { User } from "../../types";
+
+const EMPTY_ARRAY: User[] = [];
+
+export const TypingIndicator: React.FC<{
+  serverId: string;
+  channelId: string;
+}> = ({ serverId, channelId }) => {
+  const key = `${serverId}-${channelId}`;
+
+  const typingUsers = useStore(
+    (state) => state.typingUsers[key] ?? EMPTY_ARRAY,
+  );
+
+  let message = "";
+  if (typingUsers.length === 1) {
+    message = `${typingUsers[0].username} is typing...`;
+  } else if (typingUsers.length === 2) {
+    message = `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
+  } else if (typingUsers.length === 3) {
+    message = `${typingUsers[0].username}, ${typingUsers[1].username} and ${typingUsers[2].username} are typing...`;
+  } else if (typingUsers.length > 3) {
+    message = `${typingUsers[0].username}, ${typingUsers[1].username}, ${typingUsers[2].username} and ${typingUsers.length - 3} others are typing...`;
+  }
+
+  return <div className="h-5 ml-5 text-sm italic">{message}</div>;
+};
 
 const MessageItem: React.FC<{
   message: MessageType;
@@ -344,7 +371,11 @@ export const ChatArea: React.FC = () => {
 
       {/* Input area */}
       {selectedChannel && (
-        <div className="px-4 py-4 relative">
+        <div className="px-4 pb-4 relative">
+          <TypingIndicator
+            serverId={selectedServerId ?? ""}
+            channelId={selectedChannelId ?? ""}
+          />
           <div className="bg-discord-dark-100 rounded-lg flex items-center">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
               <FaPlus />

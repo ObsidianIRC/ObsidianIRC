@@ -40,6 +40,7 @@ interface AppState {
   isConnecting: boolean;
   connectionError: string | null;
   messages: Record<string, Message[]>;
+  typingUsers: Record<string, User[]>;
   // UI state
   ui: UIState;
   // Actions
@@ -83,6 +84,7 @@ const useStore = create<AppState>((set, get) => ({
   isConnecting: false,
   connectionError: null,
   messages: {},
+  typingUsers: {},
 
   // UI state
   ui: {
@@ -938,6 +940,53 @@ ircClient.on("PRIVMSG", (response) => {
       server.id,
       `NOTICE ${response.sender} :\u0001TIME ${date.toUTCString()}\u0001`,
     );
+  }
+});
+
+// TAGMSG typing
+ircClient.on("TAGMSG", (response) => {
+  const { messageTags, channelName } = response;
+
+  if (messageTags["+typing"]) {
+    const isActive = messageTags["+typing"] === "active";
+    const server = useStore
+      .getState()
+      .servers.find((s) => s.id === response.serverId);
+
+    if (!server) return;
+
+    const channel = server.channels.find((c) => c.name === channelName);
+    if (!channel) return;
+
+    const user = channel.users.find((u) => u.username === response.sender);
+    if (!user) return;
+
+    const key = `${server.id}-${channel.id}`;
+
+    useStore.setState((state) => {
+      const currentUsers = state.typingUsers[key] || [];
+
+      if (isActive) {
+        // Don't add if already in the list
+        if (currentUsers.some((u) => u.username === user.username)) {
+          return {};
+        }
+
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [key]: [...currentUsers, user],
+          },
+        };
+      }
+      // Remove the user from the list
+      return {
+        typingUsers: {
+          ...state.typingUsers,
+          [key]: currentUsers.filter((u) => u.username !== user.username),
+        },
+      };
+    });
   }
 });
 
