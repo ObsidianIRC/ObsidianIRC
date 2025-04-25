@@ -14,10 +14,10 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
+import { IsUserTyping } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
-import { IsUserTyping } from "../../lib/ircUtils";
 
 const EMPTY_ARRAY: User[] = [];
 
