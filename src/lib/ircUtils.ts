@@ -81,3 +81,25 @@ export function getCurrentTypingUsers(
   const key = `${serverId}-${channelId}`;
   return state.typingUsers[key] || [];
 }
+
+export const getCurrentTypingUsersRenderedText = (
+  serverId: string,
+  channelId: string,
+): string => {
+  const typingUsers = getCurrentTypingUsers(serverId, channelId);
+  if (typingUsers.length === 0) return "";
+  if (typingUsers.length === 1)
+    return `${typingUsers[0].username} is typing...`;
+  if (typingUsers.length === 2)
+    return `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
+  return `${typingUsers[0].username} and ${typingUsers.length - 1} others are typing...`;
+};
+
+export function IsUserTyping(
+  serverId: string,
+  channelId: string,
+  userName: string,
+): boolean {
+  const typingUsers = getCurrentTypingUsers(serverId, channelId);
+  return typingUsers.some((user) => user.username === userName);
+}
