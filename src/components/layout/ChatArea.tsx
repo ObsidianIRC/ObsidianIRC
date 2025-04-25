@@ -301,8 +301,6 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleUpdatedText = (text: string) => {
-    const currentTime = Date.now();
-    if (currentTime - lastTypingTime < 5000) return;
     if (text.length > 0 && text[0] !== "/") {
       const server = useStore
         .getState()
@@ -310,6 +308,10 @@ export const ChatArea: React.FC = () => {
       if (!server) return;
       const channel = server.channels.find((c) => c.id === selectedChannelId);
       if (!channel) return;
+
+      const currentTime = Date.now();
+      if (currentTime - lastTypingTime < 5000) return;
+      
       lastTypingTime = currentTime;
       ircClient.sendRaw(
         selectedServerId ?? "",
