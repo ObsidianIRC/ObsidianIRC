@@ -1,0 +1,30 @@
+name: Lint and Tests
+
+on:
+  push:
+
+jobs:
+  biome:
+    name: Lint and Formating
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Biome
+        uses: biomejs/setup-biome@v2
+        with:
+          version: latest
+      - name: Run Biome
+        run: biome ci .
+
+  build:
+    name: Build and Test
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Dependencies install
+      run: npm ci
+    - name: Test
+      run: npm run test
