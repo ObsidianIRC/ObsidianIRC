@@ -38,7 +38,7 @@ export function parseMessageTags(tags: string): { [key: string]: string } {
   for (const tag of tagPairs) {
     const [key, value] = tag.split("=");
     if (value) {
-      parsedTags[key] = value;
+      parsedTags[key] = value.trim();
     }
   }
   return parsedTags;

@@ -15,8 +15,35 @@ import {
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
-import type { Message as MessageType } from "../../types";
+import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
+
+const EMPTY_ARRAY: User[] = [];
+let lastTypingTime = 0;
+
+export const TypingIndicator: React.FC<{
+  serverId: string;
+  channelId: string;
+}> = ({ serverId, channelId }) => {
+  const key = `${serverId}-${channelId}`;
+
+  const typingUsers = useStore(
+    (state) => state.typingUsers[key] ?? EMPTY_ARRAY,
+  );
+
+  let message = "";
+  if (typingUsers.length === 1) {
+    message = `${typingUsers[0].username} is typing...`;
+  } else if (typingUsers.length === 2) {
+    message = `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
+  } else if (typingUsers.length === 3) {
+    message = `${typingUsers[0].username}, ${typingUsers[1].username} and ${typingUsers[2].username} are typing...`;
+  } else if (typingUsers.length > 3) {
+    message = `${typingUsers[0].username}, ${typingUsers[1].username}, ${typingUsers[2].username} and ${typingUsers.length - 3} others are typing...`;
+  }
+
+  return <div className="h-5 ml-5 text-sm italic">{message}</div>;
+};
 
 const MessageItem: React.FC<{
   message: MessageType;
@@ -253,7 +280,7 @@ export const ChatArea: React.FC = () => {
       } else {
         ircClient.sendRaw(
           selectedServerId,
-          `${localReplyTo ? `@+reply=${localReplyTo.id} ` : ""}PRIVMSG ${selectedChannel?.name ?? ""} :${messageText}`,
+          `${localReplyTo ? `@+reply=${localReplyTo.id};` : ""}PRIVMSG ${selectedChannel?.name ?? ""} :${messageText}`,
         );
       }
       setMessageText("");
@@ -265,6 +292,37 @@ export const ChatArea: React.FC = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+      ircClient.sendRaw(
+        selectedServerId ?? "",
+        `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
+      );
+      lastTypingTime = 0;
+    }
+  };
+
+  const handleUpdatedText = (text: string) => {
+    if (text.length > 0 && text[0] !== "/") {
+      const server = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
+      if (!server) return;
+      const channel = server.channels.find((c) => c.id === selectedChannelId);
+      if (!channel) return;
+
+      const currentTime = Date.now();
+      if (currentTime - lastTypingTime < 5000) return;
+
+      lastTypingTime = currentTime;
+      ircClient.sendRaw(
+        selectedServerId ?? "",
+        `@+typing=active TAGMSG ${channel.name}`,
+      );
+    } else if (text.length === 0) {
+      ircClient.sendRaw(
+        selectedServerId ?? "",
+        `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
+      );
+      lastTypingTime = 0;
     }
   };
 
@@ -344,7 +402,11 @@ export const ChatArea: React.FC = () => {
 
       {/* Input area */}
       {selectedChannel && (
-        <div className="px-4 py-4 relative">
+        <div className="px-4 pb-4 relative">
+          <TypingIndicator
+            serverId={selectedServerId ?? ""}
+            channelId={selectedChannelId ?? ""}
+          />
           <div className="bg-discord-dark-100 rounded-lg flex items-center">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
               <FaPlus />
@@ -365,7 +427,10 @@ export const ChatArea: React.FC = () => {
               ref={inputRef}
               type="text"
               value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
+              onChange={(e) => {
+                setMessageText(e.target.value);
+                handleUpdatedText(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
