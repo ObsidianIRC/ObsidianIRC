@@ -296,6 +296,7 @@ export const ChatArea: React.FC = () => {
         selectedServerId ?? "",
         `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
       );
+      lastTypingTime = 0;
     }
   };
 
@@ -321,6 +322,7 @@ export const ChatArea: React.FC = () => {
         selectedServerId ?? "",
         `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
       );
+      lastTypingTime = 0;
     }
   };
 
