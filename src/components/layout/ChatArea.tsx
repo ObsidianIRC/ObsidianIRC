@@ -20,6 +20,7 @@ import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
 
 const EMPTY_ARRAY: User[] = [];
+let lastTypingTime = 0;
 
 export const TypingIndicator: React.FC<{
   serverId: string;
@@ -300,15 +301,16 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleUpdatedText = (text: string) => {
+    const currentTime = Date.now();
+    if (currentTime - lastTypingTime < 5000) return;
     if (text.length > 0 && text[0] !== "/") {
-      console.log(text);
       const server = useStore
         .getState()
         .servers.find((s) => s.id === selectedServerId);
       if (!server) return;
       const channel = server.channels.find((c) => c.id === selectedChannelId);
       if (!channel) return;
-
+      lastTypingTime = currentTime;
       ircClient.sendRaw(
         selectedServerId ?? "",
         `@+typing=active TAGMSG ${channel.name}`,
