@@ -14,7 +14,6 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
-import { IsUserTyping } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
@@ -317,14 +316,7 @@ export const ChatArea: React.FC = () => {
         selectedServerId ?? "",
         `@+typing=active TAGMSG ${channel.name}`,
       );
-    } else if (
-      text.length === 0 &&
-      IsUserTyping(
-        selectedServerId ?? "",
-        selectedChannelId ?? "",
-        currentUser?.username ?? "",
-      )
-    ) {
+    } else if (text.length === 0) {
       ircClient.sendRaw(
         selectedServerId ?? "",
         `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,

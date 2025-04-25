@@ -956,9 +956,12 @@ ircClient.on("PRIVMSG", (response) => {
 
 // TAGMSG typing
 ircClient.on("TAGMSG", (response) => {
-  const { messageTags, channelName } = response;
+  const { sender, messageTags, channelName } = response;
 
-  if (messageTags["+typing"]) {
+  // Check if the sender is not the current user
+  // we don't care about showing our own typing status
+  const currentUser = useStore.getState().currentUser;
+  if (sender !== currentUser?.username && messageTags["+typing"]) {
     const isActive = messageTags["+typing"] === "active";
     const server = useStore
       .getState()
