@@ -19,7 +19,7 @@ describe("App", () => {
       );
       user.type(screen.getByPlaceholderText(/443/i), "443");
       user.click(screen.getByText(/Connect/i));
-      // expect(await screen.findByText(/Online/)).toBeInTheDocument();
+      // expect(await screen.findByText(/irc\.mattf\.one/)).toBeInTheDocument();
     });
   });
 });

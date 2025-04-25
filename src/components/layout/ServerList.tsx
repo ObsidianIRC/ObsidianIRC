@@ -88,7 +88,10 @@ export const ServerList: React.FC = () => {
       </div>
 
       {/* Server list */}
-      <div className="flex flex-col space-y-2 w-full items-center">
+      <div
+        className="flex flex-col space-y-2 w-full items-center"
+        data-testid="server-list"
+      >
         {servers.map((server) => (
           <div
             key={server.id}
