@@ -639,8 +639,8 @@ ircClient.on("PRIVMSG", (response) => {
         mentioned: [], // Add logic for mentions if needed
       };
 
-      // Remove any typing users from the state
       useStore.getState().addMessage(newMessage);
+      // Remove any typing users from the state
       useStore.setState((state) => {
         const key = `${server.id}-${channel.id}`;
         const currentUsers = state.typingUsers[key] || [];
