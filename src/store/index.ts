@@ -643,7 +643,7 @@ ircClient.on("PRIVMSG", (response) => {
       useStore.getState().addMessage(newMessage);
       useStore.setState((state) => {
         const key = `${server.id}-${channel.id}`;
-        const currentUsers = state.typingUsers[key] || []; 
+        const currentUsers = state.typingUsers[key] || [];
         return {
           typingUsers: {
             ...state.typingUsers,

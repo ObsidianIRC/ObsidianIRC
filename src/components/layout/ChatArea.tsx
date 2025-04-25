@@ -17,7 +17,7 @@ import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
-import { IsUserTyping, getCurrentTypingUsers } from "../../lib/ircUtils";
+import { IsUserTyping } from "../../lib/ircUtils";
 
 const EMPTY_ARRAY: User[] = [];
 
@@ -301,20 +301,32 @@ export const ChatArea: React.FC = () => {
 
   const handleUpdatedText = (text: string) => {
     if (text.length > 0 && text[0] !== "/") {
-      console.log(text)
+      console.log(text);
       const server = useStore
-      .getState()
-      .servers.find((s) => s.id === selectedServerId);
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
       if (!server) return;
       const channel = server.channels.find((c) => c.id === selectedChannelId);
       if (!channel) return;
 
-      ircClient.sendRaw(selectedServerId ??"", `@+typing=active TAGMSG ${channel.name}`);
+      ircClient.sendRaw(
+        selectedServerId ?? "",
+        `@+typing=active TAGMSG ${channel.name}`,
+      );
+    } else if (
+      text.length === 0 &&
+      IsUserTyping(
+        selectedServerId ?? "",
+        selectedChannelId ?? "",
+        currentUser?.username ?? "",
+      )
+    ) {
+      ircClient.sendRaw(
+        selectedServerId ?? "",
+        `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
+      );
     }
-    else if (text.length === 0 && IsUserTyping(selectedServerId ?? "", selectedChannelId ?? "", currentUser?.username ?? "")) {
-      ircClient.sendRaw(selectedServerId ?? "", `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`);
-    }
-  }
+  };
 
   const handleEmojiSelect = (emoji: string) => {
     setMessageText((prev) => prev + emoji);
@@ -417,7 +429,10 @@ export const ChatArea: React.FC = () => {
               ref={inputRef}
               type="text"
               value={messageText}
-              onChange={(e) => { setMessageText(e.target.value); handleUpdatedText(e.target.value);}}
+              onChange={(e) => {
+                setMessageText(e.target.value);
+                handleUpdatedText(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
