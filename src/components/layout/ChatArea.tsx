@@ -280,7 +280,7 @@ export const ChatArea: React.FC = () => {
       } else {
         ircClient.sendRaw(
           selectedServerId,
-          `${localReplyTo ? `@+reply=${localReplyTo.id};` : ""}PRIVMSG ${selectedChannel?.name ?? ""} :${messageText}`,
+          `${localReplyTo ? `@+reply=${localReplyTo.id};` : ""} PRIVMSG ${selectedChannel?.name ?? ""} :${messageText}`,
         );
       }
       setMessageText("");
