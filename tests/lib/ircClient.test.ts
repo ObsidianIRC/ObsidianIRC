@@ -149,12 +149,12 @@ describe("IRCClient", () => {
   describe("connect", () => {
     test("should connect to IRC server successfully", async () => {
       // Create a promise that will resolve when the connection is fully established
-      const mockSocket = new MockWebSocket("ws://irc.example.com:6667");
+      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
       vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
 
       const connectionPromise = client.connect(
         "irc.example.com",
-        6667,
+        443,
         "testuser",
       );
 
@@ -174,12 +174,12 @@ describe("IRCClient", () => {
     });
 
     test("should handle connection errors", async () => {
-      const mockSocket = new MockWebSocket("ws://irc.example.com:6667");
+      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
       vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
 
       const connectionPromise = client.connect(
         "irc.example.com",
-        6667,
+        443,
         "testuser",
       );
 
@@ -192,12 +192,12 @@ describe("IRCClient", () => {
 
   describe("message handling", () => {
     test("should handle PRIVMSG correctly", async () => {
-      const mockSocket = new MockWebSocket("ws://irc.example.com:6667");
+      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
       vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
 
       const connectionPromise = client.connect(
         "irc.example.com",
-        6667,
+        443,
         "testuser",
       );
 
@@ -236,12 +236,12 @@ describe("IRCClient", () => {
     let server: Server;
 
     beforeEach(async () => {
-      mockSocket = new MockWebSocket("ws://irc.example.com:6667");
+      mockSocket = new MockWebSocket("ws://irc.example.com:443");
       vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
 
       const connectionPromise = client.connect(
         "irc.example.com",
-        6667,
+        443,
         "testuser",
       );
 

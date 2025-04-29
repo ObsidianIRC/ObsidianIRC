@@ -66,7 +66,7 @@ describe("App", () => {
       await user.type(hostField, "irc.test.com");
       const portField = screen.getByPlaceholderText("443");
       await user.clear(portField);
-      await user.type(portField, "6667");
+      await user.type(portField, "443");
       const nicknameField = screen.getByPlaceholderText(/YourNickname/i);
       await user.clear(nicknameField);
       await user.type(nicknameField, "tester");
@@ -77,7 +77,7 @@ describe("App", () => {
       // Verify connection attempt
       expect(ircClient.connect).toHaveBeenCalledWith(
         "irc.test.com",
-        6667,
+        443,
         "tester",
         "",
       );
@@ -104,7 +104,7 @@ describe("App", () => {
         screen.getByPlaceholderText(/irc.example.com/i),
         "irc.test.com",
       );
-      await user.type(screen.getByPlaceholderText("443"), "6667");
+      await user.type(screen.getByPlaceholderText("443"), "443");
 
       // Submit form
       await user.click(screen.getByRole("button", { name: /^connect$/i }));
