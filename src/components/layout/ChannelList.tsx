@@ -277,7 +277,10 @@ export const ChannelList: React.FC = () => {
           </div>
         </div>
         <div className="ml-auto flex gap-2 text-discord-dark-500">
-          <button className="hover:text-white">
+          <button
+            className="hover:text-white"
+            data-testid="user-settings-button"
+          >
             <FaCog />
           </button>
         </div>

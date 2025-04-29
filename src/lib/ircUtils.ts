@@ -1,6 +1,4 @@
-import useStore from "../store";
 import type { User } from "../types";
-import type { Message } from "../types";
 
 export function parseNamesResponse(namesResponse: string): User[] {
   console.log(namesResponse);
@@ -57,18 +55,3 @@ export function parseFavicon(line: string): string[] {
 
   return tokenString.trim().split(/\s+/);
 }
-
-export const getChannelMessages = (serverId: string, channelId: string) => {
-  const state = useStore.getState();
-  const key = `${serverId}-${channelId}`;
-  return state.messages[key] || [];
-};
-
-export const findChannelMessageById = (
-  serverId: string,
-  channelId: string,
-  messageId: string,
-): Message | undefined => {
-  const messages = getChannelMessages(serverId, channelId);
-  return messages.find((message) => message.id === messageId);
-};
