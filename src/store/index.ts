@@ -1,11 +1,24 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
-import { findChannelMessageById } from "../lib/ircUtils";
 import type { Channel, Message, Server, ServerConfig, User } from "../types";
 
 const LOCAL_STORAGE_KEY = "savedServers";
 
+export const getChannelMessages = (serverId: string, channelId: string) => {
+  const state = useStore.getState();
+  const key = `${serverId}-${channelId}`;
+  return state.messages[key] || [];
+};
+
+export const findChannelMessageById = (
+  serverId: string,
+  channelId: string,
+  messageId: string,
+): Message | undefined => {
+  const messages = getChannelMessages(serverId, channelId);
+  return messages.find((message) => message.id === messageId);
+};
 // Load saved servers from localStorage
 function loadSavedServers(): ServerConfig[] {
   return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");

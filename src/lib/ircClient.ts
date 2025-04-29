@@ -51,7 +51,7 @@ interface EventMap {
 type EventKey = keyof EventMap;
 type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 
-class IRCClient {
+export class IRCClient {
   private sockets: Map<string, WebSocket> = new Map();
   private servers: Map<string, Server> = new Map();
   private currentUser: User | null = null;
