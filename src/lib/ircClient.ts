@@ -70,7 +70,9 @@ class IRCClient {
     password?: string,
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
-      const url = `wss://${host}:${port}`;
+      // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
+      const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
+      const url = `${protocol}://${host}:${port}`;
       const socket = new WebSocket(url);
 
       socket.onopen = () => {
