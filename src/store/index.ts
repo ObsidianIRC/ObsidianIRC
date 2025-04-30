@@ -62,6 +62,9 @@ interface AppState {
     port: number,
     nickname: string,
     password?: string,
+    saslAccountName?: string,
+    saslPassword?: string,
+    saslEnabled?: boolean,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
@@ -120,11 +123,25 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   // IRC client actions
-  connect: async (host, port, nickname, password) => {
+  connect: async (
+    host,
+    port,
+    nickname,
+    password,
+    saslAccountName,
+    saslPassword,
+  ) => {
     set({ isConnecting: true, connectionError: null });
 
     try {
-      const server = await ircClient.connect(host, port, nickname, password);
+      const server = await ircClient.connect(
+        host,
+        port,
+        nickname,
+        password,
+        saslAccountName,
+        saslPassword,
+      );
 
       // Save server to localStorage
       const savedServers: ServerConfig[] = loadSavedServers();
@@ -143,6 +160,9 @@ const useStore = create<AppState>((set, get) => ({
         nickname,
         password,
         channels: channelsToJoin,
+        saslAccountName,
+        saslPassword,
+        saslEnabled: !!saslPassword,
       });
       saveServersToLocalStorage(updatedServers);
 
@@ -877,6 +897,8 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
     "message-tags",
     "userhost-in-names",
     "draft/chathistory",
+    "draft/extended-isupport",
+    "sasl",
   ];
 
   const caps = cliCaps.split(" ");
@@ -893,10 +915,16 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
   }
   if (toRequest.length > 9) {
     ircClient.sendRaw(serverId, toRequest);
+    if (toRequest.includes("draft/extended-isupport"))
+      ircClient.sendRaw(serverId, "ISUPPORT");
   }
   console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
 });
 
+ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, capabilities }) => {
+  if (capabilities === "sasl") {
+  }
+});
 ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   const caps = cliCaps.split(" ");
   for (const cap of caps) {
@@ -908,29 +936,6 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
     ircClient.sendRaw(serverId, "CAP END");
   } else {
     console.log(`Preventing CAP END for server ${serverId}`);
-  }
-});
-
-ircClient.on("ISUPPORT", ({ serverId, capabilities }) => {
-  const paramsArray = capabilities;
-  console.log(capabilities);
-  // Check if the server supports FAVICON
-  for (let i = 0; i < paramsArray.length; i++) {
-    console.log(`ISUPPORT param: ${paramsArray[i]}`);
-    if (paramsArray[i].startsWith("FAVICON=")) {
-      const favicon = paramsArray[i].substring(8);
-      // set the favicon as the server's icon in the serverList
-      useStore.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id === serverId) {
-            return { ...server, icon: favicon };
-          }
-          return server;
-        });
-        return { servers: updatedServers };
-      });
-      console.log(`Server ${serverId} supports FAVICON: ${favicon}`);
-    }
   }
 });
 
