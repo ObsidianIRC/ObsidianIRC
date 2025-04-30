@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Channel, Server, User } from "../types";
-import { registerAllProtocolHandlers } from "./../protocol";
 import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
 
 interface EventMap {
@@ -79,7 +78,7 @@ export class IRCClient {
       const socket = new WebSocket(url);
 
       socket.onopen = () => {
-        registerAllProtocolHandlers(this);
+        //registerAllProtocolHandlers(this);
         // Send IRC commands to register the user
         socket.send("CAP LS 302");
         socket.send(`NICK ${nickname}`);
