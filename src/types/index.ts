@@ -2,6 +2,8 @@ export interface User {
   id: string;
   username: string;
   avatar?: string;
+  displayName?: string;
+  account?: string;
   isOnline: boolean;
   status?: "online" | "idle" | "dnd" | "invisible" | "offline";
 }
@@ -12,9 +14,13 @@ export interface Server {
   host: string;
   port: number;
   channels: Channel[];
+  privateMessages?: User[];
   icon?: string;
   isConnected: boolean;
   users: User[];
+  saslAccountName?: string | null;
+  saslPassword?: string | null;
+  saslEnabled?: boolean;
 }
 
 export interface ServerConfig {
@@ -24,6 +30,9 @@ export interface ServerConfig {
   nickname: string;
   password?: string;
   channels: string[];
+  saslAccountName?: string | null;
+  saslPassword?: string | null;
+  saslEnabled?: boolean;
 }
 
 export interface Channel {
@@ -76,3 +85,8 @@ export interface Command {
   usage: string;
   handler: CommandHandler;
 }
+
+export type ISupportEvent = {
+  serverId: string;
+  capabilities: string[];
+};
