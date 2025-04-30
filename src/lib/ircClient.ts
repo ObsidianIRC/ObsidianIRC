@@ -79,6 +79,8 @@ export class IRCClient {
       const socket = new WebSocket(url);
 
       socket.onopen = () => {
+
+        registerAllProtocolHandlers(this);
         // Send IRC commands to register the user
         socket.send("CAP LS 302");
         socket.send(`NICK ${nickname}`);
@@ -412,5 +414,4 @@ export class IRCClient {
 }
 
 export const ircClient = new IRCClient();
-registerAllProtocolHandlers(ircClient);
 export default ircClient;
