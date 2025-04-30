@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Channel, Server, User } from "../types";
-import { registerAllProtocolHandlers } from "./../protocol";
 import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
 
 interface EventMap {
