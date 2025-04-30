@@ -19,9 +19,11 @@
     "test:ui": "vitest --ui",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:debug": "vitest --inspect-brk --browser --no-file-parallelism"
+    "test:debug": "vitest --inspect-brk --browser --no-file-parallelism",
+    "tauri": "tauri"
   },
   "dependencies": {
+    "@tauri-apps/api": "^1.6.0",
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",
     "daisyui": "^5.0.12",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@tauri-apps/cli": "^2.5.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
