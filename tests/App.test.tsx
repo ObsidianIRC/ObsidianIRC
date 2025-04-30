@@ -58,7 +58,7 @@ describe("App", () => {
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
 
-      const nameField = screen.getByPlaceholderText(/My IRC Server/i);
+      const nameField = screen.getByPlaceholderText(/ExampleNET/i);
       await user.clear(nameField);
       await user.type(nameField, "Test Server");
       const hostField = screen.getByPlaceholderText(/irc.example.com/i);
@@ -70,6 +70,11 @@ describe("App", () => {
       const nicknameField = screen.getByPlaceholderText(/YourNickname/i);
       await user.clear(nicknameField);
       await user.type(nicknameField, "tester");
+      const accountCheckbox = screen.getByText(/Login to an account/i);
+      await user.click(accountCheckbox);
+      const accountName = screen.getByPlaceholderText(/Password/i);
+      await user.clear(accountName);
+      await user.type(accountName, "super awesome password lmao 123 !?!?!");
 
       // Submit form
       await user.click(screen.getByRole("button", { name: /^connect$/i }));
@@ -80,6 +85,8 @@ describe("App", () => {
         443,
         "tester",
         "",
+        "",
+        "super awesome password lmao 123 !?!?!",
       );
     });
 
@@ -97,7 +104,7 @@ describe("App", () => {
       await user.click(screen.getByText(/Add Server/i));
 
       await user.type(
-        screen.getByPlaceholderText(/My IRC Server/i),
+        screen.getByPlaceholderText(/ExampleNET/i),
         "Test Server",
       );
       await user.type(

@@ -68,6 +68,8 @@ export class IRCClient {
     port: number,
     nickname: string,
     password?: string,
+    saslAccountName?: string | null,
+    saslPassword?: string | null,
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
@@ -76,6 +78,7 @@ export class IRCClient {
       const socket = new WebSocket(url);
 
       socket.onopen = () => {
+        //registerAllProtocolHandlers(this);
         // Send IRC commands to register the user
         socket.send("CAP LS 302");
         socket.send(`NICK ${nickname}`);
@@ -92,6 +95,8 @@ export class IRCClient {
           channels: [],
           isConnected: true,
           users: [],
+          privateMessages: [],
+          icon: "",
         };
 
         this.servers.set(server.id, server);
@@ -201,7 +206,8 @@ export class IRCClient {
     console.log(`IRC Message from serverId=${serverId}:`, data);
 
     const lines = data.split("\r\n");
-    for (const line of lines) {
+    for (let line of lines) {
+      line = line.trim();
       if (line.split(" ")[1] === "PING" || line.split(" ")[0] === "PING") {
         const key =
           line.split(" ")[0] === "PING"
