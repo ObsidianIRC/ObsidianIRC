@@ -58,7 +58,7 @@ describe("App", () => {
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
 
-      const nameField = screen.getByPlaceholderText(/My IRC Server/i);
+      const nameField = screen.getByPlaceholderText(/ExampleNET/i);
       await user.clear(nameField);
       await user.type(nameField, "Test Server");
       const hostField = screen.getByPlaceholderText(/irc.example.com/i);
