@@ -1,4 +1,5 @@
 import type { IRCClient } from "../lib/ircClient";
+import useStore from "../store";
 import type { ISupportEvent } from "../types/";
 
 export function registerISupportHandler(ircClient: IRCClient) {
