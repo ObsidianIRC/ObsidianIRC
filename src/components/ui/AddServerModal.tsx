@@ -218,7 +218,7 @@ export const AddServerModal: React.FC = () => {
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6"/>
+                  <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
                   <input
                     type="password"
                     value={saslPassword}

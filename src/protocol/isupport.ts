@@ -1,4 +1,4 @@
-import { IRCClient } from "../lib/ircClient";
+import type { IRCClient } from "../lib/ircClient";
 import useStore from "../store";
 import type { ISupportEvent } from "../types/";
 
