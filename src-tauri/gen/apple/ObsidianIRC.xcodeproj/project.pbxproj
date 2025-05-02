@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 56;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -16,6 +16,7 @@
 		5729F287071704C8C0305C91 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = D1A397C89CF0B672385E0D1E /* assets */; };
 		806472A9A2FB7E3F3D5BA615 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AD938E1C9AADE76E2F468952 /* LaunchScreen.storyboard */; };
 		839CE1213397D7FD4EA1C0EC /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 989DE30D5072851BE8870E7D /* CoreGraphics.framework */; };
+		C5A6DC527D119B3F7EF3FA1F /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = F4C6CEB944B619BDDD358F1D /* libapp.a */; };
 		E5D3C5C4BECCC57814EF703C /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A825267529D5F1AA77F1FED5 /* Security.framework */; };
 		E5F97C08F0044886950D34C2 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E2FB7B5A3A8368B52E7E833 /* QuartzCore.framework */; };
 		F85C219F57303B6F68D66DB1 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B62F1B55685A07D12C94698B /* libapp.a */; };
@@ -27,19 +28,20 @@
 		3231B65C025A45899CD80EFF /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		4725CBFC67C3753792DEFFC2 /* ObsidianIRC_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ObsidianIRC_iOS.entitlements; sourceTree = "<group>"; };
 		4ACE2A90FA4B82CA87825F27 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
-		4B88DD17ACB6CA9241A9DABE /* ObsidianIRC_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ObsidianIRC_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4B88DD17ACB6CA9241A9DABE /* ObsidianIRC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ObsidianIRC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7317F4E0A5DE393AB54A16ED /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		7393EF39C09C1CCCF19CAA48 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		989DE30D5072851BE8870E7D /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		A825267529D5F1AA77F1FED5 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		AD938E1C9AADE76E2F468952 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		B62F1B55685A07D12C94698B /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
-		C2081EE49135BF234CDBDB38 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		C2081EE49135BF234CDBDB38 /* main.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.rs; sourceTree = "<group>"; };
 		CA132D4C6263C0407FEA4D3B /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		D1A397C89CF0B672385E0D1E /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		D8525437528AD9F603CC6ED6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		D8D558F9DFCC8A4F500C161D /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		D8D558F9DFCC8A4F500C161D /* lib.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = lib.rs; sourceTree = "<group>"; };
 		E1557AC45758D81E0712992B /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		F4C6CEB944B619BDDD358F1D /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,14 +74,31 @@
 		33ED05778B0D292CC4AC3D53 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				39F3C497B3522425332E1940 /* arm64 */,
 			);
 			path = Externals;
+			sourceTree = "<group>";
+		};
+		39F3C497B3522425332E1940 /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				5E7CA9063576382A4878A36C /* debug */,
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
+		5E7CA9063576382A4878A36C /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				F4C6CEB944B619BDDD358F1D /* libapp.a */,
+			);
+			path = debug;
 			sourceTree = "<group>";
 		};
 		6433FA3A6A3402B0A03D301B /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				4B88DD17ACB6CA9241A9DABE /* ObsidianIRC_iOS.app */,
+				4B88DD17ACB6CA9241A9DABE /* ObsidianIRC.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -168,7 +187,7 @@
 			);
 			name = ObsidianIRC_iOS;
 			productName = ObsidianIRC_iOS;
-			productReference = 4B88DD17ACB6CA9241A9DABE /* ObsidianIRC_iOS.app */;
+			productReference = 4B88DD17ACB6CA9241A9DABE /* ObsidianIRC.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -179,8 +198,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 5B635019FCF187438BA703E8 /* Build configuration list for PBXProject "ObsidianIRC" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -207,6 +224,7 @@
 				112795696E2E74315C42F126 /* Assets.xcassets in Resources */,
 				806472A9A2FB7E3F3D5BA615 /* LaunchScreen.storyboard in Resources */,
 				5729F287071704C8C0305C91 /* assets in Resources */,
+				C5A6DC527D119B3F7EF3FA1F /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,12 +270,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = (
-					arm64,
-				);
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ObsidianIRC_iOS/ObsidianIRC_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = CHX38YQPNM;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -269,8 +286,20 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.obsidianirc.dev;
 				PRODUCT_NAME = ObsidianIRC;
 				SDKROOT = iphoneos;
@@ -346,12 +375,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = (
-					arm64,
-				);
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ObsidianIRC_iOS/ObsidianIRC_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = CHX38YQPNM;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -363,8 +391,20 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.obsidianirc.dev;
 				PRODUCT_NAME = ObsidianIRC;
 				SDKROOT = iphoneos;
