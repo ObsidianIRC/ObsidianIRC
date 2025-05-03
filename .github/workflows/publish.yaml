@@ -57,7 +57,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ObsidianIRC-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          tagName: v__VERSION__
           releaseName: "ObsidianIRC v__VERSION__"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: false
@@ -135,9 +135,8 @@ jobs:
           draft: false
           prerelease: true
           body: |
-            This is the release for Android.
             See the assets to download this version and install.
-          name: Android App v${{ steps.package-version.outputs.current-version}}
+          name: ObsidianIRC v${{ steps.package-version.outputs.current-version}}
           tag_name: v${{ steps.package-version.outputs.current-version}}
           generate_release_notes: true
           files: |
