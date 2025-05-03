@@ -76,7 +76,7 @@ jobs:
         with:
           distribution: "zulu"
           java-version: "22"
-          cache: 'gradle'
+          cache: "gradle"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -113,21 +113,31 @@ jobs:
           echo "${{ secrets.ANDROID_RELEASE_KEYSTORE }}" > src-tauri/gen/android/release.jks.base64
           base64 -d src-tauri/gen/android/release.jks.base64 > src-tauri/gen/android/release.decrypted.jks
 
-      - name: Sign APK
+      - name: Sign APK and AAB
         run: |
           ${{ env.ANDROID_HOME }}/build-tools/34.0.0/apksigner sign --ks src-tauri/gen/android/release.decrypted.jks \
             --ks-key-alias ${{ secrets.ANDROID_RELEASE_KEY }} \
             --ks-pass pass:${{ secrets.ANDROID_RELEASE_PASSWORD }} \
             --out src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-signed.apk \
             src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+          ${ANDROID_HOME}/build-tools/34.0.0/apksigner sign \
+            --min-sdk-version 22 \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --ks src-tauri/gen/android/release.decrypted.jks \
+            --ks-key-alias ${{ secrets.ANDROID_RELEASE_KEY }} \
+            --ks-pass pass:${{ secrets.ANDROID_RELEASE_PASSWORD }} \
+            --out src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab \
+              src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
 
       - name: Get Node project version
         id: package-version
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
-      - name: Rename APK file
+      - name: Rename APK and AAB file
         run: |
           mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-signed.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.apk
+          mv ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.aab
 
       - name: Publish
         uses: softprops/action-gh-release@v2
@@ -138,6 +148,50 @@ jobs:
             See the assets to download this version and install.
           name: ObsidianIRC v${{ steps.package-version.outputs.current-version}}
           tag_name: v${{ steps.package-version.outputs.current-version}}
+          # We trust that this will run last and create the release notes, but seems that windows build is taking longer...
           generate_release_notes: true
           files: |
             ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.apk
+            ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.aab
+
+  # publish-ios:
+  #   runs-on: macos-latest
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+  #     - name: setup node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: lts/*
+  #         cache: "npm"
+
+  #     - name: install Rust stable
+  #       uses: dtolnay/rust-toolchain@nightly
+  #       with:
+  #         # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
+  #         targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+  #     - name: Rust cache
+  #       uses: swatinem/rust-cache@v2
+  #       with:
+  #         workspaces: "./src-tauri -> target"
+
+  #     - name: install frontend dependencies
+  #       run: npm install
+
+  #     - name: Publish
+  #       uses: softprops/action-gh-release@v2
+  #       with:
+  #         draft: false
+  #         prerelease: true
+  #         body: |
+  #           See the assets to download this version and install.
+  #         name: ObsidianIRC v${{ steps.package-version.outputs.current-version}}
+  #         tag_name: v${{ steps.package-version.outputs.current-version}}
+  #         # We trust that this will run last and create the release notes, but seems that windows build is taking longer...
+  #         generate_release_notes: true
+  #         files: |
+  #           ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.apk
+  #           ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.aab
