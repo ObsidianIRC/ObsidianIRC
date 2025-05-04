@@ -10,6 +10,7 @@ on:
 
 jobs:
   collect-version:
+    if: github.event.base_ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
