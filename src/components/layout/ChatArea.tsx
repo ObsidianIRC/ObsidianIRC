@@ -17,6 +17,11 @@ import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from '@tauri-apps/plugin-notification';
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
