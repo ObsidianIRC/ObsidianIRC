@@ -7,7 +7,26 @@ on:
   #     - main
 
 jobs:
+  collect-version:
+    runs-on: ubuntu-latest
+    outputs:
+      current_version: ${{ steps.package-version.outputs.version }}
+      tag_name: v${{ steps.package-version.outputs.version }}
+      draft: "false"
+      prerelease: "true"
+      body: |
+        See the assets to download this version and install.
+      name: ObsidianIRC v${{ steps.package-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Node project version
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
   publish-tauri:
+    needs: collect-version
     permissions:
       contents: write
     strategy:
@@ -57,15 +76,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: "ObsidianIRC v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: false
-          prerelease: true
+          tagName: ${{ needs.collect-version.outputs.tag_name }}
+          releaseName: ${{ needs.collect-version.outputs.name }}
+          releaseBody: ${{ needs.collect-version.outputs.body }}
+          releaseDraft: ${{ needs.collect-version.outputs.draft == 'true' }}
+          prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}
 
   publish-android:
     runs-on: ubuntu-latest
+    needs: collect-version
     permissions:
       contents: write
     steps:
@@ -132,30 +152,26 @@ jobs:
 
       - name: Rename APK and AAB file
         run: |
-          mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-signed.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.apk
-          mv ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.aab
-
-      - name: Get Node project version
-        id: package-version
-        uses: martinbeentjes/npm-get-version-action@v1.3.1
+          mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-signed.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.apk
+          mv ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.aab
 
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
-          prerelease: true
-          body: |
-            See the assets to download this version and install.
-          name: ObsidianIRC v${{ steps.package-version.outputs.current-version }}
-          tag_name: v${{ steps.package-version.outputs.current-version }}
+          draft: ${{ needs.collect-version.outputs.draft == 'true' }}
+          prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
+          body: ${{ needs.collect-version.outputs.body }}
+          name: ${{ needs.collect-version.outputs.name }}
+          tag_name: ${{ needs.collect-version.outputs.tag_name }}
           generate_release_notes: true
           make_latest: true
           files: |
-            ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.apk
-            ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ steps.package-version.outputs.current-version}}.aab
+            ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.apk
+            ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.aab
 
   publish-ios:
     runs-on: macos-latest
+    needs: collect-version
     permissions:
       contents: write
     steps:
@@ -206,30 +222,24 @@ jobs:
           # Manually create ipa sctructure
           mkdir -p Payload
           cp -R ObsidianIRC.xcarchive Payload/
-          zip -0 -y -r ObsidianIRC-unsigned.ipa Payload
-
-      - name: Get package version
-        id: package-version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          zip -0 -y -r ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa Payload
 
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
-          prerelease: true
-          body: |
-            See the assets to download this version and install.
-          name: ObsidianIRC v${{ steps.package-version.outputs.current-version }}
-          tag_name: v${{ steps.package-version.outputs.current-version }}
+          draft: ${{ needs.collect-version.outputs.draft == 'true' }}
+          prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
+          body: ${{ needs.collect-version.outputs.body }}
+          name: ${{ needs.collect-version.outputs.name }}
+          tag_name: ${{ needs.collect-version.outputs.tag_name }}
           make_latest: true
           generate_release_notes: true
           files: |
-            ${{ runner.temp }}/ObsidianIRC-unsigned.ipa
+            ${{ runner.temp }}/ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa
 
   publish-web:
     runs-on: ubuntu-latest
+    needs: collect-version
     permissions:
       contents: write
     steps:
@@ -244,25 +254,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Get Node project version
-        id: package-version
-        uses: martinbeentjes/npm-get-version-action@v1.3.1
-
       - name: Build
         run: |
           npm run build
-          zip -r ObsidianIRC-web-${{ steps.package-version.outputs.current-version}}.zip ./dist
+          zip -r ObsidianIRC-web-${{ needs.collect-version.outputs.current_version}}.zip ./dist
 
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
-          prerelease: true
-          body: |
-            See the assets to download this version and install.
-          name: ObsidianIRC v${{ steps.package-version.outputs.current-version }}
-          tag_name: v${{ steps.package-version.outputs.current-version }}
+          draft: ${{ needs.collect-version.outputs.draft == 'true' }}
+          prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
+          body: ${{ needs.collect-version.outputs.body }}
+          name: ${{ needs.collect-version.outputs.name }}
+          tag_name: ${{ needs.collect-version.outputs.tag_name }}
           make_latest: true
           generate_release_notes: true
           files: |
-            ./ObsidianIRC-web-${{ steps.package-version.outputs.current-version}}.zip
+            ./ObsidianIRC-web-${{ needs.collect-version.outputs.current_version}}.zip
