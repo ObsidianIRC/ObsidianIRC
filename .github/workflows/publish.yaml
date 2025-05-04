@@ -3,8 +3,10 @@ name: "Tauri Build and Publish"
 on:
   workflow_dispatch:
   push:
-  #   branches:
-  #     - main
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
 
 jobs:
   collect-version:
@@ -13,7 +15,7 @@ jobs:
       current_version: ${{ steps.package-version.outputs.version }}
       tag_name: v${{ steps.package-version.outputs.version }}
       draft: "false"
-      prerelease: "true"
+      prerelease: ${{ github.ref_type != 'tag' && 'true' || 'false' }}
       body: |
         See the assets to download this version and install.
       name: ObsidianIRC v${{ steps.package-version.outputs.version }}
