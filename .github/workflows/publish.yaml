@@ -10,7 +10,7 @@ on:
 
 jobs:
   collect-version:
-    if: github.event.base_ref == 'refs/heads/main'
+    if: github.ref_name == 'main' || github.ref_type == 'tag'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
