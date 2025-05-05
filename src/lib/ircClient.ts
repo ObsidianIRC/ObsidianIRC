@@ -1,7 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
-import { loadSavedServers } from "../store";
-import type { Channel, Server, User } from "../types";
+import type { Channel, Server, User, ServerConfig } from "../types";
 import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
+
+// Load saved servers from localStorage
+function loadSavedServers(): ServerConfig[] {
+  return JSON.parse(localStorage.getItem("savedServers") || "[]");
+}
 
 interface EventMap {
   ready: { serverId: string; serverName: string; nickname: string };
