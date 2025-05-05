@@ -2,6 +2,7 @@ import type React from "react";
 import { useState } from "react";
 import {
   FaChevronDown,
+  FaChevronLeft,
   FaChevronRight,
   FaCog,
   FaHashtag,
@@ -12,7 +13,9 @@ import {
 } from "react-icons/fa";
 import useStore from "../../store";
 
-export const ChannelList: React.FC = () => {
+export const ChannelList: React.FC<{
+  onToggle: () => void;
+}> = ({ onToggle }) => {
   const {
     servers,
     ui: { selectedServerId, selectedChannelId },
@@ -56,8 +59,11 @@ export const ChannelList: React.FC = () => {
         <h1 className="font-bold text-white truncate">
           {selectedServer?.name || "Home"}
         </h1>
-        <button className="text-discord-channels-default hover:text-white">
-          <FaChevronDown />
+        <button
+          onClick={onToggle}
+          className="text-discord-channels-default hover:text-white"
+        >
+          <FaChevronLeft />
         </button>
       </div>
 

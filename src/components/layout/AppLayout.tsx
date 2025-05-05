@@ -9,9 +9,15 @@ import { ServerList } from "./ServerList";
 
 export const AppLayout: React.FC = () => {
   const {
-    ui: { isDarkMode, isMobileMenuOpen, isMemberListVisible },
+    ui: {
+      isDarkMode,
+      isMobileMenuOpen,
+      isMemberListVisible,
+      isChannelListVisible,
+    },
     toggleMobileMenu,
     toggleMemberList,
+    toggleChannelList,
   } = useStore();
 
   // Set theme class on body
@@ -56,7 +62,7 @@ export const AppLayout: React.FC = () => {
       </div>
 
       <ResizableSidebar
-        isVisible={true}
+        isVisible={isChannelListVisible}
         defaultWidth={200}
         minWidth={100}
         maxWidth={400}
@@ -67,13 +73,22 @@ export const AppLayout: React.FC = () => {
           className={`channel-list flex-shrink-0 w-full h-full bg-discord-dark-100
            ${isMobileMenuOpen ? "block" : "hidden"} md:block z-20`}
         >
-          <ChannelList />
+          <ChannelList
+            onToggle={() => {
+              toggleChannelList(!isChannelListVisible);
+            }}
+          />
         </div>
       </ResizableSidebar>
 
       {/* Main content area - Chat */}
       <div className="flex-grow h-full bg-discord-dark-200 flex flex-col min-w-0 z-10">
-        <ChatArea />
+        <ChatArea
+          isChanListVisible={isChannelListVisible}
+          onToggleChanList={() => {
+            toggleChannelList(!isChannelListVisible);
+          }}
+        />
       </div>
 
       {/* Member list - right sidebar */}

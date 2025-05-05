@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   FaAt,
   FaBell,
+  FaChevronRight,
   FaGift,
   FaGrinAlt,
   FaHashtag,
@@ -200,7 +201,10 @@ const MessageItem: React.FC<{
   );
 };
 
-export const ChatArea: React.FC = () => {
+export const ChatArea: React.FC<{
+  onToggleChanList: () => void;
+  isChanListVisible: boolean;
+}> = ({ onToggleChanList, isChanListVisible }) => {
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
@@ -338,6 +342,15 @@ export const ChatArea: React.FC = () => {
       {/* Channel header */}
       <div className="h-12 px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
         <div className="flex items-center">
+          {!isChanListVisible && (
+            <button
+              onClick={onToggleChanList}
+              className="text-discord-channels-default hover:text-white mr-10"
+              aria-label="Expand channel list"
+            >
+              <FaChevronRight />
+            </button>
+          )}
           <FaHashtag className="text-discord-text-muted mr-2" />
           <h2 className="font-bold text-white">
             {selectedChannel

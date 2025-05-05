@@ -38,6 +38,7 @@ interface UIState {
   isDarkMode: boolean;
   isMobileMenuOpen: boolean;
   isMemberListVisible: boolean;
+  isChannelListVisible: boolean;
   isServerMenuOpen: boolean;
   contextMenu: {
     isOpen: boolean;
@@ -89,6 +90,7 @@ interface AppState {
   toggleDarkMode: () => void;
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
+  toggleChannelList: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
@@ -118,6 +120,7 @@ const useStore = create<AppState>((set, get) => ({
     isDarkMode: true, // Discord-like default is dark mode
     isMobileMenuOpen: false,
     isMemberListVisible: true,
+    isChannelListVisible: true,
     isServerMenuOpen: false,
     contextMenu: {
       isOpen: false,
@@ -567,6 +570,17 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isMemberListVisible:
           isVisible !== undefined ? isVisible : !state.ui.isMemberListVisible,
+      },
+    }));
+  },
+
+  toggleChannelList: (isOpen) => {
+    console.log("Toggling channel list", isOpen);
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isChannelListVisible:
+          isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible,
       },
     }));
   },
