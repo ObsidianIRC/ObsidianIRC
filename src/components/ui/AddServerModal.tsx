@@ -52,6 +52,7 @@ export const AddServerModal: React.FC = () => {
         serverHost,
         Number.parseInt(serverPort),
         nickname,
+        !!saslPassword,
         password,
         saslAccountName,
         saslPassword,

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { loadSavedServers } from "../store";
 import type { Channel, Server, User } from "../types";
 import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
 
@@ -45,7 +46,9 @@ interface EventMap {
   "CAP LS": { serverId: string; cliCaps: string };
   "CAP ACK": { serverId: string; cliCaps: string };
   ISUPPORT: { serverId: string; capabilities: string[] };
-  CAP_ACKNOWLEDGED: { serverId: string; capabilities: string };
+  CAP_ACKNOWLEDGED: { serverId: string; key: string; capabilities: string };
+  CAP_END: { serverId: string };
+  AUTHENTICATE: { serverId: string; param: string };
 }
 
 type EventKey = keyof EventMap;
@@ -68,8 +71,8 @@ export class IRCClient {
     port: number,
     nickname: string,
     password?: string,
-    saslAccountName?: string | null,
-    saslPassword?: string | null,
+    saslAccountName?: string,
+    saslPassword?: string,
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
@@ -80,12 +83,11 @@ export class IRCClient {
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
         // Send IRC commands to register the user
-        socket.send("CAP LS 302");
-        socket.send(`NICK ${nickname}`);
-        socket.send(`USER ${nickname} 0 * :${nickname}`);
         if (password) {
           socket.send(`PASS ${password}`);
         }
+
+        socket.send("CAP LS 302");
 
         const server: Server = {
           id: uuidv4(),
@@ -198,8 +200,23 @@ export class IRCClient {
     if (channel) channel.unreadCount = 0;
   }
 
-  capAck(serverId: string, capabilities: string): void {
-    this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, capabilities });
+  capAck(serverId: string, key: string, capabilities: string): void {
+    this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, key, capabilities });
+  }
+
+  capEnd(serverId: string) {}
+
+  nickOnConnect(serverId: string) {
+    let nickname: string | undefined;
+    const servers = loadSavedServers();
+    for (const serv of servers) {
+      if (serv.id !== serverId) continue;
+
+      nickname = serv.nickname;
+      break;
+    }
+    this.sendRaw(serverId, `NICK ${nickname}`);
+    this.sendRaw(serverId, `USER ${nickname} 0 * :${nickname}`);
   }
 
   private handleMessage(data: string, serverId: string): void {
@@ -381,6 +398,9 @@ export class IRCClient {
         console.log("005 detected");
         const capabilities = parseFavicon(line);
         this.triggerEvent("ISUPPORT", { serverId, capabilities });
+      } else if (line.split(" ")[0] === "AUTHENTICATE") {
+        const param = line.substring("AUTHENTICATE ".length);
+        this.triggerEvent("AUTHENTICATE", { serverId, param });
       } else if (line.includes("005")) {
         console.log("005 detected abnormally");
       }

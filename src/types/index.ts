@@ -18,9 +18,6 @@ export interface Server {
   icon?: string;
   isConnected: boolean;
   users: User[];
-  saslAccountName?: string | null;
-  saslPassword?: string | null;
-  saslEnabled?: boolean;
 }
 
 export interface ServerConfig {
@@ -28,11 +25,11 @@ export interface ServerConfig {
   host: string;
   port: number;
   nickname: string;
-  password?: string;
+  password?: string | undefined;
   channels: string[];
-  saslAccountName?: string | null;
-  saslPassword?: string | null;
-  saslEnabled?: boolean;
+  saslAccountName?: string;
+  saslPassword?: string;
+  saslEnabled: boolean;
 }
 
 export interface Channel {

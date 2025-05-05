@@ -21,7 +21,7 @@ export const findChannelMessageById = (
   return messages.find((message) => message.id === messageId);
 };
 // Load saved servers from localStorage
-function loadSavedServers(): ServerConfig[] {
+export function loadSavedServers(): ServerConfig[] {
   return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
 }
 
@@ -62,10 +62,10 @@ interface AppState {
     host: string,
     port: number,
     nickname: string,
+    saslEnabled: boolean,
     password?: string,
     saslAccountName?: string,
     saslPassword?: string,
-    saslEnabled?: boolean,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
@@ -128,6 +128,7 @@ const useStore = create<AppState>((set, get) => ({
     host,
     port,
     nickname,
+    saslEnabled,
     password,
     saslAccountName,
     saslPassword,
@@ -159,31 +160,13 @@ const useStore = create<AppState>((set, get) => ({
         host,
         port,
         nickname,
+        saslEnabled: !!saslPassword,
         password,
         channels: channelsToJoin,
         saslAccountName,
         saslPassword,
-        saslEnabled: !!saslPassword,
       });
       saveServersToLocalStorage(updatedServers);
-
-      // Listen for the "ready" event to join channels
-      ircClient.on("ready", ({ serverName }) => {
-        if (serverName === host) {
-          for (const channelName of channelsToJoin) {
-            ircClient.joinChannel(server.id, channelName);
-          }
-
-          // Update the UI state to reflect the first joined channel
-          set((state) => ({
-            ui: {
-              ...state.ui,
-              selectedServerId: server.id,
-              selectedChannelId: server.channels[0]?.id || null,
-            },
-          }));
-        }
-      });
 
       set((state) => ({
         servers: [...state.servers, server],
@@ -440,27 +423,26 @@ const useStore = create<AppState>((set, get) => ({
 
   loadSavedServers: async () => {
     const savedServers = loadSavedServers();
-    for (const { host, port, nickname, password, channels } of savedServers) {
+    for (const {
+      host,
+      port,
+      nickname,
+      password,
+      channels,
+      saslEnabled,
+      saslAccountName,
+      saslPassword,
+    } of savedServers) {
       try {
-        const server = await get().connect(host, port, nickname, password);
-
-        // Listen for the "ready" event to join channels
-        ircClient.on("ready", ({ serverName }) => {
-          if (serverName === host) {
-            for (const channelName of channels) {
-              ircClient.joinChannel(server.id, channelName);
-            }
-
-            // Update the UI state to reflect the first joined channel
-            set((state) => ({
-              ui: {
-                ...state.ui,
-                selectedServerId: server.id,
-                selectedChannelId: server.channels[0]?.id || null,
-              },
-            }));
-          }
-        });
+        const server = await get().connect(
+          host,
+          port,
+          nickname,
+          saslEnabled,
+          password,
+          saslAccountName,
+          saslPassword,
+        );
       } catch (error) {
         console.error(`Failed to reconnect to server ${host}:${port}`, error);
       }
@@ -904,7 +886,8 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
 
   const caps = cliCaps.split(" ");
   let toRequest = "CAP REQ :";
-  for (const cap of caps) {
+  for (const c of caps) {
+    const cap = c.includes("=") ? c.split("=")[0] : c;
     if (ourCaps.includes(cap)) {
       if (toRequest.length + cap.length + 1 > 400) {
         ircClient.sendRaw(serverId, toRequest);
@@ -922,19 +905,63 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
   console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
 });
 
-ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, capabilities }) => {
-  if (capabilities === "sasl") {
+ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
+  if (key === "sasl") {
+    const servers = loadSavedServers();
+    for (const serv of servers) {
+      if (serv.id !== serverId) continue;
+
+      if (!serv.saslEnabled) return;
+    }
+    ircClient.sendRaw(serverId, "AUTHENTICATE PLAIN");
   }
 });
+
+ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
+  console.log(param);
+  if (param !== "+") return;
+
+  let user: string | undefined;
+  let pass: string | undefined;
+  const servers = loadSavedServers();
+  for (const serv of servers) {
+    if (serv.id !== serverId) continue;
+
+    if (!serv.saslEnabled) return;
+
+    user = serv.saslAccountName?.length ? serv.saslAccountName : serv.nickname;
+    pass = serv.saslPassword;
+  }
+  if (!user)
+    // wtf happened lol
+    return;
+
+  ircClient.sendRaw(
+    serverId,
+    `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
+  );
+  ircClient.sendRaw(serverId, "CAP END");
+  ircClient.nickOnConnect(serverId);
+});
+
 ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   const caps = cliCaps.split(" ");
   for (const cap of caps) {
-    ircClient.capAck(serverId, cap);
+    const tok = cap.split("=");
+    ircClient.capAck(serverId, tok[0], tok[1] ?? null);
     console.log(`Capability acknowledged: ${cap}`);
+  }
+
+  const servers = loadSavedServers();
+  for (const serv of servers) {
+    if (serv.id === serverId && serv.saslEnabled) {
+      ircClient.preventCapEnd = true;
+    }
   }
   if (!ircClient.preventCapEnd) {
     console.log(`Sending CAP END for server ${serverId}`);
     ircClient.sendRaw(serverId, "CAP END");
+    ircClient.nickOnConnect(serverId);
   } else {
     console.log(`Preventing CAP END for server ${serverId}`);
   }
