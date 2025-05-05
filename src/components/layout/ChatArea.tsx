@@ -1,7 +1,6 @@
 import {
-  ChevronDoubleLeftIcon,
-  ChevronDoubleRightIcon,
-} from "@heroicons/react/24/outline";
+  UsersIcon,
+} from "@heroicons/react/24/solid";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -366,16 +365,8 @@ export const ChatArea: React.FC = () => {
           <button className="hover:text-discord-text-normal">
             <FaUserPlus />
           </button>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search"
-              className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-            />
-            <FaSearch className="absolute right-2 top-1.5 text-xs" />
-          </div>
           <button
-            className="bg-discord-dark-300 hover:bg-discord-dark-200 p-2 rounded-l transition-colors"
+            className="hover:text-discord-text-normal"
             onClick={() => toggleMemberList(!isMemberListVisible)}
             aria-label={
               isMemberListVisible
@@ -384,11 +375,19 @@ export const ChatArea: React.FC = () => {
             }
           >
             {isMemberListVisible ? (
-              <ChevronDoubleRightIcon className="w-4 h-4 text-white" />
+              <UsersIcon className="w-4 h-4 text-white" />
             ) : (
-              <ChevronDoubleLeftIcon className="w-4 h-4 text-white" z={100} />
+              <UsersIcon className="w-4 h-4 text-gray" />
             )}
           </button>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search"
+              className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+            />
+            <FaSearch className="absolute right-2 top-1.5 text-xs" />
+          </div>
         </div>
       </div>
 
@@ -400,8 +399,8 @@ export const ChatArea: React.FC = () => {
             !previousMessage ||
             previousMessage.userId !== message.userId ||
             new Date(message.timestamp).getTime() -
-              new Date(previousMessage.timestamp).getTime() >
-              5 * 60 * 1000;
+            new Date(previousMessage.timestamp).getTime() >
+            5 * 60 * 1000;
 
           return (
             <MessageItem
@@ -410,7 +409,7 @@ export const ChatArea: React.FC = () => {
               showDate={
                 index === 0 ||
                 new Date(message.timestamp).toDateString() !==
-                  new Date(channelMessages[index - 1]?.timestamp).toDateString()
+                new Date(channelMessages[index - 1]?.timestamp).toDateString()
               }
               showHeader={showHeader}
               setReplyTo={setLocalReplyTo}
