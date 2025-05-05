@@ -1,6 +1,4 @@
-import {
-  UsersIcon,
-} from "@heroicons/react/24/solid";
+import { UsersIcon } from "@heroicons/react/24/solid";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -399,8 +397,8 @@ export const ChatArea: React.FC = () => {
             !previousMessage ||
             previousMessage.userId !== message.userId ||
             new Date(message.timestamp).getTime() -
-            new Date(previousMessage.timestamp).getTime() >
-            5 * 60 * 1000;
+              new Date(previousMessage.timestamp).getTime() >
+              5 * 60 * 1000;
 
           return (
             <MessageItem
@@ -409,7 +407,7 @@ export const ChatArea: React.FC = () => {
               showDate={
                 index === 0 ||
                 new Date(message.timestamp).toDateString() !==
-                new Date(channelMessages[index - 1]?.timestamp).toDateString()
+                  new Date(channelMessages[index - 1]?.timestamp).toDateString()
               }
               showHeader={showHeader}
               setReplyTo={setLocalReplyTo}
