@@ -21,7 +21,7 @@ export const findChannelMessageById = (
   return messages.find((message) => message.id === messageId);
 };
 // Load saved servers from localStorage
-export function loadSavedServers(): ServerConfig[] {
+function loadSavedServers(): ServerConfig[] {
   return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
 }
 

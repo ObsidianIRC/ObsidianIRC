@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Channel, Server, User, ServerConfig } from "../types";
+import type { Channel, Server, ServerConfig, User } from "../types";
 import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
 
 // Load saved servers from localStorage
