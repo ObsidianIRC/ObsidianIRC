@@ -1,15 +1,11 @@
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import useStore from "../../store";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
+import { ResizableSidebar } from "./ResizableSidebar";
 import { ServerList } from "./ServerList";
-
-// Constants for member list sizing
-const MIN_MEMBER_LIST_WIDTH = 80;
-const MAX_MEMBER_LIST_WIDTH = 400;
-const DEFAULT_MEMBER_LIST_WIDTH = 240;
 
 export const AppLayout: React.FC = () => {
   const {
@@ -17,54 +13,6 @@ export const AppLayout: React.FC = () => {
     toggleMobileMenu,
     toggleMemberList,
   } = useStore();
-  // Member list width state
-  const [memberListWidth, setMemberListWidth] = useState(
-    DEFAULT_MEMBER_LIST_WIDTH,
-  );
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStartX = useRef<number>(0);
-  const resizeStartWidth = useRef<number>(0);
-
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      setIsResizing(true);
-      resizeStartX.current = e.clientX;
-      resizeStartWidth.current = memberListWidth;
-    },
-    [memberListWidth],
-  );
-
-  const handleResize = useCallback(
-    (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      const deltaX = resizeStartX.current - e.clientX;
-      const newWidth = Math.min(
-        Math.max(resizeStartWidth.current + deltaX, MIN_MEMBER_LIST_WIDTH),
-        MAX_MEMBER_LIST_WIDTH,
-      );
-      if (newWidth === MIN_MEMBER_LIST_WIDTH) toggleMemberList(false);
-      setMemberListWidth(newWidth);
-    },
-    [isResizing, toggleMemberList],
-  );
-
-  const handleResizeEnd = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  // Add resize event listeners
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener("mousemove", handleResize);
-      document.addEventListener("mouseup", handleResizeEnd);
-
-      return () => {
-        document.removeEventListener("mousemove", handleResize);
-        document.removeEventListener("mouseup", handleResizeEnd);
-      };
-    }
-  }, [isResizing, handleResize, handleResizeEnd]);
 
   // Set theme class on body
   useEffect(() => {
@@ -98,20 +46,30 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={`flex h-screen overflow-hidden bg-discord-dark-300 ${isDarkMode ? "text-white" : "text-gray-900"}`}
+      className={`flex h-screen overflow-hidden bg-discord-dark-300 ${
+        isDarkMode ? "text-white" : "text-gray-900"
+      }`}
     >
       {/* Server list - leftmost sidebar */}
       <div className="server-list flex-shrink-0 w-[72px] h-full bg-discord-dark-300 z-30">
         <ServerList />
       </div>
 
-      {/* Channel list - left sidebar */}
-      <div
-        className={`channel-list flex-shrink-0 w-60 h-full bg-discord-dark-100
-          ${isMobileMenuOpen ? "block" : "hidden"} md:block z-20`}
+      <ResizableSidebar
+        isVisible={true}
+        defaultWidth={200}
+        minWidth={100}
+        maxWidth={400}
+        side="left"
       >
-        <ChannelList />
-      </div>
+        {/* Channel list - left sidebar */}
+        <div
+          className={`channel-list flex-shrink-0 w-full h-full bg-discord-dark-100
+           ${isMobileMenuOpen ? "block" : "hidden"} md:block z-20`}
+        >
+          <ChannelList />
+        </div>
+      </ResizableSidebar>
 
       {/* Main content area - Chat */}
       <div className="flex-grow h-full bg-discord-dark-200 flex flex-col min-w-0 z-10">
@@ -119,22 +77,18 @@ export const AppLayout: React.FC = () => {
       </div>
 
       {/* Member list - right sidebar */}
-      <div
-        className={`member-list flex-shrink-0 h-full bg-discord-dark-600 hidden md:flex flex-col relative
-          ${!isMemberListVisible ? "w-0" : ""}`}
-        style={{ width: isMemberListVisible ? `${memberListWidth}px` : "0" }}
+      <ResizableSidebar
+        isVisible={isMemberListVisible}
+        defaultWidth={240}
+        minWidth={80}
+        maxWidth={400}
+        side="right"
+        onMinReached={() => toggleMemberList(false)}
       >
-        {/* Resize handle */}
-        <div
-          className={`absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-discord-dark-100 transition-colors
-            ${!isMemberListVisible ? "hidden" : ""}`}
-          onMouseDown={handleResizeStart}
-        />
-        {/* Member list content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden h-full bg-discord-dark-100 z-30">
           <MemberList />
         </div>
-      </div>
+      </ResizableSidebar>
     </div>
   );
 };

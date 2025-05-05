@@ -371,6 +371,7 @@ export const ChatArea: React.FC = () => {
                 ? "Collapse member list"
                 : "Expand member list"
             }
+            data-testid="toggle-member-list"
           >
             {isMemberListVisible ? (
               <UsersIcon className="w-4 h-4 text-white" />
