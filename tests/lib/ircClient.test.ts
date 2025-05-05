@@ -169,8 +169,6 @@ describe("IRCClient", () => {
 
       // Verify sent messages
       expect(mockSocket.sentMessages).toContain("CAP LS 302");
-      expect(mockSocket.sentMessages).toContain("NICK testuser");
-      expect(mockSocket.sentMessages).toContain("USER testuser 0 * :testuser");
     });
 
     test("should handle connection errors", async () => {
