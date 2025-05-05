@@ -222,8 +222,8 @@ export const AddServerModal: React.FC = () => {
                   <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
                   <input
                     type="password"
-                    value={saslPassword}
-                    onChange={(e) => setSaslPassword(e.target.value)}
+                    value={atob(saslPassword)}
+                    onChange={(e) => setSaslPassword(btoa(e.target.value))}
                     onFocus={(e) => {
                       e.target.select();
                     }}

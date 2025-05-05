@@ -930,9 +930,9 @@ ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
     if (!serv.saslEnabled) return;
 
     user = serv.saslAccountName?.length ? serv.saslAccountName : serv.nickname;
-    pass = serv.saslPassword;
+    pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
   }
-  if (!user)
+  if (!user || !pass)
     // wtf happened lol
     return;
 
