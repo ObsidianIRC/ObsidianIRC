@@ -23,6 +23,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@tauri-apps/api": "^1.6.0",
     "@tauri-apps/plugin-notification": "^2.2.2",
     "@types/uuid": "^10.0.0",

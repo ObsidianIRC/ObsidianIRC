@@ -1,3 +1,7 @@
+import {
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
+} from "@heroicons/react/24/outline";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -17,11 +21,6 @@ import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from '@tauri-apps/plugin-notification';
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -213,7 +212,8 @@ export const ChatArea: React.FC = () => {
   const { currentUser } = useStore();
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId },
+    ui: { selectedServerId, selectedChannelId, isMemberListVisible },
+    toggleMemberList,
     sendMessage,
     messages,
   } = useStore();
@@ -374,6 +374,21 @@ export const ChatArea: React.FC = () => {
             />
             <FaSearch className="absolute right-2 top-1.5 text-xs" />
           </div>
+          <button
+            className="bg-discord-dark-300 hover:bg-discord-dark-200 p-2 rounded-l transition-colors"
+            onClick={() => toggleMemberList(!isMemberListVisible)}
+            aria-label={
+              isMemberListVisible
+                ? "Collapse member list"
+                : "Expand member list"
+            }
+          >
+            {isMemberListVisible ? (
+              <ChevronDoubleRightIcon className="w-4 h-4 text-white" />
+            ) : (
+              <ChevronDoubleLeftIcon className="w-4 h-4 text-white" z={100} />
+            )}
+          </button>
         </div>
       </div>
 

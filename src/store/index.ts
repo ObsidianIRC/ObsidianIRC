@@ -4,7 +4,7 @@ import ircClient from "../lib/ircClient";
 import type { Channel, Message, Server, ServerConfig, User } from "../types";
 import type { ISupportEvent } from "../types/";
 
-const LOCAL_STORAGE_KEY = "savedServers";
+const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 
 export const getChannelMessages = (serverId: string, channelId: string) => {
   const state = useStore.getState();
@@ -22,11 +22,11 @@ export const findChannelMessageById = (
 };
 // Load saved servers from localStorage
 function loadSavedServers(): ServerConfig[] {
-  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_SERVERS_KEY) || "[]");
 }
 
 function saveServersToLocalStorage(servers: ServerConfig[]) {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(servers));
+  localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
 }
 
 interface UIState {
@@ -48,6 +48,10 @@ interface UIState {
   };
 }
 
+interface GlobalSettings {
+  enableNotifications: boolean;
+}
+
 interface AppState {
   servers: Server[];
   currentUser: User | null;
@@ -57,6 +61,7 @@ interface AppState {
   typingUsers: Record<string, User[]>;
   // UI state
   ui: UIState;
+  globalSettings: GlobalSettings;
   // Actions
   connect: (
     host: string,
@@ -121,6 +126,9 @@ const useStore = create<AppState>((set, get) => ({
       type: "server",
       itemId: null,
     },
+  },
+  globalSettings: {
+    enableNotifications: false,
   },
 
   // IRC client actions
