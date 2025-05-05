@@ -63,7 +63,6 @@ export class IRCClient {
     [K in EventKey]?: EventCallback<K>[];
   } = {};
 
-  public preventCapEnd = false;
   public version = __APP_VERSION__;
 
   connect(

@@ -919,12 +919,13 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   }
 
   const servers = loadSavedServers();
+  let preventCapEnd = false;
   for (const serv of servers) {
     if (serv.id === serverId && serv.saslEnabled) {
-      ircClient.preventCapEnd = true;
+      preventCapEnd = true;
     }
   }
-  if (!ircClient.preventCapEnd) {
+  if (!preventCapEnd) {
     console.log(`Sending CAP END for server ${serverId}`);
     ircClient.sendRaw(serverId, "CAP END");
     ircClient.nickOnConnect(serverId);
