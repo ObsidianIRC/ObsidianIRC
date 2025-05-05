@@ -86,7 +86,7 @@ describe("App", () => {
         "tester",
         "",
         "",
-        "super awesome password lmao 123 !?!?!",
+        "c3VwZXIgYXdlc29tZSBwYXNzd29yZCBsbWFvIDEyMyAhPyE/IQ==",
       );
     });
 
