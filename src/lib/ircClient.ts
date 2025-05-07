@@ -1,11 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Channel, Server, ServerConfig, User } from "../types";
+import type { Channel, Server, User } from "../types";
 import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
-
-// Load saved servers from localStorage
-function loadSavedServers(): ServerConfig[] {
-  return JSON.parse(localStorage.getItem("savedServers") || "[]");
-}
 
 interface EventMap {
   ready: { serverId: string; serverName: string; nickname: string };
@@ -61,14 +56,14 @@ type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 export class IRCClient {
   private sockets: Map<string, WebSocket> = new Map();
   private servers: Map<string, Server> = new Map();
+  private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
   } = {};
 
-  public preventCapEnd = false;
-  public version = "1.0.0-beta";
+  public version = __APP_VERSION__;
 
   connect(
     host: string,
@@ -113,6 +108,7 @@ export class IRCClient {
           isOnline: true,
           status: "online",
         };
+        this.nicks.set(server.id, nickname);
 
         socket.onclose = () => {
           console.log(`Disconnected from server ${host}`);
@@ -211,13 +207,10 @@ export class IRCClient {
   capEnd(serverId: string) {}
 
   nickOnConnect(serverId: string) {
-    let nickname: string | undefined;
-    const servers = loadSavedServers();
-    for (const serv of servers) {
-      if (serv.id !== serverId) continue;
-
-      nickname = serv.nickname;
-      break;
+    const nickname = this.nicks.get(serverId);
+    if (!nickname) {
+      console.error(`No nickname found for serverId ${serverId}`);
+      return;
     }
     this.sendRaw(serverId, `NICK ${nickname}`);
     this.sendRaw(serverId, `USER ${nickname} 0 * :${nickname}`);
@@ -246,6 +239,7 @@ export class IRCClient {
         const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ NICK (.+)$/);
         if (match) {
           const [, messageTags, oldNick, newNick] = match;
+          this.nicks.set(serverId, newNick);
           this.triggerEvent("NICK", {
             serverId,
             messageTags,
@@ -411,6 +405,40 @@ export class IRCClient {
     }
   }
 
+  onCapAck(serverId: string, cliCaps: string): void {
+    const ourCaps = [
+      "multi-prefix",
+      "message-tags",
+      "server-time",
+      "echo-message",
+      "message-tags",
+      "userhost-in-names",
+      "draft/chathistory",
+      "draft/extended-isupport",
+      "sasl",
+    ];
+
+    const caps = cliCaps.split(" ");
+    let toRequest = "CAP REQ :";
+    for (const c of caps) {
+      const cap = c.includes("=") ? c.split("=")[0] : c;
+      if (ourCaps.includes(cap)) {
+        if (toRequest.length + cap.length + 1 > 400) {
+          this.sendRaw(serverId, toRequest);
+          toRequest = "CAP REQ :";
+        }
+        toRequest += `${cap} `;
+        console.log(`Requesting capability: ${cap}`);
+      }
+    }
+    if (toRequest.length > 9) {
+      this.sendRaw(serverId, toRequest);
+      if (toRequest.includes("draft/extended-isupport"))
+        this.sendRaw(serverId, "ISUPPORT");
+    }
+    console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
+  }
+
   on<K extends EventKey>(event: K, callback: EventCallback<K>): void {
     if (!this.eventCallbacks[event]) {
       this.eventCallbacks[event] = [];
@@ -436,4 +464,5 @@ export class IRCClient {
 }
 
 export const ircClient = new IRCClient();
+
 export default ircClient;

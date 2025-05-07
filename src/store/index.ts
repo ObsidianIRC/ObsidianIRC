@@ -75,7 +75,7 @@ interface AppState {
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
   markChannelAsRead: (serverId: string, channelId: string) => void;
-  loadSavedServers: () => void; // New action to load servers from localStorage
+  connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
   // UI actions
   toggleAddServerModal: (isOpen?: boolean) => void;
@@ -421,7 +421,7 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  loadSavedServers: async () => {
+  connectToSavedServers: async () => {
     const savedServers = loadSavedServers();
     for (const {
       host,
@@ -871,40 +871,6 @@ ircClient.on("KICK", ({ username, target, channelName, reason }) => {
   });
 });
 
-ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
-  const ourCaps = [
-    "multi-prefix",
-    "message-tags",
-    "server-time",
-    "echo-message",
-    "message-tags",
-    "userhost-in-names",
-    "draft/chathistory",
-    "draft/extended-isupport",
-    "sasl",
-  ];
-
-  const caps = cliCaps.split(" ");
-  let toRequest = "CAP REQ :";
-  for (const c of caps) {
-    const cap = c.includes("=") ? c.split("=")[0] : c;
-    if (ourCaps.includes(cap)) {
-      if (toRequest.length + cap.length + 1 > 400) {
-        ircClient.sendRaw(serverId, toRequest);
-        toRequest = "CAP REQ :";
-      }
-      toRequest += `${cap} `;
-      console.log(`Requesting capability: ${cap}`);
-    }
-  }
-  if (toRequest.length > 9) {
-    ircClient.sendRaw(serverId, toRequest);
-    if (toRequest.includes("draft/extended-isupport"))
-      ircClient.sendRaw(serverId, "ISUPPORT");
-  }
-  console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
-});
-
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   if (key === "sasl") {
     const servers = loadSavedServers();
@@ -953,12 +919,13 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   }
 
   const servers = loadSavedServers();
+  let preventCapEnd = false;
   for (const serv of servers) {
     if (serv.id === serverId && serv.saslEnabled) {
-      ircClient.preventCapEnd = true;
+      preventCapEnd = true;
     }
   }
-  if (!ircClient.preventCapEnd) {
+  if (!preventCapEnd) {
     console.log(`Sending CAP END for server ${serverId}`);
     ircClient.sendRaw(serverId, "CAP END");
     ircClient.nickOnConnect(serverId);
@@ -1072,6 +1039,6 @@ ircClient.on("ISUPPORT", ({ serverId, capabilities }: ISupportEvent) => {
 });
 
 // Load saved servers on store initialization
-useStore.getState().loadSavedServers();
+useStore.getState().connectToSavedServers();
 
 export default useStore;
