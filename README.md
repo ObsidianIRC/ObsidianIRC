@@ -8,6 +8,7 @@
 *Important:* Only websockets are supported
 
 This IRC client and its related software are designed to be:
+- Multi-platform
 - Modern and innovative
 - Comfortable for people switching from other messaging software
 - Easy to implement
@@ -15,7 +16,21 @@ This IRC client and its related software are designed to be:
 
 ![](https://i.ibb.co/Gvbx4wpN/Screenshot-2025-05-01-at-06-27-04.png)
 
-For now, all you need to do to get this running is the following:
+### Multi-Platform
+ObsidianIRC currently runs on the following platforms:
+- Windows
+- Linux
+- MacOS
+- Android
+- iOS
+
+See the [Releases section](https://github.com/ObsidianIRC/ObsidianIRC/tags) to find something for your device. 
+There's a choice for everyone!
+
+### Runs in the browser
+ObsidianIRC also runs right in the browser so you can host it yourself.
+
+Make sure you've got `git` and `npm` installed first, and then all you need to do to get this running is the following:
 ```
 cd ~
 git clone https://github.com/ObsidianIRC/ObsidianIRC
