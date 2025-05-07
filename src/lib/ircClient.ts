@@ -215,7 +215,7 @@ export class IRCClient {
             : line.split(" ")[2];
         this.sendRaw(serverId, `PONG ${key}`);
         console.log(`PONG sent to server ${serverId} with key ${key}`);
-      } else if (line.includes(" 001 ")) {
+      } else if (line.split(" ")[1] === "001" || line.split(" ")[2] === "001") {
         const match = line.match(/^(?:@[^ ]+ )?:([^ ]+)\s001\s([^ ]+)\s/);
         if (match) {
           const [, serverName, nickname] = match;
