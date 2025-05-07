@@ -10,7 +10,7 @@ The following platforms are supported:
 - `ObsidianIRC_*.*_x64-setup.exe` for Windows
 - `ObsidianIRC-*.*.apk` for Android (Non signed apk) Follorw [this guide](https://developer.android.com/studio/run/install-apk) to install it on your device
 - `ObsidianIRC-*.*.ipa` for iOS (Non signed ipa, use [LiveContainer](https://github.com/LiveContainer/LiveContainer) or [AltStore](https://altstore.io/) to install it on your device)
-- `ObsidianIRC-web-0.0.1.zip` for the web version (Unzip and open `dist/index.html` in your browser or put that in your web server root directory)
+- `ObsidianIRC-*-web.zip` for the web version (Unzip and open `dist/index.html` in your browser or put that in your web server root directory)
 
 ## Google Playstore
 Coming soon.
