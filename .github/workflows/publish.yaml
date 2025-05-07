@@ -1,16 +1,15 @@
 name: "Tauri Build and Publish"
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-    tags:
-      - "v*.*.*"
+    # branches:
+    #   - main
+    # tags:
+    #   - "v*.*.*"
 
 jobs:
   collect-version:
-    if: github.ref_name == 'main' || github.ref_type == 'tag'
+    # if: github.ref_name == 'main' || github.ref_type == 'tag'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
@@ -135,9 +134,9 @@ jobs:
           generate_release_notes: true
           make_latest: true
           files: |
-            ./src-tauri/target/release/bundle/deb/appname_${{ needs.collect-version.outputs.current_version}}_arm64.deb
-            ./src-tauri/target/release/bundle/rpm/appname-${{ needs.collect-version.outputs.current_version}}-1.aarch64.rpm
-            ./src-tauri/target/release/bundle/appimage/appname_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage
+            ./src-tauri/target/release/bundle/deb/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_arm64.deb
+            ./src-tauri/target/release/bundle/rpm/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-1.aarch64.rpm
+            ./src-tauri/target/release/bundle/appimage/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage
 
   publish-android:
     runs-on: ubuntu-latest
