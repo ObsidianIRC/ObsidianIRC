@@ -2,14 +2,14 @@ name: "Tauri Build and Publish"
 
 on:
   push:
-    # branches:
-    #   - main
-    # tags:
-    #   - "v*.*.*"
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
 
 jobs:
   collect-version:
-    # if: github.ref_name == 'main' || github.ref_type == 'tag'
+    if: github.ref_name == 'main' || github.ref_type == 'tag'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
@@ -116,12 +116,6 @@ jobs:
 
       - name: Build app
         run: npm run tauri build -- --verbose
-
-      - name: Pretty sure idk what they are named
-        run: |
-          ls ./src-tauri/target/release/bundle/deb
-          ls ./src-tauri/target/release/bundle/rpm
-          ls ./src-tauri/target/release/bundle/appimage
 
       - name: Publish
         uses: softprops/action-gh-release@v2
