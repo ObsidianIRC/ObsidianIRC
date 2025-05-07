@@ -13,7 +13,7 @@ This IRC client and its related software are designed to be:
 - Easy to implement
 - Easy to expand
 
-![](https://i.imgur.com/6GSkqJU.png)
+![](https://i.ibb.co/Gvbx4wpN/Screenshot-2025-05-01-at-06-27-04.png)
 
 For now, all you need to do to get this running is the following:
 ```
@@ -29,3 +29,8 @@ Replace `/var/www/html/` with the web directory you want to contain your webclie
 ### Contribuiting
 
 If you want to contribute to this project, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file. It contains all the information you need to get started.
+
+### Live Demo
+You can demo the bleeding-edge version of ObsidianIRC, all you need to do is connect to an IRC server which uses websockets!
+- [Demo on GitHub Pages](https://obsidianirc.github.io/)
+- [Demo on CloudFlare Pages](https://obsidianirc.pages.dev/)
