@@ -306,7 +306,7 @@ jobs:
       - name: Build
         run: |
           npm run build
-          zip -r ObsidianIRC-web-${{ needs.collect-version.outputs.current_version}}.zip ./dist
+          zip -r ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-web.zip ./dist
 
       - name: Publish
         uses: softprops/action-gh-release@v2
