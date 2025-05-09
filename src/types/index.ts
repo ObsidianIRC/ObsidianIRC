@@ -5,7 +5,7 @@ export interface User {
   displayName?: string;
   account?: string;
   isOnline: boolean;
-  status?: "online" | "idle" | "dnd" | "invisible" | "offline";
+  status?: string;
 }
 
 export interface Server {
@@ -46,7 +46,7 @@ export interface Channel {
 }
 
 export interface Message {
-  id: string;
+  id?: string;
   content: string;
   timestamp: Date;
   userId: string;
@@ -86,4 +86,9 @@ export interface Command {
 export type ISupportEvent = {
   serverId: string;
   capabilities: string[];
+};
+
+export type MessageTag = {
+  key: string;
+  value?: string;
 };

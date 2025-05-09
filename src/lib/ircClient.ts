@@ -1,12 +1,16 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Channel, Server, User } from "../types";
-import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
+import {
+  parseIsupport,
+  parseMessageTags,
+  parseNamesResponse,
+} from "./ircUtils";
 
 interface EventMap {
   ready: { serverId: string; serverName: string; nickname: string };
   NICK: {
     serverId: string;
-    messageTags: string;
+    mtags: Record<string, string> | undefined;
     oldNick: string;
     newNick: string;
   };
@@ -20,23 +24,30 @@ interface EventMap {
   };
   KICK: {
     serverId: string;
-    messageTags: string;
+    mtags: Record<string, string> | undefined;
     username: string;
     channelName: string;
     target: string;
     reason: string;
   };
-  PRIVMSG: {
+  CHANMSG: {
     serverId: string;
-    messageTags: Record<string, string>;
+    mtags: Record<string, string> | undefined;
     sender: string;
     channelName: string;
     message: string;
     timestamp: Date;
   };
+  USERMSG: {
+    serverId: string;
+    mtags: Record<string, string> | undefined;
+    sender: string;
+    message: string;
+    timestamp: Date;
+  };
   TAGMSG: {
     serverId: string;
-    messageTags: Record<string, string>;
+    mtags: Record<string, string> | undefined;
     sender: string;
     channelName: string;
     timestamp: Date;
@@ -221,191 +232,217 @@ export class IRCClient {
 
     const lines = data.split("\r\n");
     for (let line of lines) {
+      let mtags: Record<string, string> | undefined;
+      let source: string;
+      const parv = [];
+      let i = 0;
+      let l: string[];
       line = line.trim();
-      if (line.split(" ")[1] === "PING" || line.split(" ")[0] === "PING") {
-        const key =
-          line.split(" ")[0] === "PING"
-            ? line.split(" ")[1]
-            : line.split(" ")[2];
+      l = line.split(" ") ?? line;
+
+      if (l[i][0] === "@") {
+        mtags = parseMessageTags(l[i]);
+        i++;
+      }
+
+      // Determine the source. if none, spoof as host server
+      if (l[i][0] !== ":") {
+        const thisServ = this.servers.get(serverId);
+        const thisServName = thisServ?.name;
+        if (!thisServName) {
+          // something has gone horribly wrong
+          console.log("No source, this will break parsing");
+          return;
+        }
+        source = thisServName;
+      } else {
+        source = l[i].substring(1);
+        i++;
+      }
+
+      const command = l[i];
+      for (i++; l[i]; i++) {
+        parv.push(l[i]);
+      }
+      const parc = parv.length;
+
+      if (command === "PING") {
+        const key = parv.join(" ");
         this.sendRaw(serverId, `PONG ${key}`);
         console.log(`PONG sent to server ${serverId} with key ${key}`);
-      } else if (line.split(" ")[1] === "001" || line.split(" ")[2] === "001") {
-        const match = line.match(/^(?:@[^ ]+ )?:([^ ]+)\s001\s([^ ]+)\s/);
-        if (match) {
-          const [, serverName, nickname] = match;
-          this.triggerEvent("ready", { serverId, serverName, nickname });
-        }
-      } else if (line.split(" ")[2] === "NICK") {
-        const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ NICK (.+)$/);
-        if (match) {
-          const [, messageTags, oldNick, newNick] = match;
+      } else if (command === "001") {
+        const serverName = source;
+        const nickname = parv.join(" ");
+        this.triggerEvent("ready", { serverId, serverName, nickname });
+      } else if (command === "NICK") {
+        console.log("triggered nickchange");
+        const oldNick = getNickFromNuh(source);
+        const newNick = parv[0];
+
+        // We changed our own nick
+        if (oldNick === this.nicks.get(serverId))
           this.nicks.set(serverId, newNick);
-          this.triggerEvent("NICK", {
-            serverId,
-            messageTags,
-            oldNick,
-            newNick,
-          });
-        }
-      } else if (line.split(" ")[2] === "QUIT") {
-        const match = line.match(
-          /^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ QUIT :(.+)$/,
-        );
-        if (match) {
-          const [, username, reason] = match;
-          this.triggerEvent("QUIT", { serverId, username, reason });
-        }
-      } else if (line.split(" ")[2] === "JOIN") {
-        const match = line.match(
-          // biome-ignore lint/suspicious/noControlCharactersInRegex: We want to match on \x07
-          /^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ JOIN :?([#&][^\s,\x07]{1,199})$/,
-        );
-        if (match) {
-          const [, username, channelName] = match;
-          this.triggerEvent("JOIN", { serverId, username, channelName });
-        }
-      } else if (line.split(" ")[2] === "PART") {
-        const match = line.match(
-          /^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART ([^ ]+)(?: :(.+))?$/,
-        );
-        if (match) {
-          const [, username, channelName, reason] = match;
-          this.triggerEvent("PART", {
-            serverId,
-            username,
-            channelName,
-            reason,
-          });
-        }
-      } else if (line.split(" ")[2] === "KICK") {
-        const match = line.match(
-          /^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ KICK (.+) (.+) :(.+)$/,
-        );
-        if (match) {
-          const [, messageTags, username, channelName, target, reason] = match;
-          this.triggerEvent("KICK", {
-            serverId,
-            messageTags,
-            username,
-            channelName,
-            target,
-            reason,
-          });
-        }
-      } else if (line.split(" ")[2] === "PRIVMSG") {
-        const match = line.match(
-          /^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PRIVMSG ([^ ]+) :(.+)$/,
-        );
-        if (match) {
-          const [, mtags, sender, target, message] = match;
-          const isChannel = target.startsWith("#");
-          const channelName = isChannel ? target : sender;
 
-          const messageTags = parseMessageTags(mtags);
+        console.log(oldNick, newNick, this.nicks);
+        this.triggerEvent("NICK", {
+          serverId,
+          mtags,
+          oldNick,
+          newNick,
+        });
+      } else if (command === "QUIT") {
+        const username = getNickFromNuh(source);
+        const reason = parv.join(" ");
+        this.triggerEvent("QUIT", { serverId, username, reason });
+      } else if (command === "JOIN") {
+        const username = getNickFromNuh(source);
+        const channelName = parv[0][0] === ":" ? parv[0].substring(1) : parv[0];
+        this.triggerEvent("JOIN", { serverId, username, channelName });
+      } else if (command === "PART") {
+        const username = getNickFromNuh(source);
+        const channelName = parv[0];
+        parv[0] = "";
+        const reason = parv.join(" ").trim();
+        this.triggerEvent("PART", {
+          serverId,
+          username,
+          channelName,
+          reason,
+        });
+      } else if (command === "KICK") {
+        const username = getNickFromNuh(source);
+        const channelName = parv[0];
+        const target = parv[1];
+        parv[0] = "";
+        parv[1] = "";
+        const reason = parv.join(" ").trim().substring(1);
+        this.triggerEvent("KICK", {
+          serverId,
+          mtags,
+          username,
+          channelName,
+          target,
+          reason,
+        });
+      } else if (command === "PRIVMSG") {
+        const target = parv[0];
+        const isChannel = target.startsWith("#");
+        const sender = getNickFromNuh(source);
 
-          this.triggerEvent("PRIVMSG", {
+        parv[0] = "";
+        const message = parv.join(" ").trim().substring(1);
+
+        if (isChannel) {
+          const channelName = target;
+          this.triggerEvent("CHANMSG", {
             serverId,
-            messageTags,
+            mtags,
             sender,
             channelName,
             message,
             timestamp: new Date(),
           });
+        } else {
+          this.triggerEvent("USERMSG", {
+            serverId,
+            mtags,
+            sender,
+            message,
+            timestamp: new Date(),
+          });
         }
-      } else if (line.split(" ")[2] === "TAGMSG") {
-        const match = line.match(
-          /^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ TAGMSG ([^ ]+)$/,
-        );
-        if (match) {
-          const [, mtags, sender, target] = match;
-          const isChannel = target.startsWith("#");
-          const channelName = isChannel ? target : sender;
-
-          const messageTags = parseMessageTags(mtags);
-
+      } else if (command === "TAGMSG") {
+        const isChannel = parv[0].startsWith("#");
+        const sender = getNickFromNuh(source);
+        if (isChannel) {
+          const channelName = parv[0];
           this.triggerEvent("TAGMSG", {
             serverId,
-            messageTags,
+            mtags,
             sender,
             channelName,
             timestamp: new Date(),
           });
         }
-      } else if (
-        line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/)
-      ) {
-        const match = line.match(
-          /^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/,
-        );
-        if (match) {
-          const [, channelName, names] = match;
-          const newUsers = parseNamesResponse(names); // Parse the user list
+      } else if (command === "353") {
+        const channelName = parv[2];
+        const names = parv.slice(3).join(" ").trim().substring(1);
+        console.log(names);
+        const newUsers = parseNamesResponse(names); // Parse the user list
+        console.log(newUsers);
+        // Find the server and channel
+        const server = this.servers.get(serverId);
+        if (server) {
+          const channel = server.channels.find((c) => c.name === channelName);
+          if (channel) {
+            // Merge new users with existing users
+            const existingUsers = channel.users || [];
+            const mergedUsers = [...existingUsers];
 
-          // Find the server and channel
-          const server = this.servers.get(serverId);
-          if (server) {
-            const channel = server.channels.find((c) => c.name === channelName);
-            if (channel) {
-              // Merge new users with existing users
-              const existingUsers = channel.users || [];
-              const mergedUsers = [...existingUsers];
-
-              for (const newUser of newUsers) {
-                if (
-                  !existingUsers.some(
-                    (user) => user.username === newUser.username,
-                  )
-                ) {
-                  mergedUsers.push(newUser);
-                }
+            for (const newUser of newUsers) {
+              if (
+                !existingUsers.some(
+                  (user) => user.username === newUser.username,
+                )
+              ) {
+                mergedUsers.push(newUser);
               }
-
-              // Update the channel's user list
-              channel.users = mergedUsers;
-
-              // Trigger an event to notify the UI
-              this.triggerEvent("NAMES", {
-                serverId,
-                channelName,
-                users: mergedUsers,
-              });
             }
+
+            // Update the channel's user list
+            channel.users = mergedUsers;
+
+            // Trigger an event to notify the UI
+            this.triggerEvent("NAMES", {
+              serverId,
+              channelName,
+              users: mergedUsers,
+            });
           } else {
             console.warn(
-              `Server ${serverId} not found while processing NAMES response`,
+              `Channel ${channelName} not found when processing NAMES response`,
             );
           }
+        } else {
+          console.warn(
+            `Server ${serverId} not found while processing NAMES response`,
+          );
         }
-      } else if (line.includes("CAP * LS")) {
-        const match = line.match(
-          /^(?:@\S+\s)?:(\S+)\sCAP\s\*\sLS\s(?:\*\s)?:(.+)$/,
-        );
-        if (match) {
-          const [, , caps] = match;
-          // Trigger an event to notify the UI
-          this.triggerEvent("CAP LS", { serverId, cliCaps: caps });
+      } else if (command === "CAP") {
+        let i = 0;
+        let caps = "";
+        if (parv[i] === "*") i++;
+        const subcommand = parv[i++];
+        if (parv[i] === "*") i++;
+        parv[i] = parv[i].substring(1); // trim the ":" lol
+        while (parv[i]) {
+          caps += parv[i++];
+          if (parv[i]) caps += " ";
         }
-      } else if (line.match(/:[^ ]+ CAP (.*) ACK :(.*)/)) {
-        const match = line.match(/:[^ ]+ CAP (.*) ACK :(.*)/);
-        if (match) {
-          const [, , caps] = match;
-          // Trigger an event to notify the UI
+
+        if (subcommand === "LS") this.onCapLs(serverId, caps);
+        else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
-        }
       } else if (line.split(" ")[1] === "005") {
         console.log("005 detected");
-        const capabilities = parseFavicon(line);
+        const capabilities = parseIsupport(line);
         this.triggerEvent("ISUPPORT", { serverId, capabilities });
-      } else if (line.split(" ")[0] === "AUTHENTICATE") {
-        const param = line.substring("AUTHENTICATE ".length);
+      } else if (command === "AUTHENTICATE") {
+        const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
-      } else if (line.includes("005")) {
-        console.log("005 detected abnormally");
       }
     }
   }
 
-  onCapAck(serverId: string, cliCaps: string): void {
+  /* Send SASL plain */
+  sendSaslPlain(serverId: string, username: string, password: string) {
+    this.sendRaw(
+      serverId,
+      `AUTHENTICATE ${btoa(`${username}\x00${username}\x00${password}`)}`,
+    );
+  }
+
+  onCapLs(serverId: string, cliCaps: string): void {
     const ourCaps = [
       "multi-prefix",
       "message-tags",
@@ -461,6 +498,10 @@ export class IRCClient {
   getCurrentUser(): User | null {
     return this.currentUser;
   }
+}
+
+function getNickFromNuh(nuh: string) {
+  return nuh.substring(0, nuh.indexOf("!"));
 }
 
 export const ircClient = new IRCClient();

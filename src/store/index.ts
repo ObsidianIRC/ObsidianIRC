@@ -621,8 +621,8 @@ const useStore = create<AppState>((set, get) => ({
 //   }
 // });
 
-ircClient.on("PRIVMSG", (response) => {
-  const { messageTags, channelName, message, timestamp } = response;
+ircClient.on("CHANMSG", (response) => {
+  const { mtags, channelName, message, timestamp } = response;
 
   // Find the server and channel
   const server = useStore
@@ -634,16 +634,14 @@ ircClient.on("PRIVMSG", (response) => {
     const replyTo = null;
 
     if (channel) {
-      const replyId = messageTags["+reply"]
-        ? messageTags["+reply"].trim()
-        : null;
+      const replyId = mtags?.["+reply"] ? mtags["+reply"].trim() : null;
 
       const replyMessage = replyId
         ? findChannelMessageById(server.id, channel.id, replyId)
         : null;
 
       const newMessage = {
-        id: messageTags.msgid,
+        id: replyId ? replyId : uuidv4(),
         content: message,
         timestamp,
         userId: response.sender,
@@ -935,8 +933,8 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
 });
 
 // CTCPs lol
-ircClient.on("PRIVMSG", (response) => {
-  const { messageTags, channelName, message, timestamp } = response;
+ircClient.on("CHANMSG", (response) => {
+  const { channelName, message, timestamp } = response;
 
   // Find the server and channel
   const server = useStore
@@ -969,13 +967,13 @@ ircClient.on("PRIVMSG", (response) => {
 
 // TAGMSG typing
 ircClient.on("TAGMSG", (response) => {
-  const { sender, messageTags, channelName } = response;
+  const { sender, mtags, channelName } = response;
 
   // Check if the sender is not the current user
   // we don't care about showing our own typing status
   const currentUser = useStore.getState().currentUser;
-  if (sender !== currentUser?.username && messageTags["+typing"]) {
-    const isActive = messageTags["+typing"] === "active";
+  if (sender !== currentUser?.username && mtags && mtags["+typing"]) {
+    const isActive = mtags["+typing"] === "active";
     const server = useStore
       .getState()
       .servers.find((s) => s.id === response.serverId);
