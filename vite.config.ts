@@ -13,6 +13,11 @@ export default defineConfig({
     setupFiles: "./tests/setup.ts",
     include: ["tests/**/*.test.tsx", "tests/**/*.test.ts"],
   },
+  define: {
+    '__APP_VERSION__': JSON.stringify(process.env.npm_package_version),
+    '__APP_NAME__': JSON.stringify(process.env.npm_package_name),
+    '__APP_DESCRIPTION__': JSON.stringify(process.env.npm_package_description),
+  },
   // prevent vite from obscuring rust errors
   clearScreen: false,
   // Tauri expects a fixed port, fail if that port is not available

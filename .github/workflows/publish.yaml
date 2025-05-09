@@ -1,7 +1,6 @@
 name: "Tauri Build and Publish"
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -85,6 +84,53 @@ jobs:
           releaseDraft: ${{ needs.collect-version.outputs.draft == 'true' }}
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}
+
+  publish-linux-arm:
+    runs-on: ubuntu-24.04-arm
+    needs: collect-version
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: install dependencies (ubuntu only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: install frontend dependencies
+        run: npm install
+
+      - name: Build app
+        run: npm run tauri build -- --verbose
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: ${{ needs.collect-version.outputs.draft == 'true' }}
+          prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
+          body: ${{ needs.collect-version.outputs.body }}
+          name: ${{ needs.collect-version.outputs.name }}
+          tag_name: ${{ needs.collect-version.outputs.tag_name }}
+          generate_release_notes: true
+          make_latest: true
+          files: |
+            ./src-tauri/target/release/bundle/deb/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_arm64.deb
+            ./src-tauri/target/release/bundle/rpm/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-1.aarch64.rpm
+            ./src-tauri/target/release/bundle/appimage/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage
 
   publish-android:
     runs-on: ubuntu-latest
@@ -260,7 +306,7 @@ jobs:
       - name: Build
         run: |
           npm run build
-          zip -r ObsidianIRC-web-${{ needs.collect-version.outputs.current_version}}.zip ./dist
+          zip -r ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-web.zip ./dist
 
       - name: Publish
         uses: softprops/action-gh-release@v2
