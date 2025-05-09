@@ -5,7 +5,7 @@ export interface User {
   displayName?: string;
   account?: string;
   isOnline: boolean;
-  status?: "online" | "idle" | "dnd" | "invisible" | "offline";
+  status?: string;
 }
 
 export interface Server {
@@ -18,9 +18,6 @@ export interface Server {
   icon?: string;
   isConnected: boolean;
   users: User[];
-  saslAccountName?: string | null;
-  saslPassword?: string | null;
-  saslEnabled?: boolean;
 }
 
 export interface ServerConfig {
@@ -28,11 +25,11 @@ export interface ServerConfig {
   host: string;
   port: number;
   nickname: string;
-  password?: string;
+  password?: string | undefined;
   channels: string[];
-  saslAccountName?: string | null;
-  saslPassword?: string | null;
-  saslEnabled?: boolean;
+  saslAccountName?: string;
+  saslPassword?: string;
+  saslEnabled: boolean;
 }
 
 export interface Channel {
@@ -49,7 +46,7 @@ export interface Channel {
 }
 
 export interface Message {
-  id: string;
+  id?: string;
   content: string;
   timestamp: Date;
   userId: string;
@@ -89,4 +86,9 @@ export interface Command {
 export type ISupportEvent = {
   serverId: string;
   capabilities: string[];
+};
+
+export type MessageTag = {
+  key: string;
+  value?: string;
 };

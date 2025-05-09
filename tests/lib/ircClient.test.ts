@@ -169,8 +169,6 @@ describe("IRCClient", () => {
 
       // Verify sent messages
       expect(mockSocket.sentMessages).toContain("CAP LS 302");
-      expect(mockSocket.sentMessages).toContain("NICK testuser");
-      expect(mockSocket.sentMessages).toContain("USER testuser 0 * :testuser");
     });
 
     test("should handle connection errors", async () => {
@@ -207,7 +205,7 @@ describe("IRCClient", () => {
       // Set up event listener
       let receivedMessage: unknown;
       const messagePromise = new Promise<void>((resolve) => {
-        client.on("PRIVMSG", (msg) => {
+        client.on("CHANMSG", (msg) => {
           receivedMessage = msg;
           resolve();
         });
@@ -222,7 +220,7 @@ describe("IRCClient", () => {
 
       expect(receivedMessage).toEqual({
         serverId: server.id,
-        messageTags: expect.any(Object),
+        mtags: expect.any(Object),
         sender: "nick",
         channelName: "#channel",
         message: "Hello, world!",

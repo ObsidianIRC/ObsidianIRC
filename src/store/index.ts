@@ -62,10 +62,10 @@ interface AppState {
     host: string,
     port: number,
     nickname: string,
+    saslEnabled: boolean,
     password?: string,
     saslAccountName?: string,
     saslPassword?: string,
-    saslEnabled?: boolean,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
@@ -75,7 +75,7 @@ interface AppState {
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
   markChannelAsRead: (serverId: string, channelId: string) => void;
-  loadSavedServers: () => void; // New action to load servers from localStorage
+  connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
   // UI actions
   toggleAddServerModal: (isOpen?: boolean) => void;
@@ -128,6 +128,7 @@ const useStore = create<AppState>((set, get) => ({
     host,
     port,
     nickname,
+    saslEnabled,
     password,
     saslAccountName,
     saslPassword,
@@ -159,31 +160,13 @@ const useStore = create<AppState>((set, get) => ({
         host,
         port,
         nickname,
+        saslEnabled: !!saslPassword,
         password,
         channels: channelsToJoin,
         saslAccountName,
         saslPassword,
-        saslEnabled: !!saslPassword,
       });
       saveServersToLocalStorage(updatedServers);
-
-      // Listen for the "ready" event to join channels
-      ircClient.on("ready", ({ serverName }) => {
-        if (serverName === host) {
-          for (const channelName of channelsToJoin) {
-            ircClient.joinChannel(server.id, channelName);
-          }
-
-          // Update the UI state to reflect the first joined channel
-          set((state) => ({
-            ui: {
-              ...state.ui,
-              selectedServerId: server.id,
-              selectedChannelId: server.channels[0]?.id || null,
-            },
-          }));
-        }
-      });
 
       set((state) => ({
         servers: [...state.servers, server],
@@ -438,29 +421,28 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  loadSavedServers: async () => {
+  connectToSavedServers: async () => {
     const savedServers = loadSavedServers();
-    for (const { host, port, nickname, password, channels } of savedServers) {
+    for (const {
+      host,
+      port,
+      nickname,
+      password,
+      channels,
+      saslEnabled,
+      saslAccountName,
+      saslPassword,
+    } of savedServers) {
       try {
-        const server = await get().connect(host, port, nickname, password);
-
-        // Listen for the "ready" event to join channels
-        ircClient.on("ready", ({ serverName }) => {
-          if (serverName === host) {
-            for (const channelName of channels) {
-              ircClient.joinChannel(server.id, channelName);
-            }
-
-            // Update the UI state to reflect the first joined channel
-            set((state) => ({
-              ui: {
-                ...state.ui,
-                selectedServerId: server.id,
-                selectedChannelId: server.channels[0]?.id || null,
-              },
-            }));
-          }
-        });
+        const server = await get().connect(
+          host,
+          port,
+          nickname,
+          saslEnabled,
+          password,
+          saslAccountName,
+          saslPassword,
+        );
       } catch (error) {
         console.error(`Failed to reconnect to server ${host}:${port}`, error);
       }
@@ -639,8 +621,8 @@ const useStore = create<AppState>((set, get) => ({
 //   }
 // });
 
-ircClient.on("PRIVMSG", (response) => {
-  const { messageTags, channelName, message, timestamp } = response;
+ircClient.on("CHANMSG", (response) => {
+  const { mtags, channelName, message, timestamp } = response;
 
   // Find the server and channel
   const server = useStore
@@ -652,16 +634,14 @@ ircClient.on("PRIVMSG", (response) => {
     const replyTo = null;
 
     if (channel) {
-      const replyId = messageTags["+reply"]
-        ? messageTags["+reply"].trim()
-        : null;
+      const replyId = mtags?.["+reply"] ? mtags["+reply"].trim() : null;
 
       const replyMessage = replyId
         ? findChannelMessageById(server.id, channel.id, replyId)
         : null;
 
       const newMessage = {
-        id: messageTags.msgid,
+        id: replyId ? replyId : uuidv4(),
         content: message,
         timestamp,
         userId: response.sender,
@@ -889,60 +869,72 @@ ircClient.on("KICK", ({ username, target, channelName, reason }) => {
   });
 });
 
-ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
-  const ourCaps = [
-    "multi-prefix",
-    "message-tags",
-    "server-time",
-    "echo-message",
-    "message-tags",
-    "userhost-in-names",
-    "draft/chathistory",
-    "draft/extended-isupport",
-    "sasl",
-  ];
+ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
+  if (key === "sasl") {
+    const servers = loadSavedServers();
+    for (const serv of servers) {
+      if (serv.id !== serverId) continue;
 
-  const caps = cliCaps.split(" ");
-  let toRequest = "CAP REQ :";
-  for (const cap of caps) {
-    if (ourCaps.includes(cap)) {
-      if (toRequest.length + cap.length + 1 > 400) {
-        ircClient.sendRaw(serverId, toRequest);
-        toRequest = "CAP REQ :";
-      }
-      toRequest += `${cap} `;
-      console.log(`Requesting capability: ${cap}`);
+      if (!serv.saslEnabled) return;
     }
+    ircClient.sendRaw(serverId, "AUTHENTICATE PLAIN");
   }
-  if (toRequest.length > 9) {
-    ircClient.sendRaw(serverId, toRequest);
-    if (toRequest.includes("draft/extended-isupport"))
-      ircClient.sendRaw(serverId, "ISUPPORT");
-  }
-  console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
 });
 
-ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, capabilities }) => {
-  if (capabilities === "sasl") {
+ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
+  console.log(param);
+  if (param !== "+") return;
+
+  let user: string | undefined;
+  let pass: string | undefined;
+  const servers = loadSavedServers();
+  for (const serv of servers) {
+    if (serv.id !== serverId) continue;
+
+    if (!serv.saslEnabled) return;
+
+    user = serv.saslAccountName?.length ? serv.saslAccountName : serv.nickname;
+    pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
   }
+  if (!user || !pass)
+    // wtf happened lol
+    return;
+
+  ircClient.sendRaw(
+    serverId,
+    `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
+  );
+  ircClient.sendRaw(serverId, "CAP END");
+  ircClient.nickOnConnect(serverId);
 });
+
 ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   const caps = cliCaps.split(" ");
   for (const cap of caps) {
-    ircClient.capAck(serverId, cap);
+    const tok = cap.split("=");
+    ircClient.capAck(serverId, tok[0], tok[1] ?? null);
     console.log(`Capability acknowledged: ${cap}`);
   }
-  if (!ircClient.preventCapEnd) {
+
+  const servers = loadSavedServers();
+  let preventCapEnd = false;
+  for (const serv of servers) {
+    if (serv.id === serverId && serv.saslEnabled) {
+      preventCapEnd = true;
+    }
+  }
+  if (!preventCapEnd) {
     console.log(`Sending CAP END for server ${serverId}`);
     ircClient.sendRaw(serverId, "CAP END");
+    ircClient.nickOnConnect(serverId);
   } else {
     console.log(`Preventing CAP END for server ${serverId}`);
   }
 });
 
 // CTCPs lol
-ircClient.on("PRIVMSG", (response) => {
-  const { messageTags, channelName, message, timestamp } = response;
+ircClient.on("CHANMSG", (response) => {
+  const { channelName, message, timestamp } = response;
 
   // Find the server and channel
   const server = useStore
@@ -975,13 +967,13 @@ ircClient.on("PRIVMSG", (response) => {
 
 // TAGMSG typing
 ircClient.on("TAGMSG", (response) => {
-  const { sender, messageTags, channelName } = response;
+  const { sender, mtags, channelName } = response;
 
   // Check if the sender is not the current user
   // we don't care about showing our own typing status
   const currentUser = useStore.getState().currentUser;
-  if (sender !== currentUser?.username && messageTags["+typing"]) {
-    const isActive = messageTags["+typing"] === "active";
+  if (sender !== currentUser?.username && mtags && mtags["+typing"]) {
+    const isActive = mtags["+typing"] === "active";
     const server = useStore
       .getState()
       .servers.find((s) => s.id === response.serverId);
@@ -1045,6 +1037,6 @@ ircClient.on("ISUPPORT", ({ serverId, capabilities }: ISupportEvent) => {
 });
 
 // Load saved servers on store initialization
-useStore.getState().loadSavedServers();
+useStore.getState().connectToSavedServers();
 
 export default useStore;

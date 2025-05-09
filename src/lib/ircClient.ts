@@ -1,12 +1,16 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Channel, Server, User } from "../types";
-import { parseFavicon, parseMessageTags, parseNamesResponse } from "./ircUtils";
+import {
+  parseIsupport,
+  parseMessageTags,
+  parseNamesResponse,
+} from "./ircUtils";
 
 interface EventMap {
   ready: { serverId: string; serverName: string; nickname: string };
   NICK: {
     serverId: string;
-    messageTags: string;
+    mtags: Record<string, string> | undefined;
     oldNick: string;
     newNick: string;
   };
@@ -20,23 +24,30 @@ interface EventMap {
   };
   KICK: {
     serverId: string;
-    messageTags: string;
+    mtags: Record<string, string> | undefined;
     username: string;
     channelName: string;
     target: string;
     reason: string;
   };
-  PRIVMSG: {
+  CHANMSG: {
     serverId: string;
-    messageTags: Record<string, string>;
+    mtags: Record<string, string> | undefined;
     sender: string;
     channelName: string;
     message: string;
     timestamp: Date;
   };
+  USERMSG: {
+    serverId: string;
+    mtags: Record<string, string> | undefined;
+    sender: string;
+    message: string;
+    timestamp: Date;
+  };
   TAGMSG: {
     serverId: string;
-    messageTags: Record<string, string>;
+    mtags: Record<string, string> | undefined;
     sender: string;
     channelName: string;
     timestamp: Date;
@@ -45,7 +56,9 @@ interface EventMap {
   "CAP LS": { serverId: string; cliCaps: string };
   "CAP ACK": { serverId: string; cliCaps: string };
   ISUPPORT: { serverId: string; capabilities: string[] };
-  CAP_ACKNOWLEDGED: { serverId: string; capabilities: string };
+  CAP_ACKNOWLEDGED: { serverId: string; key: string; capabilities: string };
+  CAP_END: { serverId: string };
+  AUTHENTICATE: { serverId: string; param: string };
 }
 
 type EventKey = keyof EventMap;
@@ -54,22 +67,22 @@ type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 export class IRCClient {
   private sockets: Map<string, WebSocket> = new Map();
   private servers: Map<string, Server> = new Map();
+  private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
   } = {};
 
-  public preventCapEnd = false;
-  public version = "1.0.0-beta";
+  public version = __APP_VERSION__;
 
   connect(
     host: string,
     port: number,
     nickname: string,
     password?: string,
-    saslAccountName?: string | null,
-    saslPassword?: string | null,
+    saslAccountName?: string,
+    saslPassword?: string,
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
@@ -80,12 +93,11 @@ export class IRCClient {
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
         // Send IRC commands to register the user
-        socket.send("CAP LS 302");
-        socket.send(`NICK ${nickname}`);
-        socket.send(`USER ${nickname} 0 * :${nickname}`);
         if (password) {
           socket.send(`PASS ${password}`);
         }
+
+        socket.send("CAP LS 302");
 
         const server: Server = {
           id: uuidv4(),
@@ -107,6 +119,7 @@ export class IRCClient {
           isOnline: true,
           status: "online",
         };
+        this.nicks.set(server.id, nickname);
 
         socket.onclose = () => {
           console.log(`Disconnected from server ${host}`);
@@ -198,8 +211,20 @@ export class IRCClient {
     if (channel) channel.unreadCount = 0;
   }
 
-  capAck(serverId: string, capabilities: string): void {
-    this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, capabilities });
+  capAck(serverId: string, key: string, capabilities: string): void {
+    this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, key, capabilities });
+  }
+
+  capEnd(serverId: string) {}
+
+  nickOnConnect(serverId: string) {
+    const nickname = this.nicks.get(serverId);
+    if (!nickname) {
+      console.error(`No nickname found for serverId ${serverId}`);
+      return;
+    }
+    this.sendRaw(serverId, `NICK ${nickname}`);
+    this.sendRaw(serverId, `USER ${nickname} 0 * :${nickname}`);
   }
 
   private handleMessage(data: string, serverId: string): void {
@@ -207,184 +232,248 @@ export class IRCClient {
 
     const lines = data.split("\r\n");
     for (let line of lines) {
+      let mtags: Record<string, string> | undefined;
+      let source: string;
+      const parv = [];
+      let i = 0;
+      let l: string[];
       line = line.trim();
-      if (line.split(" ")[1] === "PING" || line.split(" ")[0] === "PING") {
-        const key =
-          line.split(" ")[0] === "PING"
-            ? line.split(" ")[1]
-            : line.split(" ")[2];
+      l = line.split(" ") ?? line;
+
+      if (l[i][0] === "@") {
+        mtags = parseMessageTags(l[i]);
+        i++;
+      }
+
+      // Determine the source. if none, spoof as host server
+      if (l[i][0] !== ":") {
+        const thisServ = this.servers.get(serverId);
+        const thisServName = thisServ?.name;
+        if (!thisServName) {
+          // something has gone horribly wrong
+          console.log("No source, this will break parsing");
+          return;
+        }
+        source = thisServName;
+      } else {
+        source = l[i].substring(1);
+        i++;
+      }
+
+      const command = l[i];
+      for (i++; l[i]; i++) {
+        parv.push(l[i]);
+      }
+      const parc = parv.length;
+
+      if (command === "PING") {
+        const key = parv.join(" ");
         this.sendRaw(serverId, `PONG ${key}`);
         console.log(`PONG sent to server ${serverId} with key ${key}`);
-      } else if (line.split(" ")[1] === "001" || line.split(" ")[2] === "001") {
-        const match = line.match(/^(?:@[^ ]+ )?:([^ ]+)\s001\s([^ ]+)\s/);
-        if (match) {
-          const [, serverName, nickname] = match;
-          this.triggerEvent("ready", { serverId, serverName, nickname });
-        }
-      } else if (line.split(" ")[2] === "NICK") {
-        const match = line.match(/^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ NICK (.+)$/);
-        if (match) {
-          const [, messageTags, oldNick, newNick] = match;
-          this.triggerEvent("NICK", {
-            serverId,
-            messageTags,
-            oldNick,
-            newNick,
-          });
-        }
-      } else if (line.split(" ")[2] === "QUIT") {
-        const match = line.match(
-          /^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ QUIT :(.+)$/,
-        );
-        if (match) {
-          const [, username, reason] = match;
-          this.triggerEvent("QUIT", { serverId, username, reason });
-        }
-      } else if (line.split(" ")[2] === "JOIN") {
-        const match = line.match(
-          // biome-ignore lint/suspicious/noControlCharactersInRegex: We want to match on \x07
-          /^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ JOIN :?([#&][^\s,\x07]{1,199})$/,
-        );
-        if (match) {
-          const [, username, channelName] = match;
-          this.triggerEvent("JOIN", { serverId, username, channelName });
-        }
-      } else if (line.split(" ")[2] === "PART") {
-        const match = line.match(
-          /^(?:@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PART ([^ ]+)(?: :(.+))?$/,
-        );
-        if (match) {
-          const [, username, channelName, reason] = match;
-          this.triggerEvent("PART", {
-            serverId,
-            username,
-            channelName,
-            reason,
-          });
-        }
-      } else if (line.split(" ")[2] === "KICK") {
-        const match = line.match(
-          /^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ KICK (.+) (.+) :(.+)$/,
-        );
-        if (match) {
-          const [, messageTags, username, channelName, target, reason] = match;
-          this.triggerEvent("KICK", {
-            serverId,
-            messageTags,
-            username,
-            channelName,
-            target,
-            reason,
-          });
-        }
-      } else if (line.split(" ")[2] === "PRIVMSG") {
-        const match = line.match(
-          /^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ PRIVMSG ([^ ]+) :(.+)$/,
-        );
-        if (match) {
-          const [, mtags, sender, target, message] = match;
-          const isChannel = target.startsWith("#");
-          const channelName = isChannel ? target : sender;
+      } else if (command === "001") {
+        const serverName = source;
+        const nickname = parv.join(" ");
+        this.triggerEvent("ready", { serverId, serverName, nickname });
+      } else if (command === "NICK") {
+        console.log("triggered nickchange");
+        const oldNick = getNickFromNuh(source);
+        const newNick = parv[0];
 
-          const messageTags = parseMessageTags(mtags);
+        // We changed our own nick
+        if (oldNick === this.nicks.get(serverId))
+          this.nicks.set(serverId, newNick);
 
-          this.triggerEvent("PRIVMSG", {
+        console.log(oldNick, newNick, this.nicks);
+        this.triggerEvent("NICK", {
+          serverId,
+          mtags,
+          oldNick,
+          newNick,
+        });
+      } else if (command === "QUIT") {
+        const username = getNickFromNuh(source);
+        const reason = parv.join(" ");
+        this.triggerEvent("QUIT", { serverId, username, reason });
+      } else if (command === "JOIN") {
+        const username = getNickFromNuh(source);
+        const channelName = parv[0][0] === ":" ? parv[0].substring(1) : parv[0];
+        this.triggerEvent("JOIN", { serverId, username, channelName });
+      } else if (command === "PART") {
+        const username = getNickFromNuh(source);
+        const channelName = parv[0];
+        parv[0] = "";
+        const reason = parv.join(" ").trim();
+        this.triggerEvent("PART", {
+          serverId,
+          username,
+          channelName,
+          reason,
+        });
+      } else if (command === "KICK") {
+        const username = getNickFromNuh(source);
+        const channelName = parv[0];
+        const target = parv[1];
+        parv[0] = "";
+        parv[1] = "";
+        const reason = parv.join(" ").trim().substring(1);
+        this.triggerEvent("KICK", {
+          serverId,
+          mtags,
+          username,
+          channelName,
+          target,
+          reason,
+        });
+      } else if (command === "PRIVMSG") {
+        const target = parv[0];
+        const isChannel = target.startsWith("#");
+        const sender = getNickFromNuh(source);
+
+        parv[0] = "";
+        const message = parv.join(" ").trim().substring(1);
+
+        if (isChannel) {
+          const channelName = target;
+          this.triggerEvent("CHANMSG", {
             serverId,
-            messageTags,
+            mtags,
             sender,
             channelName,
             message,
             timestamp: new Date(),
           });
+        } else {
+          this.triggerEvent("USERMSG", {
+            serverId,
+            mtags,
+            sender,
+            message,
+            timestamp: new Date(),
+          });
         }
-      } else if (line.split(" ")[2] === "TAGMSG") {
-        const match = line.match(
-          /^(@[^ ]+ )?:([^!]+)![^@]+@[^ ]+ TAGMSG ([^ ]+)$/,
-        );
-        if (match) {
-          const [, mtags, sender, target] = match;
-          const isChannel = target.startsWith("#");
-          const channelName = isChannel ? target : sender;
-
-          const messageTags = parseMessageTags(mtags);
-
+      } else if (command === "TAGMSG") {
+        const isChannel = parv[0].startsWith("#");
+        const sender = getNickFromNuh(source);
+        if (isChannel) {
+          const channelName = parv[0];
           this.triggerEvent("TAGMSG", {
             serverId,
-            messageTags,
+            mtags,
             sender,
             channelName,
             timestamp: new Date(),
           });
         }
-      } else if (
-        line.match(/^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/)
-      ) {
-        const match = line.match(
-          /^(?:@[^ ]+ )?:[^ ]+\s353\s[^ ]+\s[=|@|*]\s([^ ]+)\s:(.+)$/,
-        );
-        if (match) {
-          const [, channelName, names] = match;
-          const newUsers = parseNamesResponse(names); // Parse the user list
+      } else if (command === "353") {
+        const channelName = parv[2];
+        const names = parv.slice(3).join(" ").trim().substring(1);
+        console.log(names);
+        const newUsers = parseNamesResponse(names); // Parse the user list
+        console.log(newUsers);
+        // Find the server and channel
+        const server = this.servers.get(serverId);
+        if (server) {
+          const channel = server.channels.find((c) => c.name === channelName);
+          if (channel) {
+            // Merge new users with existing users
+            const existingUsers = channel.users || [];
+            const mergedUsers = [...existingUsers];
 
-          // Find the server and channel
-          const server = this.servers.get(serverId);
-          if (server) {
-            const channel = server.channels.find((c) => c.name === channelName);
-            if (channel) {
-              // Merge new users with existing users
-              const existingUsers = channel.users || [];
-              const mergedUsers = [...existingUsers];
-
-              for (const newUser of newUsers) {
-                if (
-                  !existingUsers.some(
-                    (user) => user.username === newUser.username,
-                  )
-                ) {
-                  mergedUsers.push(newUser);
-                }
+            for (const newUser of newUsers) {
+              if (
+                !existingUsers.some(
+                  (user) => user.username === newUser.username,
+                )
+              ) {
+                mergedUsers.push(newUser);
               }
-
-              // Update the channel's user list
-              channel.users = mergedUsers;
-
-              // Trigger an event to notify the UI
-              this.triggerEvent("NAMES", {
-                serverId,
-                channelName,
-                users: mergedUsers,
-              });
             }
+
+            // Update the channel's user list
+            channel.users = mergedUsers;
+
+            // Trigger an event to notify the UI
+            this.triggerEvent("NAMES", {
+              serverId,
+              channelName,
+              users: mergedUsers,
+            });
           } else {
             console.warn(
-              `Server ${serverId} not found while processing NAMES response`,
+              `Channel ${channelName} not found when processing NAMES response`,
             );
           }
+        } else {
+          console.warn(
+            `Server ${serverId} not found while processing NAMES response`,
+          );
         }
-      } else if (line.includes("CAP * LS")) {
-        const match = line.match(
-          /^(?:@\S+\s)?:(\S+)\sCAP\s\*\sLS\s(?:\*\s)?:(.+)$/,
-        );
-        if (match) {
-          const [, , caps] = match;
-          // Trigger an event to notify the UI
-          this.triggerEvent("CAP LS", { serverId, cliCaps: caps });
+      } else if (command === "CAP") {
+        let i = 0;
+        let caps = "";
+        if (parv[i] === "*") i++;
+        const subcommand = parv[i++];
+        if (parv[i] === "*") i++;
+        parv[i] = parv[i].substring(1); // trim the ":" lol
+        while (parv[i]) {
+          caps += parv[i++];
+          if (parv[i]) caps += " ";
         }
-      } else if (line.match(/:[^ ]+ CAP (.*) ACK :(.*)/)) {
-        const match = line.match(/:[^ ]+ CAP (.*) ACK :(.*)/);
-        if (match) {
-          const [, , caps] = match;
-          // Trigger an event to notify the UI
+
+        if (subcommand === "LS") this.onCapLs(serverId, caps);
+        else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
-        }
       } else if (line.split(" ")[1] === "005") {
         console.log("005 detected");
-        const capabilities = parseFavicon(line);
+        const capabilities = parseIsupport(line);
         this.triggerEvent("ISUPPORT", { serverId, capabilities });
-      } else if (line.includes("005")) {
-        console.log("005 detected abnormally");
+      } else if (command === "AUTHENTICATE") {
+        const param = parv.join(" ");
+        this.triggerEvent("AUTHENTICATE", { serverId, param });
       }
     }
+  }
+
+  /* Send SASL plain */
+  sendSaslPlain(serverId: string, username: string, password: string) {
+    this.sendRaw(
+      serverId,
+      `AUTHENTICATE ${btoa(`${username}\x00${username}\x00${password}`)}`,
+    );
+  }
+
+  onCapLs(serverId: string, cliCaps: string): void {
+    const ourCaps = [
+      "multi-prefix",
+      "message-tags",
+      "server-time",
+      "echo-message",
+      "message-tags",
+      "userhost-in-names",
+      "draft/chathistory",
+      "draft/extended-isupport",
+      "sasl",
+    ];
+
+    const caps = cliCaps.split(" ");
+    let toRequest = "CAP REQ :";
+    for (const c of caps) {
+      const cap = c.includes("=") ? c.split("=")[0] : c;
+      if (ourCaps.includes(cap)) {
+        if (toRequest.length + cap.length + 1 > 400) {
+          this.sendRaw(serverId, toRequest);
+          toRequest = "CAP REQ :";
+        }
+        toRequest += `${cap} `;
+        console.log(`Requesting capability: ${cap}`);
+      }
+    }
+    if (toRequest.length > 9) {
+      this.sendRaw(serverId, toRequest);
+      if (toRequest.includes("draft/extended-isupport"))
+        this.sendRaw(serverId, "ISUPPORT");
+    }
+    console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
   }
 
   on<K extends EventKey>(event: K, callback: EventCallback<K>): void {
@@ -411,5 +500,10 @@ export class IRCClient {
   }
 }
 
+function getNickFromNuh(nuh: string) {
+  return nuh.substring(0, nuh.indexOf("!"));
+}
+
 export const ircClient = new IRCClient();
+
 export default ircClient;

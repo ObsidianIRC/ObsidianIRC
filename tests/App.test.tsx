@@ -72,9 +72,9 @@ describe("App", () => {
       await user.type(nicknameField, "tester");
       const accountCheckbox = screen.getByText(/Login to an account/i);
       await user.click(accountCheckbox);
-      const accountName = screen.getByPlaceholderText(/Password/i);
-      await user.clear(accountName);
-      await user.type(accountName, "super awesome password lmao 123 !?!?!");
+      const saslPassword = screen.getByPlaceholderText(/Password/i);
+      await user.clear(saslPassword);
+      await user.type(saslPassword, "super awesome password lmao 123 !?!?!");
 
       // Submit form
       await user.click(screen.getByRole("button", { name: /^connect$/i }));
@@ -86,7 +86,7 @@ describe("App", () => {
         "tester",
         "",
         "",
-        "super awesome password lmao 123 !?!?!",
+        "c3VwZXIgYXdlc29tZSBwYXNzd29yZCBsbWFvIDEyMyAhPyE/IQ==",
       );
     });
 

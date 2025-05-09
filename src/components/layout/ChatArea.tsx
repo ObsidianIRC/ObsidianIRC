@@ -21,6 +21,32 @@ import EmojiSelector from "../ui/EmojiSelector";
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
 
+export const OptionsDropdown: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+}> = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+      <div className="py-1">
+        <button
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+          onClick={onClose}
+        >
+          Option 1
+        </button>
+        <button
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+          onClick={onClose}
+        >
+          Option 2
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const TypingIndicator: React.FC<{
   serverId: string;
   channelId: string;
@@ -112,7 +138,8 @@ const MessageItem: React.FC<{
             <span className="italic text-white">
               {message.userId === "system"
                 ? "System"
-                : message.userId.split("-")[0] + message.content.substring(7)}
+                : message.userId.split("-")[0] +
+                  message.content.substring(8, message.content.length - 1)}
             </span>
           </div>
         </div>
@@ -403,6 +430,10 @@ export const ChatArea: React.FC = () => {
       {/* Input area */}
       {selectedChannel && (
         <div className="px-4 pb-4 relative">
+          <OptionsDropdown
+            isOpen={isEmojiSelectorOpen}
+            onClose={() => setIsEmojiSelectorOpen(false)}
+          />
           <TypingIndicator
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId ?? ""}

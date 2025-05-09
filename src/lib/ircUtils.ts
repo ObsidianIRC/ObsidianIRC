@@ -1,22 +1,21 @@
 import type { User } from "../types";
 
 export function parseNamesResponse(namesResponse: string): User[] {
-  console.log(namesResponse);
   const users: User[] = [];
-  const regex = /([~&@%+]*)([^\s!]+)!/g; // Match status prefixes and nicknames
-
-  let match: RegExpExecArray | null;
-  do {
-    match = regex.exec(namesResponse);
-    if (match === null) break;
-    const [_, prefix, username] = match;
-    users.push({
-      id: username,
-      username,
-      status: parseStatus(prefix),
-      isOnline: true,
-    });
-  } while (match !== null);
+  for (const name of namesResponse.split(" ")) {
+    const regex = /([~&@%+]*)([^\s!]+)!/;
+    const match = regex.exec(name);
+    if (match) {
+      console.log("match");
+      const [_, prefix, username] = match;
+      users.push({
+        id: username,
+        username,
+        status: prefix,
+        isOnline: true,
+      });
+    } else console.log("No match");
+  }
   return users;
 }
 
@@ -30,19 +29,19 @@ function parseStatus(
   return "offline"; // Default
 }
 
-export function parseMessageTags(tags: string): { [key: string]: string } {
-  const parsedTags: { [key: string]: string } = {};
+export function parseMessageTags(tags: string): Record<string, string> {
+  const parsedTags: Record<string, string> = {};
   const tagPairs = tags.substring(1).split(";");
+
   for (const tag of tagPairs) {
     const [key, value] = tag.split("=");
-    if (value) {
-      parsedTags[key] = value.trim();
-    }
+    parsedTags[key] = value?.trim() ?? ""; // empty string fallback
   }
+
   return parsedTags;
 }
 
-export function parseFavicon(line: string): string[] {
+export function parseIsupport(line: string): string[] {
   // Match and remove the prefix up to and including the nick
   const prefixMatch = line.match(/^:[^\s]+ 005 [^\s]+ /);
   if (!prefixMatch) return [];
