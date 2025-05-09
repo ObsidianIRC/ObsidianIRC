@@ -205,7 +205,7 @@ describe("IRCClient", () => {
       // Set up event listener
       let receivedMessage: unknown;
       const messagePromise = new Promise<void>((resolve) => {
-        client.on("PRIVMSG", (msg) => {
+        client.on("CHANMSG", (msg) => {
           receivedMessage = msg;
           resolve();
         });
