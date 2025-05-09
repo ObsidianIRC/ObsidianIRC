@@ -220,7 +220,7 @@ describe("IRCClient", () => {
 
       expect(receivedMessage).toEqual({
         serverId: server.id,
-        messageTags: expect.any(Object),
+        mtags: expect.any(Object),
         sender: "nick",
         channelName: "#channel",
         message: "Hello, world!",
