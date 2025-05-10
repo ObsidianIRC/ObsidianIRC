@@ -1,8 +1,10 @@
+import { UsersIcon } from "@heroicons/react/24/solid";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   FaAt,
   FaBell,
+  FaChevronRight,
   FaGift,
   FaGrinAlt,
   FaHashtag,
@@ -226,7 +228,10 @@ const MessageItem: React.FC<{
   );
 };
 
-export const ChatArea: React.FC = () => {
+export const ChatArea: React.FC<{
+  onToggleChanList: () => void;
+  isChanListVisible: boolean;
+}> = ({ onToggleChanList, isChanListVisible }) => {
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
@@ -235,7 +240,8 @@ export const ChatArea: React.FC = () => {
   const { currentUser } = useStore();
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId },
+    ui: { selectedServerId, selectedChannelId, isMemberListVisible },
+    toggleMemberList,
     sendMessage,
     messages,
   } = useStore();
@@ -363,8 +369,17 @@ export const ChatArea: React.FC = () => {
       {/* Channel header */}
       <div className="h-12 px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
         <div className="flex items-center">
+          {!isChanListVisible && (
+            <button
+              onClick={onToggleChanList}
+              className="text-discord-channels-default hover:text-white mr-10"
+              aria-label="Expand channel list"
+            >
+              <FaChevronRight />
+            </button>
+          )}
           <FaHashtag className="text-discord-text-muted mr-2" />
-          <h2 className="font-bold text-white">
+          <h2 className="font-bold text-white mr-4">
             {selectedChannel
               ? selectedChannel.name.replace(/^#/, "")
               : "welcome"}
@@ -387,6 +402,22 @@ export const ChatArea: React.FC = () => {
           </button>
           <button className="hover:text-discord-text-normal">
             <FaUserPlus />
+          </button>
+          <button
+            className="hover:text-discord-text-normal"
+            onClick={() => toggleMemberList(!isMemberListVisible)}
+            aria-label={
+              isMemberListVisible
+                ? "Collapse member list"
+                : "Expand member list"
+            }
+            data-testid="toggle-member-list"
+          >
+            {isMemberListVisible ? (
+              <UsersIcon className="w-4 h-4 text-white" />
+            ) : (
+              <UsersIcon className="w-4 h-4 text-gray" />
+            )}
           </button>
           <div className="relative">
             <input

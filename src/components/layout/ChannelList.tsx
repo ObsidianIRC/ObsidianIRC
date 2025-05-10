@@ -2,6 +2,7 @@ import type React from "react";
 import { useState } from "react";
 import {
   FaChevronDown,
+  FaChevronLeft,
   FaChevronRight,
   FaCog,
   FaHashtag,
@@ -10,9 +11,12 @@ import {
   FaUserPlus,
   FaVolumeUp,
 } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
 
-export const ChannelList: React.FC = () => {
+export const ChannelList: React.FC<{
+  onToggle: () => void;
+}> = ({ onToggle }) => {
   const {
     servers,
     ui: { selectedServerId, selectedChannelId },
@@ -49,6 +53,8 @@ export const ChannelList: React.FC = () => {
     }
   };
 
+  const isMobileView = useMediaQuery();
+
   return (
     <div className="h-full flex flex-col text-discord-channels-default">
       {/* Server header */}
@@ -56,9 +62,14 @@ export const ChannelList: React.FC = () => {
         <h1 className="font-bold text-white truncate">
           {selectedServer?.name || "Home"}
         </h1>
-        <button className="text-discord-channels-default hover:text-white">
-          <FaChevronDown />
-        </button>
+        {!isMobileView && (
+          <button
+            onClick={onToggle}
+            className="text-discord-channels-default hover:text-white"
+          >
+            <FaChevronLeft />
+          </button>
+        )}
       </div>
 
       {/* Channel list */}
