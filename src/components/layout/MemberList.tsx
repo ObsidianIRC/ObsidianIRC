@@ -1,8 +1,8 @@
 import type React from "react";
 import { useState } from "react";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import useStore from "../../store";
 import type { User } from "../../types";
-import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   let bgColor = "bg-discord-dark-500"; // Default/offline
