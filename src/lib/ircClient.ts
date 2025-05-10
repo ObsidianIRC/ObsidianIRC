@@ -417,9 +417,7 @@ export class IRCClient {
             const mergedUsers = [...existingUsers];
 
             if (
-              !existingUsers.some(
-                (user) => user.username === newUser.username,
-              )
+              !existingUsers.some((user) => user.username === newUser.username)
             ) {
               mergedUsers.push(newUser);
             }

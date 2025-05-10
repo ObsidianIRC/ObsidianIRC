@@ -21,20 +21,17 @@ export function parseNamesResponse(namesResponse: string): User[] {
 }
 
 export function parseWhoxResponse(parv: string[]): User {
-  
   const prefixmodes = "~&@%+";
   let status = "";
-  for (let p of prefixmodes)
-  {
-    if (parv[3].includes(p))
-      status += p;
+  for (const p of prefixmodes) {
+    if (parv[3].includes(p)) status += p;
   }
   return {
     id: uuidv4(),
     username: parv[2],
     status,
-    isOnline: parv[3].includes('H'),
-  }
+    isOnline: parv[3].includes("H"),
+  };
 }
 
 function parseStatus(
