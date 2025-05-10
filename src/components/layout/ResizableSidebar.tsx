@@ -49,6 +49,8 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       setIsResizing(true);
       resizeStartX.current = e.clientX;
       resizeStartWidth.current = width;
+      e.preventDefault();
+      e.stopPropagation();
     },
     [width],
   );
@@ -69,6 +71,8 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
         onMinReached();
       }
       setWidth(newWidth);
+      e.preventDefault();
+      e.stopPropagation();
     },
     [isResizing, minWidth, maxWidth, side, onMinReached],
   );
@@ -81,7 +85,6 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     if (isResizing) {
       document.addEventListener("mousemove", handleResize);
       document.addEventListener("mouseup", handleResizeEnd);
-
       return () => {
         document.removeEventListener("mousemove", handleResize);
         document.removeEventListener("mouseup", handleResizeEnd);
@@ -94,7 +97,7 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
 
   return (
     <div
-      className="flex-shrink-0 h-full flex flex-col relative"
+      className="flex-shrink-0 h-full flex flex-col relative z-20"
       data-testid="resizable-sidebar"
       style={{
         width: isVisible ? `${width}px` : "0",

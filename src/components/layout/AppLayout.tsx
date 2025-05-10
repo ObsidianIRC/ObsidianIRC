@@ -64,14 +64,16 @@ export const AppLayout: React.FC = () => {
       <ResizableSidebar
         isVisible={isChannelListVisible}
         defaultWidth={200}
-        minWidth={100}
+        minWidth={80}
         maxWidth={400}
         side="left"
+        onMinReached={() => toggleChannelList(false)}
       >
         {/* Channel list - left sidebar */}
         <div
-          className={`channel-list flex-shrink-0 w-full h-full bg-discord-dark-100
-           ${isMobileMenuOpen ? "block" : "hidden"} md:block z-20`}
+          className={
+            "channel-list flex-shrink-0 w-full h-full bg-discord-dark-100 md:block z-20"
+          }
         >
           <ChannelList
             onToggle={() => {
@@ -100,7 +102,7 @@ export const AppLayout: React.FC = () => {
         side="right"
         onMinReached={() => toggleMemberList(false)}
       >
-        <div className="flex-1 overflow-hidden h-full bg-discord-dark-100 z-30">
+        <div className="flex-1 overflow-hidden h-full bg-discord-dark-100">
           <MemberList />
         </div>
       </ResizableSidebar>
