@@ -280,29 +280,28 @@ export const ChatArea: React.FC = () => {
     inputRef.current?.focus();
   });
 
-  useEffect(() => {
-    const handleTopicUpdate = ({
-      serverId,
-      channelId,
-      channelTopic,
-    }: { serverId: string; channelId: string; channelTopic: string }) => {
-      useStore.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id === serverId) {
-            const updatedChannels = server.channels.map((channel) => {
-              if (channel.id === channelId) {
-                return { ...channel, topic: channelTopic };
-              }
-              return channel;
-            });
-            return { ...server, channels: updatedChannels };
-          }
-          return server;
-        });
-        return { servers: updatedServers };
+  const handleTopicUpdate = ({
+    serverId,
+    channelId,
+    channelTopic,
+  }: { serverId: string; channelId: string; channelTopic: string }) => {
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          const updatedChannels = server.channels.map((channel) => {
+            if (channel.id === channelId) {
+              return { ...channel, topic: channelTopic };
+            }
+            return channel;
+          });
+          return { ...server, channels: updatedChannels };
+        }
+        return server;
       });
-    };
-
+      return { servers: updatedServers };
+    });
+  };
+  useEffect(() => {
     ircClient.on("TOPIC", handleTopicUpdate);
   }, []);
 
