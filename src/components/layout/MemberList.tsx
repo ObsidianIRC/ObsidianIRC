@@ -1,6 +1,8 @@
 import type React from "react";
+import { useState } from "react";
 import useStore from "../../store";
 import type { User } from "../../types";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   let bgColor = "bg-discord-dark-500"; // Default/offline
@@ -27,6 +29,54 @@ const UserItem: React.FC<{ user: User }> = ({ user }) => {
   );
 };
 
+const collapseState = new Map<string, boolean>(); // Persistent state for categories
+
+const Category: React.FC<{
+  title: string;
+  users: User[];
+  channelId: string | null;
+}> = ({ title, users, channelId }) => {
+  const categoryKey = `${channelId}-${title}`; // Unique key for each category in a channel
+
+  if (!channelId) return;
+
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Check if the state is already stored; otherwise, use the default rule
+    return collapseState.get(categoryKey) ?? users.length > 30;
+  });
+
+  const handleToggle = () => {
+    const newState = !isCollapsed;
+    collapseState.set(categoryKey, newState); // Persist the user's choice
+    setIsCollapsed(newState);
+  };
+
+  if (!users.length) return null;
+
+  return (
+    <div className="mb-4">
+      <div
+        className="flex justify-between items-center cursor-pointer px-2"
+        onClick={handleToggle}
+      >
+        <h3 className="text-xs font-semibold text-discord-channels-default uppercase mb-2">
+          {title} — {users.length}
+        </h3>
+        <span className="text-discord-channels-default text-sm">
+          {isCollapsed ? <FaChevronDown /> : <FaChevronUp />}
+        </span>
+      </div>
+      {!isCollapsed && (
+        <div>
+          {users.map((user) => (
+            <UserItem key={user.id} user={user} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const MemberList: React.FC = () => {
   const {
     servers,
@@ -40,19 +90,71 @@ export const MemberList: React.FC = () => {
     (channel) => channel.id === selectedChannelId,
   );
 
-  // Sort users alphabetically by username
-  const sortedUsers = selectedChannel?.users
-    .slice()
-    .sort((a, b) => a.username.localeCompare(b.username));
+  // Categorize users based on their status
+  const categorizedUsers = selectedChannel?.users.reduce(
+    (acc, user) => {
+      const statusChar = user.status?.charAt(0);
+      if (statusChar === "~") {
+        acc.owners.push(user);
+      } else if (statusChar === "&") {
+        acc.admins.push(user);
+      } else if (statusChar === "@") {
+        acc.operators.push(user);
+      } else if (statusChar === "%") {
+        acc.halfOps.push(user);
+      } else if (statusChar === "+") {
+        acc.voiced.push(user);
+      } else {
+        acc.members.push(user);
+      }
+      return acc;
+    },
+    {
+      owners: [] as User[],
+      admins: [] as User[],
+      operators: [] as User[],
+      halfOps: [] as User[],
+      voiced: [] as User[],
+      members: [] as User[],
+    },
+  );
 
   return (
     <div className="p-3 h-full overflow-y-auto">
-      <h3 className="text-xs font-semibold text-discord-channels-default uppercase mb-2 px-2">
-        Members — {sortedUsers?.length || 0}
-      </h3>
-      {sortedUsers?.map((user) => (
-        <UserItem key={user.id} user={user} />
-      ))}
+      {categorizedUsers && (
+        <>
+          <Category
+            title="Channel Owners"
+            users={categorizedUsers.owners}
+            channelId={selectedChannelId}
+          />
+          <Category
+            title="Channel Admins"
+            users={categorizedUsers.admins}
+            channelId={selectedChannelId}
+          />
+          <Category
+            title="Channel Operators"
+            users={categorizedUsers.operators}
+            channelId={selectedChannelId}
+          />
+          <Category
+            title="Channel Half-Ops"
+            users={categorizedUsers.halfOps}
+            channelId={selectedChannelId}
+          />
+          <Category
+            title="Voiced Members"
+            users={categorizedUsers.voiced}
+            channelId={selectedChannelId}
+          />
+          <Category
+            title="Members"
+            users={categorizedUsers.members}
+            channelId={selectedChannelId}
+          />
+        </>
+      )}
     </div>
   );
 };
