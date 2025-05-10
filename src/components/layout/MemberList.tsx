@@ -53,6 +53,11 @@ const Category: React.FC<{
 
   if (!users.length) return null;
 
+  // Sort users alphabetically by username
+  const sortedUsers = [...users].sort((a, b) =>
+    a.username.localeCompare(b.username),
+  );
+
   return (
     <div className="mb-4">
       <div
@@ -68,7 +73,7 @@ const Category: React.FC<{
       </div>
       {!isCollapsed && (
         <div>
-          {users.map((user) => (
+          {sortedUsers.map((user) => (
             <UserItem key={user.id} user={user} />
           ))}
         </div>
