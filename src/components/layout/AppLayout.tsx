@@ -71,7 +71,7 @@ export const AppLayout: React.FC = () => {
             >
               <div
                 className={
-                  "channel-list flex-shrink-0 w-full h-full bg-discord-dark-100 md:block z-20"
+                  "channel-list w-full h-full bg-discord-dark-100 md:block z-20"
                 }
               >
                 <ChannelList

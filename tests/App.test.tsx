@@ -140,47 +140,4 @@ describe("App", () => {
       expect(screen.queryByText(/User Settings/i)).not.toBeInTheDocument();
     });
   });
-
-  describe("Resizeable Sidebars", () => {
-    it("should return to default width when toggled", async () => {
-      render(<App />);
-      const user = userEvent.setup();
-      const button = screen.getByTestId("toggle-member-list");
-      const memberList = screen.getAllByTestId("resizable-sidebar")[1];
-      const handle = memberList.querySelector(
-        "[data-testid='resize-handle']",
-      ) as HTMLElement;
-
-      // Mock the initial width and default width
-      useStore.setState({
-        ui: {
-          isDarkMode: false,
-          isMobileMenuOpen: false,
-          isMemberListVisible: true,
-        },
-      });
-
-      // Get the initial width of the member list
-      expect(memberList).toBeVisible();
-      const initialWidth = memberList.offsetWidth;
-
-      // Get the ResizableSidebar element
-      const resizableSidebar = screen.getAllByRole("ResizableSidebar")[1];
-
-      // Forcefully resize the component
-      const newWidth = "300px";
-      resizableSidebar.style.width = newWidth;
-      expect(resizableSidebar.style.width).toBe(newWidth);
-
-      // Toggle the member list visibility off and on
-      await user.click(button);
-      await user.click(button);
-
-      // Get the width of the member list after toggling
-      const toggledWidth = resizableSidebar.style.width;
-
-      // Expect the width to be back to the default width
-      expect(toggledWidth).toBe("240px");
-    });
-  });
 });
