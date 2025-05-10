@@ -149,7 +149,13 @@ export const ChannelList: React.FC = () => {
                   {selectedServer.channels
                     .filter(
                       (channel, index, self) =>
-                        index === self.findIndex((c) => c.id === channel.id), // Ensure unique channels by ID
+                        index ===
+                        self.findIndex(
+                          (c) =>
+                            c.id === channel.id ||
+                            c.name.toLowerCase().trim() ===
+                              channel.name.toLowerCase().trim(),
+                        ), // Ensure unique channels by ID
                     )
                     .filter((channel) => !channel.isPrivate)
                     .map((channel) => (
