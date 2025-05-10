@@ -450,7 +450,9 @@ export class IRCClient {
               channelTopic,
             });
           } else {
-            console.warn(`Channel ${channelName} not found while processing TOPIC`);
+            console.warn(
+              `Channel ${channelName} not found while processing TOPIC`,
+            );
           }
         } else {
           console.warn(`Server ${serverId} not found while processing TOPIC`);

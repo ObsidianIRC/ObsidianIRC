@@ -281,7 +281,11 @@ export const ChatArea: React.FC = () => {
   });
 
   useEffect(() => {
-    const handleTopicUpdate = ({ serverId, channelId, channelTopic }: { serverId: string; channelId: string; channelTopic: string }) => {
+    const handleTopicUpdate = ({
+      serverId,
+      channelId,
+      channelTopic,
+    }: { serverId: string; channelId: string; channelTopic: string }) => {
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
