@@ -59,6 +59,7 @@ interface EventMap {
   CAP_ACKNOWLEDGED: { serverId: string; key: string; capabilities: string };
   CAP_END: { serverId: string };
   AUTHENTICATE: { serverId: string; param: string };
+  TOPIC: { serverId: string; channelId: string; channelTopic: string };
 }
 
 type EventKey = keyof EventMap;
@@ -430,6 +431,30 @@ export class IRCClient {
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
+      } else if (command === "332") {
+        const channelName = parv[1];
+        const channelTopic = parv.slice(2).join(" ").substring(1); // Remove the leading colon from the topic
+
+        // Find the server and channel
+        const server = this.servers.get(serverId);
+        if (server) {
+          const channel = server.channels.find((c) => c.name === channelName);
+          if (channel) {
+            // Update the channel's topic
+            channel.topic = channelTopic;
+
+            // Trigger an event to notify the UI
+            this.triggerEvent("TOPIC", {
+              serverId,
+              channelId: channel.id,
+              channelTopic,
+            });
+          } else {
+            console.warn(`Channel ${channelName} not found while processing TOPIC`);
+          }
+        } else {
+          console.warn(`Server ${serverId} not found while processing TOPIC`);
+        }
       }
     }
   }

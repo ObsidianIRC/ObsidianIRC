@@ -21,6 +21,23 @@ import EmojiSelector from "../ui/EmojiSelector";
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
 
+export const ChannelTopic: React.FC<{
+  serverId: string;
+  channelId: string;
+  channelTopic: string;
+}> = ({ serverId, channelId, channelTopic }) => {
+  if (!channelTopic) return null;
+
+  return (
+    <div
+      className="text-discord-text-muted text-sm truncate max-w-md"
+      title={channelTopic} // Tooltip for full topic
+    >
+      {channelTopic}
+    </div>
+  );
+};
+
 export const OptionsDropdown: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -263,6 +280,28 @@ export const ChatArea: React.FC = () => {
     inputRef.current?.focus();
   });
 
+  useEffect(() => {
+    const handleTopicUpdate = ({ serverId, channelId, channelTopic }: { serverId: string; channelId: string; channelTopic: string }) => {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server) => {
+          if (server.id === serverId) {
+            const updatedChannels = server.channels.map((channel) => {
+              if (channel.id === channelId) {
+                return { ...channel, topic: channelTopic };
+              }
+              return channel;
+            });
+            return { ...server, channels: updatedChannels };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+    };
+
+    ircClient.on("TOPIC", handleTopicUpdate);
+  }, []);
+
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
     if (selectedServerId && selectedChannelId) {
@@ -292,7 +331,7 @@ export const ChatArea: React.FC = () => {
           const message = messageParts.join(" ");
           ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
         } else if (commandName === "me") {
-          const actionMessage = messageText.substring(4).trim();
+          const actionMessage = messageText.substring(3).trimEnd();
           ircClient.sendRaw(
             selectedServerId,
             `PRIVMSG ${selectedChannel ? selectedChannel.name : ""} :\u0001ACTION ${actionMessage}\u0001`,
@@ -363,7 +402,7 @@ export const ChatArea: React.FC = () => {
       {/* Channel header */}
       <div className="h-12 px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
         <div className="flex items-center">
-          <FaHashtag className="text-discord-text-muted mr-2" />
+          <FaHashtag className="text-discord-text-muted mr-2 h-12 w-12" />
           <h2 className="font-bold text-white">
             {selectedChannel
               ? selectedChannel.name.replace(/^#/, "")
@@ -372,9 +411,11 @@ export const ChatArea: React.FC = () => {
           {selectedChannel?.topic && (
             <>
               <div className="mx-2 text-discord-text-muted">|</div>
-              <div className="text-discord-text-muted text-sm truncate max-w-xs">
-                {selectedChannel.topic}
-              </div>
+              <ChannelTopic
+                serverId={selectedServerId ?? ""}
+                channelId={selectedChannelId ?? ""}
+                channelTopic={selectedChannel.topic}
+              />
             </>
           )}
         </div>
