@@ -16,6 +16,7 @@ interface ResizableSidebarProps {
   side: "left" | "right";
   handleColor?: string;
   handleHoverColor?: string;
+  bypass: boolean;
   onMinReached?: () => void;
 }
 
@@ -29,7 +30,12 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   handleColor = "bg-discord-dark-600",
   handleHoverColor = "bg-discord-dark-100",
   onMinReached,
+  bypass,
 }) => {
+  if (bypass) {
+    return children;
+  }
+
   const [width, setWidth] = useState(defaultWidth);
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartX = useRef<number>(0);

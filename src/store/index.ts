@@ -39,6 +39,7 @@ interface UIState {
   isMobileMenuOpen: boolean;
   isMemberListVisible: boolean;
   isChannelListVisible: boolean;
+  mobileViewActiveColumn: layoutColumn;
   isServerMenuOpen: boolean;
   contextMenu: {
     isOpen: boolean;
@@ -121,6 +122,7 @@ const useStore = create<AppState>((set, get) => ({
     isMobileMenuOpen: false,
     isMemberListVisible: true,
     isChannelListVisible: true,
+    mobileViewActiveColumn: "serverList", // Default to server list in mobile mode on open
     isServerMenuOpen: false,
     contextMenu: {
       isOpen: false,
@@ -387,6 +389,7 @@ const useStore = create<AppState>((set, get) => ({
             selectedServerId: serverId,
             selectedChannelId: channelId,
             isMobileMenuOpen: false,
+            mobileViewActiveColumn: "chatView",
           },
         };
       }
@@ -396,6 +399,7 @@ const useStore = create<AppState>((set, get) => ({
           ...state.ui,
           selectedChannelId: channelId,
           isMobileMenuOpen: false,
+          mobileViewActiveColumn: "chatView",
         },
       };
     });
@@ -546,25 +550,36 @@ const useStore = create<AppState>((set, get) => ({
     }));
   },
 
-  toggleMemberList: (isVisible) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isMemberListVisible:
-          isVisible !== undefined ? isVisible : !state.ui.isMemberListVisible,
-      },
-    }));
+  toggleMemberList: (isOpen) => {
+    set((state) => {
+      const openState =
+        isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+      return {
+        ui: {
+          ...state.ui,
+          isMemberListVisible:
+            openState !== undefined ? openState : !state.ui.isMemberListVisible,
+          mobileViewActiveColumn: openState ? "memberList" : "chatView",
+        },
+      };
+    });
   },
 
   toggleChannelList: (isOpen) => {
     console.log("Toggling channel list", isOpen);
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isChannelListVisible:
-          isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible,
-      },
-    }));
+    set((state) => {
+      const openState =
+        isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+      return {
+        ui: {
+          ...state.ui,
+          isChannelListVisible: openState,
+          mobileViewActiveColumn: openState
+            ? "serverList"
+            : state.ui.mobileViewActiveColumn,
+        },
+      };
+    });
   },
 
   toggleServerMenu: (isOpen) => {
