@@ -4,6 +4,7 @@ import {
   parseIsupport,
   parseMessageTags,
   parseNamesResponse,
+  parseWhoxResponse,
 } from "./ircUtils";
 
 interface EventMap {
@@ -170,8 +171,6 @@ export class IRCClient {
       if (existing) return existing;
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
-      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-
       const channel: Channel = {
         id: uuidv4(),
         name: channelName,
@@ -183,6 +182,8 @@ export class IRCClient {
         messages: [],
         users: [],
       };
+      this.sendRaw(serverId, `WHO ${channelName} %ncfao`);
+      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
       server.channels.push(channel);
       return channel;
     }
@@ -251,7 +252,7 @@ export class IRCClient {
         const thisServName = thisServ?.name;
         if (!thisServName) {
           // something has gone horribly wrong
-          console.log("No source, this will break parsing");
+          console.error("No source, this will break parsing");
           return;
         }
         source = thisServName;
@@ -269,13 +270,11 @@ export class IRCClient {
       if (command === "PING") {
         const key = parv.join(" ");
         this.sendRaw(serverId, `PONG ${key}`);
-        console.log(`PONG sent to server ${serverId} with key ${key}`);
       } else if (command === "001") {
         const serverName = source;
         const nickname = parv.join(" ");
         this.triggerEvent("ready", { serverId, serverName, nickname });
       } else if (command === "NICK") {
-        console.log("triggered nickchange");
         const oldNick = getNickFromNuh(source);
         const newNick = parv[0];
 
@@ -283,7 +282,6 @@ export class IRCClient {
         if (oldNick === this.nicks.get(serverId))
           this.nicks.set(serverId, newNick);
 
-        console.log(oldNick, newNick, this.nicks);
         this.triggerEvent("NICK", {
           serverId,
           mtags,
@@ -367,9 +365,7 @@ export class IRCClient {
       } else if (command === "353") {
         const channelName = parv[2];
         const names = parv.slice(3).join(" ").trim().substring(1);
-        console.log(names);
         const newUsers = parseNamesResponse(names); // Parse the user list
-        console.log(newUsers);
         // Find the server and channel
         const server = this.servers.get(serverId);
         if (server) {
@@ -408,6 +404,45 @@ export class IRCClient {
             `Server ${serverId} not found while processing NAMES response`,
           );
         }
+      } else if (command === "354") {
+        const channelName = parv[1];
+        const newUser = parseWhoxResponse(parv); // Parse the user list
+        // Find the server and channel
+        const server = this.servers.get(serverId);
+        if (server) {
+          const channel = server.channels.find((c) => c.name === channelName);
+          if (channel) {
+            // Merge new users with existing users
+            const existingUsers = channel.users || [];
+            const mergedUsers = [...existingUsers];
+
+            if (
+              !existingUsers.some(
+                (user) => user.username === newUser.username,
+              )
+            ) {
+              mergedUsers.push(newUser);
+            }
+
+            // Update the channel's user list
+            channel.users = mergedUsers;
+
+            // Trigger an event to notify the UI
+            this.triggerEvent("NAMES", {
+              serverId,
+              channelName,
+              users: mergedUsers,
+            });
+          } else {
+            console.warn(
+              `Channel ${channelName} not found when processing WHOX response`,
+            );
+          }
+        } else {
+          console.warn(
+            `Server ${serverId} not found while processing WHOX response`,
+          );
+        }
       } else if (command === "CAP") {
         let i = 0;
         let caps = "";
@@ -424,7 +459,6 @@ export class IRCClient {
         else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
       } else if (line.split(" ")[1] === "005") {
-        console.log("005 detected");
         const capabilities = parseIsupport(line);
         this.triggerEvent("ISUPPORT", { serverId, capabilities });
       } else if (command === "AUTHENTICATE") {
@@ -453,6 +487,9 @@ export class IRCClient {
       "draft/chathistory",
       "draft/extended-isupport",
       "sasl",
+      "znc.in/playback",
+      "away-notify",
+      "draft/no-implicit-names",
     ];
 
     const caps = cliCaps.split(" ");
@@ -465,10 +502,10 @@ export class IRCClient {
           toRequest = "CAP REQ :";
         }
         toRequest += `${cap} `;
-        console.log(`Requesting capability: ${cap}`);
       }
     }
     if (toRequest.length > 9) {
+      console.log(`Requesting capability: ${toRequest}`);
       this.sendRaw(serverId, toRequest);
       if (toRequest.includes("draft/extended-isupport"))
         this.sendRaw(serverId, "ISUPPORT");

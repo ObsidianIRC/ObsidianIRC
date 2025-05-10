@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import type { User } from "../types";
 
 export function parseNamesResponse(namesResponse: string): User[] {
@@ -9,7 +10,7 @@ export function parseNamesResponse(namesResponse: string): User[] {
       console.log("match");
       const [_, prefix, username] = match;
       users.push({
-        id: username,
+        id: uuidv4(),
         username,
         status: prefix,
         isOnline: true,
@@ -17,6 +18,23 @@ export function parseNamesResponse(namesResponse: string): User[] {
     } else console.log("No match");
   }
   return users;
+}
+
+export function parseWhoxResponse(parv: string[]): User {
+  
+  const prefixmodes = "~&@%+";
+  let status = "";
+  for (let p of prefixmodes)
+  {
+    if (parv[3].includes(p))
+      status += p;
+  }
+  return {
+    id: uuidv4(),
+    username: parv[2],
+    status,
+    isOnline: parv[3].includes('H'),
+  }
 }
 
 function parseStatus(

@@ -641,7 +641,7 @@ ircClient.on("CHANMSG", (response) => {
         : null;
 
       const newMessage = {
-        id: replyId ? replyId : uuidv4(),
+        id: replyId ?? uuidv4(),
         content: message,
         timestamp,
         userId: response.sender,

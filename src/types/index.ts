@@ -6,6 +6,7 @@ export interface User {
   account?: string;
   isOnline: boolean;
   status?: string;
+  awaymsg?: string;
 }
 
 export interface Server {
