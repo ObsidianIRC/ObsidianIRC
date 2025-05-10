@@ -219,11 +219,21 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   joinChannel: (serverId, channelName) => {
-    const channel = ircClient.joinChannel(serverId, channelName);
+    const channel = ircClient.joinChannel(serverId, channelName); // Call ircClient to join the channel
     if (channel) {
       set((state) => {
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
+            // Check if the channel already exists in the server's channels
+            const channelExists = server.channels.some(
+              (c) =>
+                c.name.toLowerCase().trim() ===
+                channelName.toLowerCase().trim(),
+            );
+            if (channelExists) {
+              return server; // If it exists, return the server as-is
+            }
+            // Otherwise, add the new channel
             return {
               ...server,
               channels: [...server.channels, channel],
@@ -236,8 +246,10 @@ const useStore = create<AppState>((set, get) => ({
         const savedServers = loadSavedServers();
         const savedServer = savedServers.find((s) => s.id === serverId);
         if (savedServer) {
-          savedServer.channels.push(channel.name);
-          saveServersToLocalStorage(savedServers);
+          if (!savedServer.channels.includes(channel.name)) {
+            savedServer.channels.push(channel.name);
+            saveServersToLocalStorage(savedServers);
+          }
         }
 
         // Update the selected channel if the server matches the current selection
@@ -694,13 +706,15 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const existingChannel = server.channels.find(
-          (channel) => channel.name === channelName,
+          (channel) =>
+            channel.name.trim().toLowerCase() ===
+            channelName.trim().toLowerCase(),
         );
 
         if (!existingChannel) {
           const newChannel: Channel = {
             id: uuidv4(),
-            name: channelName,
+            name: channelName.trim(),
             topic: "",
             isPrivate: false,
             serverId,
@@ -710,11 +724,13 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
             users: [],
           };
 
-          return {
-            ...server,
-            channels: [...server.channels, newChannel],
-          };
+          // Add the new channel to the server
+          const updatedChannels = [...server.channels, newChannel];
+          // Return the updated server
+          return { ...server, channels: updatedChannels };
         }
+
+        // If the channel already exists, add the user to the channel
         const updatedChannels = server.channels.map((channel) => {
           if (channel.name === channelName) {
             const userAlreadyExists = channel.users.some(
@@ -726,7 +742,7 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
                 users: [
                   ...channel.users,
                   {
-                    id: uuidv4(), // Again, give them a unique ID
+                    id: uuidv4(),
                     username,
                     isOnline: true,
                   },
@@ -745,6 +761,31 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
 
     return { servers: updatedServers };
   });
+  ircClient.joinChannel(serverId, channelName.trim());
+  // Log the current channels for debugging
+  const currentChannels = useStore
+    .getState()
+    .servers.find((server) => server.id === serverId)?.channels;
+
+  // Send the WHO command after the channel is added to the state
+  setTimeout(() => {
+    const server = useStore.getState().servers.find((s) => s.id === serverId);
+    if (!server) return;
+
+    const channel = server.channels.find(
+      (c) => c.name.toLowerCase().trim() === channelName.toLowerCase().trim(),
+    );
+    if (channel) {
+      ircClient.sendRaw(
+        serverId,
+        `WHO ${channelName.toLowerCase().trim()} %ncfao`,
+      );
+    } else {
+      console.warn(
+        `Lmao: Channel ${channelName} not found when processing WHOX response`,
+      );
+    }
+  }, 0);
 });
 
 // Handle user changing their nickname

@@ -111,7 +111,7 @@ const MessageItem: React.FC<{
     );
   }
 
-  if (message.content.substring(0, 7) === "\u0001ACTION") {
+  if (message.content.substring(0, 7) === "\x01ACTION") {
     return (
       <div className="px-4 py-1 hover:bg-discord-message-hover group">
         {showDate && (
