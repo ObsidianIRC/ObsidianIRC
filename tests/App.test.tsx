@@ -14,7 +14,7 @@ vi.mock("../src/lib/ircClient", () => ({
     leaveChannel: vi.fn(),
     triggerEvent: vi.fn(),
     on: vi.fn(),
-    off: vi.fn(),
+    deleteHook: vi.fn(),
     emit: vi.fn(),
     getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
     capAck: vi.fn(),
