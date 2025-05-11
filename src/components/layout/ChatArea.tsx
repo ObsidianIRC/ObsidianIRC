@@ -8,7 +8,6 @@ import {
   FaBell,
   FaChevronLeft,
   FaChevronRight,
-  FaGift,
   FaGrinAlt,
   FaHashtag,
   FaPenAlt,
@@ -16,7 +15,6 @@ import {
   FaReply,
   FaSearch,
   FaTimes,
-  FaUserPlus,
 } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
@@ -165,7 +163,7 @@ const MessageItem: React.FC<{
       <div className="flex">
         {showHeader && (
           <div className="mr-4">
-            <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
               {message.userId.charAt(0).toUpperCase()}
             </div>
           </div>
@@ -175,7 +173,9 @@ const MessageItem: React.FC<{
             <div className="w-10" />
           </div>
         )}
-        <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
+        <div
+          className={`flex-1 ${isCurrentUser ? "text-white" : ""} text-pretty md:text-balance`}
+        >
           {showHeader && (
             <div className="flex items-center">
               <span className="font-bold text-white">
@@ -447,9 +447,6 @@ export const ChatArea: React.FC<{
           <button className="hover:text-discord-text-normal">
             <FaPenAlt />
           </button>
-          <button className="hover:text-discord-text-normal">
-            <FaUserPlus />
-          </button>
           <button
             className="hover:text-discord-text-normal"
             onClick={() => toggleMemberList(!isMemberListVisible)}
@@ -492,17 +489,24 @@ export const ChatArea: React.FC<{
               5 * 60 * 1000;
 
           return (
-            <MessageItem
+            <div
               key={message.id}
-              message={message}
-              showDate={
-                index === 0 ||
-                new Date(message.timestamp).toDateString() !==
-                  new Date(channelMessages[index - 1]?.timestamp).toDateString()
-              }
-              showHeader={showHeader}
-              setReplyTo={setLocalReplyTo}
-            />
+              className="overflow-hidden text-pretty md:text-balance"
+            >
+              <MessageItem
+                key={message.id}
+                message={message}
+                showDate={
+                  index === 0 ||
+                  new Date(message.timestamp).toDateString() !==
+                    new Date(
+                      channelMessages[index - 1]?.timestamp,
+                    ).toDateString()
+                }
+                showHeader={showHeader}
+                setReplyTo={setLocalReplyTo}
+              />
+            </div>
           );
         })}
         <div ref={messagesEndRef} />
@@ -566,9 +570,6 @@ export const ChatArea: React.FC<{
               onClick={() => setIsEmojiSelectorOpen((prev) => !prev)}
             >
               <FaGrinAlt />
-            </button>
-            <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
-              <FaGift />
             </button>
             <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
               <FaAt />
