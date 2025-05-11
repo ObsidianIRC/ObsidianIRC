@@ -371,12 +371,12 @@ export const ChatArea: React.FC<{
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
-      <div className="h-12 px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
+      <div className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
         <div className="flex items-center">
           {!isChanListVisible && (
             <button
               onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white mr-10"
+              className="text-discord-channels-default hover:text-white mr-4"
               aria-label="Expand channel list"
             >
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
@@ -464,7 +464,7 @@ export const ChatArea: React.FC<{
 
       {/* Input area */}
       {selectedChannel && (
-        <div className="px-4 pb-4 relative">
+        <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
           <OptionsDropdown
             isOpen={isEmojiSelectorOpen}
             onClose={() => setIsEmojiSelectorOpen(false)}
@@ -473,7 +473,7 @@ export const ChatArea: React.FC<{
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId ?? ""}
           />
-          <div className="bg-discord-dark-100 rounded-lg flex items-center">
+          <div className="bg-discord-dark-100 rounded-lg flex items-left">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
               <FaPlus />
             </button>
