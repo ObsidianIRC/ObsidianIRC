@@ -54,7 +54,7 @@ export const ChannelList: React.FC<{
     }
   };
 
-  const isMobileView = useMediaQuery();
+  const isNarrowView = useMediaQuery();
 
   return (
     <div className="h-full flex flex-col text-discord-channels-default">
@@ -63,7 +63,7 @@ export const ChannelList: React.FC<{
         <h1 className="font-bold text-white truncate">
           {selectedServer?.name || "Home"}
         </h1>
-        {!isMobileView && (
+        {!isNarrowView && (
           <button
             onClick={onToggle}
             className="text-discord-channels-default hover:text-white"
@@ -112,7 +112,7 @@ export const ChannelList: React.FC<{
                   Text Channels
                 </span>
                 <FaPlus
-                  className={`ml-auto ${!isMobileView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
+                  className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (newChannelName === "") setNewChannelName("#");
@@ -228,7 +228,9 @@ export const ChannelList: React.FC<{
                 <span className="uppercase text-xs font-semibold tracking-wide">
                   Voice Channels
                 </span>
-                <FaPlus className="ml-auto opacity-0 group-hover:opacity-100 cursor-pointer" />
+                <FaPlus
+                  className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
+                />
               </div>
 
               {isVoiceChannelsOpen && (
@@ -236,7 +238,9 @@ export const ChannelList: React.FC<{
                   <div className="px-2 py-1 mb-1 rounded hover:bg-discord-dark-100 flex items-center gap-2 cursor-pointer group">
                     <FaVolumeUp className="shrink-0" />
                     <span className="truncate">General</span>
-                    <div className="ml-auto flex gap-1 opacity-0 group-hover:opacity-100">
+                    <div
+                      className={`ml-auto flex gap-1 ${!isNarrowView && "opacity-0 group-hover:opacity-100"}`}
+                    >
                       <button className="hover:text-discord-channels-active">
                         <FaUserPlus size={12} />
                       </button>
@@ -249,9 +253,7 @@ export const ChannelList: React.FC<{
                     <FaVolumeUp className="shrink-0" />
                     <span className="truncate">AFK</span>
                     <div
-                      className={
-                        "ml-auto flex gap-1 opacity-0 group-hover:opacity-100"
-                      }
+                      className={`ml-auto flex gap-1 ${!isNarrowView && "opacity-0 group-hover:opacity-100"}`}
                     >
                       <button className="hover:text-discord-channels-active">
                         <FaUserPlus size={12} />

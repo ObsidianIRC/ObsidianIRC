@@ -100,6 +100,7 @@ interface AppState {
     itemId: string,
   ) => void;
   hideContextMenu: () => void;
+  setMobileViewActiveColumn: (column: layoutColumn) => void;
 }
 
 // Create store with Zustand
@@ -615,6 +616,15 @@ const useStore = create<AppState>((set, get) => ({
           ...state.ui.contextMenu,
           isOpen: false,
         },
+      },
+    }));
+  },
+
+  setMobileViewActiveColumn: (column: layoutColumn) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        mobileViewActiveColumn: column,
       },
     }));
   },

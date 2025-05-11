@@ -1,3 +1,4 @@
+import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
 import { useEffect } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -20,6 +21,7 @@ export const AppLayout: React.FC = () => {
     toggleMobileMenu,
     toggleMemberList,
     toggleChannelList,
+    setMobileViewActiveColumn,
   } = useStore();
 
   // Set theme class on body
@@ -52,6 +54,9 @@ export const AppLayout: React.FC = () => {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [isMobileMenuOpen, toggleMobileMenu]);
 
+  const isNarrowView = useMediaQuery();
+  const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
+
   const getLayoutColumnElement = (column: layoutColumn) => {
     switch (column) {
       case "serverList":
@@ -61,7 +66,7 @@ export const AppLayout: React.FC = () => {
               <ServerList />
             </div>
             <ResizableSidebar
-              bypass={isMobileView && mobileViewActiveColumn === "serverList"}
+              bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
               isVisible={isChannelListVisible}
               defaultWidth={200}
               minWidth={80}
@@ -97,7 +102,7 @@ export const AppLayout: React.FC = () => {
       case "memberList":
         return (
           <ResizableSidebar
-            bypass={isMobileView && mobileViewActiveColumn === "memberList"}
+            bypass={isNarrowView && mobileViewActiveColumn === "memberList"}
             isVisible={isMemberListVisible}
             defaultWidth={240}
             minWidth={80}
@@ -112,12 +117,10 @@ export const AppLayout: React.FC = () => {
         );
     }
   };
-  const isMobileView = useMediaQuery();
-  const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
 
   // Set correct state for mobile view
   useEffect(() => {
-    if (isMobileView) {
+    if (isNarrowView) {
       switch (mobileViewActiveColumn) {
         case "serverList":
           toggleChannelList(true);
@@ -134,7 +137,7 @@ export const AppLayout: React.FC = () => {
       toggleChannelList(true);
     }
   }, [
-    isMobileView,
+    isNarrowView,
     mobileViewActiveColumn,
     toggleChannelList,
     toggleMemberList,
@@ -142,14 +145,33 @@ export const AppLayout: React.FC = () => {
 
   // Hide member list if the screen is too narrow
   useEffect(() => {
-    if (isMobileView) return;
+    if (isNarrowView) return;
     toggleMemberList(!isTooNarrowForMemberList);
-  }, [isTooNarrowForMemberList, toggleMemberList, isMobileView]);
+  }, [isTooNarrowForMemberList, toggleMemberList, isNarrowView]);
 
   const getLayoutColumn = (column: layoutColumn) => {
-    if (isMobileView && column !== mobileViewActiveColumn) return;
+    if (isNarrowView && column !== mobileViewActiveColumn) return;
     return getLayoutColumnElement(column);
   };
+
+  // Handle mobile back button
+  if ("__TAURI__" in window && platform() === "android") {
+    // @ts-ignore
+    window.androidBackCallback = () => {
+      switch (mobileViewActiveColumn) {
+        case "chatView":
+          setMobileViewActiveColumn("serverList");
+          toggleChannelList(true);
+          return false; // the android back will be prevented
+        case "memberList":
+          setMobileViewActiveColumn("chatView");
+          toggleMemberList(false);
+          return false; // the android back will be prevented
+        default:
+          return true; // the default android back
+      }
+    };
+  }
 
   return (
     <div

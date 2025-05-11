@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   FaAt,
   FaBell,
+  FaChevronLeft,
   FaChevronRight,
   FaGift,
   FaGrinAlt,
@@ -15,6 +16,7 @@ import {
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
@@ -364,6 +366,8 @@ export const ChatArea: React.FC<{
     setIsEmojiSelectorOpen(false);
   };
 
+  const isNarrowView = useMediaQuery();
+
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
@@ -375,7 +379,7 @@ export const ChatArea: React.FC<{
               className="text-discord-channels-default hover:text-white mr-10"
               aria-label="Expand channel list"
             >
-              <FaChevronRight />
+              {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
           )}
           <FaHashtag className="text-discord-text-muted mr-2" />
