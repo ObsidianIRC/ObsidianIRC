@@ -1,7 +1,9 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
+import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
+  FaArrowDown,
   FaAt,
   FaBell,
   FaChevronLeft,
@@ -237,7 +239,9 @@ export const ChatArea: React.FC<{
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useStore();
   const {
@@ -261,18 +265,50 @@ export const ChatArea: React.FC<{
       : "";
   const channelMessages = channelKey ? messages[channelKey] || [] : [];
 
+  const scrollDown = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Force complete scroll after animation
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }, 500);
+  };
+
+  // Scroll down on channel change
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedServerId): We want to scroll down only if server or channel changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): We want to scroll down only if server or channel changes
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [selectedServerId, selectedChannelId]);
+
   // Auto scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isScrolledUp) return;
+    scrollDown();
   });
 
-  // Focus input on channel change
+  // Check if scrolled away from bottom
   useEffect(() => {
-    inputRef.current?.focus();
-  });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const checkIfScrolledToBottom = () => {
+      const atBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        30;
+      setIsScrolledUp(!atBottom);
+    };
+
+    container.addEventListener("scroll", checkIfScrolledToBottom);
+    return () =>
+      container.removeEventListener("scroll", checkIfScrolledToBottom);
+  }, []);
 
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
+    scrollDown();
     if (selectedServerId && selectedChannelId) {
       if (messageText.startsWith("/")) {
         // Handle command
@@ -368,6 +404,13 @@ export const ChatArea: React.FC<{
 
   const isNarrowView = useMediaQuery();
 
+  // Focus input on channel change
+  useEffect(() => {
+    if ("__TAURI__" in window && ["android", "ios"].includes(platform()))
+      return;
+    inputRef.current?.focus();
+  });
+
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
@@ -435,7 +478,10 @@ export const ChatArea: React.FC<{
       </div>
 
       {/* Messages area */}
-      <div className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal">
+      <div
+        ref={messagesContainerRef}
+        className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+      >
         {channelMessages.map((message, index) => {
           const previousMessage = channelMessages[index - 1];
           const showHeader =
@@ -461,6 +507,20 @@ export const ChatArea: React.FC<{
         })}
         <div ref={messagesEndRef} />
       </div>
+      {/* Scroll to bottom button */}
+      {isScrolledUp && (
+        <div className="relative bottom-10 z-50">
+          <div className="absolute right-4">
+            <button
+              onClick={scrollDown}
+              className="bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full p-2 shadow-lg transition-all"
+              aria-label="Scroll to bottom"
+            >
+              <FaArrowDown className="text-white" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input area */}
       {selectedChannel && (

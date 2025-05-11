@@ -25,7 +25,7 @@ describe("App", () => {
   beforeAll(() => {
     // Clear any existing event listeners
     vi.mocked(ircClient.on).mockClear();
-    vi.mocked(ircClient.off).mockClear();
+    vi.mocked(ircClient.deleteHook).mockClear();
   });
 
   afterEach(() => {

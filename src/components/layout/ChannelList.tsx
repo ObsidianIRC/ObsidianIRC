@@ -43,7 +43,6 @@ export const ChannelList: React.FC<{
         : `#${newChannelName.trim()}`;
 
       joinChannel(selectedServerId, channelName);
-      selectChannel(channelName); // Ensure the new channel is selected
       setNewChannelName("");
     }
   };
