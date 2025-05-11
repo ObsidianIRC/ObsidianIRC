@@ -489,10 +489,7 @@ export const ChatArea: React.FC<{
               5 * 60 * 1000;
 
           return (
-            <div
-              key={message.id}
-              className="overflow-hidden text-pretty md:text-balance"
-            >
+            <div key={message.id} className="text-pretty md:text-balance">
               <MessageItem
                 key={message.id}
                 message={message}
