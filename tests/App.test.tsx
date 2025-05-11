@@ -14,7 +14,7 @@ vi.mock("../src/lib/ircClient", () => ({
     leaveChannel: vi.fn(),
     triggerEvent: vi.fn(),
     on: vi.fn(),
-    off: vi.fn(),
+    deleteHook: vi.fn(),
     emit: vi.fn(),
     getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
     capAck: vi.fn(),
@@ -25,7 +25,7 @@ describe("App", () => {
   beforeAll(() => {
     // Clear any existing event listeners
     vi.mocked(ircClient.on).mockClear();
-    vi.mocked(ircClient.off).mockClear();
+    vi.mocked(ircClient.deleteHook).mockClear();
   });
 
   afterEach(() => {

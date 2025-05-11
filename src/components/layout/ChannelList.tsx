@@ -2,6 +2,7 @@ import type React from "react";
 import { useState } from "react";
 import {
   FaChevronDown,
+  FaChevronLeft,
   FaChevronRight,
   FaCog,
   FaHashtag,
@@ -10,9 +11,13 @@ import {
   FaUserPlus,
   FaVolumeUp,
 } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
+import TouchableContextMenu from "../mobile/TouchableContextMenu";
 
-export const ChannelList: React.FC = () => {
+export const ChannelList: React.FC<{
+  onToggle: () => void;
+}> = ({ onToggle }) => {
   const {
     servers,
     ui: { selectedServerId, selectedChannelId },
@@ -38,7 +43,6 @@ export const ChannelList: React.FC = () => {
         : `#${newChannelName.trim()}`;
 
       joinChannel(selectedServerId, channelName);
-      selectChannel(channelName); // Ensure the new channel is selected
       setNewChannelName("");
     }
   };
@@ -49,6 +53,8 @@ export const ChannelList: React.FC = () => {
     }
   };
 
+  const isNarrowView = useMediaQuery();
+
   return (
     <div className="h-full flex flex-col text-discord-channels-default">
       {/* Server header */}
@@ -56,9 +62,14 @@ export const ChannelList: React.FC = () => {
         <h1 className="font-bold text-white truncate">
           {selectedServer?.name || "Home"}
         </h1>
-        <button className="text-discord-channels-default hover:text-white">
-          <FaChevronDown />
-        </button>
+        {!isNarrowView && (
+          <button
+            onClick={onToggle}
+            className="text-discord-channels-default hover:text-white"
+          >
+            <FaChevronLeft />
+          </button>
+        )}
       </div>
 
       {/* Channel list */}
@@ -100,7 +111,7 @@ export const ChannelList: React.FC = () => {
                   Text Channels
                 </span>
                 <FaPlus
-                  className="ml-auto opacity-0 group-hover:opacity-100 cursor-pointer"
+                  className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (newChannelName === "") setNewChannelName("#");
@@ -159,35 +170,50 @@ export const ChannelList: React.FC = () => {
                     )
                     .filter((channel) => !channel.isPrivate)
                     .map((channel) => (
-                      <div
+                      <TouchableContextMenu
                         key={channel.id}
-                        className={`
-                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
-                          ${selectedChannelId === channel.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
-                        `}
-                        onClick={() => selectChannel(channel.id)}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <FaHashtag className="shrink-0" />
-                          <span className="truncate">
-                            {channel.name.replace(/^#/, "")}
-                          </span>
-                        </div>
-                        {/* Trash Button */}
-                        {selectedChannelId === channel.id && (
-                          <button
-                            className="hidden group-hover:block text-discord-red hover:text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                        menuItems={[
+                          {
+                            label: "Delete Channel",
+                            icon: <FaTrash size={14} />,
+                            onClick: () => {
                               if (selectedServerId) {
                                 leaveChannel(selectedServerId, channel.name);
                               }
-                            }}
-                          >
-                            <FaTrash />
-                          </button>
-                        )}
-                      </div>
+                            },
+                            className: "text-red-400",
+                          },
+                        ]}
+                      >
+                        <div
+                          className={`
+                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
+                          ${selectedChannelId === channel.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                        `}
+                          onClick={() => selectChannel(channel.id)}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <FaHashtag className="shrink-0" />
+                            <span className="truncate">
+                              {channel.name.replace(/^#/, "")}
+                            </span>
+                          </div>
+                          {/* Trash Button */}
+                          {selectedChannelId === channel.id && (
+                            <button
+                              className="hidden group-hover:block text-discord-red hover:text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedServerId) {
+                                  leaveChannel(selectedServerId, channel.name);
+                                }
+                              }}
+                            >
+                              <FaTrash />
+                            </button>
+                          )}
+                        </div>
+                      </TouchableContextMenu>
                     ))}
                 </div>
               )}
@@ -207,7 +233,9 @@ export const ChannelList: React.FC = () => {
                 <span className="uppercase text-xs font-semibold tracking-wide">
                   Voice Channels
                 </span>
-                <FaPlus className="ml-auto opacity-0 group-hover:opacity-100 cursor-pointer" />
+                <FaPlus
+                  className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
+                />
               </div>
 
               {isVoiceChannelsOpen && (
@@ -215,7 +243,9 @@ export const ChannelList: React.FC = () => {
                   <div className="px-2 py-1 mb-1 rounded hover:bg-discord-dark-100 flex items-center gap-2 cursor-pointer group">
                     <FaVolumeUp className="shrink-0" />
                     <span className="truncate">General</span>
-                    <div className="ml-auto flex gap-1 opacity-0 group-hover:opacity-100">
+                    <div
+                      className={`ml-auto flex gap-1 ${!isNarrowView && "opacity-0 group-hover:opacity-100"}`}
+                    >
                       <button className="hover:text-discord-channels-active">
                         <FaUserPlus size={12} />
                       </button>
@@ -227,7 +257,9 @@ export const ChannelList: React.FC = () => {
                   <div className="px-2 py-1 mb-1 rounded hover:bg-discord-dark-100 flex items-center gap-2 cursor-pointer group">
                     <FaVolumeUp className="shrink-0" />
                     <span className="truncate">AFK</span>
-                    <div className="ml-auto flex gap-1 opacity-0 group-hover:opacity-100">
+                    <div
+                      className={`ml-auto flex gap-1 ${!isNarrowView && "opacity-0 group-hover:opacity-100"}`}
+                    >
                       <button className="hover:text-discord-channels-active">
                         <FaUserPlus size={12} />
                       </button>

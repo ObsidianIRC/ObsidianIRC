@@ -1,6 +1,8 @@
 import type React from "react";
 import { useState } from "react";
 import { FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FaChevronLeft } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
 import type { User } from "../../types";
 
@@ -86,6 +88,7 @@ export const MemberList: React.FC = () => {
   const {
     servers,
     ui: { selectedServerId, selectedChannelId },
+    toggleMemberList,
   } = useStore();
 
   const selectedServer = servers.find(
@@ -124,8 +127,17 @@ export const MemberList: React.FC = () => {
     },
   );
 
+  const isMobileView = useMediaQuery();
   return (
     <div className="p-3 h-full overflow-y-auto">
+      {isMobileView && (
+        <button
+          onClick={() => toggleMemberList(false)}
+          className="text-discord-channels-default hover:text-white mb-5"
+        >
+          <FaChevronLeft />
+        </button>
+      )}
       {categorizedUsers && (
         <>
           <Category

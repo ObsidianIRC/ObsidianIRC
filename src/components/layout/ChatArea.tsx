@@ -1,8 +1,13 @@
+import { UsersIcon } from "@heroicons/react/24/solid";
+import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
+  FaArrowDown,
   FaAt,
   FaBell,
+  FaChevronLeft,
+  FaChevronRight,
   FaGift,
   FaGrinAlt,
   FaHashtag,
@@ -13,6 +18,7 @@ import {
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
@@ -226,16 +232,22 @@ const MessageItem: React.FC<{
   );
 };
 
-export const ChatArea: React.FC = () => {
+export const ChatArea: React.FC<{
+  onToggleChanList: () => void;
+  isChanListVisible: boolean;
+}> = ({ onToggleChanList, isChanListVisible }) => {
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useStore();
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId },
+    ui: { selectedServerId, selectedChannelId, isMemberListVisible },
+    toggleMemberList,
     sendMessage,
     messages,
   } = useStore();
@@ -253,18 +265,50 @@ export const ChatArea: React.FC = () => {
       : "";
   const channelMessages = channelKey ? messages[channelKey] || [] : [];
 
+  const scrollDown = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Force complete scroll after animation
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }, 500);
+  };
+
+  // Scroll down on channel change
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedServerId): We want to scroll down only if server or channel changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): We want to scroll down only if server or channel changes
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [selectedServerId, selectedChannelId]);
+
   // Auto scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isScrolledUp) return;
+    scrollDown();
   });
 
-  // Focus input on channel change
+  // Check if scrolled away from bottom
   useEffect(() => {
-    inputRef.current?.focus();
-  });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const checkIfScrolledToBottom = () => {
+      const atBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        30;
+      setIsScrolledUp(!atBottom);
+    };
+
+    container.addEventListener("scroll", checkIfScrolledToBottom);
+    return () =>
+      container.removeEventListener("scroll", checkIfScrolledToBottom);
+  }, []);
 
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
+    scrollDown();
     if (selectedServerId && selectedChannelId) {
       if (messageText.startsWith("/")) {
         // Handle command
@@ -358,13 +402,31 @@ export const ChatArea: React.FC = () => {
     setIsEmojiSelectorOpen(false);
   };
 
+  const isNarrowView = useMediaQuery();
+
+  // Focus input on channel change
+  useEffect(() => {
+    if ("__TAURI__" in window && ["android", "ios"].includes(platform()))
+      return;
+    inputRef.current?.focus();
+  });
+
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
-      <div className="h-12 px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
+      <div className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
         <div className="flex items-center">
+          {!isChanListVisible && (
+            <button
+              onClick={onToggleChanList}
+              className="text-discord-channels-default hover:text-white mr-4"
+              aria-label="Expand channel list"
+            >
+              {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
+            </button>
+          )}
           <FaHashtag className="text-discord-text-muted mr-2" />
-          <h2 className="font-bold text-white">
+          <h2 className="font-bold text-white mr-4">
             {selectedChannel
               ? selectedChannel.name.replace(/^#/, "")
               : "welcome"}
@@ -388,6 +450,22 @@ export const ChatArea: React.FC = () => {
           <button className="hover:text-discord-text-normal">
             <FaUserPlus />
           </button>
+          <button
+            className="hover:text-discord-text-normal"
+            onClick={() => toggleMemberList(!isMemberListVisible)}
+            aria-label={
+              isMemberListVisible
+                ? "Collapse member list"
+                : "Expand member list"
+            }
+            data-testid="toggle-member-list"
+          >
+            {isMemberListVisible ? (
+              <UsersIcon className="w-4 h-4 text-white" />
+            ) : (
+              <UsersIcon className="w-4 h-4 text-gray" />
+            )}
+          </button>
           <div className="relative">
             <input
               type="text"
@@ -400,7 +478,10 @@ export const ChatArea: React.FC = () => {
       </div>
 
       {/* Messages area */}
-      <div className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal">
+      <div
+        ref={messagesContainerRef}
+        className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+      >
         {channelMessages.map((message, index) => {
           const previousMessage = channelMessages[index - 1];
           const showHeader =
@@ -426,10 +507,24 @@ export const ChatArea: React.FC = () => {
         })}
         <div ref={messagesEndRef} />
       </div>
+      {/* Scroll to bottom button */}
+      {isScrolledUp && (
+        <div className="relative bottom-10 z-50">
+          <div className="absolute right-4">
+            <button
+              onClick={scrollDown}
+              className="bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full p-2 shadow-lg transition-all"
+              aria-label="Scroll to bottom"
+            >
+              <FaArrowDown className="text-white" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input area */}
       {selectedChannel && (
-        <div className="px-4 pb-4 relative">
+        <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
           <OptionsDropdown
             isOpen={isEmojiSelectorOpen}
             onClose={() => setIsEmojiSelectorOpen(false)}
@@ -438,7 +533,7 @@ export const ChatArea: React.FC = () => {
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId ?? ""}
           />
-          <div className="bg-discord-dark-100 rounded-lg flex items-center">
+          <div className="bg-discord-dark-100 rounded-lg flex items-left">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
               <FaPlus />
             </button>
