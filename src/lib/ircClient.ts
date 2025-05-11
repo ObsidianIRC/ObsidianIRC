@@ -6,7 +6,7 @@ import {
   parseNamesResponse,
 } from "./ircUtils";
 
-interface EventMap {
+export interface EventMap {
   ready: { serverId: string; serverName: string; nickname: string };
   NICK: {
     serverId: string;
@@ -481,6 +481,15 @@ export class IRCClient {
       this.eventCallbacks[event] = [];
     }
     this.eventCallbacks[event]?.push(callback);
+  }
+
+  deleteHook<K extends EventKey>(event: K, callback: EventCallback<K>): void {
+    const cbs = this.eventCallbacks[event];
+    if (!cbs) return;
+    const index = cbs.indexOf(callback);
+    if (index !== -1) {
+      cbs.splice(index, 1);
+    }
   }
 
   triggerEvent<K extends EventKey>(event: K, data: EventMap[K]): void {

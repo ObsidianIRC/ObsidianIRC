@@ -4,7 +4,7 @@ import ircClient from "../lib/ircClient";
 import type { Channel, Message, Server, ServerConfig, User } from "../types";
 import type { ISupportEvent } from "../types/";
 
-const LOCAL_STORAGE_KEY = "savedServers";
+const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 
 export const getChannelMessages = (serverId: string, channelId: string) => {
   const state = useStore.getState();
@@ -22,11 +22,11 @@ export const findChannelMessageById = (
 };
 // Load saved servers from localStorage
 function loadSavedServers(): ServerConfig[] {
-  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_SERVERS_KEY) || "[]");
 }
 
 function saveServersToLocalStorage(servers: ServerConfig[]) {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(servers));
+  localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
 }
 
 interface UIState {
@@ -38,6 +38,8 @@ interface UIState {
   isDarkMode: boolean;
   isMobileMenuOpen: boolean;
   isMemberListVisible: boolean;
+  isChannelListVisible: boolean;
+  mobileViewActiveColumn: layoutColumn;
   isServerMenuOpen: boolean;
   contextMenu: {
     isOpen: boolean;
@@ -46,6 +48,10 @@ interface UIState {
     type: "server" | "channel" | "user" | "message";
     itemId: string | null;
   };
+}
+
+interface GlobalSettings {
+  enableNotifications: boolean;
 }
 
 interface AppState {
@@ -57,6 +63,7 @@ interface AppState {
   typingUsers: Record<string, User[]>;
   // UI state
   ui: UIState;
+  globalSettings: GlobalSettings;
   // Actions
   connect: (
     host: string,
@@ -84,6 +91,7 @@ interface AppState {
   toggleDarkMode: () => void;
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
+  toggleChannelList: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
@@ -92,6 +100,7 @@ interface AppState {
     itemId: string,
   ) => void;
   hideContextMenu: () => void;
+  setMobileViewActiveColumn: (column: layoutColumn) => void;
 }
 
 // Create store with Zustand
@@ -113,6 +122,8 @@ const useStore = create<AppState>((set, get) => ({
     isDarkMode: true, // Discord-like default is dark mode
     isMobileMenuOpen: false,
     isMemberListVisible: true,
+    isChannelListVisible: true,
+    mobileViewActiveColumn: "serverList", // Default to server list in mobile mode on open
     isServerMenuOpen: false,
     contextMenu: {
       isOpen: false,
@@ -121,6 +132,9 @@ const useStore = create<AppState>((set, get) => ({
       type: "server",
       itemId: null,
     },
+  },
+  globalSettings: {
+    enableNotifications: false,
   },
 
   // IRC client actions
@@ -376,6 +390,7 @@ const useStore = create<AppState>((set, get) => ({
             selectedServerId: serverId,
             selectedChannelId: channelId,
             isMobileMenuOpen: false,
+            mobileViewActiveColumn: "chatView",
           },
         };
       }
@@ -385,6 +400,7 @@ const useStore = create<AppState>((set, get) => ({
           ...state.ui,
           selectedChannelId: channelId,
           isMobileMenuOpen: false,
+          mobileViewActiveColumn: "chatView",
         },
       };
     });
@@ -535,14 +551,36 @@ const useStore = create<AppState>((set, get) => ({
     }));
   },
 
-  toggleMemberList: (isVisible) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isMemberListVisible:
-          isVisible !== undefined ? isVisible : !state.ui.isMemberListVisible,
-      },
-    }));
+  toggleMemberList: (isOpen) => {
+    set((state) => {
+      const openState =
+        isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+      return {
+        ui: {
+          ...state.ui,
+          isMemberListVisible:
+            openState !== undefined ? openState : !state.ui.isMemberListVisible,
+          mobileViewActiveColumn: openState ? "memberList" : "chatView",
+        },
+      };
+    });
+  },
+
+  toggleChannelList: (isOpen) => {
+    console.log("Toggling channel list", isOpen);
+    set((state) => {
+      const openState =
+        isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+      return {
+        ui: {
+          ...state.ui,
+          isChannelListVisible: openState,
+          mobileViewActiveColumn: openState
+            ? "serverList"
+            : state.ui.mobileViewActiveColumn,
+        },
+      };
+    });
   },
 
   toggleServerMenu: (isOpen) => {
@@ -578,6 +616,15 @@ const useStore = create<AppState>((set, get) => ({
           ...state.ui.contextMenu,
           isOpen: false,
         },
+      },
+    }));
+  },
+
+  setMobileViewActiveColumn: (column: layoutColumn) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        mobileViewActiveColumn: column,
       },
     }));
   },

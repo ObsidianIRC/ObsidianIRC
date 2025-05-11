@@ -1,15 +1,27 @@
+import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
 import { useEffect } from "react";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
+import { ResizableSidebar } from "./ResizableSidebar";
 import { ServerList } from "./ServerList";
 
 export const AppLayout: React.FC = () => {
   const {
-    ui: { isDarkMode, isMobileMenuOpen, isMemberListVisible },
+    ui: {
+      isDarkMode,
+      isMobileMenuOpen,
+      isMemberListVisible,
+      isChannelListVisible,
+      mobileViewActiveColumn,
+    },
     toggleMobileMenu,
+    toggleMemberList,
+    toggleChannelList,
+    setMobileViewActiveColumn,
   } = useStore();
 
   // Set theme class on body
@@ -42,34 +54,134 @@ export const AppLayout: React.FC = () => {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [isMobileMenuOpen, toggleMobileMenu]);
 
+  const isNarrowView = useMediaQuery();
+  const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
+
+  const getLayoutColumnElement = (column: layoutColumn) => {
+    switch (column) {
+      case "serverList":
+        return (
+          <>
+            <div className="server-list flex-shrink-0 w-[72px] h-full bg-discord-dark-300 z-30">
+              <ServerList />
+            </div>
+            <ResizableSidebar
+              bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
+              isVisible={isChannelListVisible}
+              defaultWidth={200}
+              minWidth={80}
+              maxWidth={400}
+              side="left"
+              onMinReached={() => toggleChannelList(false)}
+            >
+              <div
+                className={
+                  "channel-list w-full h-full bg-discord-dark-100 md:block z-20"
+                }
+              >
+                <ChannelList
+                  onToggle={() => {
+                    toggleChannelList(!isChannelListVisible);
+                  }}
+                />
+              </div>
+            </ResizableSidebar>
+          </>
+        );
+      case "chatView":
+        return (
+          <div className="flex-grow h-full bg-discord-dark-200 flex flex-col min-w-0 z-10">
+            <ChatArea
+              isChanListVisible={isChannelListVisible}
+              onToggleChanList={() => {
+                toggleChannelList(!isChannelListVisible);
+              }}
+            />
+          </div>
+        );
+      case "memberList":
+        return (
+          <ResizableSidebar
+            bypass={isNarrowView && mobileViewActiveColumn === "memberList"}
+            isVisible={isMemberListVisible}
+            defaultWidth={240}
+            minWidth={80}
+            maxWidth={400}
+            side="right"
+            onMinReached={() => toggleMemberList(false)}
+          >
+            <div className="flex-1 overflow-hidden h-full bg-discord-dark-100">
+              <MemberList />
+            </div>
+          </ResizableSidebar>
+        );
+    }
+  };
+
+  // Set correct state for mobile view
+  useEffect(() => {
+    if (isNarrowView) {
+      switch (mobileViewActiveColumn) {
+        case "serverList":
+          toggleChannelList(true);
+          break;
+        case "chatView":
+          toggleChannelList(false);
+          toggleMemberList(false);
+          break;
+        case "memberList":
+          toggleChannelList(false);
+          break;
+      }
+    } else {
+      toggleChannelList(true);
+    }
+  }, [
+    isNarrowView,
+    mobileViewActiveColumn,
+    toggleChannelList,
+    toggleMemberList,
+  ]);
+
+  // Hide member list if the screen is too narrow
+  useEffect(() => {
+    if (isNarrowView) return;
+    toggleMemberList(!isTooNarrowForMemberList);
+  }, [isTooNarrowForMemberList, toggleMemberList, isNarrowView]);
+
+  const getLayoutColumn = (column: layoutColumn) => {
+    if (isNarrowView && column !== mobileViewActiveColumn) return;
+    return getLayoutColumnElement(column);
+  };
+
+  // Handle mobile back button
+  if ("__TAURI__" in window && platform() === "android") {
+    // @ts-ignore
+    window.androidBackCallback = () => {
+      switch (mobileViewActiveColumn) {
+        case "chatView":
+          setMobileViewActiveColumn("serverList");
+          toggleChannelList(true);
+          return false; // the android back will be prevented
+        case "memberList":
+          setMobileViewActiveColumn("chatView");
+          toggleMemberList(false);
+          return false; // the android back will be prevented
+        default:
+          return true; // the default android back
+      }
+    };
+  }
+
   return (
     <div
-      className={`flex h-screen overflow-hidden bg-discord-dark-300 ${isDarkMode ? "text-white" : "text-gray-900"}`}
+      className={`flex h-screen overflow-hidden bg-discord-dark-300 ${
+        isDarkMode ? "text-white" : "text-gray-900"
+      }`}
     >
-      {/* Server list - leftmost sidebar */}
-      <div className="server-list flex-shrink-0 w-[72px] h-full bg-discord-dark-300 z-30">
-        <ServerList />
-      </div>
-
-      {/* Channel list - left sidebar */}
-      <div
-        className={`channel-list flex-shrink-0 w-60 h-full bg-discord-dark-100
-          ${isMobileMenuOpen ? "block" : "hidden"} md:block z-20`}
-      >
-        <ChannelList />
-      </div>
-
-      {/* Main content area - Chat */}
-      <div className="flex-grow h-full bg-discord-dark-200 flex flex-col min-w-0 z-10">
-        <ChatArea />
-      </div>
-
-      {/* Member list - right sidebar */}
-      {isMemberListVisible && (
-        <div className="member-list flex-shrink-0 w-60 h-full bg-discord-dark-600 hidden md:block">
-          <MemberList />
-        </div>
-      )}
+      {getLayoutColumn("serverList")}
+      {getLayoutColumn("chatView")}
+      {getLayoutColumn("memberList")}
     </div>
   );
 };
