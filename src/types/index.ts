@@ -19,6 +19,10 @@ export interface Server {
   icon?: string;
   isConnected: boolean;
   users: User[];
+  isupport: Record<
+    string,
+    string | string[] | Record<string, string | undefined>
+  >;
 }
 
 export interface ServerConfig {
@@ -93,3 +97,8 @@ export type MessageTag = {
   key: string;
   value?: string;
 };
+
+export type ParsedValue =
+  | string
+  | Record<string, string | undefined>
+  | string[];

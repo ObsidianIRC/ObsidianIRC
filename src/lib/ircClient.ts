@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Channel, Server, User } from "../types";
+import type { Channel, Server, User, ParsedValue } from "../types";
 import {
   parseIsupport,
   parseMessageTags,
@@ -110,6 +110,7 @@ export class IRCClient {
           users: [],
           privateMessages: [],
           icon: "",
+          isupport: {},
         };
 
         this.servers.set(server.id, server);
@@ -477,15 +478,134 @@ export class IRCClient {
         if (subcommand === "LS") this.onCapLs(serverId, caps);
         else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
-      } else if (line.split(" ")[1] === "005") {
+      } else if (command === "005") {
         console.log("005 detected");
         const capabilities = parseIsupport(line);
+        const parv2 = [];
+        for (let i = 1; i <= parv.length - 2; i++) parv2.push(parv[i]);
+
+        const parsedTokens = this.parseISupportTokens(parv2);
+        const server = this.servers.get(serverId);
+        if (server) {
+          server.isupport = { ...server.isupport, ...parsedTokens };
+        } else {
+          console.warn(
+            `Server with ID ${serverId} not found while updating isupport`,
+          );
+        }
+
         this.triggerEvent("ISUPPORT", { serverId, capabilities });
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
       }
     }
+  }
+
+  parseISupportTokens(tokens: string[]): Record<string, ParsedValue> {
+    const result: Record<string, ParsedValue> = {};
+
+    for (const token of tokens) {
+      const [key, rawValue] = token.split("=", 2);
+
+      // No '=' means it's just a flag with true
+      if (rawValue === undefined) {
+        result[key] = true.toString();
+        continue;
+      }
+
+      // Handle comma-separated values
+      if (rawValue.includes(",")) {
+        const items = rawValue.split(",");
+        const hasColon = items.some((item) => item.includes(":"));
+
+        if (hasColon) {
+          const map: Record<string, string | undefined> = {};
+          for (const item of items) {
+            const [k, v] = item.split(":", 2);
+            map[k] = v;
+          }
+          result[key] = map;
+        } else {
+          result[key] = items;
+        }
+      } else if (rawValue.includes(":")) {
+        // Handle single key:value pair
+        const [subKey, subValue] = rawValue.split(":", 2);
+        result[key] = { [subKey]: subValue };
+      } else {
+        result[key] = rawValue;
+      }
+    }
+
+    return result;
+  }
+
+  parseChannelMode(
+    serverId: string,
+    parv: string[],
+  ): Record<string, Record<string, string | undefined>> | undefined {
+    const server = this.servers.get(serverId);
+    const target = parv[0];
+    const modes = parv[1];
+    let set = true;
+    let i = 2; // start from any potential param in parv[]
+    const record = {} as Record<string, Record<string, string | undefined>>;
+    const toSet = {} as Record<string, string | undefined>;
+    const toUnset = {} as Record<string, string | undefined>;
+
+    for (let j = 0; modes[j]; j++) {
+      if (modes[j] === "+") {
+        set = true;
+        continue;
+      }
+      if (modes[j] === "-") {
+        set = false;
+        continue;
+      }
+      const needParam = this.chanModeRequiresParam(serverId, set, modes[j]);
+      const param = needParam ? parv[i++] : undefined;
+      if (set) {
+        toSet[modes[j]] = param;
+      } else {
+        toUnset[modes[j]] = param;
+      }
+
+      record.set = toSet;
+      record.unset = toUnset;
+      return record;
+    }
+  }
+
+  private chanModeRequiresParam(
+    serverId: string,
+    set: boolean,
+    mode: string,
+  ): boolean {
+    const group = this.getChanModeGroupNumber(serverId, mode);
+    if (group < 1) return false;
+
+    if (set) {
+      if (group >= 1 && group <= 3) return true;
+      return false;
+    }
+    if (group === 1 || group === 2) return true;
+    return false;
+  }
+
+  private getChanModeGroupNumber(serverId: string, mode: string): number {
+    const server = this.servers.get(serverId);
+    if (!server || !server.isupport) return -1; // panties were shat
+
+    for (const [key, value] of Object.entries(server.isupport)) {
+      if (key === "CHANMODES") {
+        for (const [key2, value2] of Object.entries(value)) {
+          if (value2?.includes(mode)) return Number.parseInt(key2, 10) + 1;
+        }
+      }
+    }
+
+    return -1;
   }
 
   /* Send SASL plain */
