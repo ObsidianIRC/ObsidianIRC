@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Channel, Server, User, ParsedValue } from "../types";
+import type { Channel, ParsedValue, Server, User } from "../types";
 import {
   parseIsupport,
   parseMessageTags,
