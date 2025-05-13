@@ -120,21 +120,18 @@ export const AppLayout: React.FC = () => {
 
   // Set correct state for mobile view
   useEffect(() => {
-    if (isNarrowView) {
-      switch (mobileViewActiveColumn) {
-        case "serverList":
-          toggleChannelList(true);
-          break;
-        case "chatView":
-          toggleChannelList(false);
-          toggleMemberList(false);
-          break;
-        case "memberList":
-          toggleChannelList(false);
-          break;
-      }
-    } else {
-      toggleChannelList(true);
+    if (!isNarrowView) return;
+    switch (mobileViewActiveColumn) {
+      case "serverList":
+        toggleChannelList(true);
+        break;
+      case "chatView":
+        toggleChannelList(false);
+        toggleMemberList(false);
+        break;
+      case "memberList":
+        toggleChannelList(false);
+        break;
     }
   }, [
     isNarrowView,
@@ -142,6 +139,12 @@ export const AppLayout: React.FC = () => {
     toggleChannelList,
     toggleMemberList,
   ]);
+
+  // Show channel list if the screen is resized
+  // biome-ignore lint/correctness/useExhaustiveDependencies(isNarrowView):
+  useEffect(() => {
+    toggleChannelList(true);
+  }, [isNarrowView, toggleChannelList]);
 
   // Hide member list if the screen is too narrow
   useEffect(() => {
@@ -155,6 +158,7 @@ export const AppLayout: React.FC = () => {
   };
 
   // Handle mobile back button
+  // TODO: ios
   if ("__TAURI__" in window && platform() === "android") {
     // @ts-ignore
     window.androidBackCallback = () => {
