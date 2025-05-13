@@ -27,8 +27,8 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   minWidth,
   maxWidth,
   side,
-  handleColor = "bg-discord-dark-600",
-  handleHoverColor = "bg-discord-dark-100",
+  handleColor = "bg-discord-dark-200",
+  handleHoverColor = "bg-discord-dark-400",
   onMinReached,
   bypass,
 }) => {
@@ -112,12 +112,16 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     >
       {/* Resize handle */}
       <div
-        className={`absolute top-0 w-1 h-full hover:${handleHoverColor} transition-colors ${handleStyle} ${handleColor} ${
+        className={`absolute top-0 w-1 h-full transition-colors group ${handleStyle} ${
           !isVisible ? "hidden" : ""
-        }`}
+        } hover:shadow-[0_0_5px_rgba(0,0,0,0.4)] ${side === "left" ? "hover:shadow-[4px_0_4px_-1px_rgba(0,0,0,0.3)]" : "hover:shadow-[-4px_0_4px_-1px_rgba(0,0,0,0.3)]"}`}
         onMouseDown={handleResizeStart}
         data-testid="resize-handle"
-      />
+      >
+        <div
+          className={`absolute ${side === "left" ? "right-0" : "left-0"} w-[1px] h-full ${handleColor} group-hover:${handleHoverColor} ${isResizing ? handleHoverColor : ""}`}
+        />
+      </div>
       {/* Content */}
       <div className="flex-1 overflow-hidden">{children}</div>
     </div>
