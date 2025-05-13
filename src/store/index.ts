@@ -1086,4 +1086,9 @@ ircClient.on("ISUPPORT", ({ serverId, capabilities }: ISupportEvent) => {
 // Load saved servers on store initialization
 useStore.getState().connectToSavedServers();
 
+// If default server is available, select it
+if (__DEFAULT_IRC_SERVER__) {
+  console.log("Default server found, connecting...");
+}
+
 export default useStore;
