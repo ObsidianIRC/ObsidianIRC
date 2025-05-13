@@ -319,4 +319,4 @@ jobs:
           make_latest: true
           generate_release_notes: true
           files: |
-            ./ObsidianIRC-web-${{ needs.collect-version.outputs.current_version}}.zip
+            ./ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-web.zip
