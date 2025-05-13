@@ -1,11 +1,16 @@
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
 import useStore from "../../store";
 
 export const AddServerModal: React.FC = () => {
-  const { toggleAddServerModal, connect, isConnecting, connectionError } =
-    useStore();
+  const {
+    toggleAddServerModal,
+    connect,
+    isConnecting,
+    connectionError,
+    ui: { prefillServerDetails },
+  } = useStore();
 
   const [serverName, setServerName] = useState("");
   const [serverHost, setServerHost] = useState("");
@@ -22,6 +27,15 @@ export const AddServerModal: React.FC = () => {
   const [registerAccount, setRegisterAccount] = useState(false);
 
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (prefillServerDetails) {
+      setServerName(prefillServerDetails.name);
+      setServerHost(prefillServerDetails.host);
+      setServerPort(prefillServerDetails.port);
+      setNickname(prefillServerDetails.nickname);
+    }
+  }, [prefillServerDetails]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

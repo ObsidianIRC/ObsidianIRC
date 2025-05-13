@@ -17,6 +17,7 @@ export const AppLayout: React.FC = () => {
       isMemberListVisible,
       isChannelListVisible,
       mobileViewActiveColumn,
+      selectedServerId,
     },
     toggleMobileMenu,
     toggleMemberList,
@@ -181,7 +182,7 @@ export const AppLayout: React.FC = () => {
     >
       {getLayoutColumn("serverList")}
       {getLayoutColumn("chatView")}
-      {getLayoutColumn("memberList")}
+      {selectedServerId && getLayoutColumn("memberList")}
     </div>
   );
 };

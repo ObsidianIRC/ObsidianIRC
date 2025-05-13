@@ -48,6 +48,12 @@ interface UIState {
     type: "server" | "channel" | "user" | "message";
     itemId: string | null;
   };
+  prefillServerDetails: {
+    name: string;
+    host: string;
+    port: string;
+    nickname: string;
+  } | null;
 }
 
 interface GlobalSettings {
@@ -58,6 +64,7 @@ interface AppState {
   servers: Server[];
   currentUser: User | null;
   isConnecting: boolean;
+  selectedServerId: string | null;
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
@@ -85,7 +92,15 @@ interface AppState {
   connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
   // UI actions
-  toggleAddServerModal: (isOpen?: boolean) => void;
+  toggleAddServerModal: (
+    isOpen?: boolean,
+    prefillDetails?: {
+      name: string;
+      host: string;
+      port: string;
+      nickname: string;
+    } | null,
+  ) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
   toggleDarkMode: () => void;
@@ -95,7 +110,7 @@ interface AppState {
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
-    y: number,
+    y,
     type: "server" | "channel" | "user" | "message",
     itemId: string,
   ) => void;
@@ -111,6 +126,7 @@ const useStore = create<AppState>((set, get) => ({
   connectionError: null,
   messages: {},
   typingUsers: {},
+  selectedServerId: null,
 
   // UI state
   ui: {
@@ -132,6 +148,7 @@ const useStore = create<AppState>((set, get) => ({
       type: "server",
       itemId: null,
     },
+    prefillServerDetails: null,
   },
   globalSettings: {
     enableNotifications: false,
@@ -502,12 +519,12 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   // UI actions
-  toggleAddServerModal: (isOpen) => {
+  toggleAddServerModal: (isOpen, prefillDetails = null) => {
     set((state) => ({
       ui: {
         ...state.ui,
-        isAddServerModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isAddServerModalOpen,
+        isAddServerModalOpen: isOpen,
+        prefillServerDetails: prefillDetails,
       },
     }));
   },

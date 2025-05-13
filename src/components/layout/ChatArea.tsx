@@ -23,6 +23,7 @@ import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import EmojiSelector from "../ui/EmojiSelector";
+import DiscoverGrid from "../ui/HomeScreen";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -34,16 +35,16 @@ export const OptionsDropdown: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+    <div className="absolute right-0 mt-2 w-48 bg-discord-dark-300 rounded-md shadow-xl z-10 border border-discord-dark-500">
       <div className="py-1">
         <button
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
           onClick={onClose}
         >
           Option 1
         </button>
         <button
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
           onClick={onClose}
         >
           Option 2
@@ -425,12 +426,14 @@ export const ChatArea: React.FC<{
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
           )}
-          <FaHashtag className="text-discord-text-muted mr-2" />
-          <h2 className="font-bold text-white mr-4">
-            {selectedChannel
-              ? selectedChannel.name.replace(/^#/, "")
-              : "welcome"}
-          </h2>
+          {selectedChannel && (
+            <>
+              <FaHashtag className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">
+                selectedChannel.name.replace(/^#/, "")
+              </h2>
+            </>
+          )}
           {selectedChannel?.topic && (
             <>
               <div className="mx-2 text-discord-text-muted">|</div>
@@ -438,6 +441,9 @@ export const ChatArea: React.FC<{
                 {selectedChannel.topic}
               </div>
             </>
+          )}
+          {!selectedChannel && (
+            <h2 className="font-bold text-white mr-4">Discover</h2>
           )}
         </div>
         <div className="flex items-center gap-4 text-discord-text-muted">
@@ -478,35 +484,40 @@ export const ChatArea: React.FC<{
       </div>
 
       {/* Messages area */}
-      <div
-        ref={messagesContainerRef}
-        className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
-      >
-        {channelMessages.map((message, index) => {
-          const previousMessage = channelMessages[index - 1];
-          const showHeader =
-            !previousMessage ||
-            previousMessage.userId !== message.userId ||
-            new Date(message.timestamp).getTime() -
-              new Date(previousMessage.timestamp).getTime() >
-              5 * 60 * 1000;
+      {selectedChannel && (
+        <div
+          ref={messagesContainerRef}
+          className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+        >
+          {channelMessages.map((message, index) => {
+            const previousMessage = channelMessages[index - 1];
+            const showHeader =
+              !previousMessage ||
+              previousMessage.userId !== message.userId ||
+              new Date(message.timestamp).getTime() -
+                new Date(previousMessage.timestamp).getTime() >
+                5 * 60 * 1000;
 
-          return (
-            <MessageItem
-              key={message.id}
-              message={message}
-              showDate={
-                index === 0 ||
-                new Date(message.timestamp).toDateString() !==
-                  new Date(channelMessages[index - 1]?.timestamp).toDateString()
-              }
-              showHeader={showHeader}
-              setReplyTo={setLocalReplyTo}
-            />
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+            return (
+              <MessageItem
+                key={message.id}
+                message={message}
+                showDate={
+                  index === 0 ||
+                  new Date(message.timestamp).toDateString() !==
+                    new Date(
+                      channelMessages[index - 1]?.timestamp,
+                    ).toDateString()
+                }
+                showHeader={showHeader}
+                setReplyTo={setLocalReplyTo}
+              />
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+      )}
+      {!selectedChannel && <DiscoverGrid />}
       {/* Scroll to bottom button */}
       {isScrolledUp && (
         <div className="relative bottom-10 z-50">
