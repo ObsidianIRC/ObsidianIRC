@@ -32,7 +32,7 @@ function saveServersToLocalStorage(servers: ServerConfig[]) {
 interface UIState {
   selectedServerId: string | null;
   selectedChannelId: string | null;
-  isAddServerModalOpen: boolean;
+  isAddServerModalOpen: boolean | undefined;
   isSettingsModalOpen: boolean;
   isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
@@ -110,7 +110,7 @@ interface AppState {
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
-    y,
+    y: number,
     type: "server" | "channel" | "user" | "message",
     itemId: string,
   ) => void;
