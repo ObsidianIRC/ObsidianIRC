@@ -1,9 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Channel, Server, User } from "../types";
+import type { Channel, ParsedValue, Server, User } from "../types";
 import {
   parseIsupport,
   parseMessageTags,
   parseNamesResponse,
+  parseWhoxResponse,
 } from "./ircUtils";
 
 export interface EventMap {
@@ -109,6 +110,7 @@ export class IRCClient {
           users: [],
           privateMessages: [],
           icon: "",
+          isupport: {},
         };
 
         this.servers.set(server.id, server);
@@ -166,15 +168,19 @@ export class IRCClient {
   joinChannel(serverId: string, channelName: string): Channel {
     const server = this.servers.get(serverId);
     if (server) {
-      const existing = server.channels.find((c) => c.name === channelName);
-      if (existing) return existing;
+      const existing = server.channels.find(
+        (c) => c.name.toLowerCase().trim() === channelName.toLowerCase().trim(),
+      );
+      if (existing) {
+        this.sendRaw(serverId, `WHO ${channelName} %ncfao`);
+        this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+        return existing;
+      }
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
-      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-
       const channel: Channel = {
         id: uuidv4(),
-        name: channelName,
+        name: channelName.trim(),
         topic: "",
         isPrivate: false,
         serverId,
@@ -184,6 +190,8 @@ export class IRCClient {
         users: [],
       };
       server.channels.push(channel);
+      this.sendRaw(serverId, `WHO ${channelName} %ncfao`);
+      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
       return channel;
     }
     throw new Error(`Server with ID ${serverId} not found`);
@@ -251,7 +259,7 @@ export class IRCClient {
         const thisServName = thisServ?.name;
         if (!thisServName) {
           // something has gone horribly wrong
-          console.log("No source, this will break parsing");
+          console.error("No source, this will break parsing");
           return;
         }
         source = thisServName;
@@ -261,9 +269,31 @@ export class IRCClient {
       }
 
       const command = l[i];
+
+      /* This goes and splits IRC lines properly and sets parv by the
+       * trailing ":" argument.
+       * For example, using the paramN from the following:
+       * @tag=value :source COMMAND param1 param2 :param3 param4 param5
+       *
+       * We would extract for parv[]:
+       * 0 = "param1"
+       * 1 = "param2"
+       * 2 = "param3 param4 param5"
+       */
       for (i++; l[i]; i++) {
+        if (l[i][0] === ":") {
+          let lastParv = l[i].substring(1);
+          if (l[i++]) lastParv += " ";
+          while (l[i]) {
+            lastParv += l[i];
+            if (l[i++]) lastParv += " ";
+          }
+          parv.push(lastParv.trim());
+          break;
+        }
         parv.push(l[i]);
       }
+
       const parc = parv.length;
 
       if (command === "PING") {
@@ -275,7 +305,6 @@ export class IRCClient {
         const nickname = parv.join(" ");
         this.triggerEvent("ready", { serverId, serverName, nickname });
       } else if (command === "NICK") {
-        console.log("triggered nickchange");
         const oldNick = getNickFromNuh(source);
         const newNick = parv[0];
 
@@ -283,7 +312,6 @@ export class IRCClient {
         if (oldNick === this.nicks.get(serverId))
           this.nicks.set(serverId, newNick);
 
-        console.log(oldNick, newNick, this.nicks);
         this.triggerEvent("NICK", {
           serverId,
           mtags,
@@ -296,13 +324,13 @@ export class IRCClient {
         this.triggerEvent("QUIT", { serverId, username, reason });
       } else if (command === "JOIN") {
         const username = getNickFromNuh(source);
-        const channelName = parv[0][0] === ":" ? parv[0].substring(1) : parv[0];
+        const channelName = parv[0];
         this.triggerEvent("JOIN", { serverId, username, channelName });
       } else if (command === "PART") {
         const username = getNickFromNuh(source);
         const channelName = parv[0];
         parv[0] = "";
-        const reason = parv.join(" ").trim();
+        const reason = parv[1];
         this.triggerEvent("PART", {
           serverId,
           username,
@@ -313,9 +341,7 @@ export class IRCClient {
         const username = getNickFromNuh(source);
         const channelName = parv[0];
         const target = parv[1];
-        parv[0] = "";
-        parv[1] = "";
-        const reason = parv.join(" ").trim().substring(1);
+        const reason = parv[2];
         this.triggerEvent("KICK", {
           serverId,
           mtags,
@@ -330,7 +356,7 @@ export class IRCClient {
         const sender = getNickFromNuh(source);
 
         parv[0] = "";
-        const message = parv.join(" ").trim().substring(1);
+        const message = parv[1].trim();
 
         if (isChannel) {
           const channelName = target;
@@ -366,10 +392,8 @@ export class IRCClient {
         }
       } else if (command === "353") {
         const channelName = parv[2];
-        const names = parv.slice(3).join(" ").trim().substring(1);
-        console.log(names);
+        const names = parv[3];
         const newUsers = parseNamesResponse(names); // Parse the user list
-        console.log(newUsers);
         // Find the server and channel
         const server = this.servers.get(serverId);
         if (server) {
@@ -408,30 +432,180 @@ export class IRCClient {
             `Server ${serverId} not found while processing NAMES response`,
           );
         }
-      } else if (command === "CAP") {
-        let i = 0;
-        let caps = "";
-        if (parv[i] === "*") i++;
-        const subcommand = parv[i++];
-        if (parv[i] === "*") i++;
-        parv[i] = parv[i].substring(1); // trim the ":" lol
-        while (parv[i]) {
-          caps += parv[i++];
-          if (parv[i]) caps += " ";
-        }
+      } else if (command === "354") {
+        const channelName = parv[1];
+        const newUser = parseWhoxResponse(parv); // Parse the user list
+        // Find the server and channel
+        const server = this.servers.get(serverId);
+        if (server) {
+          const channel = server.channels.find(
+            (c) =>
+              c.name.toLowerCase().trim() === channelName.toLowerCase().trim(),
+          );
+          if (channel) {
+            // Merge new users with existing users
+            const existingUsers = channel.users || [];
+            const mergedUsers = [...existingUsers];
 
+            if (
+              !existingUsers.some((user) => user.username === newUser.username)
+            ) {
+              mergedUsers.push(newUser);
+            }
+
+            // Update the channel's user list
+            channel.users = mergedUsers;
+
+            // Trigger an event to notify the UI
+            this.triggerEvent("NAMES", {
+              serverId,
+              channelName,
+              users: mergedUsers,
+            });
+          } else {
+            console.warn(
+              `Lol: Channel "${channelName}" not found when processing WHOX response`,
+            );
+          }
+        } else {
+          console.warn(
+            `Lol: Server ${serverId} not found while processing WHOX response`,
+          );
+        }
+      } else if (command === "CAP") {
+        const subcommand = parv[1];
+        const caps = parv[parv.length - 1];
         if (subcommand === "LS") this.onCapLs(serverId, caps);
         else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
-      } else if (line.split(" ")[1] === "005") {
+      } else if (command === "005") {
         console.log("005 detected");
         const capabilities = parseIsupport(line);
+        const parv2 = [];
+        for (let i = 1; i <= parv.length - 2; i++) parv2.push(parv[i]);
+
+        const parsedTokens = this.parseISupportTokens(parv2);
+        const server = this.servers.get(serverId);
+        if (server) {
+          server.isupport = { ...server.isupport, ...parsedTokens };
+        } else {
+          console.warn(
+            `Server with ID ${serverId} not found while updating isupport`,
+          );
+        }
+
         this.triggerEvent("ISUPPORT", { serverId, capabilities });
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
       }
     }
+  }
+
+  parseISupportTokens(tokens: string[]): Record<string, ParsedValue> {
+    const result: Record<string, ParsedValue> = {};
+
+    for (const token of tokens) {
+      const [key, rawValue] = token.split("=", 2);
+
+      // No '=' means it's just a flag with true
+      if (rawValue === undefined) {
+        result[key] = true.toString();
+        continue;
+      }
+
+      // Handle comma-separated values
+      if (rawValue.includes(",")) {
+        const items = rawValue.split(",");
+        const hasColon = items.some((item) => item.includes(":"));
+
+        if (hasColon) {
+          const map: Record<string, string | undefined> = {};
+          for (const item of items) {
+            const [k, v] = item.split(":", 2);
+            map[k] = v;
+          }
+          result[key] = map;
+        } else {
+          result[key] = items;
+        }
+      } else if (rawValue.includes(":")) {
+        // Handle single key:value pair
+        const [subKey, subValue] = rawValue.split(":", 2);
+        result[key] = { [subKey]: subValue };
+      } else {
+        result[key] = rawValue;
+      }
+    }
+
+    return result;
+  }
+
+  parseChannelMode(
+    serverId: string,
+    parv: string[],
+  ): Record<string, Record<string, string | undefined>> | undefined {
+    const server = this.servers.get(serverId);
+    const target = parv[0];
+    const modes = parv[1];
+    let set = true;
+    let i = 2; // start from any potential param in parv[]
+    const record = {} as Record<string, Record<string, string | undefined>>;
+    const toSet = {} as Record<string, string | undefined>;
+    const toUnset = {} as Record<string, string | undefined>;
+
+    for (let j = 0; modes[j]; j++) {
+      if (modes[j] === "+") {
+        set = true;
+        continue;
+      }
+      if (modes[j] === "-") {
+        set = false;
+        continue;
+      }
+      const needParam = this.chanModeRequiresParam(serverId, set, modes[j]);
+      const param = needParam ? parv[i++] : undefined;
+      if (set) {
+        toSet[modes[j]] = param;
+      } else {
+        toUnset[modes[j]] = param;
+      }
+
+      record.set = toSet;
+      record.unset = toUnset;
+      return record;
+    }
+  }
+
+  private chanModeRequiresParam(
+    serverId: string,
+    set: boolean,
+    mode: string,
+  ): boolean {
+    const group = this.getChanModeGroupNumber(serverId, mode);
+    if (group < 1) return false;
+
+    if (set) {
+      if (group >= 1 && group <= 3) return true;
+      return false;
+    }
+    if (group === 1 || group === 2) return true;
+    return false;
+  }
+
+  private getChanModeGroupNumber(serverId: string, mode: string): number {
+    const server = this.servers.get(serverId);
+    if (!server || !server.isupport) return -1; // panties were shat
+
+    for (const [key, value] of Object.entries(server.isupport)) {
+      if (key === "CHANMODES") {
+        for (const [key2, value2] of Object.entries(value)) {
+          if (value2?.includes(mode)) return Number.parseInt(key2, 10) + 1;
+        }
+      }
+    }
+
+    return -1;
   }
 
   /* Send SASL plain */
@@ -453,6 +627,8 @@ export class IRCClient {
       "draft/chathistory",
       "draft/extended-isupport",
       "sasl",
+      "away-notify",
+      "draft/no-implicit-names",
     ];
 
     const caps = cliCaps.split(" ");
