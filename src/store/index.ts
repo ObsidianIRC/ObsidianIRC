@@ -1082,27 +1082,6 @@ ircClient.on("TAGMSG", (response) => {
   }
 });
 
-ircClient.on("ISUPPORT", ({ serverId, capabilities }) => {
-  const paramsArray = capabilities;
-  console.log(capabilities);
-
-  for (let i = 0; i < paramsArray.length; i++) {
-    /* Favicon checking */
-    if (paramsArray[i].startsWith("FAVICON=")) {
-      const favicon = paramsArray[i].substring(8);
-      useStore.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id === serverId) {
-            return { ...server, icon: favicon };
-          }
-          return server;
-        });
-        return { servers: updatedServers };
-      });
-    }
-  }
-});
-
 // Load saved servers on store initialization
 useStore.getState().connectToSavedServers();
 
