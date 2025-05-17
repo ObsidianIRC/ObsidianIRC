@@ -1,6 +1,6 @@
 import type { IRCClient } from "../lib/ircClient";
 import type AppState from "../store/";
-import type { ISupportEvent, Server } from "../types/";
+import type { ISupportEvent } from "../types/";
 
 export function registerISupportHandler(
   ircClient: IRCClient,
@@ -9,7 +9,6 @@ export function registerISupportHandler(
   ircClient.on("ISUPPORT", ({ serverId, capabilities }: ISupportEvent) => {
     // const paramsArray = capabilities;
     // console.log(capabilities);
-
     // for (let i = 0; i < paramsArray.length; i++) {
     //   /* Favicon checking */
     //   if (paramsArray[i].startsWith("FAVICON=")) {
