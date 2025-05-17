@@ -9,13 +9,6 @@ const servers = [
     port: "8097", // websocket port
   },
   {
-    name: "Libera",
-    description:
-      "Providing a community platform for free and open-source software and peer directed projects. ",
-    server: "irc.libera.chat",
-    port: "0", // unknown
-  },
-  {
     name: "UnrealIRCd Support",
     description:
       "Get help with UnrealIRCd configuration, installation and usage.",

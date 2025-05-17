@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
+import { registerAllProtocolHandlers } from "../protocol";
 import type { Channel, Message, Server, ServerConfig, User } from "../types";
-import type { ISupportEvent } from "../types/";
 
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 
@@ -60,7 +60,7 @@ interface GlobalSettings {
   enableNotifications: boolean;
 }
 
-interface AppState {
+export interface AppState {
   servers: Server[];
   currentUser: User | null;
   isConnecting: boolean;
@@ -647,6 +647,9 @@ const useStore = create<AppState>((set, get) => ({
   },
 }));
 
+// Initialize protocol handlers
+registerAllProtocolHandlers(ircClient, useStore);
+
 // Set up event listeners for IRC client events
 //
 // TODO: We should have actual events here, The commended ones are never fired and seems to be causing a bug with the state management
@@ -1079,7 +1082,7 @@ ircClient.on("TAGMSG", (response) => {
   }
 });
 
-ircClient.on("ISUPPORT", ({ serverId, capabilities }: ISupportEvent) => {
+ircClient.on("ISUPPORT", ({ serverId, capabilities }) => {
   const paramsArray = capabilities;
   console.log(capabilities);
 

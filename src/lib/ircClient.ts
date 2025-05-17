@@ -147,7 +147,7 @@ export class IRCClient {
   disconnect(serverId: string): void {
     const socket = this.sockets.get(serverId);
     if (socket) {
-      socket.send("QUIT :Client disconnecting");
+      socket.send("QUIT :ObsidianIRC - Bringing IRC into the future");
       socket.close();
       this.sockets.delete(serverId);
     }
