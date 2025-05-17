@@ -1,4 +1,3 @@
-import BlankPage from "../ui/BlankPage";
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
@@ -23,6 +22,7 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
+import BlankPage from "../ui/BlankPage";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 
