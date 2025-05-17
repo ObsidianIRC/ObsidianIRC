@@ -1,26 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useStore from "../../store";
-
-const servers = [
-  {
-    name: "h4ks.com",
-    description: "A cool place for tech talk, randomness and nerding.",
-    server: "irc.h4ks.com",
-    port: "8097", // websocket port
-  },
-  {
-    name: "UnrealIRCd Support",
-    description:
-      "Get help with UnrealIRCd configuration, installation and usage.",
-    server: "irc.unrealircd.org",
-    port: "443",
-  },
-];
 
 const DiscoverGrid = () => {
   const { toggleAddServerModal, connect, isConnecting, connectionError } =
     useStore();
   const [query, setQuery] = useState("");
+  const [servers, setServers] = useState<
+    { name: string; description: string; server?: string; port?: string }[]
+  >([]);
+
+  useEffect(() => {
+    const fetchServers = async () => {
+      try {
+        const cachedData = localStorage.getItem("servers");
+        const cachedTimestamp = localStorage.getItem("serversTimestamp");
+
+        if (cachedData && cachedTimestamp) {
+          const now = Date.now();
+          const oneHour = 60 * 60 * 1000;
+          if (now - Number.parseInt(cachedTimestamp, 10) < oneHour) {
+            setServers(JSON.parse(cachedData));
+            return;
+          }
+        }
+
+        // Fetch new data if no valid cache exists
+        const response = await fetch(
+          "https://raw.githubusercontent.com/ObsidianIRC/server-list/refs/heads/main/servers.json",
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch servers");
+        }
+        const data = await response.json();
+        setServers(data);
+
+        // Save data and timestamp to localStorage
+        localStorage.setItem("servers", JSON.stringify(data));
+        localStorage.setItem("serversTimestamp", Date.now().toString());
+      } catch (error) {
+        console.error("Error fetching servers:", error);
+      }
+    };
+
+    fetchServers();
+  }, []); // Empty dependency array ensures this runs only once
 
   const filteredServers = servers.filter(
     (server) =>
@@ -38,7 +61,7 @@ const DiscoverGrid = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-discord-dark-400 text-white">
+    <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
       <div className="sticky top-0 z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
         <h1 className="text-2xl font-bold mb-2">
           Discover the world with ObsidianIRC
@@ -51,7 +74,20 @@ const DiscoverGrid = () => {
         />
       </div>
 
-      <div className="overflow-y-auto p-4">
+      <div className="overflow-y-auto ml-4 mr-4 mb-2">
+        <div className="m-2 bg-discord-dark-100 border border-discord-dark-500 rounded-lg px-2 py-1 w-fit shadow hover:shadow-lg transition-shadow cursor-pointer">
+          <p>
+            <small>
+              <a
+                href="https://github.com/ObsidianIRC/server-list"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Want to see your server listed here? Cobtribute on GitHub
+              </a>
+            </small>
+          </p>
+        </div>
         {filteredServers.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredServers.map((server) => (
