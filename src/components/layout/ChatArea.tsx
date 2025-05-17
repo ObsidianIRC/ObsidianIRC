@@ -132,7 +132,7 @@ const MessageItem: React.FC<{
         )}
         <div className="flex">
           <div className="mr-4">
-            <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
               {message.userId.charAt(0).toUpperCase()}
             </div>
           </div>
@@ -173,7 +173,7 @@ const MessageItem: React.FC<{
         )}
         {!showHeader && (
           <div className="mr-4">
-            <div className="w-10" />
+            <div className="w-8" />
           </div>
         )}
         <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
