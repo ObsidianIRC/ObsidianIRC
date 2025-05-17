@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaGithub } from "react-icons/fa";
 import useStore from "../../store";
-import BlankPage from "../ui/BlankPage";
-import EmojiSelector from "../ui/EmojiSelector";
 
 const DiscoverGrid = () => {
   const { toggleAddServerModal, connect, isConnecting, connectionError } =
