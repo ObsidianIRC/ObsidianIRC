@@ -87,8 +87,7 @@ export const ChannelList: React.FC<{
               `}
               onClick={() => selectChannel(null)}
             >
-              <FaHashtag />
-              <span>Welcome</span>
+              Discover
             </div>
           </div>
         )}
