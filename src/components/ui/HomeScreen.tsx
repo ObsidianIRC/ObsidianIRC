@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaGithub } from "react-icons/fa";
+import { FaPlus } from "react-icons/fa";
 import useStore from "../../store";
 
 const DiscoverGrid = () => {
@@ -63,53 +63,47 @@ const DiscoverGrid = () => {
 
   return (
     <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
-      <div className="sticky top-0 z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
-        <h1 className="text-2xl font-bold mb-2">
+      <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
+        <h1 className="rounded-lg text-2xl font-bold mb-2">
           Discover the world of IRC with ObsidianIRC
         </h1>
-        <input
-          placeholder="Search servers..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full p-2 rounded-md bg-discord-dark-500 text-white placeholder-discord-text-muted focus:outline-none focus:ring-2 focus:ring-discord-dark-100 transition"
-        />
-      </div>
 
-      <div className="overflow-y-auto ml-4 mr-4 mb-2">
-        <div className="m-2 bg-discord-dark-100 border border-discord-dark-500 rounded-lg px-2 py-1 w-fit shadow hover:shadow-lg transition-shadow cursor-pointer">
-          <a
-            href="https://github.com/ObsidianIRC/server-list"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center space-x-2"
-          >
-            <small>
-              <span className="inline-block pr-1">
-                Want to see your server listed here? Contribute on GitHub
-              </span>
-              <FaGithub className="inline-block" />
-            </small>
-          </a>
+        <div className="bg-discord-dark-100 rounded-lg flex items-center px-2 py-2">
+          <button className="px-2 text-discord-text-muted hover:text-discord-text-normal">
+            <a
+              href="https://github.com/ObsidianIRC/server-list"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FaPlus />
+            </a>
+          </button>
+          <input
+            placeholder="Search servers..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="bg-transparent border-none outline-none flex-grow text-discord-text-normal placeholder-discord-text-muted"
+          />
         </div>
-        {filteredServers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredServers.map((server) => (
-              <div
-                key={server.name} // Use a unique identifier as the key
-                className="bg-discord-dark-300 border border-discord-dark-500 rounded-lg p-4 shadow hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => handleServerClick(server)} // Add click handler
-              >
-                <h2 className="text-lg font-semibold">{server.name}</h2>
-                <p className="text-sm text-discord-text-muted">
-                  {server.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-discord-text-muted">No servers found.</p>
-        )}
       </div>
+      {filteredServers.length > 0 ? (
+        <div className="grid p-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredServers.map((server) => (
+            <div
+              key={server.name} // Use a unique identifier as the key
+              className="bg-discord-dark-300 border border-discord-dark-500 rounded-lg p-4 shadow hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleServerClick(server)} // Add click handler
+            >
+              <h2 className="text-lg font-semibold">{server.name}</h2>
+              <p className="text-sm text-discord-text-muted">
+                {server.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-discord-text-muted">No servers found.</p>
+      )}
     </div>
   );
 };
