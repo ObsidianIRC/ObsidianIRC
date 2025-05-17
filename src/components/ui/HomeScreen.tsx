@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import useStore from "../../store";
+import { FaGithub } from "react-icons/fa";
 
 const DiscoverGrid = () => {
   const { toggleAddServerModal, connect, isConnecting, connectionError } =
@@ -64,7 +65,7 @@ const DiscoverGrid = () => {
     <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
       <div className="sticky top-0 z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
         <h1 className="text-2xl font-bold mb-2">
-          Discover the world with ObsidianIRC
+          Discover the world of IRC with ObsidianIRC
         </h1>
         <input
           placeholder="Search servers..."
@@ -76,17 +77,19 @@ const DiscoverGrid = () => {
 
       <div className="overflow-y-auto ml-4 mr-4 mb-2">
         <div className="m-2 bg-discord-dark-100 border border-discord-dark-500 rounded-lg px-2 py-1 w-fit shadow hover:shadow-lg transition-shadow cursor-pointer">
-          <p>
+          <a
+            href="https://github.com/ObsidianIRC/server-list"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center space-x-2"
+          >
             <small>
-              <a
-                href="https://github.com/ObsidianIRC/server-list"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Want to see your server listed here? Cobtribute on GitHub
-              </a>
+              <span className="inline-block pr-1">
+                Want to see your server listed here? Contribute on GitHub
+              </span>
+              <FaGithub className="inline-block" />
             </small>
-          </p>
+          </a>
         </div>
         {filteredServers.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
