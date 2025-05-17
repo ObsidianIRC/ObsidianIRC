@@ -430,7 +430,7 @@ export const ChatArea: React.FC<{
             <>
               <FaHashtag className="text-discord-text-muted mr-2" />
               <h2 className="font-bold text-white mr-4">
-                selectedChannel.name.replace(/^#/, "")
+                {selectedChannel.name.replace(/^#/, "")}
               </h2>
             </>
           )}

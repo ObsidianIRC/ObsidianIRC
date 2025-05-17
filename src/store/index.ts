@@ -1082,7 +1082,6 @@ ircClient.on("TAGMSG", (response) => {
   }
 });
 
-
 // Load saved servers on store initialization
 useStore.getState().connectToSavedServers();
 
