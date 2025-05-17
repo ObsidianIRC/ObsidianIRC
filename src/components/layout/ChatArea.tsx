@@ -1,3 +1,4 @@
+import BlankPage from "../ui/BlankPage";
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
@@ -442,8 +443,8 @@ export const ChatArea: React.FC<{
               </div>
             </>
           )}
-          {!selectedChannel && (
-            <h2 className="font-bold text-white mr-4">Discover</h2>
+          {!selectedChannel && selectedServer && (
+            <h2 className="font-bold text-white mr-4">{selectedServer.name}</h2>
           )}
         </div>
         <div className="flex items-center gap-4 text-discord-text-muted">
@@ -484,6 +485,11 @@ export const ChatArea: React.FC<{
       </div>
 
       {/* Messages area */}
+      {selectedServer && !selectedChannel && (
+        <div className="flex-grow flex items-center justify-center bg-discord-dark-200">
+          <BlankPage /> {/* Render the blank page */}
+        </div>
+      )}
       {selectedChannel && (
         <div
           ref={messagesContainerRef}
@@ -517,7 +523,7 @@ export const ChatArea: React.FC<{
           <div ref={messagesEndRef} />
         </div>
       )}
-      {!selectedChannel && <DiscoverGrid />}
+      {!selectedServer && <DiscoverGrid />}
       {/* Scroll to bottom button */}
       {isScrolledUp && (
         <div className="relative bottom-10 z-50">
