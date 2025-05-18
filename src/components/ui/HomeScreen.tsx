@@ -13,19 +13,6 @@ const DiscoverGrid = () => {
   useEffect(() => {
     const fetchServers = async () => {
       try {
-        const cachedData = localStorage.getItem("servers");
-        const cachedTimestamp = localStorage.getItem("serversTimestamp");
-
-        if (cachedData && cachedTimestamp) {
-          const now = Date.now();
-          const oneHour = 60 * 60 * 1000;
-          if (now - Number.parseInt(cachedTimestamp, 10) < oneHour) {
-            setServers(JSON.parse(cachedData));
-            return;
-          }
-        }
-
-        // Fetch new data if no valid cache exists
         const response = await fetch(
           "https://raw.githubusercontent.com/ObsidianIRC/server-list/refs/heads/main/servers.json",
         );
@@ -34,10 +21,6 @@ const DiscoverGrid = () => {
         }
         const data = await response.json();
         setServers(data);
-
-        // Save data and timestamp to localStorage
-        localStorage.setItem("servers", JSON.stringify(data));
-        localStorage.setItem("serversTimestamp", Date.now().toString());
       } catch (error) {
         console.error("Error fetching servers:", error);
       }
