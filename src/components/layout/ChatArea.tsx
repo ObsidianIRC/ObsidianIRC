@@ -14,9 +14,9 @@ import {
   FaPenAlt, // Added
   FaPlus,
   FaReply,
+  FaSearch,
   FaTimes,
   FaUserPlus, // Added
-  FaSearch,
 } from "react-icons/fa";
 
 import { useMediaQuery } from "../../hooks/useMediaQuery";
