@@ -1,4 +1,4 @@
-import type React from "react";
+import type * as React from "react";
 import { useState } from "react";
 import {
   FaChevronDown,
@@ -17,7 +17,7 @@ import TouchableContextMenu from "../mobile/TouchableContextMenu";
 
 export const ChannelList: React.FC<{
   onToggle: () => void;
-}> = ({ onToggle }) => {
+}> = ({ onToggle }: { onToggle: () => void }) => {
   const {
     servers,
     ui: { selectedServerId, selectedChannelId },
@@ -87,8 +87,7 @@ export const ChannelList: React.FC<{
               `}
               onClick={() => selectChannel(null)}
             >
-              <FaHashtag />
-              <span>Welcome</span>
+              Discover
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
-import type React from "react";
+import type * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   FaArrowDown,
@@ -8,19 +8,24 @@ import {
   FaBell,
   FaChevronLeft,
   FaChevronRight,
+  FaGift,
   FaGrinAlt,
   FaHashtag,
-  FaPenAlt,
+  FaPenAlt, // Added
   FaPlus,
   FaReply,
   FaSearch,
   FaTimes,
+  FaUserPlus, // Added
 } from "react-icons/fa";
+
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
+import BlankPage from "../ui/BlankPage";
 import EmojiSelector from "../ui/EmojiSelector";
+import DiscoverGrid from "../ui/HomeScreen";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -32,16 +37,16 @@ export const OptionsDropdown: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+    <div className="absolute right-0 mt-2 w-48 bg-discord-dark-300 rounded-md shadow-xl z-10 border border-discord-dark-500">
       <div className="py-1">
         <button
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
           onClick={onClose}
         >
           Option 1
         </button>
         <button
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
           onClick={onClose}
         >
           Option 2
@@ -173,9 +178,7 @@ const MessageItem: React.FC<{
             <div className="w-8" />
           </div>
         )}
-        <div
-          className={`flex-1 ${isCurrentUser ? "text-white" : ""} text-pretty md:text-balance`}
-        >
+        <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
           {showHeader && (
             <div className="flex items-center">
               <span className="font-bold text-white">
@@ -425,12 +428,14 @@ export const ChatArea: React.FC<{
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
           )}
-          <FaHashtag className="text-discord-text-muted mr-2" />
-          <h2 className="font-bold text-white mr-4">
-            {selectedChannel
-              ? selectedChannel.name.replace(/^#/, "")
-              : "welcome"}
-          </h2>
+          {selectedChannel && (
+            <>
+              <FaHashtag className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">
+                {selectedChannel.name.replace(/^#/, "")}
+              </h2>
+            </>
+          )}
           {selectedChannel?.topic && (
             <>
               <div className="mx-2 text-discord-text-muted">|</div>
@@ -446,6 +451,9 @@ export const ChatArea: React.FC<{
           </button>
           <button className="hover:text-discord-text-normal">
             <FaPenAlt />
+          </button>
+          <button className="hover:text-discord-text-normal">
+            <FaUserPlus />
           </button>
           <button
             className="hover:text-discord-text-normal"
@@ -475,21 +483,26 @@ export const ChatArea: React.FC<{
       </div>
 
       {/* Messages area */}
-      <div
-        ref={messagesContainerRef}
-        className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
-      >
-        {channelMessages.map((message, index) => {
-          const previousMessage = channelMessages[index - 1];
-          const showHeader =
-            !previousMessage ||
-            previousMessage.userId !== message.userId ||
-            new Date(message.timestamp).getTime() -
-              new Date(previousMessage.timestamp).getTime() >
-              5 * 60 * 1000;
+      {selectedServer && !selectedChannel && (
+        <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
+          <BlankPage /> {/* Render the blank page */}
+        </div>
+      )}
+      {selectedChannel && (
+        <div
+          ref={messagesContainerRef}
+          className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+        >
+          {channelMessages.map((message, index) => {
+            const previousMessage = channelMessages[index - 1];
+            const showHeader =
+              !previousMessage ||
+              previousMessage.userId !== message.userId ||
+              new Date(message.timestamp).getTime() -
+                new Date(previousMessage.timestamp).getTime() >
+                5 * 60 * 1000;
 
-          return (
-            <div key={message.id} className="text-pretty md:text-balance">
+            return (
               <MessageItem
                 key={message.id}
                 message={message}
@@ -503,11 +516,12 @@ export const ChatArea: React.FC<{
                 showHeader={showHeader}
                 setReplyTo={setLocalReplyTo}
               />
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+      )}
+      {!selectedServer && <DiscoverGrid />}
       {/* Scroll to bottom button */}
       {isScrolledUp && (
         <div className="relative bottom-10 z-50">
@@ -567,6 +581,9 @@ export const ChatArea: React.FC<{
               onClick={() => setIsEmojiSelectorOpen((prev) => !prev)}
             >
               <FaGrinAlt />
+            </button>
+            <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
+              <FaGift />
             </button>
             <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
               <FaAt />
