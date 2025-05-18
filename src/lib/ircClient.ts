@@ -56,7 +56,7 @@ export interface EventMap {
   NAMES: { serverId: string; channelName: string; users: User[] };
   "CAP LS": { serverId: string; cliCaps: string };
   "CAP ACK": { serverId: string; cliCaps: string };
-  ISUPPORT: { serverId: string; capabilities: string[] };
+  ISUPPORT: { serverId: string; key: string; value: string };
   CAP_ACKNOWLEDGED: { serverId: string; key: string; capabilities: string };
   CAP_END: { serverId: string };
   AUTHENTICATE: { serverId: string; param: string };
@@ -149,7 +149,7 @@ export class IRCClient {
   disconnect(serverId: string): void {
     const socket = this.sockets.get(serverId);
     if (socket) {
-      socket.send("QUIT :Client disconnecting");
+      socket.send("QUIT :ObsidianIRC - Bringing IRC into the future");
       socket.close();
       this.sockets.delete(serverId);
     }
@@ -479,22 +479,21 @@ export class IRCClient {
         else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
       } else if (command === "005") {
-        console.log("005 detected");
-        const capabilities = parseIsupport(line);
-        const parv2 = [];
-        for (let i = 1; i <= parv.length - 2; i++) parv2.push(parv[i]);
-
-        const parsedTokens = this.parseISupportTokens(parv2);
-        const server = this.servers.get(serverId);
-        if (server) {
-          server.isupport = { ...server.isupport, ...parsedTokens };
-        } else {
-          console.warn(
-            `Server with ID ${serverId} not found while updating isupport`,
-          );
+        const capabilities = parseIsupport(parv.join(" "));
+        console.log("ISUPPORT capabilities:", capabilities);
+        for (const [key, value] of Object.entries(capabilities)) {
+          if (key === "NETWORK") {
+            const server = this.servers.get(serverId);
+            if (server) {
+              server.name = value;
+              this.servers.set(serverId, server);
+            }
+            console.log(
+              `Network name set to: ${this.servers.get(serverId)?.name}`,
+            );
+          }
+          this.triggerEvent("ISUPPORT", { serverId, key, value });
         }
-
-        this.triggerEvent("ISUPPORT", { serverId, capabilities });
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });

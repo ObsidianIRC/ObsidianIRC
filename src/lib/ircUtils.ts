@@ -56,16 +56,18 @@ export function parseMessageTags(tags: string): Record<string, string> {
   return parsedTags;
 }
 
-export function parseIsupport(line: string): string[] {
-  // Match and remove the prefix up to and including the nick
-  const prefixMatch = line.match(/^:[^\s]+ 005 [^\s]+ /);
-  if (!prefixMatch) return [];
+export function parseIsupport(tokens: string): Record<string, string> {
+  const tokenMap: Record<string, string> = {};
+  const tokenPairs = tokens.split(" ");
 
-  const remaining = line.slice(prefixMatch[0].length);
-  const trailingIndex = remaining.indexOf(" :");
+  for (const token of tokenPairs) {
+    const [key, value] = token.split("=");
+    if (value) {
+      tokenMap[key] = value;
+    } else {
+      tokenMap[key] = ""; // empty string fallback
+    }
+  }
 
-  const tokenString =
-    trailingIndex !== -1 ? remaining.slice(0, trailingIndex) : remaining;
-
-  return tokenString.trim().split(/\s+/);
+  return tokenMap;
 }
