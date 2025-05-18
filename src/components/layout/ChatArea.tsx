@@ -1,6 +1,6 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
-import type React from "react";
+import type * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   FaArrowDown,
@@ -11,13 +11,14 @@ import {
   FaGift,
   FaGrinAlt,
   FaHashtag,
-  FaPenAlt,
+  FaPenAlt, // Added
   FaPlus,
   FaReply,
-  FaSearch,
   FaTimes,
-  FaUserPlus,
+  FaUserPlus, // Added
+  FaSearch,
 } from "react-icons/fa";
+
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
@@ -443,9 +444,6 @@ export const ChatArea: React.FC<{
               </div>
             </>
           )}
-          {!selectedChannel && selectedServer && (
-            <h2 className="font-bold text-white mr-4">{selectedServer.name}</h2>
-          )}
         </div>
         <div className="flex items-center gap-4 text-discord-text-muted">
           <button className="hover:text-discord-text-normal">
@@ -486,7 +484,7 @@ export const ChatArea: React.FC<{
 
       {/* Messages area */}
       {selectedServer && !selectedChannel && (
-        <div className="flex-grow flex items-center justify-center bg-discord-dark-200">
+        <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
           <BlankPage /> {/* Render the blank page */}
         </div>
       )}
