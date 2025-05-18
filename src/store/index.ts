@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
+import { registerAllProtocolHandlers } from "../protocol";
 import type { Channel, Message, Server, ServerConfig, User } from "../types";
-import type { ISupportEvent } from "../types/";
 
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 
@@ -32,7 +32,7 @@ function saveServersToLocalStorage(servers: ServerConfig[]) {
 interface UIState {
   selectedServerId: string | null;
   selectedChannelId: string | null;
-  isAddServerModalOpen: boolean;
+  isAddServerModalOpen: boolean | undefined;
   isSettingsModalOpen: boolean;
   isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
@@ -48,16 +48,23 @@ interface UIState {
     type: "server" | "channel" | "user" | "message";
     itemId: string | null;
   };
+  prefillServerDetails: {
+    name: string;
+    host: string;
+    port: string;
+    nickname: string;
+  } | null;
 }
 
 interface GlobalSettings {
   enableNotifications: boolean;
 }
 
-interface AppState {
+export interface AppState {
   servers: Server[];
   currentUser: User | null;
   isConnecting: boolean;
+  selectedServerId: string | null;
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
@@ -85,7 +92,15 @@ interface AppState {
   connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
   // UI actions
-  toggleAddServerModal: (isOpen?: boolean) => void;
+  toggleAddServerModal: (
+    isOpen?: boolean,
+    prefillDetails?: {
+      name: string;
+      host: string;
+      port: string;
+      nickname: string;
+    } | null,
+  ) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
   toggleDarkMode: () => void;
@@ -111,6 +126,7 @@ const useStore = create<AppState>((set, get) => ({
   connectionError: null,
   messages: {},
   typingUsers: {},
+  selectedServerId: null,
 
   // UI state
   ui: {
@@ -132,6 +148,7 @@ const useStore = create<AppState>((set, get) => ({
       type: "server",
       itemId: null,
     },
+    prefillServerDetails: null,
   },
   globalSettings: {
     enableNotifications: false,
@@ -502,12 +519,12 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   // UI actions
-  toggleAddServerModal: (isOpen) => {
+  toggleAddServerModal: (isOpen, prefillDetails = null) => {
     set((state) => ({
       ui: {
         ...state.ui,
-        isAddServerModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isAddServerModalOpen,
+        isAddServerModalOpen: isOpen,
+        prefillServerDetails: prefillDetails,
       },
     }));
   },
@@ -629,6 +646,9 @@ const useStore = create<AppState>((set, get) => ({
     }));
   },
 }));
+
+// Initialize protocol handlers
+registerAllProtocolHandlers(ircClient, useStore);
 
 // Set up event listeners for IRC client events
 //
@@ -1059,27 +1079,6 @@ ircClient.on("TAGMSG", (response) => {
         },
       };
     });
-  }
-});
-
-ircClient.on("ISUPPORT", ({ serverId, capabilities }: ISupportEvent) => {
-  const paramsArray = capabilities;
-  console.log(capabilities);
-
-  for (let i = 0; i < paramsArray.length; i++) {
-    /* Favicon checking */
-    if (paramsArray[i].startsWith("FAVICON=")) {
-      const favicon = paramsArray[i].substring(8);
-      useStore.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id === serverId) {
-            return { ...server, icon: favicon };
-          }
-          return server;
-        });
-        return { servers: updatedServers };
-      });
-    }
   }
 });
 
