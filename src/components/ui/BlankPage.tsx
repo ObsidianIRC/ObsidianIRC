@@ -14,7 +14,7 @@ const BlankPage: React.FC = () => {
       <h2 className="text-xl font-semibold">
         Welcome to {server?.name || "the unknown"}!
       </h2>
-      <p className="text-sm mt-2">Select a channel to get started.</p>
+      <p className="text-sm mt-2">Select or add a channel to get started.</p>
     </div>
   );
 };
