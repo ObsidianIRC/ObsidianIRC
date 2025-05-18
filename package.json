@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
-    "@radix-ui/react-popover": "^1.1.13",
     "@tauri-apps/api": "^1.6.0",
     "@tauri-apps/plugin-notification": "^2.2.2",
     "@tauri-apps/plugin-os": "^2.2.1",
