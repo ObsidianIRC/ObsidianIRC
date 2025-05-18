@@ -321,12 +321,12 @@ export const ChatArea: React.FC<{
         if (commandName === "nick") {
           ircClient.sendRaw(selectedServerId, `NICK ${args[0]}`);
         } else if (commandName === "join") {
+          ircClient.joinChannel(selectedServerId, args[0]);
           ircClient.triggerEvent("JOIN", {
             serverId: selectedServerId,
             username: currentUser?.username ? currentUser.username : "",
             channelName: args[0],
           });
-          ircClient.joinChannel(selectedServerId, args[0]);
         } else if (commandName === "part") {
           ircClient.leaveChannel(selectedServerId, args[0]);
           ircClient.triggerEvent("PART", {

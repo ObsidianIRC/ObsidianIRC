@@ -436,8 +436,8 @@ export class IRCClient {
             console.log(
               `Network name set to: ${this.servers.get(serverId)?.name}`,
             );
-            this.triggerEvent("ISUPPORT", { serverId, key, value });
           }
+          this.triggerEvent("ISUPPORT", { serverId, key, value });
         }
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
