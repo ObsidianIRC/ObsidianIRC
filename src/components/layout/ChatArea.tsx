@@ -148,7 +148,7 @@ const MessageItem: React.FC<{
               {message.userId === "system"
                 ? "System"
                 : message.userId.split("-")[0] +
-                  message.content.substring(8, message.content.length - 1)}
+                  message.content.substring(7, message.content.length - 1)}
             </span>
           </div>
         </div>
