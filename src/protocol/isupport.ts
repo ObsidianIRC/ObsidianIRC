@@ -22,7 +22,7 @@ export function registerISupportHandler(
     }
 
     if (key === "NETWORK") {
-      let networkName = value.replace("\\x20", " ");
+      const networkName = value.replace("\\x20", " ");
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server: Server) => {
           if (server.id === serverId) {
