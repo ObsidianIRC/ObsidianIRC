@@ -1,6 +1,6 @@
+import type React from "react";
 /* eslint-disable no-control-regex */
 import type { User } from "../types";
-import type React from "react";
 
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];

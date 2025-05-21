@@ -21,12 +21,12 @@ import {
 
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
+import { mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import BlankPage from "../ui/BlankPage";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
-import { mircToHtml } from "../../lib/ircUtils";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
