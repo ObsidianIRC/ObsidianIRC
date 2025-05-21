@@ -126,7 +126,41 @@ const MessageItem: React.FC<{
   }
 
   const theme = localStorage.getItem("theme") || "discord";
-
+  if (message.content.substring(0, 7) === "\u0001ACTION") {
+    return (
+      <div className="px-4 py-1 hover:bg-discord-message-hover group">
+        {showDate && (
+          <div className="flex items-center text-xs text-discord-text-muted mb-2">
+            <div className="flex-grow border-t border-discord-dark-400" />
+            <div className="px-2">
+              {formatDate(new Date(message.timestamp))}
+            </div>
+            <div className="flex-grow border-t border-discord-dark-400" />
+          </div>
+        )}
+        <div className="flex">
+          <div className="mr-4">
+            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
+              {message.userId.charAt(0).toUpperCase()}
+            </div>
+          </div>
+          <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
+            <div className="flex items-center">
+              <span className="ml-2 text-xs text-discord-text-muted">
+                {formatTime(new Date(message.timestamp))}
+              </span>
+            </div>
+            <span className="italic text-white">
+              {message.userId === "system"
+                ? "System"
+                : message.userId.split("-")[0] +
+                  message.content.substring(7, message.content.length - 1)}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
       {showDate && (

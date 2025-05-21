@@ -21,7 +21,9 @@ const ColorPicker: React.FC<{
       <div className="grid grid-cols-8 gap-2 mb-4">
         {ircColors.map((color, index) => {
           const isSelected = selectedColor === color;
-          const keyToken = `${color}-${index}`;
+
+          // There are duplicate colors due to things like 98 being the same as white (00)
+          const keyToken = `${color}-${index}-${Math.floor(Math.random() * 9999)}`;
           return (
             <button
               key={keyToken}
