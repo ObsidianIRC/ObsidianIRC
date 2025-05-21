@@ -26,6 +26,7 @@ import type { Message as MessageType, User } from "../../types";
 import BlankPage from "../ui/BlankPage";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+import { mircToHtml } from "../../lib/ircUtils";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -89,6 +90,10 @@ const MessageItem: React.FC<{
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
+
+  // Convert message content to React elements
+  const htmlContent = mircToHtml(message.content);
+
   // Format timestamp
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -111,7 +116,7 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <span>{message.content}</span>
+          <div>{htmlContent}</div>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -120,55 +125,25 @@ const MessageItem: React.FC<{
     );
   }
 
-  if (message.content.substring(0, 7) === "\u0001ACTION") {
-    return (
-      <div className="px-4 py-1 hover:bg-discord-message-hover group">
-        {showDate && (
-          <div className="flex items-center text-xs text-discord-text-muted mb-2">
-            <div className="flex-grow border-t border-discord-dark-400" />
-            <div className="px-2">
-              {formatDate(new Date(message.timestamp))}
-            </div>
-            <div className="flex-grow border-t border-discord-dark-400" />
-          </div>
-        )}
-        <div className="flex">
-          <div className="mr-4">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
-              {message.userId.charAt(0).toUpperCase()}
-            </div>
-          </div>
-          <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
-            <div className="flex items-center">
-              <span className="ml-2 text-xs text-discord-text-muted">
-                {formatTime(new Date(message.timestamp))}
-              </span>
-            </div>
-            <span className="italic text-white">
-              {message.userId === "system"
-                ? "System"
-                : message.userId.split("-")[0] +
-                  message.content.substring(7, message.content.length - 1)}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const theme = localStorage.getItem("theme") || "discord";
 
   return (
-    <div className="px-4 py-1 hover:bg-discord-message-hover group relative">
+    <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
       {showDate && (
-        <div className="flex items-center text-xs text-discord-text-muted mb-2">
-          <div className="flex-grow border-t border-discord-dark-400" />
+        <div
+          className={`flex items-center text-xs text-${theme}-text-muted mb-2`}
+        >
+          <div className={`flex-grow border-t border-${theme}-dark-400`} />
           <div className="px-2">{formatDate(new Date(message.timestamp))}</div>
-          <div className="flex-grow border-t border-discord-dark-400" />
+          <div className={`flex-grow border-t border-${theme}-dark-400`} />
         </div>
       )}
       <div className="flex">
         {showHeader && (
           <div className="mr-4">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
+            <div
+              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white`}
+            >
               {message.userId.charAt(0).toUpperCase()}
             </div>
           </div>
@@ -186,37 +161,26 @@ const MessageItem: React.FC<{
                   ? "System"
                   : message.userId.split("-")[0]}
               </span>
-              <span className="ml-2 text-xs text-discord-text-muted">
+              <span className={`ml-2 text-xs text-${theme}-text-muted`}>
                 {formatTime(new Date(message.timestamp))}
               </span>
             </div>
           )}
           <div>
             {message.replyMessage && (
-              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mb-2 pl-1 pr-2">
+              <div
+                className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
+              >
                 ┌ Replying to{" "}
                 <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
                 {message.replyMessage.content}
               </div>
             )}
-            {/* Handle mentions in the message content */}
-            {message.content.split(/(@\w+)/).map((part, i) => {
-              const uniqueKey = `${message.id}-${i}-${part}`;
-              if (part.startsWith("@")) {
-                return (
-                  <span
-                    key={uniqueKey}
-                    className="bg-discord-dark-500 bg-opacity-30 text-discord-text-link rounded px-0.5"
-                  >
-                    {part}
-                  </span>
-                );
-              }
-              return <span key={uniqueKey}>{part}</span>;
-            })}
+            <div>{htmlContent}</div>
           </div>
         </div>
       </div>
+      {/* Hover buttons */}
       <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
         <button
           className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
@@ -548,22 +512,23 @@ export const ChatArea: React.FC<{
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId ?? ""}
           />
-          <div className="bg-discord-dark-100 rounded-lg flex items-left">
+          <div className="bg-discord-dark-100 rounded-lg flex items-center">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
               <FaPlus />
             </button>
             {localReplyTo && (
-              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 pl-1 pr-2">
-                Replying to <strong>{localReplyTo.userId}</strong>
+              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 flex items-center h-8 px-2">
+                <span className="flex-grow text-center">
+                  Replying to <strong>{localReplyTo.userId}</strong>
+                </span>
                 <button
-                  className="ml-1 text-xs text-discord-text-muted hover:text-discord-text-normal"
+                  className="ml-2 text-xs text-discord-text-muted hover:text-discord-text-normal"
                   onClick={() => setLocalReplyTo(null)}
                 >
                   <FaTimes />
                 </button>
               </div>
             )}
-
             <input
               ref={inputRef}
               type="text"
