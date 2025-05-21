@@ -171,8 +171,8 @@ export function mircToHtml(text: string): React.ReactNode[] {
     italic: false,
     strikethrough: false,
     monospace: false,
-    fg: ircColors.length, // Default foreground (no color set)
-    bg: ircColors.length, // Default background (no color set)
+  fg: undefined as number | undefined, // default: no color
+  bg: undefined as number | undefined, // default: no color
   };
 
   function buildStyle(): React.CSSProperties {
@@ -185,9 +185,14 @@ export function mircToHtml(text: string): React.ReactNode[] {
           : undefined,
       fontStyle: state.italic ? "italic" : undefined,
       fontFamily: state.monospace ? "monospace" : undefined,
-      backgroundColor:
-        state.bg < ircColors.length ? ircColors[state.bg] : undefined,
-      color: state.fg < ircColors.length ? ircColors[state.fg] : undefined,
+backgroundColor:
+  typeof state.bg === "number" && state.bg < ircColors.length
+    ? ircColors[state.bg]
+    : undefined,
+color:
+  typeof state.fg === "number" && state.fg < ircColors.length
+    ? ircColors[state.fg]
+    : undefined,
     };
   }
 
@@ -248,16 +253,19 @@ export function mircToHtml(text: string): React.ReactNode[] {
             italic: false,
             strikethrough: false,
             monospace: false,
-            fg: ircColors.length,
-            bg: ircColors.length,
+  fg: undefined,
+  bg: undefined,
           });
           break;
         default:
-          if (part.startsWith("\x03")) {
-            const [fg, bg] = part.slice(1).split(",").map(Number);
-            state.fg = fg >= 0 && fg < ircColors.length ? fg : ircColors.length;
-            state.bg = bg >= 0 && bg < ircColors.length ? bg : ircColors.length;
-          }
+if (part.startsWith("\x03")) {
+  const [fgRaw, bgRaw] = part.slice(1).split(",");
+  const fg = parseInt(fgRaw, 10);
+  const bg = parseInt(bgRaw, 10);
+
+  state.fg = !isNaN(fg) && fg >= 0 && fg < ircColors.length ? fg : undefined;
+  state.bg = !isNaN(bg) && bg >= 0 && bg < ircColors.length ? bg : undefined;
+}
           break;
       }
 
