@@ -61,118 +61,118 @@ export function parseIsupport(tokens: string): Record<string, string> {
 
 // Thanks to Talon
 
-export function mircToHtml(text: string): React.ReactNode[] {
-  const cc = [
-    "#FFFFFF",
-    "#000000",
-    "#00009D",
-    "#009300",
-    "#FF0000",
-    "#7F0000",
-    "#9C009C",
-    "#FC7F00",
-    "#FFFF00",
-    "#00FC00",
-    "#009393",
-    "#00FFFF",
-    "#0000FC",
-    "#FF00FF",
-    "#7F7F7F",
-    "#D2D2D2",
-    "#470000",
-    "#472100",
-    "#474700",
-    "#324700",
-    "#004700",
-    "#00472C",
-    "#004747",
-    "#002747",
-    "#000047",
-    "#2E0047",
-    "#470047",
-    "#47002A",
-    "#740000",
-    "#743A00",
-    "#747400",
-    "#517400",
-    "#007400",
-    "#007449",
-    "#007474",
-    "#004074",
-    "#000074",
-    "#4B0074",
-    "#740074",
-    "#740045",
-    "#B50000",
-    "#B56300",
-    "#B5B500",
-    "#7DB500",
-    "#00B500",
-    "#00B571",
-    "#00B5B5",
-    "#0063B5",
-    "#0000B5",
-    "#7500B5",
-    "#B500B5",
-    "#B5006B",
-    "#FF000B",
-    "#FF8C00",
-    "#FFFF0B",
-    "#B2FF00",
-    "#00FF00",
-    "#00FFA0",
-    "#00FFFB",
-    "#008CFF",
-    "#0000FF",
-    "#A500FF",
-    "#FF00FB",
-    "#FF0098",
-    "#FF5959",
-    "#FFB459",
-    "#FFFF71",
-    "#CFFF60",
-    "#6FFF6F",
-    "#65FFC9",
-    "#6DFFFF",
-    "#59B4FF",
-    "#5959FF",
-    "#C459FF",
-    "#FF66FF",
-    "#FF59BC",
-    "#FF9C9C",
-    "#FFD39C",
-    "#FFFF9C",
-    "#E2FF9C",
-    "#9CFF9C",
-    "#9CFFDB",
-    "#9CFFFF",
-    "#9CD3FF",
-    "#9C9CFF",
-    "#DC9CFF",
-    "#FF9CFF",
-    "#FF94D3",
-    "#00000A",
-    "#131313",
-    "#282828",
-    "#363636",
-    "#4D4D4D",
-    "#656565",
-    "#818181",
-    "#9F9F9F",
-    "#BCBCBC",
-    "#E2E2E2",
-    "#FFFFF0",
-    "inherit",
-  ];
+export const ircColors = [
+  "#FFFFFF", // 0 - White
+  "#000000", // 1 - Black
+  "#00007F", // 2 - Blue (Navy)
+  "#009300", // 3 - Green
+  "#FF0000", // 4 - Red
+  "#7F0000", // 5 - Brown (Maroon)
+  "#9C009C", // 6 - Purple
+  "#FC7F00", // 7 - Orange
+  "#FFFF00", // 8 - Yellow
+  "#00FC00", // 9 - Light Green
+  "#009393", // 10 - Cyan
+  "#00FFFF", // 11 - Light Cyan
+  "#0000FC", // 12 - Light Blue
+  "#FF00FF", // 13 - Pink
+  "#7F7F7F", // 14 - Grey
+  "#D2D2D2", // 15 - Light Grey
+  "#470000", // 16
+  "#472100", // 17
+  "#474700", // 18
+  "#324700", // 19
+  "#004700", // 20
+  "#00472C", // 21
+  "#004747", // 22
+  "#002747", // 23
+  "#000047", // 24
+  "#2E0047", // 25
+  "#470047", // 26
+  "#47002A", // 27
+  "#740000", // 28
+  "#743A00", // 29
+  "#747400", // 30
+  "#517400", // 31
+  "#007400", // 32
+  "#007449", // 33
+  "#007474", // 34
+  "#004074", // 35
+  "#000074", // 36
+  "#4B0074", // 37
+  "#740074", // 38
+  "#740045", // 39
+  "#B50000", // 40
+  "#B56300", // 41
+  "#B5B500", // 42
+  "#7DB500", // 43
+  "#00B500", // 44
+  "#00B571", // 45
+  "#00B5B5", // 46
+  "#0063B5", // 47
+  "#0000B5", // 48
+  "#7500B5", // 49
+  "#B500B5", // 50
+  "#B5006B", // 51
+  "#FF000B", // 52
+  "#FF8C00", // 53
+  "#FFFF0B", // 54
+  "#B2FF00", // 55
+  "#00FF00", // 56
+  "#00FFA0", // 57
+  "#00FFFB", // 58
+  "#008CFF", // 59
+  "#0000FF", // 60
+  "#A500FF", // 61
+  "#FF00FB", // 62
+  "#FF0098", // 63
+  "#FF5959", // 64
+  "#FFB459", // 65
+  "#FFFF71", // 66
+  "#CFFF60", // 67
+  "#6FFF6F", // 68
+  "#65FFC9", // 69
+  "#6DFFFF", // 70
+  "#59B4FF", // 71
+  "#5959FF", // 72
+  "#C459FF", // 73
+  "#FF66FF", // 74
+  "#FF59BC", // 75
+  "#FF9C9C", // 76
+  "#FFD39C", // 77
+  "#FFFF9C", // 78
+  "#E2FF9C", // 79
+  "#9CFF9C", // 80
+  "#9CFFDB", // 81
+  "#9CFFFF", // 82
+  "#9CD3FF", // 83
+  "#9C9CFF", // 84
+  "#DC9CFF", // 85
+  "#FF9CFF", // 86
+  "#FF94D3", // 87
+  "#00000A", // 88
+  "#131313", // 89
+  "#282828", // 90
+  "#363636", // 91
+  "#4D4D4D", // 92
+  "#656565", // 93
+  "#818181", // 94
+  "#9F9F9F", // 95
+  "#BCBCBC", // 96
+  "#E2E2E2", // 97
+  "#FFFFFF", // 98
+  "inherit", // 99 - Default (not universally supported)
+];
 
+export function mircToHtml(text: string): React.ReactNode[] {
   const state = {
     bold: false,
     underline: false,
     italic: false,
     strikethrough: false,
     monospace: false,
-    fg: cc.length,
-    bg: cc.length,
+    fg: ircColors.length, // Default foreground (no color set)
+    bg: ircColors.length, // Default background (no color set)
   };
 
   function buildStyle(): React.CSSProperties {
@@ -185,8 +185,9 @@ export function mircToHtml(text: string): React.ReactNode[] {
           : undefined,
       fontStyle: state.italic ? "italic" : undefined,
       fontFamily: state.monospace ? "monospace" : undefined,
-      backgroundColor: state.bg < cc.length ? cc[state.bg] : undefined,
-      color: state.fg < cc.length ? cc[state.fg] : undefined,
+      backgroundColor:
+        state.bg < ircColors.length ? ircColors[state.bg] : undefined,
+      color: state.fg < ircColors.length ? ircColors[state.fg] : undefined,
     };
   }
 
@@ -197,7 +198,6 @@ export function mircToHtml(text: string): React.ReactNode[] {
   const controlChars = [
     String.fromCharCode(2), // \x02
     String.fromCharCode(31), // \x1f
-    String.fromCharCode(22), // \x16
     String.fromCharCode(29), // \x1d
     String.fromCharCode(30), // \x1e
     String.fromCharCode(17), // \x11
@@ -232,9 +232,6 @@ export function mircToHtml(text: string): React.ReactNode[] {
         case "\x1f":
           state.underline = !state.underline;
           break;
-        case "\x16":
-          [state.fg, state.bg] = [state.bg, state.fg];
-          break;
         case "\x1d":
           state.italic = !state.italic;
           break;
@@ -251,15 +248,15 @@ export function mircToHtml(text: string): React.ReactNode[] {
             italic: false,
             strikethrough: false,
             monospace: false,
-            fg: cc.length,
-            bg: cc.length,
+            fg: ircColors.length,
+            bg: ircColors.length,
           });
           break;
         default:
           if (part.startsWith("\x03")) {
             const [fg, bg] = part.slice(1).split(",").map(Number);
-            state.fg = fg >= 0 && fg < cc.length ? fg : cc.length;
-            state.bg = bg >= 0 && bg < cc.length ? bg : cc.length;
+            state.fg = fg >= 0 && fg < ircColors.length ? fg : ircColors.length;
+            state.bg = bg >= 0 && bg < ircColors.length ? bg : ircColors.length;
           }
           break;
       }

@@ -20,10 +20,11 @@ import {
 
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
-import { mircToHtml } from "../../lib/ircUtils";
+import { ircColors, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import BlankPage from "../ui/BlankPage";
+import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 
@@ -206,9 +207,10 @@ export const ChatArea: React.FC<{
   const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
-  const [selectedColor, setSelectedColor] = useState("#ffffff");
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedFormatting, setSelectedFormatting] = useState<string[]>([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -220,6 +222,51 @@ export const ChatArea: React.FC<{
     sendMessage,
     messages,
   } = useStore();
+
+  // Load saved settings from local storage on mount
+  useEffect(() => {
+    const savedColor = localStorage.getItem("selectedColor");
+    const savedFormatting = localStorage.getItem("selectedFormatting");
+
+    if (savedColor) {
+      setSelectedColor(savedColor); // Apply the saved color
+    }
+
+    if (savedFormatting) {
+      try {
+        const parsedFormatting = JSON.parse(savedFormatting);
+        if (Array.isArray(parsedFormatting)) {
+          console.log("Parsed formatting:", parsedFormatting);
+          setSelectedFormatting(parsedFormatting); // Apply the saved formatting
+          setIsFormattingInitialized(true); // Mark formatting as initialized
+        }
+      } catch (error) {
+        console.error("Failed to parse saved formatting:", error);
+        setSelectedFormatting([]); // Fallback to an empty array
+        setIsFormattingInitialized(true); // Mark formatting as initialized
+      }
+    } else {
+      setIsFormattingInitialized(true); // Mark formatting as initialized even if nothing is saved
+    }
+  }, []);
+
+  // Save selectedColor to local storage whenever it changes
+  useEffect(() => {
+    if (selectedColor) {
+      localStorage.setItem("selectedColor", selectedColor);
+    }
+  }, [selectedColor]);
+
+  // Save selectedFormatting to local storage whenever it changes
+  useEffect(() => {
+    if (isFormattingInitialized) {
+      console.log("Saving formatting to localStorage:", selectedFormatting);
+      localStorage.setItem(
+        "selectedFormatting",
+        JSON.stringify(selectedFormatting),
+      );
+    }
+  }, [selectedFormatting, isFormattingInitialized]);
 
   // Get selected server and channel
   const selectedServer = servers.find((s) => s.id === selectedServerId);
@@ -276,8 +323,9 @@ export const ChatArea: React.FC<{
   }, []);
 
   const getColorCode = (color: string): string => {
-    const index = IRC_COLORS.indexOf(color);
-    return index !== -1 ? `\x03${index}` : ""; // Return \x03 followed by the index, or an empty string if not found
+    const index =
+      ircColors.indexOf(color) === 99 ? -1 : ircColors.indexOf(color);
+    return index !== -1 ? `\x03${index < 10 ? `0${index}` : index}` : ""; // Return \x03 followed by the index, or an empty string if not found
   };
 
   const handleSendMessage = () => {
@@ -321,7 +369,7 @@ export const ChatArea: React.FC<{
           );
         }
       } else {
-        const colorCode = getColorCode(selectedColor); // Get the IRC color code
+        const colorCode = getColorCode(selectedColor || "inherit"); // Get the IRC color code
 
         // Apply formatting codes
         let formattedText = messageText;
@@ -333,6 +381,15 @@ export const ChatArea: React.FC<{
         }
         if (selectedFormatting.includes("underline")) {
           formattedText = `\x1F${formattedText}\x1F`;
+        }
+        if (selectedFormatting.includes("strikethrough")) {
+          formattedText = `\x1E${formattedText}\x1E`;
+        }
+        if (selectedFormatting.includes("reverse")) {
+          formattedText = `\x16${formattedText}\x16`;
+        }
+        if (selectedFormatting.includes("monospace")) {
+          formattedText = `\x11${formattedText}\x11`;
         }
 
         // Prepend the color code
@@ -577,7 +634,7 @@ export const ChatArea: React.FC<{
               placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
               style={{
-                color: selectedColor,
+                color: selectedColor || "inherit",
                 fontWeight: selectedFormatting.includes("bold")
                   ? "bold"
                   : "normal",
@@ -586,7 +643,12 @@ export const ChatArea: React.FC<{
                   : "normal",
                 textDecoration: selectedFormatting.includes("underline")
                   ? "underline"
-                  : "none",
+                  : selectedFormatting.includes("strikethrough")
+                    ? "line-through"
+                    : "none",
+                fontFamily: selectedFormatting.includes("monospace")
+                  ? "monospace"
+                  : "inherit",
               }}
             />
             <button
@@ -600,10 +662,12 @@ export const ChatArea: React.FC<{
               onClick={() => setIsColorPickerOpen((prev) => !prev)}
             >
               <div
-                className="w-4 h-4 rounded-full border-dark-2 -500"
+                className="w-4 h-4 rounded-full border-2 border-white-700"
                 style={{
                   backgroundColor:
-                    selectedColor === "inherit" ? "transparent" : selectedColor,
+                    selectedColor === "inherit"
+                      ? "transparent"
+                      : (selectedColor ?? undefined),
                 }}
               />
             </button>
@@ -623,197 +687,13 @@ export const ChatArea: React.FC<{
             <ColorPicker
               onSelect={(color) => setSelectedColor(color)}
               onClose={() => setIsColorPickerOpen(false)}
+              selectedColor={selectedColor} // Pass the selected color
               selectedFormatting={selectedFormatting}
               toggleFormatting={toggleFormatting}
             />
           )}
         </div>
       )}
-    </div>
-  );
-};
-
-const IRC_COLORS = [
-  "#FFFFFF",
-  "#000000",
-  "#00009D",
-  "#009300",
-  "#FF0000",
-  "#7F0000",
-  "#9C009C",
-  "#FC7F00",
-  "#FFFF00",
-  "#00FC00",
-  "#009393",
-  "#00FFFF",
-  "#0000FC",
-  "#FF00FF",
-  "#7F7F7F",
-  "#D2D2D2",
-  "#470000",
-  "#472100",
-  "#474700",
-  "#324700",
-  "#004700",
-  "#00472C",
-  "#004747",
-  "#002747",
-  "#000047",
-  "#2E0047",
-  "#470047",
-  "#47002A",
-  "#740000",
-  "#743A00",
-  "#747400",
-  "#517400",
-  "#007400",
-  "#007449",
-  "#007474",
-  "#004074",
-  "#000074",
-  "#4B0074",
-  "#740074",
-  "#740045",
-  "#B50000",
-  "#B56300",
-  "#B5B500",
-  "#7DB500",
-  "#00B500",
-  "#00B571",
-  "#00B5B5",
-  "#0063B5",
-  "#0000B5",
-  "#7500B5",
-  "#B500B5",
-  "#B5006B",
-  "#FF000B",
-  "#FF8C00",
-  "#FFFF0B",
-  "#B2FF00",
-  "#00FF00",
-  "#00FFA0",
-  "#00FFFB",
-  "#008CFF",
-  "#0000FF",
-  "#A500FF",
-  "#FF00FB",
-  "#FF0098",
-  "#FF5959",
-  "#FFB459",
-  "#FFFF71",
-  "#CFFF60",
-  "#6FFF6F",
-  "#65FFC9",
-  "#6DFFFF",
-  "#59B4FF",
-  "#5959FF",
-  "#C459FF",
-  "#FF66FF",
-  "#FF59BC",
-  "#FF9C9C",
-  "#FFD39C",
-  "#FFFF9C",
-  "#E2FF9C",
-  "#9CFF9C",
-  "#9CFFDB",
-  "#9CFFFF",
-  "#9CD3FF",
-  "#9C9CFF",
-  "#DC9CFF",
-  "#FF9CFF",
-  "#FF94D3",
-  "#00000A",
-  "#131313",
-  "#282828",
-  "#363636",
-  "#4D4D4D",
-  "#656565",
-  "#818181",
-  "#9F9F9F",
-  "#BCBCBC",
-  "#E2E2E2",
-  "#FFFFF0",
-  "inherit",
-];
-
-const ColorPicker: React.FC<{
-  onSelect: (color: string, formatting: string[]) => void;
-  onClose: () => void;
-  selectedFormatting: string[];
-  toggleFormatting: (format: string) => void;
-}> = ({ onSelect, onClose, selectedFormatting, toggleFormatting }) => {
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
-
-  return (
-    <div className="absolute bottom-16 right-4 z-50 bg-discord-dark-300 p-4 rounded shadow-lg">
-      <div className="grid grid-cols-8 gap-2 mb-4">
-        {IRC_COLORS.map((color, index) => {
-          const uniqueKey = `obsidian-${color}-${index}`; // Copy the index to another variable
-          const isSelected = selectedColor === color;
-
-          return (
-            <button
-              key={uniqueKey} // Use the new variable for the key
-              className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-                isSelected
-                  ? "border-dark-500 shadow-md shadow-black-500"
-                  : "border-dark-500"
-              }`}
-              style={{
-                backgroundColor: color === "inherit" ? "transparent" : color,
-              }}
-              onClick={() => {
-                setSelectedColor(color);
-                onSelect(color, selectedFormatting);
-              }}
-            >
-              {color === "inherit" && (
-                <span className="text-xs text-purple-500 font-bold">
-                  <FaTimes />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex justify-between mb-4">
-        <button
-          className={`px-2 py-1 rounded ${
-            selectedFormatting.includes("bold")
-              ? "bg-discord-dark-200"
-              : "bg-discord-dark-400"
-          }`}
-          onClick={() => toggleFormatting("bold")}
-        >
-          Bold
-        </button>
-        <button
-          className={`px-2 py-1 rounded ${
-            selectedFormatting.includes("italic")
-              ? "bg-discord-dark-200"
-              : "bg-discord-dark-400"
-          }`}
-          onClick={() => toggleFormatting("italic")}
-        >
-          Italic
-        </button>
-        <button
-          className={`px-2 py-1 rounded ${
-            selectedFormatting.includes("underline")
-              ? "bg-discord-dark-200"
-              : "bg-discord-dark-400"
-          }`}
-          onClick={() => toggleFormatting("underline")}
-        >
-          Underline
-        </button>
-      </div>
-      <button
-        onClick={onClose}
-        className="w-full bg-discord-dark-400 hover:bg-discord-dark-200 text-white py-1 rounded"
-      >
-        Close
-      </button>
     </div>
   );
 };
