@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
 import useStore from "../../store";
 
@@ -12,11 +12,17 @@ export const AddServerModal: React.FC = () => {
     ui: { prefillServerDetails },
   } = useStore();
 
-  const [serverName, setServerName] = useState("");
-  const [serverHost, setServerHost] = useState("");
-  const [serverPort, setServerPort] = useState("443");
+  const [serverName, setServerName] = useState(
+    prefillServerDetails?.name || "",
+  );
+  const [serverHost, setServerHost] = useState(
+    prefillServerDetails?.host || "",
+  );
+  const [serverPort, setServerPort] = useState(
+    prefillServerDetails?.port || "443",
+  );
   const [nickname, setNickname] = useState(
-    `user${Math.floor(Math.random() * 1000)}`,
+    prefillServerDetails?.nickname || `user${Math.floor(Math.random() * 1000)}`,
   );
   const [password, setPassword] = useState("");
   const [saslAccountName, setSaslAccountName] = useState("");
@@ -27,15 +33,6 @@ export const AddServerModal: React.FC = () => {
   const [registerAccount, setRegisterAccount] = useState(false);
 
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (prefillServerDetails) {
-      setServerName(prefillServerDetails.name);
-      setServerHost(prefillServerDetails.host);
-      setServerPort(prefillServerDetails.port);
-      setNickname(prefillServerDetails.nickname);
-    }
-  }, [prefillServerDetails]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

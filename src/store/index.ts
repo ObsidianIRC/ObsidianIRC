@@ -48,12 +48,7 @@ interface UIState {
     type: "server" | "channel" | "user" | "message";
     itemId: string | null;
   };
-  prefillServerDetails: {
-    name: string;
-    host: string;
-    port: string;
-    nickname: string;
-  } | null;
+  prefillServerDetails: ConnectionDetails | null;
 }
 
 interface GlobalSettings {
@@ -99,6 +94,10 @@ export interface AppState {
       host: string;
       port: string;
       nickname: string;
+      ui?: {
+        disableServerConnectionInfo?: boolean;
+        hideServerInfo?: boolean;
+      };
     } | null,
   ) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
