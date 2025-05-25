@@ -8,7 +8,6 @@ import {
   FaBell,
   FaChevronLeft,
   FaChevronRight,
-  FaGift,
   FaGrinAlt,
   FaHashtag,
   FaPenAlt, // Added
@@ -21,9 +20,11 @@ import {
 
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
+import { ircColors, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import BlankPage from "../ui/BlankPage";
+import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 
@@ -89,6 +90,10 @@ const MessageItem: React.FC<{
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
+
+  // Convert message content to React elements
+  const htmlContent = mircToHtml(message.content);
+
   // Format timestamp
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -111,7 +116,7 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <span>{message.content}</span>
+          <div>{htmlContent}</div>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -120,6 +125,7 @@ const MessageItem: React.FC<{
     );
   }
 
+  const theme = localStorage.getItem("theme") || "discord";
   if (message.content.substring(0, 7) === "\u0001ACTION") {
     return (
       <div className="px-4 py-1 hover:bg-discord-message-hover group">
@@ -148,27 +154,30 @@ const MessageItem: React.FC<{
               {message.userId === "system"
                 ? "System"
                 : message.userId.split("-")[0] +
-                  message.content.substring(8, message.content.length - 1)}
+                  message.content.substring(7, message.content.length - 1)}
             </span>
           </div>
         </div>
       </div>
     );
   }
-
   return (
-    <div className="px-4 py-1 hover:bg-discord-message-hover group relative">
+    <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
       {showDate && (
-        <div className="flex items-center text-xs text-discord-text-muted mb-2">
-          <div className="flex-grow border-t border-discord-dark-400" />
+        <div
+          className={`flex items-center text-xs text-${theme}-text-muted mb-2`}
+        >
+          <div className={`flex-grow border-t border-${theme}-dark-400`} />
           <div className="px-2">{formatDate(new Date(message.timestamp))}</div>
-          <div className="flex-grow border-t border-discord-dark-400" />
+          <div className={`flex-grow border-t border-${theme}-dark-400`} />
         </div>
       )}
       <div className="flex">
         {showHeader && (
           <div className="mr-4">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
+            <div
+              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white`}
+            >
               {message.userId.charAt(0).toUpperCase()}
             </div>
           </div>
@@ -186,37 +195,26 @@ const MessageItem: React.FC<{
                   ? "System"
                   : message.userId.split("-")[0]}
               </span>
-              <span className="ml-2 text-xs text-discord-text-muted">
+              <span className={`ml-2 text-xs text-${theme}-text-muted`}>
                 {formatTime(new Date(message.timestamp))}
               </span>
             </div>
           )}
           <div>
             {message.replyMessage && (
-              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mb-2 pl-1 pr-2">
+              <div
+                className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
+              >
                 ┌ Replying to{" "}
                 <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
                 {message.replyMessage.content}
               </div>
             )}
-            {/* Handle mentions in the message content */}
-            {message.content.split(/(@\w+)/).map((part, i) => {
-              const uniqueKey = `${message.id}-${i}-${part}`;
-              if (part.startsWith("@")) {
-                return (
-                  <span
-                    key={uniqueKey}
-                    className="bg-discord-dark-500 bg-opacity-30 text-discord-text-link rounded px-0.5"
-                  >
-                    {part}
-                  </span>
-                );
-              }
-              return <span key={uniqueKey}>{part}</span>;
-            })}
+            <div>{htmlContent}</div>
           </div>
         </div>
       </div>
+      {/* Hover buttons */}
       <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
         <button
           className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
@@ -242,7 +240,11 @@ export const ChatArea: React.FC<{
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [messageText, setMessageText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedFormatting, setSelectedFormatting] = useState<string[]>([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -253,6 +255,51 @@ export const ChatArea: React.FC<{
     toggleMemberList,
     messages,
   } = useStore();
+
+  // Load saved settings from local storage on mount
+  useEffect(() => {
+    const savedColor = localStorage.getItem("selectedColor");
+    const savedFormatting = localStorage.getItem("selectedFormatting");
+
+    if (savedColor) {
+      setSelectedColor(savedColor); // Apply the saved color
+    }
+
+    if (savedFormatting) {
+      try {
+        const parsedFormatting = JSON.parse(savedFormatting);
+        if (Array.isArray(parsedFormatting)) {
+          console.log("Parsed formatting:", parsedFormatting);
+          setSelectedFormatting(parsedFormatting); // Apply the saved formatting
+          setIsFormattingInitialized(true); // Mark formatting as initialized
+        }
+      } catch (error) {
+        console.error("Failed to parse saved formatting:", error);
+        setSelectedFormatting([]); // Fallback to an empty array
+        setIsFormattingInitialized(true); // Mark formatting as initialized
+      }
+    } else {
+      setIsFormattingInitialized(true); // Mark formatting as initialized even if nothing is saved
+    }
+  }, []);
+
+  // Save selectedColor to local storage whenever it changes
+  useEffect(() => {
+    if (selectedColor) {
+      localStorage.setItem("selectedColor", selectedColor);
+    }
+  }, [selectedColor]);
+
+  // Save selectedFormatting to local storage whenever it changes
+  useEffect(() => {
+    if (isFormattingInitialized) {
+      console.log("Saving formatting to localStorage:", selectedFormatting);
+      localStorage.setItem(
+        "selectedFormatting",
+        JSON.stringify(selectedFormatting),
+      );
+    }
+  }, [selectedFormatting, isFormattingInitialized]);
 
   // Get selected server and channel
   const selectedServer = servers.find((s) => s.id === selectedServerId);
@@ -308,13 +355,18 @@ export const ChatArea: React.FC<{
       container.removeEventListener("scroll", checkIfScrolledToBottom);
   }, []);
 
+  const getColorCode = (color: string): string => {
+    const index =
+      ircColors.indexOf(color) === 99 ? -1 : ircColors.indexOf(color);
+    return index !== -1 ? `\x03${index < 10 ? `0${index}` : index}` : ""; // Return \x03 followed by the index, or an empty string if not found
+  };
+
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
     scrollDown();
     if (selectedServerId && selectedChannelId) {
       if (messageText.startsWith("/")) {
         // Handle command
-        // TODO: Implement proper command registry
         const command = messageText.substring(1).trim();
         const [commandName, ...args] = command.split(" ");
         if (commandName === "nick") {
@@ -344,16 +396,41 @@ export const ChatArea: React.FC<{
             `PRIVMSG ${selectedChannel ? selectedChannel.name : ""} :\u0001ACTION ${actionMessage}\u0001`,
           );
         } else {
-          // Handle other commands
           ircClient.sendRaw(
             selectedServerId,
             `${commandName} :${args.join(" ")}`,
           );
         }
       } else {
+        const colorCode = getColorCode(selectedColor || "inherit"); // Get the IRC color code
+
+        // Apply formatting codes
+        let formattedText = messageText;
+        if (selectedFormatting.includes("bold")) {
+          formattedText = `\x02${formattedText}\x02`;
+        }
+        if (selectedFormatting.includes("italic")) {
+          formattedText = `\x1D${formattedText}\x1D`;
+        }
+        if (selectedFormatting.includes("underline")) {
+          formattedText = `\x1F${formattedText}\x1F`;
+        }
+        if (selectedFormatting.includes("strikethrough")) {
+          formattedText = `\x1E${formattedText}\x1E`;
+        }
+        if (selectedFormatting.includes("reverse")) {
+          formattedText = `\x16${formattedText}\x16`;
+        }
+        if (selectedFormatting.includes("monospace")) {
+          formattedText = `\x11${formattedText}\x11`;
+        }
+
+        // Prepend the color code
+        formattedText = `${colorCode}${formattedText}`;
+
         ircClient.sendRaw(
           selectedServerId,
-          `${localReplyTo ? `@+reply=${localReplyTo.id};` : ""} PRIVMSG ${selectedChannel?.name ?? ""} :${messageText}`,
+          `${localReplyTo ? `@+reply=${localReplyTo.id};` : ""} PRIVMSG ${selectedChannel?.name ?? ""} :${formattedText}`,
         );
       }
       setMessageText("");
@@ -402,6 +479,20 @@ export const ChatArea: React.FC<{
   const handleEmojiSelect = (emoji: string) => {
     setMessageText((prev) => prev + emoji);
     setIsEmojiSelectorOpen(false);
+  };
+
+  const handleColorSelect = (color: string, formatting: string[]) => {
+    setSelectedColor(color);
+    setSelectedFormatting(formatting);
+    setIsColorPickerOpen(false);
+  };
+
+  const toggleFormatting = (format: string) => {
+    setSelectedFormatting((prev) =>
+      prev.includes(format)
+        ? prev.filter((f) => f !== format)
+        : [...prev, format],
+    );
   };
 
   const isNarrowView = useMediaQuery();
@@ -549,22 +640,23 @@ export const ChatArea: React.FC<{
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId ?? ""}
           />
-          <div className="bg-discord-dark-100 rounded-lg flex items-left">
+          <div className="bg-discord-dark-100 rounded-lg flex items-center">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
               <FaPlus />
             </button>
             {localReplyTo && (
-              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 pl-1 pr-2">
-                Replying to <strong>{localReplyTo.userId}</strong>
+              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 flex items-center h-8 px-2">
+                <span className="flex-grow text-center">
+                  Replying to <strong>{localReplyTo.userId}</strong>
+                </span>
                 <button
-                  className="ml-1 text-xs text-discord-text-muted hover:text-discord-text-normal"
+                  className="ml-2 text-xs text-discord-text-muted hover:text-discord-text-normal"
                   onClick={() => setLocalReplyTo(null)}
                 >
                   <FaTimes />
                 </button>
               </div>
             )}
-
             <input
               ref={inputRef}
               type="text"
@@ -576,6 +668,23 @@ export const ChatArea: React.FC<{
               onKeyDown={handleKeyDown}
               placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
+              style={{
+                color: selectedColor || "inherit",
+                fontWeight: selectedFormatting.includes("bold")
+                  ? "bold"
+                  : "normal",
+                fontStyle: selectedFormatting.includes("italic")
+                  ? "italic"
+                  : "normal",
+                textDecoration: selectedFormatting.includes("underline")
+                  ? "underline"
+                  : selectedFormatting.includes("strikethrough")
+                    ? "line-through"
+                    : "none",
+                fontFamily: selectedFormatting.includes("monospace")
+                  ? "monospace"
+                  : "inherit",
+              }}
             />
             <button
               className="px-3 text-discord-text-muted hover:text-discord-text-normal"
@@ -583,8 +692,19 @@ export const ChatArea: React.FC<{
             >
               <FaGrinAlt />
             </button>
-            <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
-              <FaGift />
+            <button
+              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+              onClick={() => setIsColorPickerOpen((prev) => !prev)}
+            >
+              <div
+                className="w-4 h-4 rounded-full border-2 border-white-700"
+                style={{
+                  backgroundColor:
+                    selectedColor === "inherit"
+                      ? "transparent"
+                      : (selectedColor ?? undefined),
+                }}
+              />
             </button>
             <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
               <FaAt />
@@ -595,6 +715,16 @@ export const ChatArea: React.FC<{
             <EmojiSelector
               onSelect={handleEmojiSelect}
               onClose={() => setIsEmojiSelectorOpen(false)}
+            />
+          )}
+
+          {isColorPickerOpen && (
+            <ColorPicker
+              onSelect={(color) => setSelectedColor(color)}
+              onClose={() => setIsColorPickerOpen(false)}
+              selectedColor={selectedColor} // Pass the selected color
+              selectedFormatting={selectedFormatting}
+              toggleFormatting={toggleFormatting}
             />
           )}
         </div>
