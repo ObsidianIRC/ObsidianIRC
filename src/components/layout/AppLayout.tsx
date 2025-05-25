@@ -63,9 +63,12 @@ export const AppLayout: React.FC = () => {
       case "serverList":
         return (
           <>
-            <div className="server-list flex-shrink-0 w-[72px] h-full bg-discord-dark-300 z-30">
-              <ServerList />
-            </div>
+            {__HIDE_SERVER_LIST__ ? null : (
+              <div className="server-list flex-shrink-0 w-[72px] h-full bg-discord-dark-300 z-30">
+                <ServerList />
+              </div>
+            )}
+
             <ResizableSidebar
               bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
               isVisible={isChannelListVisible}
