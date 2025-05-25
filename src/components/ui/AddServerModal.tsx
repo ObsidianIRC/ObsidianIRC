@@ -76,6 +76,10 @@ export const AddServerModal: React.FC = () => {
     }
   };
 
+  const disableServerConnectionInfo =
+    prefillServerDetails?.ui?.disableServerConnectionInfo;
+  const hideServerInfo = prefillServerDetails?.ui?.hideServerInfo;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5">
@@ -90,59 +94,73 @@ export const AddServerModal: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-discord-text-muted text-sm font-medium mb-1">
-              Network Name
-            </label>
-            <input
-              type="text"
-              value={serverName || serverHost || ""}
-              onChange={(e) => setServerName(e.target.value)}
-              onFocus={(e) => {
-                e.target.select();
-              }}
-              placeholder="ExampleNET"
-              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-            />
-          </div>
-
-          <div className="mb-4 flex gap-4">
-            <div className="flex-1">
-              <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                Server Host
-              </label>
-              <input
-                type="text"
-                value={serverHost || ""}
-                onChange={(e) => setServerHost(e.target.value)}
-                onFocus={(e) => {
-                  e.target.select();
-                }}
-                placeholder="irc.example.com"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-              />
-            </div>
-
-            <div className="w-28">
-              <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                Port{" "}
-                <FaQuestionCircle
-                  title="Only secure websockets are supported"
-                  className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
+          {!hideServerInfo && (
+            <>
+              <div className="mb-4">
+                <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                  Network Name
+                </label>
+                <input
+                  type="text"
+                  value={serverName || serverHost || ""}
+                  onChange={(e) => setServerName(e.target.value)}
+                  onFocus={(e) => {
+                    e.target.select();
+                  }}
+                  placeholder="ExampleNET"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
-              </label>
-              <input
-                type="text"
-                value={serverPort}
-                onChange={(e) => setServerPort(e.target.value)}
-                onFocus={(e) => {
-                  e.target.select();
-                }}
-                placeholder="443"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-              />
-            </div>
-          </div>
+              </div>
+
+              <div className="mb-4 flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                    Server Host
+                  </label>
+                  <input
+                    type="text"
+                    value={serverHost || ""}
+                    onChange={(e) => setServerHost(e.target.value)}
+                    onFocus={(e) => {
+                      e.target.select();
+                    }}
+                    placeholder="irc.example.com"
+                    className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
+                      disableServerConnectionInfo
+                        ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                        : "bg-discord-dark-400 text-discord-text-normal"
+                    }`}
+                    disabled={disableServerConnectionInfo}
+                  />
+                </div>
+
+                <div className="w-28">
+                  <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                    Port{" "}
+                    <FaQuestionCircle
+                      title="Only secure websockets are supported"
+                      className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={serverPort}
+                    onChange={(e) => setServerPort(e.target.value)}
+                    onFocus={(e) => {
+                      e.target.select();
+                    }}
+                    placeholder="443"
+                    className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
+                      disableServerConnectionInfo
+                        ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                        : "bg-discord-dark-400 text-discord-text-normal"
+                    }`}
+                    disabled={disableServerConnectionInfo}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="mb-4">
             <label className="block text-discord-text-muted text-sm font-medium mb-1">

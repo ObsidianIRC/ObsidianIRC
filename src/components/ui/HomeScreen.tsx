@@ -41,6 +41,9 @@ const DiscoverGrid = () => {
       host: server.server || "", // Use empty string if server is undefined
       port: server.port || "443", // Default to 443 if port is undefined
       nickname: "", // Generate a default nickname
+      ui: {
+        disableServerConnectionInfo: true,
+      },
     });
   };
 
