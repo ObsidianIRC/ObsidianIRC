@@ -47,7 +47,15 @@ const DiscoverGrid = () => {
     });
   };
 
-  return (
+  return __HIDE_SERVER_LIST__ ? (
+    <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
+      <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
+        <h1 className="rounded-lg text-2xl font-bold mb-2">
+          Welcome to {__DEFAULT_IRC_SERVER_NAME__}!
+        </h1>
+      </div>
+    </div>
+  ) : (
     <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
       <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
         <h1 className="rounded-lg text-2xl font-bold mb-2">

@@ -89,16 +89,7 @@ export interface AppState {
   // UI actions
   toggleAddServerModal: (
     isOpen?: boolean,
-    prefillDetails?: {
-      name: string;
-      host: string;
-      port: string;
-      nickname: string;
-      ui?: {
-        disableServerConnectionInfo?: boolean;
-        hideServerInfo?: boolean;
-      };
-    } | null,
+    prefillDetails?: ConnectionDetails | null,
   ) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
