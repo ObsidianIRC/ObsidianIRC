@@ -11,11 +11,22 @@ npm install
 ```
 
 ### Web
-TBD Build for specific default server
-
 ```sh
 npm run build
 cp -R dist/* /var/www/html/
+```
+
+#### Building for a specific server
+You can build the frontend by setting the following environment variables before running the `npm build` command.
+```sh
+# Required server URL
+VITE_DEFAULT_IRC_SERVER=ws://localhost:8097
+# Required server name
+VITE_DEFAULT_IRC_SERVER_NAME="Local"
+# Optional default channels to join
+VITE_DEFAULT_IRC_CHANNELS='["#lobby", "#bots", "#test"]'
+# Optionally hide the server list
+VITE_HIDE_SERVER_LIST=true
 ```
 
 ### MACOS

@@ -43,6 +43,7 @@ const DiscoverGrid = () => {
       nickname: "", // Generate a default nickname
       ui: {
         disableServerConnectionInfo: true,
+        title: server.name,
       },
     });
   };

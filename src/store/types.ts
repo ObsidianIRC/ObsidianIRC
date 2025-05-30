@@ -8,5 +8,7 @@ interface ConnectionDetails {
   ui?: {
     disableServerConnectionInfo?: boolean;
     hideServerInfo?: boolean;
+    hideClose?: boolean;
+    title?: string;
   };
 }

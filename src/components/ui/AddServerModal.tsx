@@ -84,13 +84,17 @@ export const AddServerModal: React.FC = () => {
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl font-bold">Add IRC Server</h2>
-          <button
-            onClick={() => toggleAddServerModal(false)}
-            className="text-discord-text-muted hover:text-white"
-          >
-            <FaTimes />
-          </button>
+          <h2 className="text-white text-xl font-bold">
+            {prefillServerDetails?.ui?.title || "Add IRC Server"}
+          </h2>
+          {!prefillServerDetails?.ui?.hideClose && (
+            <button
+              onClick={() => toggleAddServerModal(false)}
+              className="text-discord-text-muted hover:text-white"
+            >
+              <FaTimes />
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -286,13 +290,15 @@ export const AddServerModal: React.FC = () => {
           )}
 
           <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => toggleAddServerModal(false)}
-              className="mr-3 px-4 py-2 text-discord-text-normal hover:underline"
-            >
-              Cancel
-            </button>
+            {!prefillServerDetails?.ui?.hideClose && (
+              <button
+                type="button"
+                onClick={() => toggleAddServerModal(false)}
+                className="mr-3 px-4 py-2 text-discord-text-normal hover:underline"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
               disabled={isConnecting}
