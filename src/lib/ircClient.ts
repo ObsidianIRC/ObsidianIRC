@@ -5,6 +5,7 @@ import {
   parseMessageTags,
   parseNamesResponse,
 } from "./ircUtils";
+import { type ISocket, createSocket } from "./socket";
 
 export interface EventMap {
   ready: { serverId: string; serverName: string; nickname: string };
@@ -65,7 +66,7 @@ type EventKey = keyof EventMap;
 type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 
 export class IRCClient {
-  private sockets: Map<string, WebSocket> = new Map();
+  private sockets: Map<string, ISocket> = new Map();
   private servers: Map<string, Server> = new Map();
   private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
@@ -88,7 +89,7 @@ export class IRCClient {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
       const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
       const url = `${protocol}://${host}:${port}`;
-      const socket = new WebSocket(url);
+      const socket = createSocket(url);
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
