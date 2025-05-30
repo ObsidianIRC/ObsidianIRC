@@ -21,7 +21,7 @@ export const findChannelMessageById = (
   return messages.find((message) => message.id === messageId);
 };
 // Load saved servers from localStorage
-function loadSavedServers(): ServerConfig[] {
+export function loadSavedServers(): ServerConfig[] {
   return JSON.parse(localStorage.getItem(LOCAL_STORAGE_SERVERS_KEY) || "[]");
 }
 
@@ -48,12 +48,7 @@ interface UIState {
     type: "server" | "channel" | "user" | "message";
     itemId: string | null;
   };
-  prefillServerDetails: {
-    name: string;
-    host: string;
-    port: string;
-    nickname: string;
-  } | null;
+  prefillServerDetails: ConnectionDetails | null;
 }
 
 interface GlobalSettings {
@@ -94,12 +89,7 @@ export interface AppState {
   // UI actions
   toggleAddServerModal: (
     isOpen?: boolean,
-    prefillDetails?: {
-      name: string;
-      host: string;
-      port: string;
-      nickname: string;
-    } | null,
+    prefillDetails?: ConnectionDetails | null,
   ) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
@@ -1084,5 +1074,10 @@ ircClient.on("TAGMSG", (response) => {
 
 // Load saved servers on store initialization
 useStore.getState().connectToSavedServers();
+
+// If default server is available, select it
+if (__DEFAULT_IRC_SERVER__) {
+  console.log("Default server found, connecting...");
+}
 
 export default useStore;

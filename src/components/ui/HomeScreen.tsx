@@ -41,10 +41,22 @@ const DiscoverGrid = () => {
       host: server.server || "", // Use empty string if server is undefined
       port: server.port || "443", // Default to 443 if port is undefined
       nickname: "", // Generate a default nickname
+      ui: {
+        disableServerConnectionInfo: true,
+        title: server.name,
+      },
     });
   };
 
-  return (
+  return __HIDE_SERVER_LIST__ ? (
+    <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
+      <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
+        <h1 className="rounded-lg text-2xl font-bold mb-2">
+          Welcome to {__DEFAULT_IRC_SERVER_NAME__}!
+        </h1>
+      </div>
+    </div>
+  ) : (
     <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
       <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
         <h1 className="rounded-lg text-2xl font-bold mb-2">
@@ -73,9 +85,9 @@ const DiscoverGrid = () => {
         <div className="grid p-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredServers.map((server) => (
             <div
-              key={server.name} // Use a unique identifier as the key
+              key={server.name}
               className="bg-discord-dark-300 border border-discord-dark-500 rounded-lg p-4 shadow hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => handleServerClick(server)} // Add click handler
+              onClick={() => handleServerClick(server)}
             >
               <h2 className="text-lg font-semibold">{server.name}</h2>
               <p className="text-sm text-discord-text-muted">

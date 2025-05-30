@@ -253,7 +253,6 @@ export const ChatArea: React.FC<{
     servers,
     ui: { selectedServerId, selectedChannelId, isMemberListVisible },
     toggleMemberList,
-    sendMessage,
     messages,
   } = useStore();
 
@@ -536,41 +535,43 @@ export const ChatArea: React.FC<{
             </>
           )}
         </div>
-        <div className="flex items-center gap-4 text-discord-text-muted">
-          <button className="hover:text-discord-text-normal">
-            <FaBell />
-          </button>
-          <button className="hover:text-discord-text-normal">
-            <FaPenAlt />
-          </button>
-          <button className="hover:text-discord-text-normal">
-            <FaUserPlus />
-          </button>
-          <button
-            className="hover:text-discord-text-normal"
-            onClick={() => toggleMemberList(!isMemberListVisible)}
-            aria-label={
-              isMemberListVisible
-                ? "Collapse member list"
-                : "Expand member list"
-            }
-            data-testid="toggle-member-list"
-          >
-            {isMemberListVisible ? (
-              <UsersIcon className="w-4 h-4 text-white" />
-            ) : (
-              <UsersIcon className="w-4 h-4 text-gray" />
-            )}
-          </button>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search"
-              className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-            />
-            <FaSearch className="absolute right-2 top-1.5 text-xs" />
+        {!!selectedServerId && (
+          <div className="flex items-center gap-4 text-discord-text-muted">
+            <button className="hover:text-discord-text-normal">
+              <FaBell />
+            </button>
+            <button className="hover:text-discord-text-normal">
+              <FaPenAlt />
+            </button>
+            <button className="hover:text-discord-text-normal">
+              <FaUserPlus />
+            </button>
+            <button
+              className="hover:text-discord-text-normal"
+              onClick={() => toggleMemberList(!isMemberListVisible)}
+              aria-label={
+                isMemberListVisible
+                  ? "Collapse member list"
+                  : "Expand member list"
+              }
+              data-testid="toggle-member-list"
+            >
+              {isMemberListVisible ? (
+                <UsersIcon className="w-4 h-4 text-white" />
+              ) : (
+                <UsersIcon className="w-4 h-4 text-gray" />
+              )}
+            </button>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search"
+                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+              />
+              <FaSearch className="absolute right-2 top-1.5 text-xs" />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Messages area */}
