@@ -1,7 +1,7 @@
 [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-mattfly%2Fobsidian-blue?logo=docker&style=flat-square)](https://hub.docker.com/r/mattfly/obsidian)
 [![Cloudflare Pages](https://img.shields.io/endpoint?url=https://cloudflare-pages-badges.mattf.workers.dev//?projectName=obsidianirc)](https://obsidianirc.pages.dev/)
 [![pages-build-deployment](https://github.com/ObsidianIRC/obsidianirc.github.io/actions/workflows/pages/pages-build-deployment/badge.svg)](https://obsidianirc.github.io/)
-
+<a href="https://www.irccloud.com/invite?channel=%23obsidianirc-dev&amp;hostname=irc.h4ks.com&amp;port=6697&amp;ssl=1" target="_blank"><img src="https://img.shields.io/badge/IRC-%23obsidianirc--dev-1e72ff.svg?style=flat"  height="20"></a>
 ## <img src="https://cdn-icons-png.freepik.com/512/8999/8999462.png" alt="description" width="70"> ObsidianIRC - Next Generation IRC Client
 ### React + TypeScript + TailwindCSS
  
