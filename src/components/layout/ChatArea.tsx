@@ -430,7 +430,7 @@ export const ChatArea: React.FC<{
 
         ircClient.sendRaw(
           selectedServerId,
-          `${localReplyTo ? `@+reply=${localReplyTo.id};` : ""} PRIVMSG ${selectedChannel?.name ?? ""} :${formattedText}`,
+          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${selectedChannel?.name ?? ""} :${formattedText}`,
         );
       }
       setMessageText("");
