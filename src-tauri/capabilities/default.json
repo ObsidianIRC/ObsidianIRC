@@ -10,7 +10,6 @@
     "notification:default",
     "notification:default",
     "os:default",
-    "deep-link:default",
-    "tcp:default"
+    "deep-link:default"
   ]
 }

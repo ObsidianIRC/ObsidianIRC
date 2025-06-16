@@ -87,7 +87,12 @@ export class IRCClient {
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
-      const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
+      let protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
+      if (host.startsWith("irc://") || host.startsWith("ircs://")) {
+        protocol = host.startsWith("irc://") ? "irc://" : "ircs://";
+        host = host.replace(/^irc(s)?:\/\//, "");
+      }
+
       const url = `${protocol}://${host}:${port}`;
       const socket = createSocket(url);
 
