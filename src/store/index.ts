@@ -691,7 +691,9 @@ ircClient.on("CHANMSG", (response) => {
     const replyTo = null;
 
     if (channel) {
-      const replyId = mtags?.["+reply"] ? mtags["+reply"].trim() : null;
+      const replyId = mtags?.["+draft/reply"]
+        ? mtags["+draft/reply"].trim()
+        : null;
 
       const replyMessage = replyId
         ? findChannelMessageById(server.id, channel.id, replyId)
