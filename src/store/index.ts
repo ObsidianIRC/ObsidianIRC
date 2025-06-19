@@ -149,7 +149,7 @@ const useStore = create<AppState>((set, get) => ({
     host,
     port,
     nickname,
-    saslEnabled,
+    _saslEnabled,
     password,
     saslAccountName,
     saslPassword,

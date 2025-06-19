@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -7,34 +7,37 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": ["dist", ".next", "node_modules", "build"],
-    "include": [
-      "src/**/*.ts",
-      "src/**/*.tsx",
-      "tests/**/*.ts",
-      "tests/**/*.tsx"
+    "includes": [
+      "**/src/**/*.ts",
+      "**/src/**/*.tsx",
+      "**/tests/**/*.ts",
+      "**/tests/**/*.tsx",
+      "!**/dist",
+      "!**/.next",
+      "!**/node_modules",
+      "!**/build"
     ]
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space"
   },
-  "organizeImports": {
-    "enabled": true
-  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
       "recommended": true,
       "correctness": {
         "noUnusedVariables": "off",
+        "noUnusedFunctionParameters": "off",
         "noUnusedImports": {
           "level": "error",
           "fix": "safe"
-        }
+        },
+        "useHookAtTopLevel": "off"
       },
       "nursery": {
-        "noImgElement": "off"
+        "useUniqueElementIds": "off"
       },
       "a11y": {
         "noAutofocus": "off",
@@ -51,7 +54,23 @@
         "useAltText": "off",
         "useKeyWithClickEvents": "off",
         "useKeyWithMouseEvents": "off",
-        "useButtonType": "off"
+        "useButtonType": "off",
+        "noStaticElementInteractions": "off"
+      },
+      "style": {
+        "noParameterAssign": "error",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error"
+      },
+      "performance": {
+        "noImgElement": "off"
       }
     }
   },

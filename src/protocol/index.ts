@@ -1,5 +1,4 @@
-import type { StoreApi } from "zustand";
-import type { UseBoundStore } from "zustand";
+import type { StoreApi, UseBoundStore } from "zustand";
 import type { IRCClient } from "../lib/ircClient";
 import type { AppState } from "../store/";
 import { registerISupportHandler } from "./isupport";
