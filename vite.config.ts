@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       '__APP_DESCRIPTION__': JSON.stringify(process.env.npm_package_description),
       '__DEFAULT_IRC_SERVER__': JSON.stringify(process.env.VITE_DEFAULT_IRC_SERVER),
       '__DEFAULT_IRC_SERVER_NAME__': JSON.stringify(process.env.VITE_DEFAULT_IRC_SERVER_NAME),
-      '__DEFAULT_IRC_CHANNELS__': process.env.VITE_DEFAULT_IRC_CHANNELS ? JSON.parse(process.env.VITE_DEFAULT_IRC_CHANNELS) : [],
+      '__DEFAULT_IRC_CHANNELS__': process.env.VITE_DEFAULT_IRC_CHANNELS ? process.env.VITE_DEFAULT_IRC_CHANNELS.replace(/^['"]|['"]$/g, '').split(',').map(ch => ch.trim()) : [],
       '__HIDE_SERVER_LIST__': process.env.VITE_HIDE_SERVER_LIST === 'true',
     },
     // prevent vite from obscuring rust errors
