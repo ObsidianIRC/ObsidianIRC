@@ -24,7 +24,7 @@ VITE_DEFAULT_IRC_SERVER=ws://localhost:8097
 # Required server name
 VITE_DEFAULT_IRC_SERVER_NAME="Local"
 # Optional default channels to join
-VITE_DEFAULT_IRC_CHANNELS='["#lobby", "#bots", "#test"]'
+VITE_DEFAULT_IRC_CHANNELS="#lobby,#bots,#test"
 # Optionally hide the server list
 VITE_HIDE_SERVER_LIST=true
 ```
@@ -41,7 +41,7 @@ You can pass build arguments to customize the IRC server settings:
 docker build \
   --build-arg VITE_DEFAULT_IRC_SERVER=ws://your-server:port \
   --build-arg VITE_DEFAULT_IRC_SERVER_NAME="Your Server" \
-  --build-arg VITE_DEFAULT_IRC_CHANNELS='["#general", "#random"]' \
+  --build-arg VITE_DEFAULT_IRC_CHANNELS="#general,#random" \
   --build-arg VITE_HIDE_SERVER_LIST=false \
   -t obsidianirc .
 ```
