@@ -280,8 +280,13 @@ export class IRCClient {
         const newNick = parv[0];
 
         // We changed our own nick
-        if (oldNick === this.nicks.get(serverId))
+        if (oldNick === this.nicks.get(serverId)) {
           this.nicks.set(serverId, newNick);
+          // Update current user's username
+          if (this.currentUser) {
+            this.currentUser.username = newNick;
+          }
+        }
 
         console.log(oldNick, newNick, this.nicks);
         this.triggerEvent("NICK", {
