@@ -1,7 +1,7 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import type * as React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Children, isValidElement, cloneElement, Fragment } from "react";
 import {
   FaArrowDown,
   FaAt,
@@ -27,7 +27,6 @@ import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
-
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
 
@@ -81,6 +80,59 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
+const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Regular expression to detect HTTP and HTTPS links
+  const urlRegex = /(?:(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*)/g;
+
+  const parseContent = (content: string) => {
+    // Split the content based on the URL regex
+    const parts = content.split(urlRegex);
+    const matches = content.match(urlRegex) || [];
+
+    return parts.map((part, index) => {
+      // Render the text part
+      const textPart = <span key={`text-${index}`}>{part}</span>;
+
+      // If there's a matching link for this part, render it
+      if (index < matches.length) {
+        return (
+          <Fragment key={`fragment-${index}`}>
+            {textPart}
+            <a
+              href={matches[index]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 underline hover:text-blue-700"
+            >
+              {matches[index]}
+            </a>
+          </Fragment>
+        );
+      }
+
+      return textPart;
+    });
+  };
+
+  // Since children can be React nodes, we need to process them
+  const processChildren = (children: React.ReactNode) => {
+    return Children.map(children, child => {
+      if (typeof child === 'string') {
+        return parseContent(child); // Process string content
+      } else if (isValidElement(child)) {
+        // Directly process the children of the React element
+        return cloneElement(child, {
+          children: processChildren(child.props.children),
+        });
+      }
+      // For other types of children, return them as is
+      return child;
+    });
+  };
+
+  return <div>{processChildren(children)}</div>;
+};
+
 const MessageItem: React.FC<{
   message: MessageType;
   showDate: boolean;
@@ -90,10 +142,8 @@ const MessageItem: React.FC<{
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
-
   // Convert message content to React elements
   const htmlContent = mircToHtml(message.content);
-
   // Format timestamp
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -116,7 +166,7 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <div>{htmlContent}</div>
+          <div><EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper></div>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -210,7 +260,7 @@ const MessageItem: React.FC<{
                 {message.replyMessage.content}
               </div>
             )}
-            <div>{htmlContent}</div>
+            <div><EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper></div>
           </div>
         </div>
       </div>
