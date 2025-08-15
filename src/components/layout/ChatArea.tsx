@@ -82,9 +82,8 @@ export const TypingIndicator: React.FC<{
 
 const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Regular expression to detect HTTP and HTTPS links
-  const urlRegex = /(?:(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*)/g;
-
-  const parseContent = (content: string) => {
+  const urlRegex = /\bhttps?:\/\/[^\s<>"']+/gi;
+  const parseContent = (content: string): React.ReactNode[] => {
     // Split the content based on the URL regex
     const parts = content.split(urlRegex);
     const matches = content.match(urlRegex) || [];
@@ -102,7 +101,7 @@ const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children
               href={matches[index]}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline hover:text-blue-700"
+              className="text-discord-text-link underline hover:text-blue-700"
             >
               {matches[index]}
             </a>
@@ -115,22 +114,24 @@ const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Since children can be React nodes, we need to process them
-  const processChildren = (children: React.ReactNode) => {
-    return Children.map(children, child => {
+  const processChildren = (node: React.ReactNode): React.ReactNode[] => {
+    return Children.map(node, child => {
       if (typeof child === 'string') {
         return parseContent(child); // Process string content
       } else if (isValidElement(child)) {
+        // Skip already-linkified anchors to avoid nested <a>
+        if ((child as React.ReactElement).type === 'a') {
+          return child;
+        }
         // Directly process the children of the React element
-        return cloneElement(child, {
-          children: processChildren(child.props.children),
-        });
+        const processed = processChildren((child as React.ReactElement).props?.children);
+        return cloneElement(child as React.ReactElement, undefined, processed);
       }
       // For other types of children, return them as is
-      return child;
-    });
+      return child as React.ReactNode;
+    }) ?? [];
   };
-
-  return <div>{processChildren(children)}</div>;
+return <>{processChildren(children)}</>;
 };
 
 const MessageItem: React.FC<{
@@ -166,7 +167,7 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <div><EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper></div>
+          <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -257,10 +258,10 @@ const MessageItem: React.FC<{
               >
                 ┌ Replying to{" "}
                 <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
-                {message.replyMessage.content}
+                <EnhancedLinkWrapper>{mircToHtml(message.replyMessage.content)}</EnhancedLinkWrapper>
               </div>
             )}
-            <div><EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper></div>
+            <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
           </div>
         </div>
       </div>
