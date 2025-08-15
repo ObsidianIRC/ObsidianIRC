@@ -824,7 +824,17 @@ ircClient.on("NICK", ({ serverId, oldNick, newNick }) => {
       }
       return server;
     });
-    return { servers: updatedServers };
+
+    // Update currentUser if it was our nick that changed
+    let updatedCurrentUser = state.currentUser;
+    if (state.currentUser && state.currentUser.username === oldNick) {
+      updatedCurrentUser = { ...state.currentUser, username: newNick };
+    }
+
+    return {
+      servers: updatedServers,
+      currentUser: updatedCurrentUser,
+    };
   });
 });
 
