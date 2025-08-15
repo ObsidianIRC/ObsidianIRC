@@ -163,7 +163,7 @@ export const AppLayout: React.FC = () => {
   // Handle mobile back button
   // TODO: ios
   if ("__TAURI__" in window && platform() === "android") {
-    // @ts-ignore
+    // @ts-expect-error
     window.androidBackCallback = () => {
       switch (mobileViewActiveColumn) {
         case "chatView":
