@@ -82,7 +82,7 @@ export const TypingIndicator: React.FC<{
 
 const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Regular expression to detect HTTP and HTTPS links
-  const urlRegex = /\bhttps?:\/\/[^\s<>"']+/gi;
+  const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi
   const parseContent = (content: string): React.ReactNode[] => {
     // Split the content based on the URL regex
     const parts = content.split(urlRegex);
