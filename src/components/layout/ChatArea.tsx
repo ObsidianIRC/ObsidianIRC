@@ -1,7 +1,7 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import type * as React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Children, isValidElement, cloneElement, Fragment } from "react";
 import {
   FaArrowDown,
   FaAt,
@@ -27,7 +27,6 @@ import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
-
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
 
@@ -81,6 +80,60 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
+const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Regular expression to detect HTTP and HTTPS links
+  const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi
+  const parseContent = (content: string): React.ReactNode[] => {
+    // Split the content based on the URL regex
+    const parts = content.split(urlRegex);
+    const matches = content.match(urlRegex) || [];
+
+    return parts.map((part, index) => {
+      // Render the text part
+      const textPart = <span key={`text-${index}`}>{part}</span>;
+
+      // If there's a matching link for this part, render it
+      if (index < matches.length) {
+        return (
+          <Fragment key={`fragment-${index}`}>
+            {textPart}
+            <a
+              href={matches[index]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-discord-text-link underline hover:text-blue-700"
+            >
+              {matches[index]}
+            </a>
+          </Fragment>
+        );
+      }
+
+      return textPart;
+    });
+  };
+
+  // Since children can be React nodes, we need to process them
+  const processChildren = (node: React.ReactNode): React.ReactNode[] => {
+    return Children.map(node, child => {
+      if (typeof child === 'string') {
+        return parseContent(child); // Process string content
+      } else if (isValidElement(child)) {
+        // Skip already-linkified anchors to avoid nested <a>
+        if ((child as React.ReactElement).type === 'a') {
+          return child;
+        }
+        // Directly process the children of the React element
+        const processed = processChildren((child as React.ReactElement).props?.children);
+        return cloneElement(child as React.ReactElement, undefined, processed);
+      }
+      // For other types of children, return them as is
+      return child as React.ReactNode;
+    }) ?? [];
+  };
+return <>{processChildren(children)}</>;
+};
+
 const MessageItem: React.FC<{
   message: MessageType;
   showDate: boolean;
@@ -90,10 +143,8 @@ const MessageItem: React.FC<{
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
-
   // Convert message content to React elements
   const htmlContent = mircToHtml(message.content);
-
   // Format timestamp
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -116,7 +167,7 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <div>{htmlContent}</div>
+          <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -207,10 +258,10 @@ const MessageItem: React.FC<{
               >
                 ┌ Replying to{" "}
                 <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
-                {message.replyMessage.content}
+                <EnhancedLinkWrapper>{mircToHtml(message.replyMessage.content)}</EnhancedLinkWrapper>
               </div>
             )}
-            <div>{htmlContent}</div>
+            <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
           </div>
         </div>
       </div>
