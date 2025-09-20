@@ -623,6 +623,16 @@ export const ChatArea: React.FC<{
       if (tabCompletion.isActive) {
         tabCompletion.resetCompletion();
       }
+
+      // Send typing done notification
+      if (selectedChannel?.name || selectedPrivateChat?.username) {
+        const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+        ircClient.sendTyping(
+          selectedServerId as string,
+          target as string,
+          false,
+        );
+      }
     }
   };
 
@@ -648,11 +658,18 @@ export const ChatArea: React.FC<{
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
-      // Only send typing notifications for channels, not private chats
+      // Send typing done notification
       if (selectedChannel?.name) {
-        ircClient.sendRaw(
+        ircClient.sendTyping(
           selectedServerId ?? "",
-          `@+typing=done TAGMSG ${selectedChannel.name}`,
+          selectedChannel.name,
+          false,
+        );
+      } else if (selectedPrivateChat?.username) {
+        ircClient.sendTyping(
+          selectedServerId ?? "",
+          selectedPrivateChat.username,
+          false,
         );
       }
       lastTypingTime = 0;
@@ -866,19 +883,18 @@ export const ChatArea: React.FC<{
       if (currentTime - lastTypingTime < 5000) return;
 
       lastTypingTime = currentTime;
-      // Only send typing notifications for channels, not private chats
-      if (channel?.name) {
-        ircClient.sendRaw(
-          selectedServerId ?? "",
-          `@+typing=active TAGMSG ${channel.name}`,
-        );
+      // Send typing active notification
+      if (target) {
+        ircClient.sendTyping(selectedServerId ?? "", target, true);
       }
     } else if (text.length === 0) {
-      // Only send typing notifications for channels, not private chats
-      if (selectedChannel?.name) {
-        ircClient.sendRaw(
-          selectedServerId ?? "",
-          `@+typing=done TAGMSG ${selectedChannel.name}`,
+      // Send typing done notification
+      if (selectedChannel?.name || selectedPrivateChat?.username) {
+        const target = selectedChannel?.name || selectedPrivateChat?.username;
+        ircClient.sendTyping(
+          selectedServerId as string,
+          target as string,
+          false,
         );
       }
       lastTypingTime = 0;
@@ -1082,6 +1098,7 @@ export const ChatArea: React.FC<{
               />
             );
           })}
+
           <div ref={messagesEndRef} />
         </div>
       )}
@@ -1110,7 +1127,7 @@ export const ChatArea: React.FC<{
           />
           <TypingIndicator
             serverId={selectedServerId ?? ""}
-            channelId={selectedChannelId ?? ""}
+            channelId={selectedChannelId || selectedPrivateChatId || ""}
           />
           <div className="bg-discord-dark-100 rounded-lg flex items-center">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">

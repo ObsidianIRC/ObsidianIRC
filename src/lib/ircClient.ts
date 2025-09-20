@@ -204,6 +204,11 @@ export class IRCClient {
     this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
   }
 
+  sendTyping(serverId: string, target: string, isActive: boolean): void {
+    const typingState = isActive ? "active" : "done";
+    this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
+  }
+
   markChannelAsRead(serverId: string, channelId: string): void {
     const server = this.servers.get(serverId);
     const channel = server?.channels.find((c) => c.id === channelId);
@@ -356,18 +361,15 @@ export class IRCClient {
           });
         }
       } else if (command === "TAGMSG") {
-        const isChannel = parv[0].startsWith("#");
+        const target = parv[0];
         const sender = getNickFromNuh(source);
-        if (isChannel) {
-          const channelName = parv[0];
-          this.triggerEvent("TAGMSG", {
-            serverId,
-            mtags,
-            sender,
-            channelName,
-            timestamp: new Date(),
-          });
-        }
+        this.triggerEvent("TAGMSG", {
+          serverId,
+          mtags,
+          sender,
+          channelName: target,
+          timestamp: new Date(),
+        });
       } else if (command === "353") {
         const channelName = parv[2];
         const names = parv.slice(3).join(" ").trim().substring(1);

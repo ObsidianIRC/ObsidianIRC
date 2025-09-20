@@ -912,6 +912,18 @@ ircClient.on("USERMSG", (response) => {
 
       useStore.getState().addMessage(newMessage);
 
+      // Remove any typing users from the state
+      useStore.setState((state) => {
+        const key = `${server.id}-${privateChat.id}`;
+        const currentUsers = state.typingUsers[key] || [];
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [key]: currentUsers.filter((u) => u.username !== sender),
+          },
+        };
+      });
+
       // Update private chat's last activity and unread count
       useStore.setState((state) => {
         const updatedServers = state.servers.map((s) => {
@@ -1261,13 +1273,37 @@ ircClient.on("TAGMSG", (response) => {
 
     if (!server) return;
 
-    const channel = server.channels.find((c) => c.name === channelName);
-    if (!channel) return;
+    let key: string;
+    let user: User;
 
-    const user = channel.users.find((u) => u.username === response.sender);
-    if (!user) return;
+    const isChannel = channelName.startsWith("#");
+    if (isChannel) {
+      const channel = server.channels.find((c) => c.name === channelName);
+      if (!channel) return;
 
-    const key = `${server.id}-${channel.id}`;
+      const foundUser = channel.users.find(
+        (u) => u.username === response.sender,
+      );
+      if (!foundUser) return;
+      user = foundUser;
+
+      key = `${server.id}-${channel.id}`;
+    } else {
+      // Private chat
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.username === sender,
+      );
+      if (!privateChat) return;
+
+      // For private chats, create a user object
+      user = {
+        id: `${server.id}-${sender}`,
+        username: sender,
+        isOnline: true,
+      };
+
+      key = `${server.id}-${privateChat.id}`;
+    }
 
     useStore.setState((state) => {
       const currentUsers = state.typingUsers[key] || [];
