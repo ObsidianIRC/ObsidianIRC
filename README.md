@@ -26,7 +26,7 @@ cp -R dist/* /var/www/html/
 ```
 Replace `/var/www/html/` with the web directory you want to contain your webclient.
 
-### Contribuiting
+### Contributing
 
 If you want to contribute to this project, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file. It contains all the information you need to get started.
 
