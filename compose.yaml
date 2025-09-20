@@ -58,7 +58,7 @@ services:
       HOST: ircd
       PORT: 6667
       CHANNEL: '#test'
-      NICK: HelperBot
+      NICK: HelperBot1
     command: ["python", "echobot.py"]
     restart: unless-stopped
     profiles:
@@ -76,7 +76,7 @@ services:
       HOST: ircd
       PORT: 6667
       CHANNEL: '#test'
-      NICK: ChatBot
+      NICK: HelperBot2
     command: ["python", "echobot.py"]
     restart: unless-stopped
     profiles:

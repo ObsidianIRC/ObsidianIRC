@@ -202,6 +202,8 @@ npm run preview        # Preview build
 npm run lint           # Lint and fix
 npm run format         # Format code
 npm run check          # Full Biome check
+npm run fix            # Fix and format code
+npm run fix:unsafe     # Fix with unsafe transformations
 
 # Testing
 npm run test           # Run tests
@@ -301,7 +303,3 @@ npm run tauri android build -- --apk       # Android
 - Efficient re-rendering with proper memoization
 
 ---
-
-**Version:** 0.0.2
-**Last Updated:** September 2024
-**License:** [Project License]
