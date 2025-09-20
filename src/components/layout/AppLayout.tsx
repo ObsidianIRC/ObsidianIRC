@@ -145,10 +145,9 @@ export const AppLayout: React.FC = () => {
   ]);
 
   // Show channel list if the screen is resized
-  // biome-ignore lint/correctness/useExhaustiveDependencies(isNarrowView):
   useEffect(() => {
     toggleChannelList(true);
-  }, [isNarrowView, toggleChannelList]);
+  }, [toggleChannelList]);
 
   // Hide member list if the screen is too narrow
   useEffect(() => {
@@ -164,7 +163,7 @@ export const AppLayout: React.FC = () => {
   // Handle mobile back button
   // TODO: ios
   if ("__TAURI__" in window && platform() === "android") {
-    // @ts-ignore
+    // @ts-expect-error
     window.androidBackCallback = () => {
       switch (mobileViewActiveColumn) {
         case "chatView":

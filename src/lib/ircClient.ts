@@ -82,8 +82,8 @@ export class IRCClient {
     port: number,
     nickname: string,
     password?: string,
-    saslAccountName?: string,
-    saslPassword?: string,
+    _saslAccountName?: string,
+    _saslPassword?: string,
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
@@ -221,7 +221,7 @@ export class IRCClient {
     this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, key, capabilities });
   }
 
-  capEnd(serverId: string) {}
+  capEnd(_serverId: string) {}
 
   nickOnConnect(serverId: string) {
     const nickname = this.nicks.get(serverId);
@@ -286,8 +286,13 @@ export class IRCClient {
         const newNick = parv[0];
 
         // We changed our own nick
-        if (oldNick === this.nicks.get(serverId))
+        if (oldNick === this.nicks.get(serverId)) {
           this.nicks.set(serverId, newNick);
+          // Update current user's username
+          if (this.currentUser) {
+            this.currentUser.username = newNick;
+          }
+        }
 
         console.log(oldNick, newNick, this.nicks);
         this.triggerEvent("NICK", {

@@ -32,6 +32,7 @@ const initializeEnvSettings = (
     isOpen?: boolean,
     prefillDetails?: ConnectionDetails | null,
   ) => void,
+  joinChannel: (serverId: string, channelName: string) => void,
 ) => {
   if (loadSavedServers().length > 0) return;
   const host = __DEFAULT_IRC_SERVER__
@@ -63,7 +64,7 @@ const initializeEnvSettings = (
   ircClient.on("ready", ({ serverId, serverName, nickname }) => {
     // Automatically join default channels
     for (const channel of __DEFAULT_IRC_CHANNELS__) {
-      ircClient.joinChannel(serverId, channel);
+      joinChannel(serverId, channel);
     }
   });
 };
@@ -72,11 +73,12 @@ const App: React.FC = () => {
   const {
     toggleAddServerModal,
     ui: { isAddServerModalOpen, isUserProfileModalOpen },
+    joinChannel,
   } = useStore();
   // askPermissions();
   useEffect(() => {
-    initializeEnvSettings(toggleAddServerModal);
-  }, [toggleAddServerModal]);
+    initializeEnvSettings(toggleAddServerModal, joinChannel);
+  }, [toggleAddServerModal, joinChannel]);
 
   return (
     <div className="h-screen overflow-hidden">

@@ -48,7 +48,7 @@ export const AddServerModal: React.FC = () => {
       return;
     }
 
-    if (!serverPort.trim() || Number.isNaN(Number.parseInt(serverPort))) {
+    if (!serverPort.trim() || Number.isNaN(Number.parseInt(serverPort, 10))) {
       setError("Valid server port is required");
       return;
     }
@@ -61,7 +61,7 @@ export const AddServerModal: React.FC = () => {
     try {
       await connect(
         serverHost,
-        Number.parseInt(serverPort),
+        Number.parseInt(serverPort, 10),
         nickname,
         !!saslPassword,
         password,
