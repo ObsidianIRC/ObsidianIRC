@@ -18,12 +18,16 @@ export const AppLayout: React.FC = () => {
       isChannelListVisible,
       mobileViewActiveColumn,
       selectedServerId,
+      selectedPrivateChatId,
     },
     toggleMobileMenu,
     toggleMemberList,
     toggleChannelList,
     setMobileViewActiveColumn,
   } = useStore();
+
+  // Hide member list for private chats
+  const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
 
   // Set theme class on body
   useEffect(() => {
@@ -107,7 +111,7 @@ export const AppLayout: React.FC = () => {
         return (
           <ResizableSidebar
             bypass={isNarrowView && mobileViewActiveColumn === "memberList"}
-            isVisible={isMemberListVisible}
+            isVisible={shouldShowMemberList}
             defaultWidth={240}
             minWidth={80}
             maxWidth={400}

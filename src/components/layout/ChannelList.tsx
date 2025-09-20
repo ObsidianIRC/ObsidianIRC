@@ -8,6 +8,7 @@ import {
   FaHashtag,
   FaPlus,
   FaTrash,
+  FaUser,
   FaUserPlus,
   FaVolumeUp,
 } from "react-icons/fa";
@@ -20,8 +21,9 @@ export const ChannelList: React.FC<{
 }> = ({ onToggle }: { onToggle: () => void }) => {
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId },
+    ui: { selectedServerId, selectedChannelId, selectedPrivateChatId },
     selectChannel,
+    selectPrivateChat,
     joinChannel,
     leaveChannel,
     toggleUserProfileModal,
@@ -30,6 +32,7 @@ export const ChannelList: React.FC<{
 
   const [isTextChannelsOpen, setIsTextChannelsOpen] = useState(true);
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
+  const [isPrivateChatsOpen, setIsPrivateChatsOpen] = useState(true);
   const [newChannelName, setNewChannelName] = useState("");
 
   const selectedServer = servers.find(
@@ -208,6 +211,43 @@ export const ChannelList: React.FC<{
                         </div>
                       </TouchableContextMenu>
                     ))}
+                </div>
+              )}
+            </div>
+
+            {/* Private Messages */}
+            <div className="mb-2">
+              <div
+                className="flex items-center px-2 group cursor-pointer mb-1"
+                onClick={() => setIsPrivateChatsOpen(!isPrivateChatsOpen)}
+              >
+                {isPrivateChatsOpen ? (
+                  <FaChevronDown className="text-xs mr-1" />
+                ) : (
+                  <FaChevronRight className="text-xs mr-1" />
+                )}
+                <span className="uppercase text-xs font-semibold tracking-wide">
+                  Private Messages
+                </span>
+              </div>
+
+              {isPrivateChatsOpen && (
+                <div className="ml-2">
+                  {selectedServer.privateChats?.map((privateChat) => (
+                    <div
+                      key={privateChat.id}
+                      className={`
+                        px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
+                        ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                      `}
+                      onClick={() => selectPrivateChat(privateChat.id)}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <FaUser className="shrink-0" />
+                        <span className="truncate">{privateChat.username}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

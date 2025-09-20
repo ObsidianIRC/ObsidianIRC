@@ -105,10 +105,9 @@ export class IRCClient {
           host,
           port,
           channels: [],
+          privateChats: [],
           isConnected: true,
           users: [],
-          privateMessages: [],
-          icon: "",
         };
 
         this.servers.set(server.id, server);
