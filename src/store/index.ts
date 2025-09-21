@@ -593,7 +593,8 @@ const useStore = create<AppState>((set, get) => ({
         if (s.id === serverId) {
           return {
             ...s,
-            privateChats: s.privateChats?.filter((pc) => pc.id !== privateChatId) || [],
+            privateChats:
+              s.privateChats?.filter((pc) => pc.id !== privateChatId) || [],
           };
         }
         return s;

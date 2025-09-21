@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useMemo, } from "react";
+import { useMemo, useState } from "react";
 import { FaSearch, FaTimes, FaUser } from "react-icons/fa";
 import useStore from "../../store";
 
@@ -19,10 +19,10 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
 
   const availableUsers = useMemo(() => {
     // Get users from the store instead of ircClient directly
-    const server = servers.find(s => s.id === serverId);
+    const server = servers.find((s) => s.id === serverId);
     if (!server) return [];
 
-    const allUsers = new Map<string, typeof server.channels[0]['users'][0]>();
+    const allUsers = new Map<string, (typeof server.channels)[0]["users"][0]>();
 
     // Collect users from all channels
     for (const channel of server.channels) {
@@ -33,7 +33,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
 
     const allUsersArray = Array.from(allUsers.values());
     const filteredUsers = allUsersArray.filter(
-      (user) => user.username !== currentUser?.username
+      (user) => user.username !== currentUser?.username,
     );
 
     if (!searchTerm.trim()) {
@@ -41,7 +41,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
     }
 
     return filteredUsers.filter((user) =>
-      user.username.toLowerCase().includes(searchTerm.toLowerCase())
+      user.username.toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }, [serverId, currentUser?.username, searchTerm, servers]);
 
@@ -58,7 +58,9 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
       <div className="bg-discord-dark-300 rounded-lg p-6 w-96 max-w-full mx-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-lg font-semibold">Start Private Message</h2>
+          <h2 className="text-white text-lg font-semibold">
+            Start Private Message
+          </h2>
           <button
             onClick={onClose}
             className="text-discord-channels-default hover:text-white"
@@ -84,7 +86,9 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
         <div className="max-h-64 overflow-y-auto">
           {availableUsers.length === 0 ? (
             <div className="text-discord-channels-default text-center py-4">
-              {searchTerm ? "No users found matching your search" : "No users available"}
+              {searchTerm
+                ? "No users found matching your search"
+                : "No users available"}
             </div>
           ) : (
             <div className="space-y-1">

@@ -36,7 +36,8 @@ export const ChannelList: React.FC<{
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
   const [isPrivateChatsOpen, setIsPrivateChatsOpen] = useState(true);
   const [newChannelName, setNewChannelName] = useState("");
-  const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] = useState(false);
+  const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
+    useState(false);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
@@ -305,7 +306,10 @@ export const ChannelList: React.FC<{
                           icon: <FaTrash size={14} />,
                           onClick: () => {
                             if (selectedServerId) {
-                              deletePrivateChat(selectedServerId, privateChat.id);
+                              deletePrivateChat(
+                                selectedServerId,
+                                privateChat.id,
+                              );
                             }
                           },
                           className: "text-red-400",
@@ -321,7 +325,9 @@ export const ChannelList: React.FC<{
                       >
                         <div className="flex items-center gap-2 truncate">
                           <FaUser className="shrink-0" />
-                          <span className="truncate">{privateChat.username}</span>
+                          <span className="truncate">
+                            {privateChat.username}
+                          </span>
                         </div>
                         {/* Delete Button */}
                         {selectedPrivateChatId === privateChat.id && (
@@ -330,7 +336,10 @@ export const ChannelList: React.FC<{
                             onClick={(e) => {
                               e.stopPropagation();
                               if (selectedServerId) {
-                                deletePrivateChat(selectedServerId, privateChat.id);
+                                deletePrivateChat(
+                                  selectedServerId,
+                                  privateChat.id,
+                                );
                               }
                             }}
                           >
