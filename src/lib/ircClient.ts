@@ -525,6 +525,22 @@ export class IRCClient {
   getCurrentUser(): User | null {
     return this.currentUser;
   }
+
+  getAllUsers(serverId: string): User[] {
+    const server = this.servers.get(serverId);
+    if (!server) return [];
+
+    const allUsers = new Map<string, User>();
+
+    // Collect users from all joined channels
+    for (const channel of server.channels) {
+      for (const user of channel.users) {
+        allUsers.set(user.username, user);
+      }
+    }
+
+    return Array.from(allUsers.values());
+  }
 }
 
 function getNickFromNuh(nuh: string) {

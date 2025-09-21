@@ -15,6 +15,7 @@ import {
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
+import AddPrivateChatModal from "../ui/AddPrivateChatModal";
 
 export const ChannelList: React.FC<{
   onToggle: () => void;
@@ -26,6 +27,7 @@ export const ChannelList: React.FC<{
     selectPrivateChat,
     joinChannel,
     leaveChannel,
+    deletePrivateChat,
     toggleUserProfileModal,
     currentUser,
   } = useStore();
@@ -34,6 +36,7 @@ export const ChannelList: React.FC<{
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
   const [isPrivateChatsOpen, setIsPrivateChatsOpen] = useState(true);
   const [newChannelName, setNewChannelName] = useState("");
+  const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] = useState(false);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
@@ -282,24 +285,60 @@ export const ChannelList: React.FC<{
                 <span className="uppercase text-xs font-semibold tracking-wide">
                   Private Messages
                 </span>
+                <FaPlus
+                  className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAddPrivateChatModalOpen(true);
+                  }}
+                />
               </div>
 
               {isPrivateChatsOpen && (
                 <div className="ml-2">
                   {selectedServer.privateChats?.map((privateChat) => (
-                    <div
+                    <TouchableContextMenu
                       key={privateChat.id}
-                      className={`
-                        px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
-                        ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
-                      `}
-                      onClick={() => selectPrivateChat(privateChat.id)}
+                      menuItems={[
+                        {
+                          label: "Delete Private Chat",
+                          icon: <FaTrash size={14} />,
+                          onClick: () => {
+                            if (selectedServerId) {
+                              deletePrivateChat(selectedServerId, privateChat.id);
+                            }
+                          },
+                          className: "text-red-400",
+                        },
+                      ]}
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <FaUser className="shrink-0" />
-                        <span className="truncate">{privateChat.username}</span>
+                      <div
+                        className={`
+                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
+                          ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                        `}
+                        onClick={() => selectPrivateChat(privateChat.id)}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <FaUser className="shrink-0" />
+                          <span className="truncate">{privateChat.username}</span>
+                        </div>
+                        {/* Delete Button */}
+                        {selectedPrivateChatId === privateChat.id && (
+                          <button
+                            className="hidden group-hover:block text-discord-red hover:text-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (selectedServerId) {
+                                deletePrivateChat(selectedServerId, privateChat.id);
+                              }
+                            }}
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
                       </div>
-                    </div>
+                    </TouchableContextMenu>
                   ))}
                 </div>
               )}
@@ -356,6 +395,15 @@ export const ChannelList: React.FC<{
           </button>
         </div>
       </div>
+
+      {/* Add Private Chat Modal */}
+      {selectedServerId && (
+        <AddPrivateChatModal
+          isOpen={isAddPrivateChatModalOpen}
+          onClose={() => setIsAddPrivateChatModalOpen(false)}
+          serverId={selectedServerId}
+        />
+      )}
     </div>
   );
 };

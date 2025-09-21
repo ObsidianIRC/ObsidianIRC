@@ -93,6 +93,7 @@ export interface AppState {
   selectChannel: (channelId: string | null) => void;
   selectPrivateChat: (privateChatId: string | null) => void;
   openPrivateChat: (serverId: string, username: string) => void;
+  deletePrivateChat: (serverId: string, privateChatId: string) => void;
   markChannelAsRead: (serverId: string, channelId: string) => void;
   connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
@@ -580,6 +581,38 @@ const useStore = create<AppState>((set, get) => ({
           mobileViewActiveColumn: "chatView",
         },
       };
+    });
+  },
+
+  deletePrivateChat: (serverId, privateChatId) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          return {
+            ...s,
+            privateChats: s.privateChats?.filter((pc) => pc.id !== privateChatId) || [],
+          };
+        }
+        return s;
+      });
+
+      // If the deleted private chat was selected, clear the selection
+      const newState: Partial<AppState> = {
+        servers: updatedServers,
+      };
+
+      if (state.ui.selectedPrivateChatId === privateChatId) {
+        newState.ui = {
+          ...state.ui,
+          selectedPrivateChatId: null,
+          selectedChannelId: null,
+        };
+      }
+
+      return newState;
     });
   },
 
