@@ -1,8 +1,7 @@
 import type React from "react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, } from "react";
 import { FaSearch, FaTimes, FaUser } from "react-icons/fa";
 import useStore from "../../store";
-import { ircClient } from "../../lib/ircClient";
 
 interface AddPrivateChatModalProps {
   isOpen: boolean;
