@@ -25,6 +25,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./docker/ergo.yaml:/ircd/ircd.yaml
+    profiles:
+      - testing
 
   echo-bot:
     image: python:3.12-alpine
@@ -41,3 +43,41 @@ services:
       NICK: EchoBot
     command: ["python", "echobot.py"]
     restart: unless-stopped
+    profiles:
+      - testing
+
+  helper-bot:
+    image: python:3.12-alpine
+    container_name: helper-bot
+    volumes:
+      - ./docker/echobot.py:/app/echobot.py:ro
+    working_dir: /app
+    depends_on:
+      - ircd
+    environment:
+      HOST: ircd
+      PORT: 6667
+      CHANNEL: '#test'
+      NICK: HelperBot1
+    command: ["python", "echobot.py"]
+    restart: unless-stopped
+    profiles:
+      - testing
+
+  chat-bot:
+    image: python:3.12-alpine
+    container_name: chat-bot
+    volumes:
+      - ./docker/echobot.py:/app/echobot.py:ro
+    working_dir: /app
+    depends_on:
+      - ircd
+    environment:
+      HOST: ircd
+      PORT: 6667
+      CHANNEL: '#test'
+      NICK: HelperBot2
+    command: ["python", "echobot.py"]
+    restart: unless-stopped
+    profiles:
+      - testing

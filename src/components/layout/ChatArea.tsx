@@ -1,7 +1,15 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import type * as React from "react";
-import { useEffect, useRef, useState, Children, isValidElement, cloneElement, Fragment } from "react";
+import {
+  Children,
+  cloneElement,
+  Fragment,
+  isValidElement,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   FaArrowDown,
   FaAt,
@@ -10,23 +18,26 @@ import {
   FaChevronRight,
   FaGrinAlt,
   FaHashtag,
-  FaPenAlt, // Added
+  FaPenAlt,
   FaPlus,
   FaReply,
   FaSearch,
   FaTimes,
-  FaUserPlus, // Added
+  FaUserPlus,
 } from "react-icons/fa";
 
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useTabCompletion } from "../../hooks/useTabCompletion";
 import ircClient from "../../lib/ircClient";
 import { ircColors, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
+import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
 
@@ -80,22 +91,26 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
-const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   // Regular expression to detect HTTP and HTTPS links
-  const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi
+  const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
   const parseContent = (content: string): React.ReactNode[] => {
     // Split the content based on the URL regex
     const parts = content.split(urlRegex);
     const matches = content.match(urlRegex) || [];
 
     return parts.map((part, index) => {
-      // Render the text part
-      const textPart = <span key={`text-${index}`}>{part}</span>;
+      // Generate stable keys based on content and position
+      const partKey = `text-${part}-${index}`;
+      const textPart = <span key={partKey}>{part}</span>;
 
       // If there's a matching link for this part, render it
       if (index < matches.length) {
+        const fragmentKey = `fragment-${matches[index]}-${index}`;
         return (
-          <Fragment key={`fragment-${index}`}>
+          <Fragment key={fragmentKey}>
             {textPart}
             <a
               href={matches[index]}
@@ -115,23 +130,32 @@ const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Since children can be React nodes, we need to process them
   const processChildren = (node: React.ReactNode): React.ReactNode[] => {
-    return Children.map(node, child => {
-      if (typeof child === 'string') {
-        return parseContent(child); // Process string content
-      } else if (isValidElement(child)) {
-        // Skip already-linkified anchors to avoid nested <a>
-        if ((child as React.ReactElement).type === 'a') {
-          return child;
+    return (
+      Children.map(node, (child) => {
+        if (typeof child === "string") {
+          return parseContent(child); // Process string content
         }
-        // Directly process the children of the React element
-        const processed = processChildren((child as React.ReactElement).props?.children);
-        return cloneElement(child as React.ReactElement, undefined, processed);
-      }
-      // For other types of children, return them as is
-      return child as React.ReactNode;
-    }) ?? [];
+        if (isValidElement(child)) {
+          // Skip already-linkified anchors to avoid nested <a>
+          if ((child as React.ReactElement).type === "a") {
+            return child;
+          }
+          // Directly process the children of the React element
+          const processed = processChildren(
+            (child as React.ReactElement).props?.children,
+          );
+          return cloneElement(
+            child as React.ReactElement,
+            undefined,
+            processed,
+          );
+        }
+        // For other types of children, return them as is
+        return child as React.ReactNode;
+      }) ?? []
+    );
   };
-return <>{processChildren(children)}</>;
+  return <>{processChildren(children)}</>;
 };
 
 const MessageItem: React.FC<{
@@ -258,7 +282,9 @@ const MessageItem: React.FC<{
               >
                 ┌ Replying to{" "}
                 <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
-                <EnhancedLinkWrapper>{mircToHtml(message.replyMessage.content)}</EnhancedLinkWrapper>
+                <EnhancedLinkWrapper>
+                  {mircToHtml(message.replyMessage.content)}
+                </EnhancedLinkWrapper>
               </div>
             )}
             <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
@@ -296,6 +322,8 @@ export const ChatArea: React.FC<{
   const [selectedFormatting, setSelectedFormatting] = useState<string[]>([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -306,6 +334,9 @@ export const ChatArea: React.FC<{
     toggleMemberList,
     messages,
   } = useStore();
+
+  // Tab completion hook
+  const tabCompletion = useTabCompletion();
 
   // Load saved settings from local storage on mount
   useEffect(() => {
@@ -486,10 +517,32 @@ export const ChatArea: React.FC<{
       }
       setMessageText("");
       setLocalReplyTo(null);
+      setShowAutocomplete(false);
+      if (tabCompletion.isActive) {
+        tabCompletion.resetCompletion();
+      }
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      handleTabCompletion();
+      return;
+    }
+
+    // Handle keys when autocomplete dropdown is visible
+    if (
+      showAutocomplete &&
+      (e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "Escape" ||
+        e.key === "Enter")
+    ) {
+      // Let the dropdown handle these keys, don't interfere
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -498,7 +551,182 @@ export const ChatArea: React.FC<{
         `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
       );
       lastTypingTime = 0;
+      return;
     }
+
+    // Reset tab completion on any other key
+    if (tabCompletion.isActive) {
+      tabCompletion.resetCompletion();
+    }
+    setShowAutocomplete(false);
+  };
+
+  const handleTabCompletion = () => {
+    if (!selectedChannel || !inputRef.current) return;
+
+    const users = selectedChannel.users || [];
+    const result = tabCompletion.handleTabCompletion(
+      messageText,
+      cursorPosition,
+      users,
+    );
+
+    if (result) {
+      setMessageText(result.newText);
+      setCursorPosition(result.newCursorPosition);
+
+      // Show dropdown when there are any matches available
+      const shouldShow = tabCompletion.matches.length > 0;
+      setShowAutocomplete(shouldShow);
+
+      // Update input cursor position
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            result.newCursorPosition,
+            result.newCursorPosition,
+          );
+        }
+      }, 0);
+    } else {
+      // No completion result, hide dropdown
+      setShowAutocomplete(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newText = e.target.value;
+    const newCursorPosition = e.target.selectionStart || 0;
+
+    setMessageText(newText);
+    setCursorPosition(newCursorPosition);
+    handleUpdatedText(newText);
+
+    // Reset tab completion if text changed from non-tab input
+    if (tabCompletion.isActive) {
+      tabCompletion.resetCompletion();
+    }
+
+    // Hide autocomplete when typing (only show on Tab completion)
+    setShowAutocomplete(false);
+  };
+
+  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+    const newCursorPos = target.selectionStart || 0;
+    setCursorPosition(newCursorPos);
+  };
+
+  const handleUsernameSelect = (username: string) => {
+    if (tabCompletion.isActive) {
+      // Use tab completion state for accurate replacement
+      const isAtMessageStart =
+        tabCompletion.originalText
+          .substring(0, tabCompletion.completionStart)
+          .trim() === tabCompletion.originalPrefix;
+      const suffix = isAtMessageStart ? ": " : " ";
+      const newText =
+        tabCompletion.originalText.substring(0, tabCompletion.completionStart) +
+        username +
+        suffix +
+        tabCompletion.originalText.substring(
+          tabCompletion.completionStart + tabCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition =
+        tabCompletion.completionStart + username.length + suffix.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    } else {
+      // Fallback to current logic when tab completion is not active
+      const textBeforeCursor = messageText.substring(0, cursorPosition);
+      const words = textBeforeCursor.split(/\s+/);
+      const currentWord = words[words.length - 1];
+      const completionStart = cursorPosition - currentWord.length;
+
+      const isAtMessageStart = textBeforeCursor.trim() === currentWord;
+      const suffix = isAtMessageStart ? ": " : " ";
+      const newText =
+        messageText.substring(0, completionStart) +
+        username +
+        suffix +
+        messageText.substring(cursorPosition);
+
+      setMessageText(newText);
+      const newCursorPosition =
+        completionStart + username.length + suffix.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+
+    setShowAutocomplete(false);
+    tabCompletion.resetCompletion();
+  };
+
+  const handleAutocompleteClose = () => {
+    setShowAutocomplete(false);
+    tabCompletion.resetCompletion();
+  };
+
+  const handleAutocompleteNavigate = (username: string) => {
+    if (tabCompletion.isActive) {
+      // Update text in real-time like Tab completion does
+      const isAtMessageStart =
+        tabCompletion.originalText
+          .substring(0, tabCompletion.completionStart)
+          .trim() === tabCompletion.originalPrefix;
+      const suffix = isAtMessageStart ? ": " : " ";
+      const newText =
+        tabCompletion.originalText.substring(0, tabCompletion.completionStart) +
+        username +
+        suffix +
+        tabCompletion.originalText.substring(
+          tabCompletion.completionStart + tabCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition =
+        tabCompletion.completionStart + username.length + suffix.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
+
+  const handleInputKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Skip if it was Tab key (handled by keyDown)
+    if (e.key === "Tab") return;
+
+    const target = e.target as HTMLInputElement;
+    const newCursorPos = target.selectionStart || 0;
+    setCursorPosition(newCursorPos);
   };
 
   const handleUpdatedText = (text: string) => {
@@ -712,10 +940,9 @@ export const ChatArea: React.FC<{
               ref={inputRef}
               type="text"
               value={messageText}
-              onChange={(e) => {
-                setMessageText(e.target.value);
-                handleUpdatedText(e.target.value);
-              }}
+              onChange={handleInputChange}
+              onClick={handleInputClick}
+              onKeyUp={handleInputKeyUp}
               onKeyDown={handleKeyDown}
               placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
@@ -778,6 +1005,19 @@ export const ChatArea: React.FC<{
               toggleFormatting={toggleFormatting}
             />
           )}
+
+          <AutocompleteDropdown
+            users={selectedChannel?.users || []}
+            isVisible={showAutocomplete}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            tabCompletionMatches={tabCompletion.matches}
+            currentMatchIndex={tabCompletion.currentIndex}
+            onSelect={handleUsernameSelect}
+            onClose={handleAutocompleteClose}
+            onNavigate={handleAutocompleteNavigate}
+            inputElement={inputRef.current}
+          />
         </div>
       )}
     </div>

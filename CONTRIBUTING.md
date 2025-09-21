@@ -29,3 +29,33 @@ npm run commit-hook-install
 ```
 
 Now every time you commit the lint and format commands will run automatically.
+
+## Local Development & Testing
+
+### Development Setup
+
+1. **Clone and install dependencies:**
+   ```bash
+   git clone https://github.com/ObsidianIRC/ObsidianIRC
+   cd ObsidianIRC
+   npm install
+   ```
+
+2. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+### Testing Environment
+
+For testing features locally, we provide a complete IRC testing stack with Docker Compose:
+
+#### Start Testing Stack (IRC Server + 3 Bots)
+```bash
+# in one terminal
+npm run dev
+# in another terminal
+docker-compose --profile testing up -d
+```
+
+Now you can connect to `ws://localhost:8097` with any nickname and check the `#test` channel.
