@@ -1,10 +1,11 @@
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
 
 mod socket;
 
 use socket::{connect, disconnect, listen, send, SocketState};
 
-use tauri_plugin_deep_link::DeepLinkExt;
+// use tauri_plugin_deep_link::DeepLinkExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,11 +30,12 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            #[cfg(desktop)]
-            app.deep_link().register_all()?;
+            // Commenting out deep link registration as it may cause "unsupported platform" error
+            // #[cfg(desktop)]
+            // app.deep_link().register_all()?;
             Ok(())
         })
-        .manage(SocketState(Mutex::new(None)))
+        .manage(SocketState(Arc::new(Mutex::new(HashMap::new()))))
         .invoke_handler(tauri::generate_handler![connect, disconnect, listen, send])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

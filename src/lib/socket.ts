@@ -1,7 +1,7 @@
 // Websocket compatible TCP socket implementation for tauri
 
-import { Buffer } from "buffer";
-import { connect, disconnect, listen, send } from "@kuyoonjo/tauri-plugin-tcp";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 export interface ISocket {
   onopen: (() => void) | null;
@@ -28,23 +28,50 @@ export class TCPSocket implements ISocket {
     this.clientId = Math.random().toString(36).substring(2, 15);
     this._readyState = 0; // CONNECTING
 
-    connect(this.clientId, address)
+    // Set up event listener for incoming messages
+    listen("tcp-message", (event) => {
+      const payload = event.payload as {
+        id: string;
+        event: {
+          message?: { data: number[] };
+          error?: string;
+          connected?: boolean;
+        };
+      };
+
+      // Only handle messages for this client
+      if (payload.id !== this.clientId) return;
+
+      if (payload.event.message) {
+        // Convert byte array to string
+        const data = new TextDecoder().decode(
+          new Uint8Array(payload.event.message.data),
+        );
+        this.onmessage?.({ data });
+      }
+
+      if (payload.event.error) {
+        this.onerror?.(new Error(payload.event.error));
+      }
+
+      if (payload.event.connected === false) {
+        this._readyState = 3; // CLOSED
+        this.onclose?.();
+      }
+    });
+
+    invoke("connect", { clientId: this.clientId, address })
       .then(() => {
         this.isConnected = true;
         this._readyState = 1; // OPEN
+        // Start listening for messages
+        invoke("listen", {});
+        // Fire onopen AFTER isConnected is set
         this.onopen?.();
-        listen((x) => {
-          if (x.payload.id === this.clientId && x.payload.event.message) {
-            const message = Buffer.from(
-              x.payload.event.message.data,
-            ).toString();
-            this.onmessage?.({ data: message });
-          }
-        });
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         this._readyState = 3; // CLOSED
-        this.onerror?.(new Error(`Failed to connect: ${error.message}`));
+        this.onerror?.(new Error(`Failed to connect: ${error}`));
       });
   }
 
@@ -56,22 +83,25 @@ export class TCPSocket implements ISocket {
     if (!this.isConnected) {
       throw new Error("Socket is not connected");
     }
-    send(this.clientId, data).catch((error) => {
-      this.onerror?.(new Error(`Failed to send data: ${error.message}`));
-    });
+
+    invoke("send", { clientId: this.clientId, data }).catch(
+      (error: unknown) => {
+        this.onerror?.(new Error(`Failed to send data: ${error}`));
+      },
+    );
   }
 
   close(): void {
     if (this.isConnected) {
       this._readyState = 2; // CLOSING
-      disconnect(this.clientId)
+      invoke("disconnect", { clientId: this.clientId })
         .then(() => {
           this.isConnected = false;
           this._readyState = 3; // CLOSED
           this.onclose?.();
         })
-        .catch((error) => {
-          this.onerror?.(new Error(`Failed to disconnect: ${error.message}`));
+        .catch((error: unknown) => {
+          this.onerror?.(new Error(`Failed to disconnect: ${error}`));
         });
     }
   }
