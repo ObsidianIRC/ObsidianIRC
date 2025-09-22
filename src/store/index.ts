@@ -2,7 +2,14 @@ import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
 import { registerAllProtocolHandlers } from "../protocol";
-import type { Channel, Message, Server, ServerConfig, User } from "../types";
+import type {
+  Channel,
+  Message,
+  PrivateChat,
+  Server,
+  ServerConfig,
+  User,
+} from "../types";
 
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 
@@ -32,6 +39,7 @@ function saveServersToLocalStorage(servers: ServerConfig[]) {
 interface UIState {
   selectedServerId: string | null;
   selectedChannelId: string | null;
+  selectedPrivateChatId: string | null;
   isAddServerModalOpen: boolean | undefined;
   isSettingsModalOpen: boolean;
   isUserProfileModalOpen: boolean;
@@ -83,6 +91,9 @@ export interface AppState {
   addMessage: (message: Message) => void;
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
+  selectPrivateChat: (privateChatId: string | null) => void;
+  openPrivateChat: (serverId: string, username: string) => void;
+  deletePrivateChat: (serverId: string, privateChatId: string) => void;
   markChannelAsRead: (serverId: string, channelId: string) => void;
   connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
@@ -122,6 +133,7 @@ const useStore = create<AppState>((set, get) => ({
   ui: {
     selectedServerId: null,
     selectedChannelId: null,
+    selectedPrivateChatId: null,
     isAddServerModalOpen: false,
     isSettingsModalOpen: false,
     isUserProfileModalOpen: false,
@@ -343,6 +355,7 @@ const useStore = create<AppState>((set, get) => ({
           ...state.ui,
           selectedServerId: serverId,
           selectedChannelId: channelId,
+          selectedPrivateChatId: null, // Clear private chat selection
           isMobileMenuOpen: false,
         },
       };
@@ -396,6 +409,7 @@ const useStore = create<AppState>((set, get) => ({
             ...state.ui,
             selectedServerId: serverId,
             selectedChannelId: channelId,
+            selectedPrivateChatId: null, // Clear private chat selection
             isMobileMenuOpen: false,
             mobileViewActiveColumn: "chatView",
           },
@@ -406,6 +420,7 @@ const useStore = create<AppState>((set, get) => ({
         ui: {
           ...state.ui,
           selectedChannelId: channelId,
+          selectedPrivateChatId: null, // Clear private chat selection
           isMobileMenuOpen: false,
           mobileViewActiveColumn: "chatView",
         },
@@ -441,6 +456,164 @@ const useStore = create<AppState>((set, get) => ({
       return {
         servers: updatedServers,
       };
+    });
+  },
+
+  selectPrivateChat: (privateChatId) => {
+    set((state) => {
+      // Find which server this private chat belongs to
+      let serverId = state.ui.selectedServerId;
+
+      if (!serverId) {
+        for (const server of state.servers) {
+          if (server.privateChats?.some((pc) => pc.id === privateChatId)) {
+            serverId = server.id;
+            break;
+          }
+        }
+      }
+
+      // Mark private chat as read
+      if (serverId && privateChatId) {
+        const updatedServers = state.servers.map((server) => {
+          if (server.id === serverId) {
+            const updatedPrivateChats =
+              server.privateChats?.map((privateChat) => {
+                if (privateChat.id === privateChatId) {
+                  return {
+                    ...privateChat,
+                    unreadCount: 0,
+                    isMentioned: false,
+                  };
+                }
+                return privateChat;
+              }) || [];
+
+            return {
+              ...server,
+              privateChats: updatedPrivateChats,
+            };
+          }
+          return server;
+        });
+
+        return {
+          servers: updatedServers,
+          ui: {
+            ...state.ui,
+            selectedServerId: serverId,
+            selectedChannelId: null, // Clear channel selection
+            selectedPrivateChatId: privateChatId,
+            isMobileMenuOpen: false,
+            mobileViewActiveColumn: "chatView",
+          },
+        };
+      }
+
+      return {
+        ui: {
+          ...state.ui,
+          selectedChannelId: null, // Clear channel selection
+          selectedPrivateChatId: privateChatId,
+          isMobileMenuOpen: false,
+          mobileViewActiveColumn: "chatView",
+        },
+      };
+    });
+  },
+
+  openPrivateChat: (serverId, username) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      // Don't allow opening private chats with ourselves
+      if (state.currentUser?.username === username) {
+        return {};
+      }
+
+      // Check if private chat already exists
+      const existingChat = server.privateChats?.find(
+        (pc) => pc.username === username,
+      );
+      if (existingChat) {
+        // Select existing private chat
+        return {
+          ui: {
+            ...state.ui,
+            selectedServerId: serverId,
+            selectedChannelId: null,
+            selectedPrivateChatId: existingChat.id,
+            isMobileMenuOpen: false,
+            mobileViewActiveColumn: "chatView",
+          },
+        };
+      }
+
+      // Create new private chat
+      const newPrivateChat: PrivateChat = {
+        id: uuidv4(),
+        username,
+        serverId,
+        unreadCount: 0,
+        isMentioned: false,
+        lastActivity: new Date(),
+      };
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          return {
+            ...s,
+            privateChats: [...(s.privateChats || []), newPrivateChat],
+          };
+        }
+        return s;
+      });
+
+      return {
+        servers: updatedServers,
+        ui: {
+          ...state.ui,
+          selectedServerId: serverId,
+          selectedChannelId: null,
+          selectedPrivateChatId: newPrivateChat.id,
+          isMobileMenuOpen: false,
+          mobileViewActiveColumn: "chatView",
+        },
+      };
+    });
+  },
+
+  deletePrivateChat: (serverId, privateChatId) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          return {
+            ...s,
+            privateChats:
+              s.privateChats?.filter((pc) => pc.id !== privateChatId) || [],
+          };
+        }
+        return s;
+      });
+
+      // If the deleted private chat was selected, clear the selection
+      const newState: Partial<AppState> = {
+        servers: updatedServers,
+      };
+
+      if (state.ui.selectedPrivateChatId === privateChatId) {
+        newState.ui = {
+          ...state.ui,
+          selectedPrivateChatId: null,
+          selectedChannelId: null,
+        };
+      }
+
+      return newState;
     });
   },
 
@@ -723,6 +896,91 @@ ircClient.on("CHANMSG", (response) => {
             [key]: currentUsers.filter((u) => u.username !== response.sender),
           },
         };
+      });
+    }
+  }
+});
+
+// Handle private messages (USERMSG)
+ircClient.on("USERMSG", (response) => {
+  const { mtags, sender, message, timestamp } = response;
+
+  // Don't create private chats with ourselves when the server echoes back our own messages
+  const currentUser = useStore.getState().currentUser;
+  if (currentUser?.username === sender) {
+    return;
+  }
+
+  // Find the server
+  const server = useStore
+    .getState()
+    .servers.find((s) => s.id === response.serverId);
+
+  if (server) {
+    // Find or create private chat
+    let privateChat = server.privateChats?.find((pc) => pc.username === sender);
+
+    if (!privateChat) {
+      // Auto-create private chat when receiving a message
+      useStore.getState().openPrivateChat(server.id, sender);
+      // Get the newly created private chat
+      privateChat = useStore
+        .getState()
+        .servers.find((s) => s.id === server.id)
+        ?.privateChats?.find((pc) => pc.username === sender);
+    }
+
+    if (privateChat) {
+      const newMessage = {
+        id: uuidv4(),
+        content: message,
+        timestamp,
+        userId: sender,
+        channelId: privateChat.id, // Use private chat ID as channel ID
+        serverId: server.id,
+        type: "message" as const,
+        reacts: [],
+        replyMessage: null,
+        mentioned: [], // PMs don't have mentions in the traditional sense
+      };
+
+      useStore.getState().addMessage(newMessage);
+
+      // Remove any typing users from the state
+      useStore.setState((state) => {
+        const key = `${server.id}-${privateChat.id}`;
+        const currentUsers = state.typingUsers[key] || [];
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [key]: currentUsers.filter((u) => u.username !== sender),
+          },
+        };
+      });
+
+      // Update private chat's last activity and unread count
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((s) => {
+          if (s.id === server.id) {
+            const updatedPrivateChats =
+              s.privateChats?.map((pc) => {
+                if (pc.id === privateChat.id) {
+                  return {
+                    ...pc,
+                    lastActivity: new Date(),
+                    unreadCount:
+                      state.ui.selectedPrivateChatId === pc.id
+                        ? 0
+                        : pc.unreadCount + 1,
+                  };
+                }
+                return pc;
+              }) || [];
+            return { ...s, privateChats: updatedPrivateChats };
+          }
+          return s;
+        });
+        return { servers: updatedServers };
       });
     }
   }
@@ -1049,13 +1307,37 @@ ircClient.on("TAGMSG", (response) => {
 
     if (!server) return;
 
-    const channel = server.channels.find((c) => c.name === channelName);
-    if (!channel) return;
+    let key: string;
+    let user: User;
 
-    const user = channel.users.find((u) => u.username === response.sender);
-    if (!user) return;
+    const isChannel = channelName.startsWith("#");
+    if (isChannel) {
+      const channel = server.channels.find((c) => c.name === channelName);
+      if (!channel) return;
 
-    const key = `${server.id}-${channel.id}`;
+      const foundUser = channel.users.find(
+        (u) => u.username === response.sender,
+      );
+      if (!foundUser) return;
+      user = foundUser;
+
+      key = `${server.id}-${channel.id}`;
+    } else {
+      // Private chat
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.username === sender,
+      );
+      if (!privateChat) return;
+
+      // For private chats, create a user object
+      user = {
+        id: `${server.id}-${sender}`,
+        username: sender,
+        isOnline: true,
+      };
+
+      key = `${server.id}-${privateChat.id}`;
+    }
 
     useStore.setState((state) => {
       const currentUsers = state.typingUsers[key] || [];

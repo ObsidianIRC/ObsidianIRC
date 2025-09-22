@@ -25,6 +25,7 @@ import {
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
+import { v4 as uuidv4 } from "uuid";
 
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
@@ -37,6 +38,7 @@ import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+import UserContextMenu from "../ui/UserContextMenu";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -163,7 +165,13 @@ const MessageItem: React.FC<{
   showDate: boolean;
   showHeader: boolean;
   setReplyTo: (msg: MessageType) => void;
-}> = ({ message, showDate, showHeader, setReplyTo }) => {
+  onUsernameContextMenu: (
+    e: React.MouseEvent,
+    username: string,
+    serverId: string,
+    avatarElement?: Element | null,
+  ) => void;
+}> = ({ message, showDate, showHeader, setReplyTo, onUsernameContextMenu }) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
@@ -249,7 +257,19 @@ const MessageItem: React.FC<{
       )}
       <div className="flex">
         {showHeader && (
-          <div className="mr-4">
+          <div
+            className={`mr-4 ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
+            onClick={(e) => {
+              if (message.userId !== "system") {
+                onUsernameContextMenu(
+                  e,
+                  message.userId.split("-")[0],
+                  message.serverId,
+                  e.currentTarget,
+                );
+              }
+            }}
+          >
             <div
               className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white`}
             >
@@ -265,7 +285,23 @@ const MessageItem: React.FC<{
         <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
           {showHeader && (
             <div className="flex items-center">
-              <span className="font-bold text-white">
+              <span
+                className={`font-bold text-white ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
+                onClick={(e) => {
+                  if (message.userId !== "system") {
+                    // Find the avatar element to position menu over it
+                    const messageElement = e.currentTarget.closest(".flex");
+                    const avatarElement =
+                      messageElement?.querySelector(".mr-4");
+                    onUsernameContextMenu(
+                      e,
+                      message.userId.split("-")[0],
+                      message.serverId,
+                      avatarElement,
+                    );
+                  }
+                }}
+              >
                 {message.userId === "system"
                   ? "System"
                   : message.userId.split("-")[0]}
@@ -281,7 +317,26 @@ const MessageItem: React.FC<{
                 className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
               >
                 ┌ Replying to{" "}
-                <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
+                <strong>
+                  <span
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      // Find the avatar element to position menu over it
+                      const messageElement = e.currentTarget.closest(".flex");
+                      const avatarElement =
+                        messageElement?.querySelector(".mr-4");
+                      onUsernameContextMenu(
+                        e,
+                        message.replyMessage?.userId.split("-")[0] || "",
+                        message.serverId,
+                        avatarElement,
+                      );
+                    }}
+                  >
+                    {message.replyMessage?.userId.split("-")[0] || ""}
+                  </span>
+                  :
+                </strong>{" "}
                 <EnhancedLinkWrapper>
                   {mircToHtml(message.replyMessage.content)}
                 </EnhancedLinkWrapper>
@@ -324,14 +379,33 @@ export const ChatArea: React.FC<{
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [userContextMenu, setUserContextMenu] = useState<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    username: string;
+    serverId: string;
+  }>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    username: "",
+    serverId: "",
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useStore();
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId, isMemberListVisible },
+    ui: {
+      selectedServerId,
+      selectedChannelId,
+      selectedPrivateChatId,
+      isMemberListVisible,
+    },
     toggleMemberList,
+    openPrivateChat,
     messages,
   } = useStore();
 
@@ -383,16 +457,19 @@ export const ChatArea: React.FC<{
     }
   }, [selectedFormatting, isFormattingInitialized]);
 
-  // Get selected server and channel
+  // Get selected server and channel/private chat
   const selectedServer = servers.find((s) => s.id === selectedServerId);
   const selectedChannel = selectedServer?.channels.find(
     (c) => c.id === selectedChannelId,
   );
+  const selectedPrivateChat = selectedServer?.privateChats?.find(
+    (pc) => pc.id === selectedPrivateChatId,
+  );
 
-  // Get messages for current channel
+  // Get messages for current channel or private chat
   const channelKey =
-    selectedServerId && selectedChannelId
-      ? `${selectedServerId}-${selectedChannelId}`
+    selectedServerId && (selectedChannelId || selectedPrivateChatId)
+      ? `${selectedServerId}-${selectedChannelId || selectedPrivateChatId}`
       : "";
   const channelMessages = channelKey ? messages[channelKey] || [] : [];
 
@@ -446,7 +523,7 @@ export const ChatArea: React.FC<{
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
     scrollDown();
-    if (selectedServerId && selectedChannelId) {
+    if (selectedServerId && (selectedChannelId || selectedPrivateChatId)) {
       if (messageText.startsWith("/")) {
         // Handle command
         const command = messageText.substring(1).trim();
@@ -510,16 +587,51 @@ export const ChatArea: React.FC<{
         // Prepend the color code
         formattedText = `${colorCode}${formattedText}`;
 
+        // Determine target: channel name or username for private messages
+        const target =
+          selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+
         ircClient.sendRaw(
           selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${selectedChannel?.name ?? ""} :${formattedText}`,
+          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${formattedText}`,
         );
+
+        // For private messages, manually add our own message to the chat
+        // since the server doesn't echo private messages back to us
+        if (selectedPrivateChat && currentUser) {
+          const outgoingMessage = {
+            id: uuidv4(),
+            content: messageText,
+            timestamp: new Date(),
+            userId: currentUser.username || currentUser.id,
+            channelId: selectedPrivateChat.id,
+            serverId: selectedServerId,
+            type: "message" as const,
+            reacts: [],
+            replyMessage: localReplyTo,
+            mentioned: [],
+          };
+
+          // Add the message to the store
+          const { addMessage } = useStore.getState();
+          addMessage(outgoingMessage);
+        }
       }
       setMessageText("");
       setLocalReplyTo(null);
       setShowAutocomplete(false);
       if (tabCompletion.isActive) {
         tabCompletion.resetCompletion();
+      }
+
+      // Send typing done notification
+      if (selectedChannel?.name || selectedPrivateChat?.username) {
+        const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+        ircClient.sendTyping(
+          selectedServerId as string,
+          target as string,
+          false,
+        );
       }
     }
   };
@@ -546,10 +658,20 @@ export const ChatArea: React.FC<{
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
-      ircClient.sendRaw(
-        selectedServerId ?? "",
-        `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
-      );
+      // Send typing done notification
+      if (selectedChannel?.name) {
+        ircClient.sendTyping(
+          selectedServerId ?? "",
+          selectedChannel.name,
+          false,
+        );
+      } else if (selectedPrivateChat?.username) {
+        ircClient.sendTyping(
+          selectedServerId ?? "",
+          selectedPrivateChat.username,
+          false,
+        );
+      }
       lastTypingTime = 0;
       return;
     }
@@ -562,9 +684,21 @@ export const ChatArea: React.FC<{
   };
 
   const handleTabCompletion = () => {
-    if (!selectedChannel || !inputRef.current) return;
+    if ((!selectedChannel && !selectedPrivateChat) || !inputRef.current) return;
 
-    const users = selectedChannel.users || [];
+    // For channels, use channel users; for private chats, use both participants
+    const users =
+      selectedChannel?.users ||
+      (selectedPrivateChat
+        ? [
+            ...(currentUser ? [currentUser] : []),
+            {
+              id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+              username: selectedPrivateChat.username,
+              isOnline: true,
+            },
+          ]
+        : []);
     const result = tabCompletion.handleTabCompletion(
       messageText,
       cursorPosition,
@@ -735,23 +869,84 @@ export const ChatArea: React.FC<{
         .getState()
         .servers.find((s) => s.id === selectedServerId);
       if (!server) return;
+
+      // Handle both channels and private chats
       const channel = server.channels.find((c) => c.id === selectedChannelId);
-      if (!channel) return;
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === selectedPrivateChatId,
+      );
+      const target = channel?.name ?? privateChat?.username;
+
+      if (!target) return;
 
       const currentTime = Date.now();
       if (currentTime - lastTypingTime < 5000) return;
 
       lastTypingTime = currentTime;
-      ircClient.sendRaw(
-        selectedServerId ?? "",
-        `@+typing=active TAGMSG ${channel.name}`,
-      );
+      // Send typing active notification
+      if (target) {
+        ircClient.sendTyping(selectedServerId ?? "", target, true);
+      }
     } else if (text.length === 0) {
-      ircClient.sendRaw(
-        selectedServerId ?? "",
-        `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
-      );
+      // Send typing done notification
+      if (selectedChannel?.name || selectedPrivateChat?.username) {
+        const target = selectedChannel?.name || selectedPrivateChat?.username;
+        ircClient.sendTyping(
+          selectedServerId as string,
+          target as string,
+          false,
+        );
+      }
       lastTypingTime = 0;
+    }
+  };
+
+  const handleUsernameClick = (
+    e: React.MouseEvent,
+    username: string,
+    serverId: string,
+    avatarElement?: Element | null,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Don't show context menu for own username
+    if (currentUser?.username === username) {
+      return;
+    }
+
+    let x = e.clientX;
+    let y = e.clientY;
+
+    // If avatar element is provided, position menu relative to it
+    if (avatarElement) {
+      const rect = avatarElement.getBoundingClientRect();
+      x = rect.left;
+      y = rect.top - 5; // Position above the avatar with small gap
+    }
+
+    setUserContextMenu({
+      isOpen: true,
+      x,
+      y,
+      username,
+      serverId,
+    });
+  };
+
+  const handleCloseUserContextMenu = () => {
+    setUserContextMenu({
+      isOpen: false,
+      x: 0,
+      y: 0,
+      username: "",
+      serverId: "",
+    });
+  };
+
+  const handleOpenPM = (username: string) => {
+    if (selectedServerId) {
+      openPrivateChat(selectedServerId, username);
     }
   };
 
@@ -805,6 +1000,14 @@ export const ChatArea: React.FC<{
               </h2>
             </>
           )}
+          {selectedPrivateChat && (
+            <>
+              <FaAt className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">
+                {selectedPrivateChat.username}
+              </h2>
+            </>
+          )}
           {selectedChannel?.topic && (
             <>
               <div className="mx-2 text-discord-text-muted">|</div>
@@ -825,22 +1028,25 @@ export const ChatArea: React.FC<{
             <button className="hover:text-discord-text-normal">
               <FaUserPlus />
             </button>
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => toggleMemberList(!isMemberListVisible)}
-              aria-label={
-                isMemberListVisible
-                  ? "Collapse member list"
-                  : "Expand member list"
-              }
-              data-testid="toggle-member-list"
-            >
-              {isMemberListVisible ? (
-                <UsersIcon className="w-4 h-4 text-white" />
-              ) : (
-                <UsersIcon className="w-4 h-4 text-gray" />
-              )}
-            </button>
+            {/* Only show member list toggle for channels, not private chats */}
+            {selectedChannel && (
+              <button
+                className="hover:text-discord-text-normal"
+                onClick={() => toggleMemberList(!isMemberListVisible)}
+                aria-label={
+                  isMemberListVisible
+                    ? "Collapse member list"
+                    : "Expand member list"
+                }
+                data-testid="toggle-member-list"
+              >
+                {isMemberListVisible ? (
+                  <UsersIcon className="w-4 h-4 text-white" />
+                ) : (
+                  <UsersIcon className="w-4 h-4 text-gray" />
+                )}
+              </button>
+            )}
             <div className="relative">
               <input
                 type="text"
@@ -854,12 +1060,12 @@ export const ChatArea: React.FC<{
       </div>
 
       {/* Messages area */}
-      {selectedServer && !selectedChannel && (
+      {selectedServer && !selectedChannel && !selectedPrivateChat && (
         <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
           <BlankPage /> {/* Render the blank page */}
         </div>
       )}
-      {selectedChannel && (
+      {(selectedChannel || selectedPrivateChat) && (
         <div
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
@@ -886,9 +1092,13 @@ export const ChatArea: React.FC<{
                 }
                 showHeader={showHeader}
                 setReplyTo={setLocalReplyTo}
+                onUsernameContextMenu={(e, username, serverId, avatarElement) =>
+                  handleUsernameClick(e, username, serverId, avatarElement)
+                }
               />
             );
           })}
+
           <div ref={messagesEndRef} />
         </div>
       )}
@@ -909,7 +1119,7 @@ export const ChatArea: React.FC<{
       )}
 
       {/* Input area */}
-      {selectedChannel && (
+      {(selectedChannel || selectedPrivateChat) && (
         <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
           <OptionsDropdown
             isOpen={isEmojiSelectorOpen}
@@ -917,7 +1127,7 @@ export const ChatArea: React.FC<{
           />
           <TypingIndicator
             serverId={selectedServerId ?? ""}
-            channelId={selectedChannelId ?? ""}
+            channelId={selectedChannelId || selectedPrivateChatId || ""}
           />
           <div className="bg-discord-dark-100 rounded-lg flex items-center">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
@@ -944,7 +1154,13 @@ export const ChatArea: React.FC<{
               onClick={handleInputClick}
               onKeyUp={handleInputKeyUp}
               onKeyDown={handleKeyDown}
-              placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
+              placeholder={
+                selectedChannel
+                  ? `Message #${selectedChannel.name.replace(/^#/, "")}`
+                  : selectedPrivateChat
+                    ? `Message @${selectedPrivateChat.username}`
+                    : "Type a message..."
+              }
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
               style={{
                 color: selectedColor || "inherit",
@@ -1007,7 +1223,19 @@ export const ChatArea: React.FC<{
           )}
 
           <AutocompleteDropdown
-            users={selectedChannel?.users || []}
+            users={
+              selectedChannel?.users ||
+              (selectedPrivateChat
+                ? [
+                    ...(currentUser ? [currentUser] : []),
+                    {
+                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                      username: selectedPrivateChat.username,
+                      isOnline: true,
+                    },
+                  ]
+                : [])
+            }
             isVisible={showAutocomplete}
             inputValue={messageText}
             cursorPosition={cursorPosition}
@@ -1020,6 +1248,16 @@ export const ChatArea: React.FC<{
           />
         </div>
       )}
+
+      <UserContextMenu
+        isOpen={userContextMenu.isOpen}
+        x={userContextMenu.x}
+        y={userContextMenu.y}
+        username={userContextMenu.username}
+        serverId={userContextMenu.serverId}
+        onClose={handleCloseUserContextMenu}
+        onOpenPM={handleOpenPM}
+      />
     </div>
   );
 };

@@ -105,10 +105,9 @@ export class IRCClient {
           host,
           port,
           channels: [],
+          privateChats: [],
           isConnected: true,
           users: [],
-          privateMessages: [],
-          icon: "",
         };
 
         this.servers.set(server.id, server);
@@ -203,6 +202,11 @@ export class IRCClient {
     const channel = server.channels.find((c) => c.id === channelId);
     if (!channel) throw new Error(`Channel ${channelId} not found`);
     this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
+  }
+
+  sendTyping(serverId: string, target: string, isActive: boolean): void {
+    const typingState = isActive ? "active" : "done";
+    this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
   }
 
   markChannelAsRead(serverId: string, channelId: string): void {
@@ -357,18 +361,15 @@ export class IRCClient {
           });
         }
       } else if (command === "TAGMSG") {
-        const isChannel = parv[0].startsWith("#");
+        const target = parv[0];
         const sender = getNickFromNuh(source);
-        if (isChannel) {
-          const channelName = parv[0];
-          this.triggerEvent("TAGMSG", {
-            serverId,
-            mtags,
-            sender,
-            channelName,
-            timestamp: new Date(),
-          });
-        }
+        this.triggerEvent("TAGMSG", {
+          serverId,
+          mtags,
+          sender,
+          channelName: target,
+          timestamp: new Date(),
+        });
       } else if (command === "353") {
         const channelName = parv[2];
         const names = parv.slice(3).join(" ").trim().substring(1);
@@ -523,6 +524,22 @@ export class IRCClient {
 
   getCurrentUser(): User | null {
     return this.currentUser;
+  }
+
+  getAllUsers(serverId: string): User[] {
+    const server = this.servers.get(serverId);
+    if (!server) return [];
+
+    const allUsers = new Map<string, User>();
+
+    // Collect users from all joined channels
+    for (const channel of server.channels) {
+      for (const user of channel.users) {
+        allUsers.set(user.username, user);
+      }
+    }
+
+    return Array.from(allUsers.values());
   }
 }
 

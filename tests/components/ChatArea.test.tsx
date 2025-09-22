@@ -9,6 +9,7 @@ import type { Channel, Server, User } from "../../src/types";
 vi.mock("../../src/lib/ircClient", () => ({
   default: {
     sendRaw: vi.fn(),
+    sendTyping: vi.fn(),
     on: vi.fn(),
     version: "1.0.0",
   },
@@ -48,6 +49,7 @@ const mockServer: Server = {
   host: "irc.test.com",
   port: 6667,
   channels: [mockChannel],
+  privateChats: [],
   isConnected: true,
   users: mockUsers,
 };
@@ -60,6 +62,7 @@ describe("ChatArea Tab Completion Integration", () => {
       ui: {
         selectedServerId: "server1",
         selectedChannelId: "channel1",
+        selectedPrivateChatId: null,
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,
@@ -262,15 +265,19 @@ describe("ChatArea Tab Completion Integration", () => {
 
     expect(input).toHaveValue("admin: ");
 
-    const initialCursorPosition = input.selectionStart;
+    const initialCursorPosition = (input as HTMLInputElement).selectionStart;
 
     fireEvent.keyDown(input, { key: "ArrowDown", code: "ArrowDown" });
 
-    expect(input.selectionStart).toBe(initialCursorPosition);
+    expect((input as HTMLInputElement).selectionStart).toBe(
+      initialCursorPosition,
+    );
 
-    fireEvent.keyDown(input, { key: "ArrowUp", code: "ArrowUp" });
+    fireEvent.keyDown(input, { key: "Up", code: "ArrowUp" });
 
-    expect(input.selectionStart).toBe(initialCursorPosition);
+    expect((input as HTMLInputElement).selectionStart).toBe(
+      initialCursorPosition,
+    );
   });
 
   it("should handle Enter key properly during tab completion", async () => {

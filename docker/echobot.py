@@ -1,7 +1,7 @@
 import os
+import re
 import socket
 import time
-import re
 
 
 def main():
@@ -38,18 +38,23 @@ def main():
                 sender = prefix.split("!")[0][1:]
                 message = " ".join(msg_parts)[1:]
 
-                # Only respond to messages sent by other users to the joined channel
-                if sender != NICK and target == CHANNEL:
+                if sender != NICK:
                     # Check if bot is mentioned using word boundary or at start with colon
-                    nick_mentioned = (
-                        re.search(rf'\b{re.escape(NICK)}\b', message, re.IGNORECASE) or
-                        re.match(rf'^{re.escape(NICK)}:\s+', message, re.IGNORECASE)
+                    nick_mentioned = re.search(rf"\b{re.escape(NICK)}\b", message, re.IGNORECASE) or re.match(
+                        rf"^{re.escape(NICK)}:\s+", message, re.IGNORECASE
                     )
+                    print(f"Message from {sender} in {target}: {message}")
 
-                    if nick_mentioned:
-                        send(f"@+typing=active TAGMSG {CHANNEL}")
+                    if target == NICK:
+                        # Private message
+                        send(f"@+typing=active TAGMSG {sender}")
+                        time.sleep(2)
+                        send(f"PRIVMSG {sender} :You said: {message}")
+
+                    elif nick_mentioned:
+                        send(f"@+typing=active TAGMSG {target}")
                         time.sleep(2)  # Simulate typing delay
-                        send(f"PRIVMSG {CHANNEL} :{sender}: I heard you mention me! You said: {message}")
+                        send(f"PRIVMSG {target} :{sender}: I heard you mention me! You said: {message}")
 
 
 if __name__ == "__main__":

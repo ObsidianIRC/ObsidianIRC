@@ -14,7 +14,7 @@ export interface Server {
   host: string;
   port: number;
   channels: Channel[];
-  privateMessages?: User[];
+  privateChats: PrivateChat[];
   icon?: string;
   isConnected: boolean;
   users: User[];
@@ -43,6 +43,15 @@ export interface Channel {
   messages: Message[];
   users: User[];
   isRead?: boolean;
+}
+
+export interface PrivateChat {
+  id: string;
+  username: string;
+  serverId: string;
+  unreadCount: number;
+  isMentioned: boolean;
+  lastActivity?: Date;
 }
 
 export interface Message {
