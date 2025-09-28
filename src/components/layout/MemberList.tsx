@@ -60,10 +60,10 @@ const UserItem: React.FC<{
 }> = ({ user, serverId, currentUser, onContextMenu }) => {
   return (
     <div
-      className={`flex items-center py-2 px-3 mx-2 rounded ${
+      className={`flex items-center py-2 px-3 mx-2 rounded cursor-pointer ${
         currentUser?.username !== user.username
-          ? "hover:bg-discord-dark-400 cursor-pointer"
-          : "opacity-60"
+          ? "hover:bg-discord-dark-400"
+          : "opacity-60 hover:bg-discord-dark-400"
       }`}
       onClick={(e) => {
         const avatarElement = e.currentTarget.querySelector(".w-10.h-10");
@@ -143,9 +143,9 @@ export const MemberList: React.FC = () => {
     e.stopPropagation();
 
     // Don't show context menu for own username
-    if (currentUser?.username === username) {
-      return;
-    }
+    // if (currentUser?.username === username) {
+    //   return;
+    // }
 
     let x = e.clientX;
     let y = e.clientY;
@@ -215,6 +215,7 @@ export const MemberList: React.FC = () => {
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
         currentUserStatus={currentUserStatus}
+        currentUsername={currentUser?.username}
         onKickUser={(username, reason) => {
           if (selectedServerId && selectedChannel?.name) {
             kickUser(selectedServerId, selectedChannel.name, username, reason);

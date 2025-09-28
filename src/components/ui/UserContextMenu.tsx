@@ -10,6 +10,7 @@ interface UserContextMenuProps {
   onClose: () => void;
   onOpenPM: (username: string) => void;
   currentUserStatus?: string;
+  currentUsername?: string;
   onKickUser?: (username: string, reason: string) => void;
   onBanUser?: (username: string, reason: string) => void;
 }
@@ -23,6 +24,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onClose,
   onOpenPM,
   currentUserStatus,
+  currentUsername,
   onKickUser,
   onBanUser,
 }) => {
@@ -101,6 +103,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   };
 
   const canModerate = getStatusPriority(currentUserStatus) >= 3; // halfop or higher
+  const isOwnUser = username === currentUsername;
 
   if (!isOpen) return null;
 
@@ -140,7 +143,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
           </svg>
           Send Message
         </button>
-        {canModerate && (
+        {canModerate && !isOwnUser && (
           <>
             <button
               onClick={handleKickUser}
