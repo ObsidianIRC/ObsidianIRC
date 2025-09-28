@@ -1414,9 +1414,9 @@ ircClient.on("TAGMSG", (response) => {
   }
 
   // Handle reactions
-  if (mtags?.["+draft/react"] && mtags.reply) {
+  if (mtags?.["+draft/react"] && mtags["+draft/reply"]) {
     const emoji = mtags["+draft/react"];
-    const replyMessageId = mtags.reply;
+    const replyMessageId = mtags["+draft/reply"];
 
     const server = useStore
       .getState()
@@ -1436,7 +1436,7 @@ ircClient.on("TAGMSG", (response) => {
 
     // Find the message to add reaction to
     const messages = getChannelMessages(server.id, channel.id);
-    const messageIndex = messages.findIndex((m) => m.id === replyMessageId);
+    const messageIndex = messages.findIndex((m) => m.msgid === replyMessageId);
     if (messageIndex === -1) return;
 
     const message = messages[messageIndex];
