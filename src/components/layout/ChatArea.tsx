@@ -182,7 +182,14 @@ const MessageItem: React.FC<{
     avatarElement?: Element | null,
   ) => void;
   onIrcLinkClick?: (url: string) => void;
-}> = ({ message, showDate, showHeader, setReplyTo, onUsernameContextMenu, onIrcLinkClick }) => {
+}> = ({
+  message,
+  showDate,
+  showHeader,
+  setReplyTo,
+  onUsernameContextMenu,
+  onIrcLinkClick,
+}) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
@@ -210,7 +217,9 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>{htmlContent}</EnhancedLinkWrapper>
+          <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+            {htmlContent}
+          </EnhancedLinkWrapper>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -353,7 +362,9 @@ const MessageItem: React.FC<{
                 </EnhancedLinkWrapper>
               </div>
             )}
-            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>{htmlContent}</EnhancedLinkWrapper>
+            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+              {htmlContent}
+            </EnhancedLinkWrapper>
           </div>
         </div>
       </div>
@@ -429,21 +440,30 @@ export const ChatArea: React.FC<{
     // Parse ircs://host:port/channel1,channel2
     const urlObj = new URL(url);
     const host = urlObj.hostname;
-    const port = urlObj.port ? Number.parseInt(urlObj.port, 10) : (url.startsWith('ircs://') ? 6697 : 6667);
-    const channels = urlObj.pathname.slice(1).split(','); // remove leading / and split by ,
+    const port = urlObj.port
+      ? Number.parseInt(urlObj.port, 10)
+      : url.startsWith("ircs://")
+        ? 6697
+        : 6667;
+    const channels = urlObj.pathname.slice(1).split(","); // remove leading / and split by ,
 
     try {
       // Connect to the server
-      const server = await connect(host, port, currentUser?.username || 'user', false);
+      const server = await connect(
+        host,
+        port,
+        currentUser?.username || "user",
+        false,
+      );
 
       // Join channels
-      channels.forEach(channel => {
-        if (channel?.startsWith('#')) {
+      channels.forEach((channel) => {
+        if (channel?.startsWith("#")) {
           joinChannel(server.id, channel);
         }
       });
     } catch (error) {
-      console.error('Failed to connect to IRC server:', error);
+      console.error("Failed to connect to IRC server:", error);
     }
   };
 
