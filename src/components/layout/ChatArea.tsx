@@ -431,29 +431,52 @@ export const ChatArea: React.FC<{
     messages,
     connect,
     joinChannel,
-    toggleAddServerModal,
   } = useStore();
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
-  const handleIrcLinkClick = (url: string) => {
-    // Parse ircs://host:port/channel1,channel2
-    const urlObj = new URL(url);
+  const handleIrcLinkClick = async (rawUrl: string) => {
+    // Tolerate trailing punctuation in chat text
+    const sanitized = rawUrl.trim().replace(/[),.;:]+$/, "");
+    const urlObj = new URL(sanitized);
     const host = urlObj.hostname;
+    const scheme = urlObj.protocol.replace(":", "");
     const port = urlObj.port
       ? Number.parseInt(urlObj.port, 10)
-      : url.startsWith("ircs://")
+      : scheme === "ircs"
         ? 6697
         : 6667;
 
-    // Open the connect modal with pre-filled server details
-    toggleAddServerModal(true, {
-      name: host,
-      host: host,
-      port: port.toString(),
-      nickname: currentUser?.username || "user",
-    });
+    // Channels may be in pathname (/chan1,chan2) or in hash (#chan1,chan2)
+    const rawChannelStr =
+      urlObj.pathname.length > 1
+        ? urlObj.pathname.slice(1)
+        : urlObj.hash.startsWith("#")
+          ? urlObj.hash.slice(1)
+          : "";
+    const channels = rawChannelStr
+      .split(",")
+      .filter(Boolean)
+      .map((c) => decodeURIComponent(c))
+      .map((c) =>
+        c.startsWith("#") || c.startsWith("&") || c.startsWith("+") || c.startsWith("!")
+          ? c
+          : `#${c}`,
+      );
+
+    const nick = urlObj.searchParams.get("nick") || currentUser?.username || "user";
+    const password = urlObj.searchParams.get("password") || undefined;
+
+    try {
+      const existing = servers.find((s) => s.host === host && s.port === port);
+      const server = existing ?? (await connect(host, port, nick, false, password, "", ""));
+      channels.forEach((channel) => {
+        void joinChannel(server.id, channel);
+      });
+    } catch (error) {
+      console.error("Failed to connect to IRC server:", error);
+    }
   };
 
   // Load saved settings from local storage on mount
