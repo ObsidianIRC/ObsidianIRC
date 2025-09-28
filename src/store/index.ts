@@ -88,8 +88,18 @@ export interface AppState {
   joinChannel: (serverId: string, channelName: string) => void;
   leaveChannel: (serverId: string, channelName: string) => void;
   sendMessage: (serverId: string, channelId: string, content: string) => void;
-  kickUser: (serverId: string, channelName: string, username: string, reason: string) => void;
-  banUser: (serverId: string, channelName: string, username: string, reason: string) => void;
+  kickUser: (
+    serverId: string,
+    channelName: string,
+    username: string,
+    reason: string,
+  ) => void;
+  banUser: (
+    serverId: string,
+    channelName: string,
+    username: string,
+    reason: string,
+  ) => void;
   addMessage: (message: Message) => void;
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
