@@ -460,17 +460,22 @@ export const ChatArea: React.FC<{
       .filter(Boolean)
       .map((c) => decodeURIComponent(c))
       .map((c) =>
-        c.startsWith("#") || c.startsWith("&") || c.startsWith("+") || c.startsWith("!")
+        c.startsWith("#") ||
+        c.startsWith("&") ||
+        c.startsWith("+") ||
+        c.startsWith("!")
           ? c
           : `#${c}`,
       );
 
-    const nick = urlObj.searchParams.get("nick") || currentUser?.username || "user";
+    const nick =
+      urlObj.searchParams.get("nick") || currentUser?.username || "user";
     const password = urlObj.searchParams.get("password") || undefined;
 
     try {
       const existing = servers.find((s) => s.host === host && s.port === port);
-      const server = existing ?? (await connect(host, port, nick, false, password, "", ""));
+      const server =
+        existing ?? (await connect(host, port, nick, false, password, "", ""));
       channels.forEach((channel) => {
         void joinChannel(server.id, channel);
       });
