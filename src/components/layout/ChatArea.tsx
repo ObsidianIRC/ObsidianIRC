@@ -373,14 +373,17 @@ const MessageItem: React.FC<{
           {message.reactions && message.reactions.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {Object.entries(
-                message.reactions.reduce((acc, reaction) => {
-                  if (!acc[reaction.emoji]) {
-                    acc[reaction.emoji] = { count: 0, users: [] };
-                  }
-                  acc[reaction.emoji].count++;
-                  acc[reaction.emoji].users.push(reaction.userId);
-                  return acc;
-                }, {} as Record<string, { count: number; users: string[] }>)
+                message.reactions.reduce(
+                  (acc, reaction) => {
+                    if (!acc[reaction.emoji]) {
+                      acc[reaction.emoji] = { count: 0, users: [] };
+                    }
+                    acc[reaction.emoji].count++;
+                    acc[reaction.emoji].users.push(reaction.userId);
+                    return acc;
+                  },
+                  {} as Record<string, { count: number; users: string[] }>,
+                ),
               ).map(([emoji, data]) => (
                 <button
                   key={emoji}
@@ -1080,8 +1083,12 @@ export const ChatArea: React.FC<{
 
   const handleReactionSelect = (emoji: string) => {
     if (reactionModal.message) {
-      const server = servers.find(s => s.id === reactionModal.message?.serverId);
-      const channel = server?.channels.find(c => c.id === reactionModal.message?.channelId);
+      const server = servers.find(
+        (s) => s.id === reactionModal.message?.serverId,
+      );
+      const channel = server?.channels.find(
+        (c) => c.id === reactionModal.message?.channelId,
+      );
       if (server && channel) {
         const tagMsg = `@+draft/react=${emoji};reply=${reactionModal.message?.id} TAGMSG ${channel.name}`;
         ircClient.sendRaw(server.id, tagMsg);

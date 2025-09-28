@@ -1416,7 +1416,9 @@ ircClient.on("TAGMSG", (response) => {
     const emoji = mtags["+draft/react"];
     const replyMessageId = mtags.reply;
 
-    const server = useStore.getState().servers.find((s) => s.id === response.serverId);
+    const server = useStore
+      .getState()
+      .servers.find((s) => s.id === response.serverId);
     if (!server) return;
 
     let channel: Channel | PrivateChat | undefined;
@@ -1437,7 +1439,7 @@ ircClient.on("TAGMSG", (response) => {
 
     const message = messages[messageIndex];
     const existingReactionIndex = message.reactions.findIndex(
-      (r) => r.emoji === emoji && r.userId === `${server.id}-${sender}`
+      (r) => r.emoji === emoji && r.userId === `${server.id}-${sender}`,
     );
 
     useStore.setState((state) => {
@@ -1446,13 +1448,18 @@ ircClient.on("TAGMSG", (response) => {
         // Add new reaction
         updatedMessages[messageIndex] = {
           ...message,
-          reactions: [...message.reactions, { emoji, userId: `${server.id}-${sender}` }]
+          reactions: [
+            ...message.reactions,
+            { emoji, userId: `${server.id}-${sender}` },
+          ],
         };
       } else {
         // Remove existing reaction (toggle behavior)
         updatedMessages[messageIndex] = {
           ...message,
-          reactions: message.reactions.filter((_, i) => i !== existingReactionIndex)
+          reactions: message.reactions.filter(
+            (_, i) => i !== existingReactionIndex,
+          ),
         };
       }
 
