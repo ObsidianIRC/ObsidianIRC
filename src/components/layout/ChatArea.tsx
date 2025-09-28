@@ -406,12 +406,14 @@ const MessageItem: React.FC<{
         >
           <FaReply />
         </button>
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={(e) => onReactClick(message, e.currentTarget)}
-        >
-          <FaGrinAlt />
-        </button>
+        {message.msgid && (
+          <button
+            className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+            onClick={(e) => onReactClick(message, e.currentTarget)}
+          >
+            <FaGrinAlt />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1085,7 +1087,7 @@ export const ChatArea: React.FC<{
         (c) => c.id === reactionModal.message?.channelId,
       );
       if (server && channel) {
-        const tagMsg = `@+draft/react=${emoji};reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+        const tagMsg = `@+draft/react=${emoji};+reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
         ircClient.sendRaw(server.id, tagMsg);
       }
     }
