@@ -20,6 +20,23 @@ const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   return <div className={`w-3 h-3 rounded-full ${bgColor}`} />;
 };
 
+const getStatusPriority = (status?: string): number => {
+  switch (status) {
+    case "~":
+      return 6; // owner
+    case "&":
+      return 5; // admin
+    case "@":
+      return 4; // chanop
+    case "%":
+      return 3; // halfop
+    case "+":
+      return 2; // voice
+    default:
+      return 1; // normal
+  }
+};
+
 const UserItem: React.FC<{
   user: User;
   serverId: string;
@@ -46,7 +63,7 @@ const UserItem: React.FC<{
       <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold">
         {user.username.charAt(0).toUpperCase()}
       </div>
-      <span className="ml-3">{user.username}</span>
+      <span className="ml-3">{user.status || ""}{user.username}</span>
     </div>
   );
 };
@@ -81,10 +98,17 @@ export const MemberList: React.FC = () => {
     (channel) => channel.id === selectedChannelId,
   );
 
-  // Sort users alphabetically by username
+  // Sort users by status priority (descending), then alphabetically by username
   const sortedUsers = selectedChannel?.users
     .slice()
-    .sort((a, b) => a.username.localeCompare(b.username));
+    .sort((a, b) => {
+      const priorityA = getStatusPriority(a.status);
+      const priorityB = getStatusPriority(b.status);
+      if (priorityA !== priorityB) {
+        return priorityB - priorityA; // Higher priority first
+      }
+      return a.username.localeCompare(b.username);
+    });
 
   const handleUsernameClick = (
     e: React.MouseEvent,

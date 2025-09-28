@@ -383,8 +383,18 @@ export class IRCClient {
           if (channel) {
             // Merge new users with existing users
             const existingUsers = channel.users || [];
-            const mergedUsers = [...existingUsers];
+            const mergedUsers = existingUsers.map((existingUser) => {
+              const newUser = newUsers.find(
+                (u) => u.username === existingUser.username,
+              );
+              if (newUser) {
+                // Update status if different
+                return { ...existingUser, status: newUser.status };
+              }
+              return existingUser;
+            });
 
+            // Add new users
             for (const newUser of newUsers) {
               if (
                 !existingUsers.some(

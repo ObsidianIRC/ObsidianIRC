@@ -1046,6 +1046,7 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
                     id: uuidv4(), // Again, give them a unique ID
                     username,
                     isOnline: true,
+                    status: "",
                   },
                 ],
               };
