@@ -1,6 +1,5 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
-import { v4 as uuidv4 } from "uuid";
 import type * as React from "react";
 import {
   Children,
@@ -26,13 +25,13 @@ import {
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
-
-import ircClient from "../../lib/ircClient";
-import { mircToHtml, ircColors } from "../../lib/ircUtils";
-import useStore from "../../store";
-import type { Message as MessageType, User } from "../../types";
+import { v4 as uuidv4 } from "uuid";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
+import ircClient from "../../lib/ircClient";
+import { ircColors, mircToHtml } from "../../lib/ircUtils";
+import useStore from "../../store";
+import type { Message as MessageType, User } from "../../types";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
@@ -93,10 +92,10 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
-const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode; onIrcLinkClick?: (url: string) => void }> = ({
-  children,
-  onIrcLinkClick,
-}) => {
+const EnhancedLinkWrapper: React.FC<{
+  children: React.ReactNode;
+  onIrcLinkClick?: (url: string) => void;
+}> = ({ children, onIrcLinkClick }) => {
   // Regular expression to detect HTTP and HTTPS links
   const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
   const parseContent = (content: string): React.ReactNode[] => {
