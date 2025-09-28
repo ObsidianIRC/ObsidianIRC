@@ -21,20 +21,30 @@ const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
 };
 
 const getStatusPriority = (status?: string): number => {
-  switch (status) {
-    case "~":
-      return 6; // owner
-    case "&":
-      return 5; // admin
-    case "@":
-      return 4; // chanop
-    case "%":
-      return 3; // halfop
-    case "+":
-      return 2; // voice
-    default:
-      return 1; // normal
+  if (!status) return 1;
+  let maxPriority = 1;
+  for (const char of status) {
+    let priority = 1;
+    switch (char) {
+      case "~":
+        priority = 6; // owner
+        break;
+      case "&":
+        priority = 5; // admin
+        break;
+      case "@":
+        priority = 4; // chanop
+        break;
+      case "%":
+        priority = 3; // halfop
+        break;
+      case "+":
+        priority = 2; // voice
+        break;
+    }
+    if (priority > maxPriority) maxPriority = priority;
   }
+  return maxPriority;
 };
 
 const UserItem: React.FC<{
@@ -63,7 +73,14 @@ const UserItem: React.FC<{
       <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold">
         {user.username.charAt(0).toUpperCase()}
       </div>
-      <span className="ml-3">{user.status || ""}{user.username}</span>
+      <span className="ml-3">
+        {user.status && (
+          <span className="inline-block bg-discord-dark-600 text-white px-1 rounded text-xs mr-1">
+            {user.status}
+          </span>
+        )}
+        {user.username}
+      </span>
     </div>
   );
 };
@@ -99,16 +116,14 @@ export const MemberList: React.FC = () => {
   );
 
   // Sort users by status priority (descending), then alphabetically by username
-  const sortedUsers = selectedChannel?.users
-    .slice()
-    .sort((a, b) => {
-      const priorityA = getStatusPriority(a.status);
-      const priorityB = getStatusPriority(b.status);
-      if (priorityA !== priorityB) {
-        return priorityB - priorityA; // Higher priority first
-      }
-      return a.username.localeCompare(b.username);
-    });
+  const sortedUsers = selectedChannel?.users.slice().sort((a, b) => {
+    const priorityA = getStatusPriority(a.status);
+    const priorityB = getStatusPriority(b.status);
+    if (priorityA !== priorityB) {
+      return priorityB - priorityA; // Higher priority first
+    }
+    return a.username.localeCompare(b.username);
+  });
 
   const handleUsernameClick = (
     e: React.MouseEvent,
