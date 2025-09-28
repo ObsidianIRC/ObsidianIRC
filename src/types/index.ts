@@ -54,15 +54,21 @@ export interface PrivateChat {
   lastActivity?: Date;
 }
 
+export interface Reaction {
+  emoji: string;
+  userId: string;
+}
+
 export interface Message {
   id?: string;
+  msgid?: string;
   content: string;
   timestamp: Date;
   userId: string;
   channelId: string;
   serverId: string;
   type: "message" | "system" | "error" | "join" | "leave" | "nick";
-  reacts: string[];
+  reactions: Reaction[];
   replyMessage: Message | null | undefined;
   mentioned: string[];
 }

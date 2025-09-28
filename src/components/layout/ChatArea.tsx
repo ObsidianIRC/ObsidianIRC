@@ -37,6 +37,7 @@ import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
 
 const EMPTY_ARRAY: User[] = [];
@@ -182,6 +183,13 @@ const MessageItem: React.FC<{
     avatarElement?: Element | null,
   ) => void;
   onIrcLinkClick?: (url: string) => void;
+  onReactClick: (message: MessageType, buttonElement: Element) => void;
+  selectedServerId: string | null;
+  onReactionUnreact: (emoji: string, message: MessageType) => void;
+  onOpenReactionModal: (
+    message: MessageType,
+    position: { x: number; y: number },
+  ) => void;
 }> = ({
   message,
   showDate,
@@ -189,6 +197,10 @@ const MessageItem: React.FC<{
   setReplyTo,
   onUsernameContextMenu,
   onIrcLinkClick,
+  onReactClick,
+  selectedServerId,
+  onReactionUnreact,
+  onOpenReactionModal,
 }) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
@@ -302,7 +314,7 @@ const MessageItem: React.FC<{
             <div className="w-8" />
           </div>
         )}
-        <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
+        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
           {showHeader && (
             <div className="flex items-center">
               <span
@@ -331,7 +343,7 @@ const MessageItem: React.FC<{
               </span>
             </div>
           )}
-          <div>
+          <div className="relative">
             {message.replyMessage && (
               <div
                 className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
@@ -366,22 +378,125 @@ const MessageItem: React.FC<{
               {htmlContent}
             </EnhancedLinkWrapper>
           </div>
+          {/* Reactions positioned below message content */}
+          {message.reactions && message.reactions.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {Object.entries(
+                message.reactions.reduce(
+                  (
+                    acc: Record<
+                      string,
+                      {
+                        count: number;
+                        users: string[];
+                        currentUserReacted: boolean;
+                      }
+                    >,
+                    reaction: { emoji: string; userId: string },
+                  ) => {
+                    if (!acc[reaction.emoji]) {
+                      acc[reaction.emoji] = {
+                        count: 0,
+                        users: [],
+                        currentUserReacted: false,
+                      };
+                    }
+                    acc[reaction.emoji].count++;
+                    acc[reaction.emoji].users.push(reaction.userId);
+                    // Check if current user reacted with this emoji
+                    if (reaction.userId === currentUser?.username) {
+                      acc[reaction.emoji].currentUserReacted = true;
+                    }
+                    return acc;
+                  },
+                  {} as Record<
+                    string,
+                    {
+                      count: number;
+                      users: string[];
+                      currentUserReacted: boolean;
+                    }
+                  >,
+                ),
+              ).map(([emoji, data]) => (
+                <div
+                  key={emoji}
+                  className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer group"
+                  title={`${emoji} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[]; currentUserReacted: boolean }).users.join(", ")}`}
+                  onClick={(e) => {
+                    // If current user has reacted, clicking removes the reaction
+                    if (
+                      (
+                        data as {
+                          count: number;
+                          users: string[];
+                          currentUserReacted: boolean;
+                        }
+                      ).currentUserReacted
+                    ) {
+                      onReactionUnreact(emoji, message);
+                    } else {
+                      // Otherwise, add the reaction
+                      onOpenReactionModal(message, {
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }
+                  }}
+                >
+                  <span>{emoji}</span>
+                  <span className="text-xs font-medium">
+                    {
+                      (
+                        data as {
+                          count: number;
+                          users: string[];
+                          currentUserReacted: boolean;
+                        }
+                      ).count
+                    }
+                  </span>
+                  {/* Show X button if current user reacted */}
+                  {(
+                    data as {
+                      count: number;
+                      users: string[];
+                      currentUserReacted: boolean;
+                    }
+                  ).currentUserReacted && (
+                    <button
+                      className="ml-1 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReactionUnreact(emoji, message);
+                      }}
+                      title="Remove reaction"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-      {/* Hover buttons */}
-      <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={() => setReplyTo(message)}
-        >
-          <FaReply />
-        </button>
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={() => console.log("React to", message.id)}
-        >
-          <FaGrinAlt />
-        </button>
+        {/* Hover buttons */}
+        <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
+          <button
+            className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+            onClick={() => setReplyTo(message)}
+          >
+            <FaReply />
+          </button>
+          {message.msgid && (
+            <button
+              className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+              onClick={(e) => onReactClick(message, e.currentTarget)}
+            >
+              <FaGrinAlt />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -413,6 +528,13 @@ export const ChatArea: React.FC<{
     y: 0,
     username: "",
     serverId: "",
+  });
+  const [reactionModal, setReactionModal] = useState<{
+    isOpen: boolean;
+    message: MessageType | null;
+  }>({
+    isOpen: false,
+    message: null,
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -682,7 +804,7 @@ export const ChatArea: React.FC<{
             channelId: selectedPrivateChat.id,
             serverId: selectedServerId,
             type: "message" as const,
-            reacts: [],
+            reactions: [],
             replyMessage: localReplyTo,
             mentioned: [],
           };
@@ -1025,6 +1147,69 @@ export const ChatArea: React.FC<{
     }
   };
 
+  const handleReactClick = (message: MessageType, buttonElement: Element) => {
+    setReactionModal({
+      isOpen: true,
+      message,
+    });
+  };
+
+  const handleCloseReactionModal = () => {
+    setReactionModal({
+      isOpen: false,
+      message: null,
+    });
+  };
+
+  const handleReactionSelect = (emoji: string) => {
+    if (reactionModal.message?.msgid) {
+      const server = servers.find(
+        (s) => s.id === reactionModal.message?.serverId,
+      );
+      const channel = server?.channels.find(
+        (c) => c.id === reactionModal.message?.channelId,
+      );
+      if (server && channel) {
+        // Check if user has already reacted with this emoji
+        const existingReaction = reactionModal.message.reactions.find(
+          (r) => r.emoji === emoji && r.userId === currentUser?.username,
+        );
+
+        if (existingReaction) {
+          // Send unreact message
+          const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+          ircClient.sendRaw(server.id, tagMsg);
+        } else {
+          // Send react message
+          const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+          ircClient.sendRaw(server.id, tagMsg);
+        }
+      }
+    }
+    handleCloseReactionModal();
+  };
+
+  const handleReactionUnreact = (emoji: string, message: MessageType) => {
+    if (message.msgid && selectedServerId) {
+      const server = servers.find((s) => s.id === selectedServerId);
+      const channel = server?.channels.find((c) => c.id === message.channelId);
+      if (server && channel) {
+        const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${message.msgid} TAGMSG ${channel.name}`;
+        ircClient.sendRaw(server.id, tagMsg);
+      }
+    }
+  };
+
+  const handleOpenReactionModal = (
+    message: MessageType,
+    position: { x: number; y: number },
+  ) => {
+    setReactionModal({
+      isOpen: true,
+      message,
+    });
+  };
+
   const handleEmojiSelect = (emoji: string) => {
     setMessageText((prev) => prev + emoji);
     setIsEmojiSelectorOpen(false);
@@ -1171,6 +1356,10 @@ export const ChatArea: React.FC<{
                   handleUsernameClick(e, username, serverId, avatarElement)
                 }
                 onIrcLinkClick={handleIrcLinkClick}
+                onReactClick={handleReactClick}
+                selectedServerId={selectedServerId}
+                onReactionUnreact={handleReactionUnreact}
+                onOpenReactionModal={handleOpenReactionModal}
               />
             );
           })}
@@ -1333,6 +1522,12 @@ export const ChatArea: React.FC<{
         serverId={userContextMenu.serverId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
+      />
+
+      <ReactionModal
+        isOpen={reactionModal.isOpen}
+        onClose={handleCloseReactionModal}
+        onSelectEmoji={handleReactionSelect}
       />
     </div>
   );
