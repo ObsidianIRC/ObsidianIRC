@@ -1,4 +1,5 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
+import { platform } from "@tauri-apps/plugin-os";
 import type * as React from "react";
 import {
   Children,
@@ -24,13 +25,13 @@ import {
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
-import ircClient from "../../lib/ircClient";
-import { mircToHtml, ircColors } from "../../lib/ircUtils";
 import { v4 as uuidv4 } from "uuid";
-import { platform } from "@tauri-apps/plugin-os";
-import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
+import ircClient from "../../lib/ircClient";
+import { ircColors, mircToHtml } from "../../lib/ircUtils";
+import useStore from "../../store";
+import type { Message as MessageType, User } from "../../types";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
@@ -38,9 +39,6 @@ import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
-
-import useStore from "../../store";
-import type { Message as MessageType, User } from "../../types"; // Adjust path if needed
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -392,16 +390,18 @@ const MessageItem: React.FC<{
                   <div
                     key={emoji}
                     className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                    title={`${emoji} ${(data as { count: number; users: string[] }).count} ${(data as { count: number; users: string[] }).count === 1 ? 'reaction' : 'reactions'} by ${(data as { count: number; users: string[] }).users.map(u => u.split('-')[1] || u).join(', ')}`}
+                    title={`${emoji} ${(data as { count: number; users: string[] }).count} ${(data as { count: number; users: string[] }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[] }).users.map((u) => u.split("-")[1] || u).join(", ")}`}
                   >
                     <span>{emoji}</span>
-                    <span className="text-xs font-medium">{(data as { count: number; users: string[] }).count}</span>
+                    <span className="text-xs font-medium">
+                      {(data as { count: number; users: string[] }).count}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
-      </div>
+        </div>
         <button
           className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
           onClick={() => setReplyTo(message)}
