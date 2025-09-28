@@ -902,7 +902,7 @@ ircClient.on("CHANMSG", (response) => {
         channelId: channel.id,
         serverId: server.id,
         type: "message" as const,
-        reacts: [],
+        reactions: [],
         replyMessage: replyMessage,
         mentioned: [], // Add logic for mentions if needed
       };
@@ -961,7 +961,7 @@ ircClient.on("USERMSG", (response) => {
         channelId: privateChat.id, // Use private chat ID as channel ID
         serverId: server.id,
         type: "message" as const,
-        reacts: [],
+        reactions: [],
         replyMessage: null,
         mentioned: [], // PMs don't have mentions in the traditional sense
       };
@@ -1406,6 +1406,61 @@ ircClient.on("TAGMSG", (response) => {
         typingUsers: {
           ...state.typingUsers,
           [key]: currentUsers.filter((u) => u.username !== user.username),
+        },
+      };
+    });
+  }
+
+  // Handle reactions
+  if (mtags?.["+draft/react"] && mtags.reply) {
+    const emoji = mtags["+draft/react"];
+    const replyMessageId = mtags.reply;
+
+    const server = useStore.getState().servers.find((s) => s.id === response.serverId);
+    if (!server) return;
+
+    let channel: Channel | PrivateChat | undefined;
+    const isChannel = channelName.startsWith("#");
+    if (isChannel) {
+      channel = server.channels.find((c) => c.name === channelName);
+    } else {
+      // Private chat
+      channel = server.privateChats?.find((pc) => pc.username === channelName);
+    }
+
+    if (!channel) return;
+
+    // Find the message to add reaction to
+    const messages = getChannelMessages(server.id, channel.id);
+    const messageIndex = messages.findIndex((m) => m.id === replyMessageId);
+    if (messageIndex === -1) return;
+
+    const message = messages[messageIndex];
+    const existingReactionIndex = message.reactions.findIndex(
+      (r) => r.emoji === emoji && r.userId === `${server.id}-${sender}`
+    );
+
+    useStore.setState((state) => {
+      const updatedMessages = [...messages];
+      if (existingReactionIndex === -1) {
+        // Add new reaction
+        updatedMessages[messageIndex] = {
+          ...message,
+          reactions: [...message.reactions, { emoji, userId: `${server.id}-${sender}` }]
+        };
+      } else {
+        // Remove existing reaction (toggle behavior)
+        updatedMessages[messageIndex] = {
+          ...message,
+          reactions: message.reactions.filter((_, i) => i !== existingReactionIndex)
+        };
+      }
+
+      const key = `${server.id}-${channel.id}`;
+      return {
+        messages: {
+          ...state.messages,
+          [key]: updatedMessages,
         },
       };
     });
