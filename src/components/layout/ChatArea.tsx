@@ -431,12 +431,13 @@ export const ChatArea: React.FC<{
     messages,
     connect,
     joinChannel,
+    toggleAddServerModal,
   } = useStore();
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
-  const handleIrcLinkClick = async (url: string) => {
+  const handleIrcLinkClick = (url: string) => {
     // Parse ircs://host:port/channel1,channel2
     const urlObj = new URL(url);
     const host = urlObj.hostname;
@@ -445,26 +446,14 @@ export const ChatArea: React.FC<{
       : url.startsWith("ircs://")
         ? 6697
         : 6667;
-    const channels = urlObj.pathname.slice(1).split(","); // remove leading / and split by ,
 
-    try {
-      // Connect to the server
-      const server = await connect(
-        host,
-        port,
-        currentUser?.username || "user",
-        false,
-      );
-
-      // Join channels
-      channels.forEach((channel) => {
-        if (channel?.startsWith("#")) {
-          joinChannel(server.id, channel);
-        }
-      });
-    } catch (error) {
-      console.error("Failed to connect to IRC server:", error);
-    }
+    // Open the connect modal with pre-filled server details
+    toggleAddServerModal(true, {
+      name: host,
+      host: host,
+      port: port.toString(),
+      nickname: currentUser?.username || "user",
+    });
   };
 
   // Load saved settings from local storage on mount
