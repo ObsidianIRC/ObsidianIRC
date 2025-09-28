@@ -544,7 +544,8 @@ export class IRCClient {
 }
 
 function getNickFromNuh(nuh: string) {
-  return nuh.substring(0, nuh.indexOf("!"));
+  const nick = nuh.split("!")[0];
+  return nick.startsWith(":") ? nick.substring(1) : nick;
 }
 
 export const ircClient = new IRCClient();
