@@ -445,8 +445,8 @@ export const ChatArea: React.FC<{
     const port = urlObj.port
       ? Number.parseInt(urlObj.port, 10)
       : scheme === "ircs"
-        ? 6697
-        : 6667;
+        ? 443
+        : 8000;
 
     // Channels may be in pathname (/chan1,chan2) or in hash (#chan1,chan2)
     const rawChannelStr =
