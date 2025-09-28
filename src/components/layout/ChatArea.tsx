@@ -431,12 +431,13 @@ export const ChatArea: React.FC<{
     messages,
     connect,
     joinChannel,
+    toggleAddServerModal,
   } = useStore();
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
-  const handleIrcLinkClick = async (rawUrl: string) => {
+  const handleIrcLinkClick = (rawUrl: string) => {
     // Tolerate trailing punctuation in chat text
     const sanitized = rawUrl.trim().replace(/[),.;:]+$/, "");
     const urlObj = new URL(sanitized);
@@ -445,8 +446,8 @@ export const ChatArea: React.FC<{
     const port = urlObj.port
       ? Number.parseInt(urlObj.port, 10)
       : scheme === "ircs"
-        ? 443
-        : 8000;
+        ? 6697
+        : 6667;
 
     // Channels may be in pathname (/chan1,chan2) or in hash (#chan1,chan2)
     const rawChannelStr =
@@ -472,16 +473,13 @@ export const ChatArea: React.FC<{
       urlObj.searchParams.get("nick") || currentUser?.username || "user";
     const password = urlObj.searchParams.get("password") || undefined;
 
-    try {
-      const existing = servers.find((s) => s.host === host && s.port === port);
-      const server =
-        existing ?? (await connect(host, port, nick, false, password, "", ""));
-      channels.forEach((channel) => {
-        void joinChannel(server.id, channel);
-      });
-    } catch (error) {
-      console.error("Failed to connect to IRC server:", error);
-    }
+    // Open the connect modal with pre-filled server details
+    toggleAddServerModal(true, {
+      name: host,
+      host: host,
+      port: port.toString(),
+      nickname: nick,
+    });
   };
 
   // Load saved settings from local storage on mount
