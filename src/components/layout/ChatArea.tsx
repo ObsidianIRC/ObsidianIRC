@@ -1,5 +1,4 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
-import { platform } from "@tauri-apps/plugin-os";
 import type * as React from "react";
 import {
   Children,
@@ -25,13 +24,13 @@ import {
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
+import ircClient from "../../lib/ircClient";
+import { mircToHtml, ircColors } from "../../lib/ircUtils";
 import { v4 as uuidv4 } from "uuid";
+import { platform } from "@tauri-apps/plugin-os";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
-import ircClient from "../../lib/ircClient";
-import { ircColors, mircToHtml } from "../../lib/ircUtils";
-import useStore from "../../store";
-import type { Message as MessageType, User } from "../../types";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
@@ -39,6 +38,9 @@ import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
+
+import useStore from "../../store";
+import type { Message as MessageType, User } from "../../types"; // Adjust path if needed
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -305,7 +307,7 @@ const MessageItem: React.FC<{
             <div className="w-8" />
           </div>
         )}
-        <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
+        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
           {showHeader && (
             <div className="flex items-center">
               <span
@@ -368,38 +370,38 @@ const MessageItem: React.FC<{
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
               {htmlContent}
             </EnhancedLinkWrapper>
+            {/* Reactions positioned at bottom left */}
+            {message.reactions && message.reactions.length > 0 && (
+              <div className="absolute bottom-0 left-0 flex flex-wrap gap-1">
+                {Object.entries(
+                  message.reactions.reduce(
+                    (
+                      acc: Record<string, { count: number; users: string[] }>,
+                      reaction: { emoji: string; userId: string },
+                    ) => {
+                      if (!acc[reaction.emoji]) {
+                        acc[reaction.emoji] = { count: 0, users: [] };
+                      }
+                      acc[reaction.emoji].count++;
+                      acc[reaction.emoji].users.push(reaction.userId);
+                      return acc;
+                    },
+                    {} as Record<string, { count: number; users: string[] }>,
+                  ),
+                ).map(([emoji, data]) => (
+                  <div
+                    key={emoji}
+                    className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                    title={`${emoji} ${(data as { count: number; users: string[] }).count} ${(data as { count: number; users: string[] }).count === 1 ? 'reaction' : 'reactions'} by ${(data as { count: number; users: string[] }).users.map(u => u.split('-')[1] || u).join(', ')}`}
+                  >
+                    <span>{emoji}</span>
+                    <span className="text-xs font-medium">{(data as { count: number; users: string[] }).count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {/* Reactions */}
-          {message.reactions && message.reactions.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {Object.entries(
-                message.reactions.reduce(
-                  (acc, reaction) => {
-                    if (!acc[reaction.emoji]) {
-                      acc[reaction.emoji] = { count: 0, users: [] };
-                    }
-                    acc[reaction.emoji].count++;
-                    acc[reaction.emoji].users.push(reaction.userId);
-                    return acc;
-                  },
-                  {} as Record<string, { count: number; users: string[] }>,
-                ),
-              ).map(([emoji, data]) => (
-                <button
-                  key={emoji}
-                  className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors"
-                  title={data.users.join(", ")}
-                >
-                  <span>{emoji}</span>
-                  <span className="text-xs">{data.count}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
-      {/* Hover buttons */}
-      <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
         <button
           className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
           onClick={() => setReplyTo(message)}
