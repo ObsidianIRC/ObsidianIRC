@@ -1087,7 +1087,7 @@ export const ChatArea: React.FC<{
         (c) => c.id === reactionModal.message?.channelId,
       );
       if (server && channel) {
-        const tagMsg = `@+draft/react=${emoji};+reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+        const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
         ircClient.sendRaw(server.id, tagMsg);
       }
     }
