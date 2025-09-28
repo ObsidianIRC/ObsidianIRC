@@ -92,6 +92,8 @@ export const MemberList: React.FC = () => {
     currentUser,
     toggleMemberList,
     openPrivateChat,
+    kickUser,
+    banUser,
   } = useStore();
 
   const [userContextMenu, setUserContextMenu] = useState<{
@@ -114,6 +116,12 @@ export const MemberList: React.FC = () => {
   const selectedChannel = selectedServer?.channels.find(
     (channel) => channel.id === selectedChannelId,
   );
+
+  // Get current user's status in the channel
+  const currentUserInChannel = selectedChannel?.users.find(
+    (user) => user.username === currentUser?.username,
+  );
+  const currentUserStatus = currentUserInChannel?.status;
 
   // Sort users by status priority (descending), then alphabetically by username
   const sortedUsers = selectedChannel?.users.slice().sort((a, b) => {
@@ -206,6 +214,17 @@ export const MemberList: React.FC = () => {
         serverId={userContextMenu.serverId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
+        currentUserStatus={currentUserStatus}
+        onKickUser={(username, reason) => {
+          if (selectedServerId && selectedChannel?.name) {
+            kickUser(selectedServerId, selectedChannel.name, username, reason);
+          }
+        }}
+        onBanUser={(username, reason) => {
+          if (selectedServerId && selectedChannel?.name) {
+            banUser(selectedServerId, selectedChannel.name, username, reason);
+          }
+        }}
       />
     </div>
   );

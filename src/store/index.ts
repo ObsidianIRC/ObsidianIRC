@@ -88,6 +88,8 @@ export interface AppState {
   joinChannel: (serverId: string, channelName: string) => void;
   leaveChannel: (serverId: string, channelName: string) => void;
   sendMessage: (serverId: string, channelId: string, content: string) => void;
+  kickUser: (serverId: string, channelName: string, username: string, reason: string) => void;
+  banUser: (serverId: string, channelName: string, username: string, reason: string) => void;
   addMessage: (message: Message) => void;
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
@@ -328,6 +330,16 @@ const useStore = create<AppState>((set, get) => ({
 
   sendMessage: (serverId, channelId, content) => {
     const message = ircClient.sendMessage(serverId, channelId, content);
+  },
+
+  kickUser: (serverId, channelName, username, reason) => {
+    ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
+  },
+
+  banUser: (serverId, channelName, username, reason) => {
+    // First ban, then kick
+    ircClient.sendRaw(serverId, `MODE ${channelName} +b ${username}!*@*`);
+    ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
   },
 
   addMessage: (message) => {
@@ -1058,6 +1070,29 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
         return { ...server, channels: updatedChannels };
       }
 
+      return server;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+// Handle user being kicked from a channel
+ircClient.on("KICK", ({ serverId, target, channelName }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          if (channel.name === channelName) {
+            return {
+              ...channel,
+              users: channel.users.filter((user) => user.username !== target),
+            };
+          }
+          return channel;
+        });
+        return { ...server, channels: updatedChannels };
+      }
       return server;
     });
 
