@@ -896,6 +896,7 @@ ircClient.on("CHANMSG", (response) => {
 
       const newMessage = {
         id: replyId ? replyId : uuidv4(),
+        msgid: mtags?.msgid,
         content: message,
         timestamp,
         userId: response.sender,
@@ -955,6 +956,7 @@ ircClient.on("USERMSG", (response) => {
     if (privateChat) {
       const newMessage = {
         id: uuidv4(),
+        msgid: mtags?.msgid,
         content: message,
         timestamp,
         userId: sender,

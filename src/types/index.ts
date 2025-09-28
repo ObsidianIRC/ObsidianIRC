@@ -61,6 +61,7 @@ export interface Reaction {
 
 export interface Message {
   id?: string;
+  msgid?: string;
   content: string;
   timestamp: Date;
   userId: string;

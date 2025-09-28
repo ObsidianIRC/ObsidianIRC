@@ -447,11 +447,9 @@ export const ChatArea: React.FC<{
   const [reactionModal, setReactionModal] = useState<{
     isOpen: boolean;
     message: MessageType | null;
-    position: { x: number; y: number };
   }>({
     isOpen: false,
     message: null,
-    position: { x: 0, y: 0 },
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1065,11 +1063,9 @@ export const ChatArea: React.FC<{
   };
 
   const handleReactClick = (message: MessageType, buttonElement: Element) => {
-    const rect = buttonElement.getBoundingClientRect();
     setReactionModal({
       isOpen: true,
       message,
-      position: { x: rect.left, y: rect.top - 10 },
     });
   };
 
@@ -1077,12 +1073,11 @@ export const ChatArea: React.FC<{
     setReactionModal({
       isOpen: false,
       message: null,
-      position: { x: 0, y: 0 },
     });
   };
 
   const handleReactionSelect = (emoji: string) => {
-    if (reactionModal.message) {
+    if (reactionModal.message?.msgid) {
       const server = servers.find(
         (s) => s.id === reactionModal.message?.serverId,
       );
@@ -1090,7 +1085,7 @@ export const ChatArea: React.FC<{
         (c) => c.id === reactionModal.message?.channelId,
       );
       if (server && channel) {
-        const tagMsg = `@+draft/react=${emoji};reply=${reactionModal.message?.id} TAGMSG ${channel.name}`;
+        const tagMsg = `@+draft/react=${emoji};reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
         ircClient.sendRaw(server.id, tagMsg);
       }
     }
@@ -1412,7 +1407,6 @@ export const ChatArea: React.FC<{
         isOpen={reactionModal.isOpen}
         onClose={handleCloseReactionModal}
         onSelectEmoji={handleReactionSelect}
-        position={reactionModal.position}
       />
     </div>
   );
