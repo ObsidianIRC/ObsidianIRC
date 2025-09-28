@@ -404,10 +404,7 @@ const MessageItem: React.FC<{
                     acc[reaction.emoji].count++;
                     acc[reaction.emoji].users.push(reaction.userId);
                     // Check if current user reacted with this emoji
-                    if (
-                      reaction.userId ===
-                      `${selectedServerId}-${currentUser?.username}`
-                    ) {
+                    if (reaction.userId === currentUser?.username) {
                       acc[reaction.emoji].currentUserReacted = true;
                     }
                     return acc;
@@ -425,7 +422,7 @@ const MessageItem: React.FC<{
                 <div
                   key={emoji}
                   className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer group"
-                  title={`${emoji} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[]; currentUserReacted: boolean }).users.map((u) => u.split("-")[1] || u).join(", ")}`}
+                  title={`${emoji} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[]; currentUserReacted: boolean }).users.join(", ")}`}
                   onClick={(e) => {
                     // If current user has reacted, clicking removes the reaction
                     if (
@@ -1177,7 +1174,7 @@ export const ChatArea: React.FC<{
         const existingReaction = reactionModal.message.reactions.find(
           (r) =>
             r.emoji === emoji &&
-            r.userId === `${server.id}-${currentUser?.username}`,
+            r.userId === currentUser?.username,
         );
 
         if (existingReaction) {

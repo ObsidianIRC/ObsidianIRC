@@ -1441,7 +1441,7 @@ ircClient.on("TAGMSG", (response) => {
 
     const message = messages[messageIndex];
     const existingReactionIndex = message.reactions.findIndex(
-      (r) => r.emoji === emoji && r.userId === `${server.id}-${sender}`,
+      (r) => r.emoji === emoji && r.userId === sender,
     );
 
     useStore.setState((state) => {
@@ -1452,7 +1452,7 @@ ircClient.on("TAGMSG", (response) => {
           ...message,
           reactions: [
             ...message.reactions,
-            { emoji, userId: `${server.id}-${sender}` },
+            { emoji, userId: sender },
           ],
         };
       } else {
@@ -1503,7 +1503,7 @@ ircClient.on("TAGMSG", (response) => {
 
     const message = messages[messageIndex];
     const existingReactionIndex = message.reactions.findIndex(
-      (r) => r.emoji === emoji && r.userId === `${server.id}-${sender}`,
+      (r) => r.emoji === emoji && r.userId === sender,
     );
 
     // Only remove if the reaction exists
