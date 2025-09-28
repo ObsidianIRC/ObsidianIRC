@@ -26,7 +26,6 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
-
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import ircClient from "../../lib/ircClient";
@@ -93,9 +92,10 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
-const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const EnhancedLinkWrapper: React.FC<{
+  children: React.ReactNode;
+  onIrcLinkClick?: (url: string) => void;
+}> = ({ children, onIrcLinkClick }) => {
   // Regular expression to detect HTTP and HTTPS links
   const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
   const parseContent = (content: string): React.ReactNode[] => {
@@ -119,6 +119,16 @@ const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({
               target="_blank"
               rel="noopener noreferrer"
               className="text-discord-text-link underline hover:text-blue-700"
+              onClick={(e) => {
+                if (
+                  (matches[index].startsWith("ircs://") ||
+                    matches[index].startsWith("irc://")) &&
+                  onIrcLinkClick
+                ) {
+                  e.preventDefault();
+                  onIrcLinkClick(matches[index]);
+                }
+              }}
             >
               {matches[index]}
             </a>
@@ -171,7 +181,15 @@ const MessageItem: React.FC<{
     serverId: string,
     avatarElement?: Element | null,
   ) => void;
-}> = ({ message, showDate, showHeader, setReplyTo, onUsernameContextMenu }) => {
+  onIrcLinkClick?: (url: string) => void;
+}> = ({
+  message,
+  showDate,
+  showHeader,
+  setReplyTo,
+  onUsernameContextMenu,
+  onIrcLinkClick,
+}) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   const isSystem = message.type === "system";
@@ -199,7 +217,9 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
+          <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+            {htmlContent}
+          </EnhancedLinkWrapper>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -337,12 +357,14 @@ const MessageItem: React.FC<{
                   </span>
                   :
                 </strong>{" "}
-                <EnhancedLinkWrapper>
+                <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
                   {mircToHtml(message.replyMessage.content)}
                 </EnhancedLinkWrapper>
               </div>
             )}
-            <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
+            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+              {htmlContent}
+            </EnhancedLinkWrapper>
           </div>
         </div>
       </div>
@@ -407,10 +429,58 @@ export const ChatArea: React.FC<{
     toggleMemberList,
     openPrivateChat,
     messages,
+    connect,
+    joinChannel,
+    toggleAddServerModal,
   } = useStore();
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
+
+  const handleIrcLinkClick = (rawUrl: string) => {
+    // Tolerate trailing punctuation in chat text
+    const sanitized = rawUrl.trim().replace(/[),.;:]+$/, "");
+    const urlObj = new URL(sanitized);
+    const host = urlObj.hostname;
+    const scheme = urlObj.protocol.replace(":", "");
+    const port = urlObj.port
+      ? Number.parseInt(urlObj.port, 10)
+      : scheme === "ircs"
+        ? 443
+        : 8000;
+
+    // Channels may be in pathname (/chan1,chan2) or in hash (#chan1,chan2)
+    const rawChannelStr =
+      urlObj.pathname.length > 1
+        ? urlObj.pathname.slice(1)
+        : urlObj.hash.startsWith("#")
+          ? urlObj.hash.slice(1)
+          : "";
+    const channels = rawChannelStr
+      .split(",")
+      .filter(Boolean)
+      .map((c) => decodeURIComponent(c))
+      .map((c) =>
+        c.startsWith("#") ||
+        c.startsWith("&") ||
+        c.startsWith("+") ||
+        c.startsWith("!")
+          ? c
+          : `#${c}`,
+      );
+
+    const nick =
+      urlObj.searchParams.get("nick") || currentUser?.username || "user";
+    const password = urlObj.searchParams.get("password") || undefined;
+
+    // Open the connect modal with pre-filled server details
+    toggleAddServerModal(true, {
+      name: host,
+      host: host,
+      port: port.toString(),
+      nickname: nick,
+    });
+  };
 
   // Load saved settings from local storage on mount
   useEffect(() => {
@@ -1100,6 +1170,7 @@ export const ChatArea: React.FC<{
                 onUsernameContextMenu={(e, username, serverId, avatarElement) =>
                   handleUsernameClick(e, username, serverId, avatarElement)
                 }
+                onIrcLinkClick={handleIrcLinkClick}
               />
             );
           })}
