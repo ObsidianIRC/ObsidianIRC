@@ -334,7 +334,7 @@ const MessageItem: React.FC<{
               </span>
             </div>
           )}
-          <div>
+          <div className="relative">
             {message.replyMessage && (
               <div
                 className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
@@ -402,20 +402,23 @@ const MessageItem: React.FC<{
             )}
           </div>
         </div>
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={() => setReplyTo(message)}
-        >
-          <FaReply />
-        </button>
-        {message.msgid && (
+        {/* Hover buttons */}
+        <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
           <button
             className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-            onClick={(e) => onReactClick(message, e.currentTarget)}
+            onClick={() => setReplyTo(message)}
           >
-            <FaGrinAlt />
+            <FaReply />
           </button>
-        )}
+          {message.msgid && (
+            <button
+              className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+              onClick={(e) => onReactClick(message, e.currentTarget)}
+            >
+              <FaGrinAlt />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
