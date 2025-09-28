@@ -1450,10 +1450,7 @@ ircClient.on("TAGMSG", (response) => {
         // Add new reaction
         updatedMessages[messageIndex] = {
           ...message,
-          reactions: [
-            ...message.reactions,
-            { emoji, userId: sender },
-          ],
+          reactions: [...message.reactions, { emoji, userId: sender }],
         };
       } else {
         // Remove existing reaction (toggle behavior)

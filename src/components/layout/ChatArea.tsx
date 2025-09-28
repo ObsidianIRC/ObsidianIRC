@@ -1172,9 +1172,7 @@ export const ChatArea: React.FC<{
       if (server && channel) {
         // Check if user has already reacted with this emoji
         const existingReaction = reactionModal.message.reactions.find(
-          (r) =>
-            r.emoji === emoji &&
-            r.userId === currentUser?.username,
+          (r) => r.emoji === emoji && r.userId === currentUser?.username,
         );
 
         if (existingReaction) {
