@@ -368,39 +368,39 @@ const MessageItem: React.FC<{
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
               {htmlContent}
             </EnhancedLinkWrapper>
-            {/* Reactions positioned at bottom left */}
-            {message.reactions && message.reactions.length > 0 && (
-              <div className="absolute bottom-0 left-0 flex flex-wrap gap-1">
-                {Object.entries(
-                  message.reactions.reduce(
-                    (
-                      acc: Record<string, { count: number; users: string[] }>,
-                      reaction: { emoji: string; userId: string },
-                    ) => {
-                      if (!acc[reaction.emoji]) {
-                        acc[reaction.emoji] = { count: 0, users: [] };
-                      }
-                      acc[reaction.emoji].count++;
-                      acc[reaction.emoji].users.push(reaction.userId);
-                      return acc;
-                    },
-                    {} as Record<string, { count: number; users: string[] }>,
-                  ),
-                ).map(([emoji, data]) => (
-                  <div
-                    key={emoji}
-                    className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                    title={`${emoji} ${(data as { count: number; users: string[] }).count} ${(data as { count: number; users: string[] }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[] }).users.map((u) => u.split("-")[1] || u).join(", ")}`}
-                  >
-                    <span>{emoji}</span>
-                    <span className="text-xs font-medium">
-                      {(data as { count: number; users: string[] }).count}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
+          {/* Reactions positioned below message content */}
+          {message.reactions && message.reactions.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {Object.entries(
+                message.reactions.reduce(
+                  (
+                    acc: Record<string, { count: number; users: string[] }>,
+                    reaction: { emoji: string; userId: string },
+                  ) => {
+                    if (!acc[reaction.emoji]) {
+                      acc[reaction.emoji] = { count: 0, users: [] };
+                    }
+                    acc[reaction.emoji].count++;
+                    acc[reaction.emoji].users.push(reaction.userId);
+                    return acc;
+                  },
+                  {} as Record<string, { count: number; users: string[] }>,
+                ),
+              ).map(([emoji, data]) => (
+                <div
+                  key={emoji}
+                  className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                  title={`${emoji} ${(data as { count: number; users: string[] }).count} ${(data as { count: number; users: string[] }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[] }).users.map((u) => u.split("-")[1] || u).join(", ")}`}
+                >
+                  <span>{emoji}</span>
+                  <span className="text-xs font-medium">
+                    {(data as { count: number; users: string[] }).count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         {/* Hover buttons */}
         <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
