@@ -1092,8 +1092,22 @@ export const ChatArea: React.FC<{
         (c) => c.id === reactionModal.message?.channelId,
       );
       if (server && channel) {
-        const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
-        ircClient.sendRaw(server.id, tagMsg);
+        // Check if user has already reacted with this emoji
+        const existingReaction = reactionModal.message.reactions.find(
+          (r) =>
+            r.emoji === emoji &&
+            r.userId === `${server.id}-${currentUser?.username}`,
+        );
+
+        if (existingReaction) {
+          // Send unreact message
+          const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+          ircClient.sendRaw(server.id, tagMsg);
+        } else {
+          // Send react message
+          const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+          ircClient.sendRaw(server.id, tagMsg);
+        }
       }
     }
     handleCloseReactionModal();

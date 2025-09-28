@@ -1474,6 +1474,59 @@ ircClient.on("TAGMSG", (response) => {
       };
     });
   }
+
+  // Handle unreacts
+  if (mtags?.["+draft/unreact"] && mtags["+draft/reply"]) {
+    const emoji = mtags["+draft/unreact"];
+    const replyMessageId = mtags["+draft/reply"];
+
+    const server = useStore
+      .getState()
+      .servers.find((s) => s.id === response.serverId);
+    if (!server) return;
+
+    let channel: Channel | PrivateChat | undefined;
+    const isChannel = channelName.startsWith("#");
+    if (isChannel) {
+      channel = server.channels.find((c) => c.name === channelName);
+    } else {
+      // Private chat
+      channel = server.privateChats?.find((pc) => pc.username === channelName);
+    }
+
+    if (!channel) return;
+
+    // Find the message to remove reaction from
+    const messages = getChannelMessages(server.id, channel.id);
+    const messageIndex = messages.findIndex((m) => m.msgid === replyMessageId);
+    if (messageIndex === -1) return;
+
+    const message = messages[messageIndex];
+    const existingReactionIndex = message.reactions.findIndex(
+      (r) => r.emoji === emoji && r.userId === `${server.id}-${sender}`,
+    );
+
+    // Only remove if the reaction exists
+    if (existingReactionIndex !== -1) {
+      useStore.setState((state) => {
+        const updatedMessages = [...messages];
+        updatedMessages[messageIndex] = {
+          ...message,
+          reactions: message.reactions.filter(
+            (_, i) => i !== existingReactionIndex,
+          ),
+        };
+
+        const key = `${server.id}-${channel.id}`;
+        return {
+          messages: {
+            ...state.messages,
+            [key]: updatedMessages,
+          },
+        };
+      });
+    }
+  }
 });
 
 // Load saved servers on store initialization
