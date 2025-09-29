@@ -12,6 +12,7 @@ import type {
 } from "../types";
 
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
+const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 
 export const getChannelMessages = (serverId: string, channelId: string) => {
   const state = useStore.getState();
@@ -32,8 +33,67 @@ export function loadSavedServers(): ServerConfig[] {
   return JSON.parse(localStorage.getItem(LOCAL_STORAGE_SERVERS_KEY) || "[]");
 }
 
+// Load saved metadata from localStorage
+export function loadSavedMetadata(): Record<string, any> {
+  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_METADATA_KEY) || "{}");
+}
+
+// Save metadata to localStorage
+function saveMetadataToLocalStorage(metadata: Record<string, any>) {
+  localStorage.setItem(LOCAL_STORAGE_METADATA_KEY, JSON.stringify(metadata));
+}
+
 function saveServersToLocalStorage(servers: ServerConfig[]) {
   localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
+}
+
+// Restore metadata for a server from localStorage
+function restoreServerMetadata(serverId: string) {
+  const savedMetadata = loadSavedMetadata();
+  const serverMetadata = savedMetadata[serverId];
+  if (!serverMetadata) return;
+
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        // Restore server metadata
+        const updatedMetadata = { ...server.metadata };
+        if (serverMetadata[server.name]) {
+          Object.assign(updatedMetadata, serverMetadata[server.name]);
+        }
+
+        // Restore user metadata in channels
+        const updatedChannels = server.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            const userMetadata = serverMetadata[user.username];
+            if (userMetadata) {
+              return { ...user, metadata: { ...user.metadata, ...userMetadata } };
+            }
+            return user;
+          });
+          return { ...channel, users: updatedUsers };
+        });
+
+        return {
+          ...server,
+          metadata: updatedMetadata,
+          channels: updatedChannels,
+        };
+      }
+      return server;
+    });
+
+    // Restore current user metadata
+    let updatedCurrentUser = state.currentUser;
+    if (state.currentUser && serverMetadata[state.currentUser.username]) {
+      updatedCurrentUser = {
+        ...state.currentUser,
+        metadata: { ...state.currentUser.metadata, ...serverMetadata[state.currentUser.username] }
+      };
+    }
+
+    return { servers: updatedServers, currentUser: updatedCurrentUser };
+  });
 }
 
 interface UIState {
@@ -1259,6 +1319,9 @@ ircClient.on("QUIT", ({ serverId, username, reason }) => {
 ircClient.on("ready", ({ serverId, serverName, nickname }) => {
   console.log(`Server ready: serverId=${serverId}, serverName=${serverName}`);
 
+  // Restore metadata for this server
+  restoreServerMetadata(serverId);
+
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -1674,6 +1737,21 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
       updatedCurrentUser = { ...state.currentUser, metadata };
     }
 
+    // Save metadata to localStorage
+    const savedMetadata = loadSavedMetadata();
+    if (!savedMetadata[serverId]) {
+      savedMetadata[serverId] = {};
+    }
+    if (!savedMetadata[serverId][target]) {
+      savedMetadata[serverId][target] = {};
+    }
+    if (value) {
+      savedMetadata[serverId][target][key] = { value, visibility };
+    } else {
+      delete savedMetadata[serverId][target][key];
+    }
+    saveMetadataToLocalStorage(savedMetadata);
+
     return { servers: updatedServers, currentUser: updatedCurrentUser };
   });
 });
@@ -1723,6 +1801,17 @@ ircClient.on(
         metadata[key] = { value, visibility };
         updatedCurrentUser = { ...state.currentUser, metadata };
       }
+
+      // Save metadata to localStorage
+      const savedMetadata = loadSavedMetadata();
+      if (!savedMetadata[serverId]) {
+        savedMetadata[serverId] = {};
+      }
+      if (!savedMetadata[serverId][target]) {
+        savedMetadata[serverId][target] = {};
+      }
+      savedMetadata[serverId][target][key] = { value, visibility };
+      saveMetadataToLocalStorage(savedMetadata);
 
       return { servers: updatedServers, currentUser: updatedCurrentUser };
     });

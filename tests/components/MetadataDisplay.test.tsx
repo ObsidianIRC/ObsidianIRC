@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { MemberList } from "../../src/components/layout/MemberList";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatArea } from "../../src/components/layout/ChatArea";
+import { MemberList } from "../../src/components/layout/MemberList";
 import { getColorStyle } from "../../src/lib/ircUtils";
 import useStore from "../../src/store";
-import type { Channel, Server, User, Message } from "../../src/types";
+import type { Channel, Server, User } from "../../src/types";
 
 vi.mock("../../src/lib/ircClient", () => ({
   default: {
@@ -107,7 +107,10 @@ describe("Metadata Display Features", () => {
         username: "testuser",
         isOnline: true,
         metadata: {
-          avatar: { value: "https://example.com/myavatar.png", visibility: "*" },
+          avatar: {
+            value: "https://example.com/myavatar.png",
+            visibility: "*",
+          },
           color: { value: "#00ff00", visibility: "*" },
           status: { value: "Available", visibility: "*" },
         },
@@ -165,7 +168,10 @@ describe("Metadata Display Features", () => {
 
       // Alice should have her avatar
       const aliceAvatar = screen.getByAltText("alice");
-      expect(aliceAvatar).toHaveAttribute("src", "https://example.com/avatar1.png");
+      expect(aliceAvatar).toHaveAttribute(
+        "src",
+        "https://example.com/avatar1.png",
+      );
     });
 
     it("should display status lightbulb for users with status", () => {
@@ -180,7 +186,10 @@ describe("Metadata Display Features", () => {
       render(<MemberList />);
 
       // Find Alice's status indicator
-      const aliceStatusIndicator = screen.getByText("alice").closest("div")?.querySelector(".group");
+      const aliceStatusIndicator = screen
+        .getByText("alice")
+        .closest("div")
+        ?.querySelector(".group");
 
       if (aliceStatusIndicator) {
         // Simulate hover
@@ -213,10 +222,10 @@ describe("Metadata Display Features", () => {
                         ...channel,
                         users: [aliceWithWebsite, ...channel.users.slice(1)],
                       }
-                    : channel
+                    : channel,
                 ),
               }
-            : server
+            : server,
         ),
       }));
 
@@ -292,7 +301,10 @@ describe("Metadata Display Features", () => {
 
       // Alice's avatar should be displayed
       const aliceAvatar = screen.getByAltText("alice");
-      expect(aliceAvatar).toHaveAttribute("src", "https://example.com/avatar1.png");
+      expect(aliceAvatar).toHaveAttribute(
+        "src",
+        "https://example.com/avatar1.png",
+      );
     });
 
     it("should handle action messages with metadata", () => {
@@ -317,7 +329,9 @@ describe("Metadata Display Features", () => {
       render(<ChatArea onToggleChanList={() => {}} isChanListVisible={true} />);
 
       // Should show action message with display name
-      expect(screen.getByText("Alice Wonderland (alice) waves hello")).toBeInTheDocument();
+      expect(
+        screen.getByText("Alice Wonderland (alice) waves hello"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -325,7 +339,9 @@ describe("Metadata Display Features", () => {
     it("should handle different color formats", () => {
       expect(getColorStyle("#ff0000")).toEqual({ color: "#ff0000" });
       expect(getColorStyle("red")).toEqual({ color: "red" });
-      expect(getColorStyle("rgb(255, 0, 0)")).toEqual({ color: "rgb(255, 0, 0)" });
+      expect(getColorStyle("rgb(255, 0, 0)")).toEqual({
+        color: "rgb(255, 0, 0)",
+      });
       expect(getColorStyle(undefined)).toEqual({});
       expect(getColorStyle("")).toEqual({});
     });
