@@ -107,7 +107,11 @@ const EnhancedLinkWrapper: React.FC<{
     return parts.map((part, index) => {
       // Generate stable keys based on content and position
       const partKey = `text-${part}-${index}`;
-      const textPart = <span key={partKey} className="break-words">{part}</span>;
+      const textPart = (
+        <span key={partKey} className="break-words">
+          {part}
+        </span>
+      );
 
       // If there's a matching link for this part, render it
       if (index < matches.length) {
@@ -119,7 +123,7 @@ const EnhancedLinkWrapper: React.FC<{
               href={matches[index]}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-discord-text-link underline hover:text-blue-700 break-words"
+              className="text-discord-text-link underline hover:text-blue-700"
               onClick={(e) => {
                 if (
                   (matches[index].startsWith("ircs://") ||
@@ -131,7 +135,9 @@ const EnhancedLinkWrapper: React.FC<{
                 }
               }}
             >
-              {matches[index]}
+              {matches[index].length > 60
+                ? matches[index].substring(0, 60) + "..."
+                : matches[index]}
             </a>
           </Fragment>
         );
