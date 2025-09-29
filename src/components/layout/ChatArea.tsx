@@ -19,6 +19,7 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
+import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import ircClient from "../../lib/ircClient";
@@ -35,6 +36,7 @@ import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
+import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
 import DiscoverGrid from "../ui/HomeScreen";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
@@ -82,6 +84,7 @@ export const ChatArea: React.FC<{
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
     x: number;
@@ -124,6 +127,9 @@ export const ChatArea: React.FC<{
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
+
+  // Emoji completion hook
+  const emojiCompletion = useEmojiCompletion();
 
   const handleIrcLinkClick = (rawUrl: string) => {
     const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
@@ -347,17 +353,32 @@ export const ChatArea: React.FC<{
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Tab") {
       e.preventDefault();
-      handleTabCompletion();
+
+      // If emoji completion is already active, continue with emoji completion
+      if (emojiCompletion.isActive) {
+        handleEmojiCompletion();
+      } else {
+        // Check if we're starting emoji completion context
+        const textBeforeCursor = messageText.substring(0, cursorPosition);
+        const emojiMatch = textBeforeCursor.match(/:([a-zA-Z_]*)$/);
+
+        if (emojiMatch) {
+          handleEmojiCompletion();
+        } else {
+          handleTabCompletion();
+        }
+      }
       return;
     }
 
     // Handle keys when autocomplete dropdown is visible
     if (
-      showAutocomplete &&
+      (showAutocomplete || showEmojiAutocomplete) &&
       (e.key === "ArrowUp" ||
         e.key === "ArrowDown" ||
         e.key === "Escape" ||
-        e.key === "Enter")
+        e.key === "Enter" ||
+        e.key === " ")
     ) {
       // Let the dropdown handle these keys, don't interfere
       return;
@@ -436,6 +457,37 @@ export const ChatArea: React.FC<{
     }
   };
 
+  const handleEmojiCompletion = () => {
+    if (!inputRef.current) return;
+
+    const result = emojiCompletion.handleEmojiCompletion(
+      messageText,
+      cursorPosition,
+    );
+
+    if (result) {
+      setMessageText(result.newText);
+      setCursorPosition(result.newCursorPosition);
+
+      // Show dropdown when there are any matches available
+      const shouldShow = emojiCompletion.matches.length > 0;
+      setShowEmojiAutocomplete(shouldShow);
+
+      // Update input cursor position
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            result.newCursorPosition,
+            result.newCursorPosition,
+          );
+        }
+      }, 0);
+    } else {
+      // No completion result, hide dropdown
+      setShowEmojiAutocomplete(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newText = e.target.value;
     const newCursorPosition = e.target.selectionStart || 0;
@@ -449,8 +501,14 @@ export const ChatArea: React.FC<{
       tabCompletion.resetCompletion();
     }
 
+    // Reset emoji completion if text changed from non-tab input
+    if (emojiCompletion.isActive) {
+      emojiCompletion.resetCompletion();
+    }
+
     // Hide autocomplete when typing (only show on Tab completion)
     setShowAutocomplete(false);
+    setShowEmojiAutocomplete(false);
   };
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
@@ -522,6 +580,85 @@ export const ChatArea: React.FC<{
 
     setShowAutocomplete(false);
     tabCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteSelect = (emoji: string) => {
+    if (emojiCompletion.isActive) {
+      // Use emoji completion state for accurate replacement
+      const newText =
+        emojiCompletion.originalText.substring(
+          0,
+          emojiCompletion.completionStart,
+        ) +
+        emoji +
+        emojiCompletion.originalText.substring(
+          emojiCompletion.completionStart +
+            emojiCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition = emojiCompletion.completionStart + emoji.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+
+    setShowEmojiAutocomplete(false);
+    emojiCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteClose = () => {
+    setShowEmojiAutocomplete(false);
+    emojiCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteNavigate = (emoji: string) => {
+    if (emojiCompletion.isActive) {
+      // Find the index of the selected emoji to sync state
+      const selectedIndex = emojiCompletion.matches.findIndex(
+        (match) => match.emoji === emoji,
+      );
+      if (selectedIndex !== -1) {
+        emojiCompletion.setCurrentIndex(selectedIndex);
+      }
+
+      // Update text in real-time like Tab completion does
+      const newText =
+        emojiCompletion.originalText.substring(
+          0,
+          emojiCompletion.completionStart,
+        ) +
+        emoji +
+        emojiCompletion.originalText.substring(
+          emojiCompletion.completionStart +
+            emojiCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition = emojiCompletion.completionStart + emoji.length;
+      setCursorPosition(newCursorPosition);
+
+      // Update the hook's internal previousTextRef to prevent reset on next tab
+      emojiCompletion.updatePreviousText(newText);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
   };
 
   const handleAutocompleteClose = () => {
@@ -1050,6 +1187,18 @@ export const ChatArea: React.FC<{
             onSelect={handleUsernameSelect}
             onClose={handleAutocompleteClose}
             onNavigate={handleAutocompleteNavigate}
+            inputElement={inputRef.current}
+          />
+
+          <EmojiAutocompleteDropdown
+            isVisible={showEmojiAutocomplete || emojiCompletion.isActive}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            emojiMatches={emojiCompletion.matches}
+            currentMatchIndex={emojiCompletion.currentIndex}
+            onSelect={handleEmojiAutocompleteSelect}
+            onClose={handleEmojiAutocompleteClose}
+            onNavigate={handleEmojiAutocompleteNavigate}
             inputElement={inputRef.current}
           />
         </div>
