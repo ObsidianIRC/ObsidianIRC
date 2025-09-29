@@ -14,6 +14,9 @@ import type {
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 
+// Type for saved metadata structure: serverId -> target -> key -> metadata
+type SavedMetadata = Record<string, Record<string, Record<string, { value: string; visibility: string }>>>;
+
 export const getChannelMessages = (serverId: string, channelId: string) => {
   const state = useStore.getState();
   const key = `${serverId}-${channelId}`;
@@ -34,12 +37,12 @@ export function loadSavedServers(): ServerConfig[] {
 }
 
 // Load saved metadata from localStorage
-export function loadSavedMetadata(): Record<string, any> {
+export function loadSavedMetadata(): SavedMetadata {
   return JSON.parse(localStorage.getItem(LOCAL_STORAGE_METADATA_KEY) || "{}");
 }
 
 // Save metadata to localStorage
-function saveMetadataToLocalStorage(metadata: Record<string, any>) {
+function saveMetadataToLocalStorage(metadata: SavedMetadata) {
   localStorage.setItem(LOCAL_STORAGE_METADATA_KEY, JSON.stringify(metadata));
 }
 
@@ -67,7 +70,10 @@ function restoreServerMetadata(serverId: string) {
           const updatedUsers = channel.users.map((user) => {
             const userMetadata = serverMetadata[user.username];
             if (userMetadata) {
-              return { ...user, metadata: { ...user.metadata, ...userMetadata } };
+              return {
+                ...user,
+                metadata: { ...user.metadata, ...userMetadata },
+              };
             }
             return user;
           });
@@ -88,7 +94,10 @@ function restoreServerMetadata(serverId: string) {
     if (state.currentUser && serverMetadata[state.currentUser.username]) {
       updatedCurrentUser = {
         ...state.currentUser,
-        metadata: { ...state.currentUser.metadata, ...serverMetadata[state.currentUser.username] }
+        metadata: {
+          ...state.currentUser.metadata,
+          ...serverMetadata[state.currentUser.username],
+        },
       };
     }
 
