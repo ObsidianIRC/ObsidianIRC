@@ -1,13 +1,14 @@
 import type React from "react";
 import { FaTimes } from "react-icons/fa";
 import { ircColors } from "../../lib/ircUtils";
+import type { FormattingType } from "../../lib/messageFormatter";
 
 const ColorPicker: React.FC<{
-  onSelect: (color: string, formatting: string[]) => void;
+  onSelect: (color: string, formatting: FormattingType[]) => void;
   onClose: () => void;
   selectedColor: string | null;
-  selectedFormatting: string[];
-  toggleFormatting: (format: string) => void;
+  selectedFormatting: FormattingType[];
+  toggleFormatting: (format: FormattingType) => void;
 }> = ({
   onSelect,
   onClose,
