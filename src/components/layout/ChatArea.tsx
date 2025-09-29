@@ -237,7 +237,7 @@ const MessageItem: React.FC<{
   if (isSystem) {
     return (
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 break-words">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
           <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
             {htmlContent}
@@ -305,7 +305,7 @@ const MessageItem: React.FC<{
                 {formatTime(new Date(message.timestamp))}
               </span>
             </div>
-            <span className="italic text-white">
+            <span className="italic text-white break-words">
               {message.userId === "system"
                 ? "System"
                 : (displayName || message.userId.split("-")[0]) +
@@ -423,7 +423,7 @@ const MessageItem: React.FC<{
           <div className="relative">
             {message.replyMessage && (
               <div
-                className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
+                className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2 break-words`}
               >
                 ┌ Replying to{" "}
                 <strong>
@@ -451,9 +451,11 @@ const MessageItem: React.FC<{
                 </EnhancedLinkWrapper>
               </div>
             )}
-            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {htmlContent}
-            </EnhancedLinkWrapper>
+            <div className="break-words">
+              <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+                {htmlContent}
+              </EnhancedLinkWrapper>
+            </div>
           </div>
           {/* Reactions positioned below message content */}
           {message.reactions && message.reactions.length > 0 && (
