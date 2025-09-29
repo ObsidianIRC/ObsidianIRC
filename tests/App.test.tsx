@@ -136,7 +136,16 @@ describe("App", () => {
       expect(screen.getByText(/User Settings/i)).toBeInTheDocument();
 
       // Close settings
-      await user.click(screen.getByRole("button", { name: /close/i }));
+      const cancelButtons = screen.getAllByRole("button", { name: /cancel/i });
+      // Find the cancel button in the User Settings modal (should be the second one)
+      const userSettingsCancel =
+        cancelButtons.find(
+          (button) =>
+            button.closest('[data-testid="user-settings-modal"]') ||
+            (button.textContent === "Cancel" &&
+              button.classList.contains("bg-discord-dark-400")),
+        ) || cancelButtons[1]; // fallback to second cancel button
+      await user.click(userSettingsCancel);
       expect(screen.queryByText(/User Settings/i)).not.toBeInTheDocument();
     });
   });

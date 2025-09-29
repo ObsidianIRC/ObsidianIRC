@@ -18,23 +18,27 @@ import {
   FaChevronRight,
   FaGrinAlt,
   FaHashtag,
-  FaPenAlt, // Added
+  FaPenAlt,
   FaPlus,
   FaReply,
   FaSearch,
   FaTimes,
-  FaUserPlus, // Added
+  FaUserPlus,
 } from "react-icons/fa";
-
+import { v4 as uuidv4 } from "uuid";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useTabCompletion } from "../../hooks/useTabCompletion";
 import ircClient from "../../lib/ircClient";
-import { ircColors, mircToHtml } from "../../lib/ircUtils";
+import { getColorStyle, ircColors, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
+import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+import ReactionModal from "../ui/ReactionModal";
+import UserContextMenu from "../ui/UserContextMenu";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -89,9 +93,10 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
-const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const EnhancedLinkWrapper: React.FC<{
+  children: React.ReactNode;
+  onIrcLinkClick?: (url: string) => void;
+}> = ({ children, onIrcLinkClick }) => {
   // Regular expression to detect HTTP and HTTPS links
   const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
   const parseContent = (content: string): React.ReactNode[] => {
@@ -100,19 +105,31 @@ const EnhancedLinkWrapper: React.FC<{ children: React.ReactNode }> = ({
     const matches = content.match(urlRegex) || [];
 
     return parts.map((part, index) => {
-      // Render the text part
-      const textPart = <span key={`text-${index}`}>{part}</span>;
+      // Generate stable keys based on content and position
+      const partKey = `text-${part}-${index}`;
+      const textPart = <span key={partKey}>{part}</span>;
 
       // If there's a matching link for this part, render it
       if (index < matches.length) {
+        const fragmentKey = `fragment-${matches[index]}-${index}`;
         return (
-          <Fragment key={`fragment-${index}`}>
+          <Fragment key={fragmentKey}>
             {textPart}
             <a
               href={matches[index]}
               target="_blank"
               rel="noopener noreferrer"
               className="text-discord-text-link underline hover:text-blue-700"
+              onClick={(e) => {
+                if (
+                  (matches[index].startsWith("ircs://") ||
+                    matches[index].startsWith("irc://")) &&
+                  onIrcLinkClick
+                ) {
+                  e.preventDefault();
+                  onIrcLinkClick(matches[index]);
+                }
+              }}
             >
               {matches[index]}
             </a>
@@ -159,9 +176,44 @@ const MessageItem: React.FC<{
   showDate: boolean;
   showHeader: boolean;
   setReplyTo: (msg: MessageType) => void;
-}> = ({ message, showDate, showHeader, setReplyTo }) => {
+  onUsernameContextMenu: (
+    e: React.MouseEvent,
+    username: string,
+    serverId: string,
+    avatarElement?: Element | null,
+  ) => void;
+  onIrcLinkClick?: (url: string) => void;
+  onReactClick: (message: MessageType, buttonElement: Element) => void;
+  selectedServerId: string | null;
+  onReactionUnreact: (emoji: string, message: MessageType) => void;
+  onOpenReactionModal: (
+    message: MessageType,
+    position: { x: number; y: number },
+  ) => void;
+  users: User[];
+}> = ({
+  message,
+  showDate,
+  showHeader,
+  setReplyTo,
+  onUsernameContextMenu,
+  onIrcLinkClick,
+  onReactClick,
+  selectedServerId,
+  onReactionUnreact,
+  onOpenReactionModal,
+  users,
+}) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
+  // Find the user for this message
+  const messageUser = users.find(
+    (user) => user.username === message.userId.split("-")[0],
+  );
+  const avatarUrl = messageUser?.metadata?.avatar?.value;
+  const displayName = messageUser?.metadata?.["display-name"]?.value;
+  const userColor = messageUser?.metadata?.color?.value;
+  const userStatus = messageUser?.metadata?.status?.value;
   const isSystem = message.type === "system";
   // Convert message content to React elements
   const htmlContent = mircToHtml(message.content);
@@ -187,7 +239,9 @@ const MessageItem: React.FC<{
       <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
+          <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+            {htmlContent}
+          </EnhancedLinkWrapper>
           <div className="text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
@@ -211,8 +265,38 @@ const MessageItem: React.FC<{
         )}
         <div className="flex">
           <div className="mr-4">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
-              {message.userId.charAt(0).toUpperCase()}
+            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white relative">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={message.userId.split("-")[0]}
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.textContent = message.userId
+                        .charAt(0)
+                        .toUpperCase();
+                    }
+                  }}
+                />
+              ) : (
+                message.userId.charAt(0).toUpperCase()
+              )}
+              {userStatus && (
+                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
+                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+                    <span className="text-xs">💡</span>
+                  </div>
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      {userStatus}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
@@ -224,7 +308,8 @@ const MessageItem: React.FC<{
             <span className="italic text-white">
               {message.userId === "system"
                 ? "System"
-                : message.userId.split("-")[0] +
+                : (displayName || message.userId.split("-")[0]) +
+                  (displayName ? ` (${message.userId.split("-")[0]})` : "") +
                   message.content.substring(7, message.content.length - 1)}
             </span>
           </div>
@@ -245,11 +330,53 @@ const MessageItem: React.FC<{
       )}
       <div className="flex">
         {showHeader && (
-          <div className="mr-4">
+          <div
+            className={`mr-4 ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
+            onClick={(e) => {
+              if (message.userId !== "system") {
+                onUsernameContextMenu(
+                  e,
+                  message.userId.split("-")[0],
+                  message.serverId,
+                  e.currentTarget,
+                );
+              }
+            }}
+          >
             <div
-              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white`}
+              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white relative`}
             >
-              {message.userId.charAt(0).toUpperCase()}
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={message.userId.split("-")[0]}
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.textContent = message.userId
+                        .charAt(0)
+                        .toUpperCase();
+                    }
+                  }}
+                />
+              ) : (
+                message.userId.charAt(0).toUpperCase()
+              )}
+              {userStatus && (
+                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
+                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+                    <span className="text-xs">💡</span>
+                  </div>
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      {userStatus}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -258,49 +385,195 @@ const MessageItem: React.FC<{
             <div className="w-8" />
           </div>
         )}
-        <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
+        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
           {showHeader && (
             <div className="flex items-center">
-              <span className="font-bold text-white">
+              <span
+                className={`font-bold text-white ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
+                style={getColorStyle(userColor)}
+                onClick={(e) => {
+                  if (message.userId !== "system") {
+                    // Find the avatar element to position menu over it
+                    const messageElement = e.currentTarget.closest(".flex");
+                    const avatarElement =
+                      messageElement?.querySelector(".mr-4");
+                    onUsernameContextMenu(
+                      e,
+                      message.userId.split("-")[0],
+                      message.serverId,
+                      avatarElement,
+                    );
+                  }
+                }}
+              >
                 {message.userId === "system"
                   ? "System"
-                  : message.userId.split("-")[0]}
+                  : displayName || message.userId.split("-")[0]}
+                {displayName && (
+                  <span className="ml-2 text-xs bg-discord-dark-600 px-1 py-0.5 rounded">
+                    {message.userId.split("-")[0]}
+                  </span>
+                )}
               </span>
               <span className={`ml-2 text-xs text-${theme}-text-muted`}>
                 {formatTime(new Date(message.timestamp))}
               </span>
             </div>
           )}
-          <div>
+          <div className="relative">
             {message.replyMessage && (
               <div
                 className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
               >
                 ┌ Replying to{" "}
-                <strong>{message.replyMessage.userId.split("-")[0]}:</strong>{" "}
-                <EnhancedLinkWrapper>
+                <strong>
+                  <span
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      // Find the avatar element to position menu over it
+                      const messageElement = e.currentTarget.closest(".flex");
+                      const avatarElement =
+                        messageElement?.querySelector(".mr-4");
+                      onUsernameContextMenu(
+                        e,
+                        message.replyMessage?.userId.split("-")[0] || "",
+                        message.serverId,
+                        avatarElement,
+                      );
+                    }}
+                  >
+                    {message.replyMessage?.userId.split("-")[0] || ""}
+                  </span>
+                  :
+                </strong>{" "}
+                <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
                   {mircToHtml(message.replyMessage.content)}
                 </EnhancedLinkWrapper>
               </div>
             )}
-            <EnhancedLinkWrapper>{htmlContent}</EnhancedLinkWrapper>
+            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+              {htmlContent}
+            </EnhancedLinkWrapper>
           </div>
+          {/* Reactions positioned below message content */}
+          {message.reactions && message.reactions.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {Object.entries(
+                message.reactions.reduce(
+                  (
+                    acc: Record<
+                      string,
+                      {
+                        count: number;
+                        users: string[];
+                        currentUserReacted: boolean;
+                      }
+                    >,
+                    reaction: { emoji: string; userId: string },
+                  ) => {
+                    if (!acc[reaction.emoji]) {
+                      acc[reaction.emoji] = {
+                        count: 0,
+                        users: [],
+                        currentUserReacted: false,
+                      };
+                    }
+                    acc[reaction.emoji].count++;
+                    acc[reaction.emoji].users.push(reaction.userId);
+                    // Check if current user reacted with this emoji
+                    if (reaction.userId === currentUser?.username) {
+                      acc[reaction.emoji].currentUserReacted = true;
+                    }
+                    return acc;
+                  },
+                  {} as Record<
+                    string,
+                    {
+                      count: number;
+                      users: string[];
+                      currentUserReacted: boolean;
+                    }
+                  >,
+                ),
+              ).map(([emoji, data]) => (
+                <div
+                  key={emoji}
+                  className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer group"
+                  title={`${emoji} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[]; currentUserReacted: boolean }).users.join(", ")}`}
+                  onClick={(e) => {
+                    // If current user has reacted, clicking removes the reaction
+                    if (
+                      (
+                        data as {
+                          count: number;
+                          users: string[];
+                          currentUserReacted: boolean;
+                        }
+                      ).currentUserReacted
+                    ) {
+                      onReactionUnreact(emoji, message);
+                    } else {
+                      // Otherwise, add the reaction
+                      onOpenReactionModal(message, {
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }
+                  }}
+                >
+                  <span>{emoji}</span>
+                  <span className="text-xs font-medium">
+                    {
+                      (
+                        data as {
+                          count: number;
+                          users: string[];
+                          currentUserReacted: boolean;
+                        }
+                      ).count
+                    }
+                  </span>
+                  {/* Show X button if current user reacted */}
+                  {(
+                    data as {
+                      count: number;
+                      users: string[];
+                      currentUserReacted: boolean;
+                    }
+                  ).currentUserReacted && (
+                    <button
+                      className="ml-1 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReactionUnreact(emoji, message);
+                      }}
+                      title="Remove reaction"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-      {/* Hover buttons */}
-      <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={() => setReplyTo(message)}
-        >
-          <FaReply />
-        </button>
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={() => console.log("React to", message.id)}
-        >
-          <FaGrinAlt />
-        </button>
+        {/* Hover buttons */}
+        <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
+          <button
+            className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+            onClick={() => setReplyTo(message)}
+          >
+            <FaReply />
+          </button>
+          {message.msgid && (
+            <button
+              className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+              onClick={(e) => onReactClick(message, e.currentTarget)}
+            >
+              <FaGrinAlt />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -318,16 +591,95 @@ export const ChatArea: React.FC<{
   const [selectedFormatting, setSelectedFormatting] = useState<string[]>([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [userContextMenu, setUserContextMenu] = useState<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    username: string;
+    serverId: string;
+  }>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    username: "",
+    serverId: "",
+  });
+  const [reactionModal, setReactionModal] = useState<{
+    isOpen: boolean;
+    message: MessageType | null;
+  }>({
+    isOpen: false,
+    message: null,
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useStore();
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId, isMemberListVisible },
+    ui: {
+      selectedServerId,
+      selectedChannelId,
+      selectedPrivateChatId,
+      isMemberListVisible,
+    },
     toggleMemberList,
+    openPrivateChat,
     messages,
+    connect,
+    joinChannel,
+    toggleAddServerModal,
   } = useStore();
+
+  // Tab completion hook
+  const tabCompletion = useTabCompletion();
+
+  const handleIrcLinkClick = (rawUrl: string) => {
+    // Tolerate trailing punctuation in chat text
+    const sanitized = rawUrl.trim().replace(/[),.;:]+$/, "");
+    const urlObj = new URL(sanitized);
+    const host = urlObj.hostname;
+    const scheme = urlObj.protocol.replace(":", "");
+    const port = urlObj.port
+      ? Number.parseInt(urlObj.port, 10)
+      : scheme === "ircs"
+        ? 443
+        : 8000;
+
+    // Channels may be in pathname (/chan1,chan2) or in hash (#chan1,chan2)
+    const rawChannelStr =
+      urlObj.pathname.length > 1
+        ? urlObj.pathname.slice(1)
+        : urlObj.hash.startsWith("#")
+          ? urlObj.hash.slice(1)
+          : "";
+    const channels = rawChannelStr
+      .split(",")
+      .filter(Boolean)
+      .map((c) => decodeURIComponent(c))
+      .map((c) =>
+        c.startsWith("#") ||
+        c.startsWith("&") ||
+        c.startsWith("+") ||
+        c.startsWith("!")
+          ? c
+          : `#${c}`,
+      );
+
+    const nick =
+      urlObj.searchParams.get("nick") || currentUser?.username || "user";
+    const password = urlObj.searchParams.get("password") || undefined;
+
+    // Open the connect modal with pre-filled server details
+    toggleAddServerModal(true, {
+      name: host,
+      host: host,
+      port: port.toString(),
+      nickname: nick,
+    });
+  };
 
   // Load saved settings from local storage on mount
   useEffect(() => {
@@ -374,16 +726,19 @@ export const ChatArea: React.FC<{
     }
   }, [selectedFormatting, isFormattingInitialized]);
 
-  // Get selected server and channel
+  // Get selected server and channel/private chat
   const selectedServer = servers.find((s) => s.id === selectedServerId);
   const selectedChannel = selectedServer?.channels.find(
     (c) => c.id === selectedChannelId,
   );
+  const selectedPrivateChat = selectedServer?.privateChats?.find(
+    (pc) => pc.id === selectedPrivateChatId,
+  );
 
-  // Get messages for current channel
+  // Get messages for current channel or private chat
   const channelKey =
-    selectedServerId && selectedChannelId
-      ? `${selectedServerId}-${selectedChannelId}`
+    selectedServerId && (selectedChannelId || selectedPrivateChatId)
+      ? `${selectedServerId}-${selectedChannelId || selectedPrivateChatId}`
       : "";
   const channelMessages = channelKey ? messages[channelKey] || [] : [];
 
@@ -437,7 +792,7 @@ export const ChatArea: React.FC<{
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
     scrollDown();
-    if (selectedServerId && selectedChannelId) {
+    if (selectedServerId && (selectedChannelId || selectedPrivateChatId)) {
       if (messageText.startsWith("/")) {
         // Handle command
         const command = messageText.substring(1).trim();
@@ -445,12 +800,17 @@ export const ChatArea: React.FC<{
         if (commandName === "nick") {
           ircClient.sendRaw(selectedServerId, `NICK ${args[0]}`);
         } else if (commandName === "join") {
-          ircClient.joinChannel(selectedServerId, args[0]);
-          ircClient.triggerEvent("JOIN", {
-            serverId: selectedServerId,
-            username: currentUser?.username ? currentUser.username : "",
-            channelName: args[0],
-          });
+          if (args[0]) {
+            ircClient.joinChannel(selectedServerId, args[0]);
+            ircClient.triggerEvent("JOIN", {
+              serverId: selectedServerId,
+              username: currentUser?.username ? currentUser.username : "",
+              channelName: args[0],
+            });
+          } else {
+            // Handle error: no channel specified
+            console.error("No channel specified for /join command");
+          }
         } else if (commandName === "part") {
           ircClient.leaveChannel(selectedServerId, args[0]);
           ircClient.triggerEvent("PART", {
@@ -501,26 +861,280 @@ export const ChatArea: React.FC<{
         // Prepend the color code
         formattedText = `${colorCode}${formattedText}`;
 
+        // Determine target: channel name or username for private messages
+        const target =
+          selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+
         ircClient.sendRaw(
           selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${selectedChannel?.name ?? ""} :${formattedText}`,
+          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${formattedText}`,
         );
+
+        // For private messages, manually add our own message to the chat
+        // since the server doesn't echo private messages back to us
+        if (selectedPrivateChat && currentUser) {
+          const outgoingMessage = {
+            id: uuidv4(),
+            content: messageText,
+            timestamp: new Date(),
+            userId: currentUser.username || currentUser.id,
+            channelId: selectedPrivateChat.id,
+            serverId: selectedServerId,
+            type: "message" as const,
+            reactions: [],
+            replyMessage: localReplyTo,
+            mentioned: [],
+          };
+
+          // Add the message to the store
+          const { addMessage } = useStore.getState();
+          addMessage(outgoingMessage);
+        }
       }
       setMessageText("");
       setLocalReplyTo(null);
+      setShowAutocomplete(false);
+      if (tabCompletion.isActive) {
+        tabCompletion.resetCompletion();
+      }
+
+      // Send typing done notification
+      if (selectedChannel?.name || selectedPrivateChat?.username) {
+        const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+        ircClient.sendTyping(
+          selectedServerId as string,
+          target as string,
+          false,
+        );
+      }
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      handleTabCompletion();
+      return;
+    }
+
+    // Handle keys when autocomplete dropdown is visible
+    if (
+      showAutocomplete &&
+      (e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "Escape" ||
+        e.key === "Enter")
+    ) {
+      // Let the dropdown handle these keys, don't interfere
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
-      ircClient.sendRaw(
-        selectedServerId ?? "",
-        `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
-      );
+      // Send typing done notification
+      if (selectedChannel?.name) {
+        ircClient.sendTyping(
+          selectedServerId ?? "",
+          selectedChannel.name,
+          false,
+        );
+      } else if (selectedPrivateChat?.username) {
+        ircClient.sendTyping(
+          selectedServerId ?? "",
+          selectedPrivateChat.username,
+          false,
+        );
+      }
       lastTypingTime = 0;
+      return;
     }
+
+    // Reset tab completion on any other key
+    if (tabCompletion.isActive) {
+      tabCompletion.resetCompletion();
+    }
+    setShowAutocomplete(false);
+  };
+
+  const handleTabCompletion = () => {
+    if ((!selectedChannel && !selectedPrivateChat) || !inputRef.current) return;
+
+    // For channels, use channel users; for private chats, use both participants
+    const users =
+      selectedChannel?.users ||
+      (selectedPrivateChat
+        ? [
+            ...(currentUser ? [currentUser] : []),
+            {
+              id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+              username: selectedPrivateChat.username,
+              isOnline: true,
+            },
+          ]
+        : []);
+    const result = tabCompletion.handleTabCompletion(
+      messageText,
+      cursorPosition,
+      users,
+    );
+
+    if (result) {
+      setMessageText(result.newText);
+      setCursorPosition(result.newCursorPosition);
+
+      // Show dropdown when there are any matches available
+      const shouldShow = tabCompletion.matches.length > 0;
+      setShowAutocomplete(shouldShow);
+
+      // Update input cursor position
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            result.newCursorPosition,
+            result.newCursorPosition,
+          );
+        }
+      }, 0);
+    } else {
+      // No completion result, hide dropdown
+      setShowAutocomplete(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newText = e.target.value;
+    const newCursorPosition = e.target.selectionStart || 0;
+
+    setMessageText(newText);
+    setCursorPosition(newCursorPosition);
+    handleUpdatedText(newText);
+
+    // Reset tab completion if text changed from non-tab input
+    if (tabCompletion.isActive) {
+      tabCompletion.resetCompletion();
+    }
+
+    // Hide autocomplete when typing (only show on Tab completion)
+    setShowAutocomplete(false);
+  };
+
+  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+    const newCursorPos = target.selectionStart || 0;
+    setCursorPosition(newCursorPos);
+  };
+
+  const handleUsernameSelect = (username: string) => {
+    if (tabCompletion.isActive) {
+      // Use tab completion state for accurate replacement
+      const isAtMessageStart =
+        tabCompletion.originalText
+          .substring(0, tabCompletion.completionStart)
+          .trim() === tabCompletion.originalPrefix;
+      const suffix = isAtMessageStart ? ": " : " ";
+      const newText =
+        tabCompletion.originalText.substring(0, tabCompletion.completionStart) +
+        username +
+        suffix +
+        tabCompletion.originalText.substring(
+          tabCompletion.completionStart + tabCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition =
+        tabCompletion.completionStart + username.length + suffix.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    } else {
+      // Fallback to current logic when tab completion is not active
+      const textBeforeCursor = messageText.substring(0, cursorPosition);
+      const words = textBeforeCursor.split(/\s+/);
+      const currentWord = words[words.length - 1];
+      const completionStart = cursorPosition - currentWord.length;
+
+      const isAtMessageStart = textBeforeCursor.trim() === currentWord;
+      const suffix = isAtMessageStart ? ": " : " ";
+      const newText =
+        messageText.substring(0, completionStart) +
+        username +
+        suffix +
+        messageText.substring(cursorPosition);
+
+      setMessageText(newText);
+      const newCursorPosition =
+        completionStart + username.length + suffix.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+
+    setShowAutocomplete(false);
+    tabCompletion.resetCompletion();
+  };
+
+  const handleAutocompleteClose = () => {
+    setShowAutocomplete(false);
+    tabCompletion.resetCompletion();
+  };
+
+  const handleAutocompleteNavigate = (username: string) => {
+    if (tabCompletion.isActive) {
+      // Update text in real-time like Tab completion does
+      const isAtMessageStart =
+        tabCompletion.originalText
+          .substring(0, tabCompletion.completionStart)
+          .trim() === tabCompletion.originalPrefix;
+      const suffix = isAtMessageStart ? ": " : " ";
+      const newText =
+        tabCompletion.originalText.substring(0, tabCompletion.completionStart) +
+        username +
+        suffix +
+        tabCompletion.originalText.substring(
+          tabCompletion.completionStart + tabCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition =
+        tabCompletion.completionStart + username.length + suffix.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
+
+  const handleInputKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Skip if it was Tab key (handled by keyDown)
+    if (e.key === "Tab") return;
+
+    const target = e.target as HTMLInputElement;
+    const newCursorPos = target.selectionStart || 0;
+    setCursorPosition(newCursorPos);
   };
 
   const handleUpdatedText = (text: string) => {
@@ -529,24 +1143,148 @@ export const ChatArea: React.FC<{
         .getState()
         .servers.find((s) => s.id === selectedServerId);
       if (!server) return;
+
+      // Handle both channels and private chats
       const channel = server.channels.find((c) => c.id === selectedChannelId);
-      if (!channel) return;
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === selectedPrivateChatId,
+      );
+      const target = channel?.name ?? privateChat?.username;
+
+      if (!target) return;
 
       const currentTime = Date.now();
       if (currentTime - lastTypingTime < 5000) return;
 
       lastTypingTime = currentTime;
-      ircClient.sendRaw(
-        selectedServerId ?? "",
-        `@+typing=active TAGMSG ${channel.name}`,
-      );
+      // Send typing active notification
+      if (target) {
+        ircClient.sendTyping(selectedServerId ?? "", target, true);
+      }
     } else if (text.length === 0) {
-      ircClient.sendRaw(
-        selectedServerId ?? "",
-        `@+typing=done TAGMSG ${selectedChannel?.name ?? ""}`,
-      );
+      // Send typing done notification
+      if (selectedChannel?.name || selectedPrivateChat?.username) {
+        const target = selectedChannel?.name || selectedPrivateChat?.username;
+        ircClient.sendTyping(
+          selectedServerId as string,
+          target as string,
+          false,
+        );
+      }
       lastTypingTime = 0;
     }
+  };
+
+  const handleUsernameClick = (
+    e: React.MouseEvent,
+    username: string,
+    serverId: string,
+    avatarElement?: Element | null,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Don't show context menu for own username
+    if (currentUser?.username === username) {
+      return;
+    }
+
+    let x = e.clientX;
+    let y = e.clientY;
+
+    // If avatar element is provided, position menu relative to it
+    if (avatarElement) {
+      const rect = avatarElement.getBoundingClientRect();
+      x = rect.left;
+      y = rect.top - 5; // Position above the avatar with small gap
+    }
+
+    setUserContextMenu({
+      isOpen: true,
+      x,
+      y,
+      username,
+      serverId,
+    });
+  };
+
+  const handleCloseUserContextMenu = () => {
+    setUserContextMenu({
+      isOpen: false,
+      x: 0,
+      y: 0,
+      username: "",
+      serverId: "",
+    });
+  };
+
+  const handleOpenPM = (username: string) => {
+    if (selectedServerId) {
+      openPrivateChat(selectedServerId, username);
+    }
+  };
+
+  const handleReactClick = (message: MessageType, buttonElement: Element) => {
+    setReactionModal({
+      isOpen: true,
+      message,
+    });
+  };
+
+  const handleCloseReactionModal = () => {
+    setReactionModal({
+      isOpen: false,
+      message: null,
+    });
+  };
+
+  const handleReactionSelect = (emoji: string) => {
+    if (reactionModal.message?.msgid) {
+      const server = servers.find(
+        (s) => s.id === reactionModal.message?.serverId,
+      );
+      const channel = server?.channels.find(
+        (c) => c.id === reactionModal.message?.channelId,
+      );
+      if (server && channel) {
+        // Check if user has already reacted with this emoji
+        const existingReaction = reactionModal.message.reactions.find(
+          (r) => r.emoji === emoji && r.userId === currentUser?.username,
+        );
+
+        if (existingReaction) {
+          // Send unreact message
+          const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+          ircClient.sendRaw(server.id, tagMsg);
+        } else {
+          // Send react message
+          const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
+          ircClient.sendRaw(server.id, tagMsg);
+        }
+      }
+    }
+    handleCloseReactionModal();
+  };
+
+  const handleReactionUnreact = (emoji: string, message: MessageType) => {
+    if (message.msgid && selectedServerId) {
+      const server = servers.find((s) => s.id === selectedServerId);
+      const channel = server?.channels.find((c) => c.id === message.channelId);
+      if (server && channel) {
+        const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${message.msgid} TAGMSG ${channel.name}`;
+        ircClient.sendRaw(server.id, tagMsg);
+      }
+    }
+  };
+
+  const handleOpenReactionModal = (
+    message: MessageType,
+    position: { x: number; y: number },
+  ) => {
+    setReactionModal({
+      isOpen: true,
+      message,
+    });
   };
 
   const handleEmojiSelect = (emoji: string) => {
@@ -599,6 +1337,14 @@ export const ChatArea: React.FC<{
               </h2>
             </>
           )}
+          {selectedPrivateChat && (
+            <>
+              <FaAt className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">
+                {selectedPrivateChat.username}
+              </h2>
+            </>
+          )}
           {selectedChannel?.topic && (
             <>
               <div className="mx-2 text-discord-text-muted">|</div>
@@ -619,22 +1365,25 @@ export const ChatArea: React.FC<{
             <button className="hover:text-discord-text-normal">
               <FaUserPlus />
             </button>
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => toggleMemberList(!isMemberListVisible)}
-              aria-label={
-                isMemberListVisible
-                  ? "Collapse member list"
-                  : "Expand member list"
-              }
-              data-testid="toggle-member-list"
-            >
-              {isMemberListVisible ? (
-                <UsersIcon className="w-4 h-4 text-white" />
-              ) : (
-                <UsersIcon className="w-4 h-4 text-gray" />
-              )}
-            </button>
+            {/* Only show member list toggle for channels, not private chats */}
+            {selectedChannel && (
+              <button
+                className="hover:text-discord-text-normal"
+                onClick={() => toggleMemberList(!isMemberListVisible)}
+                aria-label={
+                  isMemberListVisible
+                    ? "Collapse member list"
+                    : "Expand member list"
+                }
+                data-testid="toggle-member-list"
+              >
+                {isMemberListVisible ? (
+                  <UsersIcon className="w-4 h-4 text-white" />
+                ) : (
+                  <UsersIcon className="w-4 h-4 text-gray" />
+                )}
+              </button>
+            )}
             <div className="relative">
               <input
                 type="text"
@@ -648,12 +1397,12 @@ export const ChatArea: React.FC<{
       </div>
 
       {/* Messages area */}
-      {selectedServer && !selectedChannel && (
+      {selectedServer && !selectedChannel && !selectedPrivateChat && (
         <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
           <BlankPage /> {/* Render the blank page */}
         </div>
       )}
-      {selectedChannel && (
+      {(selectedChannel || selectedPrivateChat) && (
         <div
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
@@ -680,9 +1429,19 @@ export const ChatArea: React.FC<{
                 }
                 showHeader={showHeader}
                 setReplyTo={setLocalReplyTo}
+                onUsernameContextMenu={(e, username, serverId, avatarElement) =>
+                  handleUsernameClick(e, username, serverId, avatarElement)
+                }
+                onIrcLinkClick={handleIrcLinkClick}
+                onReactClick={handleReactClick}
+                selectedServerId={selectedServerId}
+                onReactionUnreact={handleReactionUnreact}
+                onOpenReactionModal={handleOpenReactionModal}
+                users={selectedChannel?.users || []}
               />
             );
           })}
+
           <div ref={messagesEndRef} />
         </div>
       )}
@@ -703,7 +1462,7 @@ export const ChatArea: React.FC<{
       )}
 
       {/* Input area */}
-      {selectedChannel && (
+      {(selectedChannel || selectedPrivateChat) && (
         <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
           <OptionsDropdown
             isOpen={isEmojiSelectorOpen}
@@ -711,7 +1470,7 @@ export const ChatArea: React.FC<{
           />
           <TypingIndicator
             serverId={selectedServerId ?? ""}
-            channelId={selectedChannelId ?? ""}
+            channelId={selectedChannelId || selectedPrivateChatId || ""}
           />
           <div className="bg-discord-dark-100 rounded-lg flex items-center">
             <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
@@ -734,12 +1493,17 @@ export const ChatArea: React.FC<{
               ref={inputRef}
               type="text"
               value={messageText}
-              onChange={(e) => {
-                setMessageText(e.target.value);
-                handleUpdatedText(e.target.value);
-              }}
+              onChange={handleInputChange}
+              onClick={handleInputClick}
+              onKeyUp={handleInputKeyUp}
               onKeyDown={handleKeyDown}
-              placeholder={`Message #${selectedChannel.name.replace(/^#/, "")}`}
+              placeholder={
+                selectedChannel
+                  ? `Message #${selectedChannel.name.replace(/^#/, "")}`
+                  : selectedPrivateChat
+                    ? `Message @${selectedPrivateChat.username}`
+                    : "Type a message..."
+              }
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
               style={{
                 color: selectedColor || "inherit",
@@ -800,8 +1564,49 @@ export const ChatArea: React.FC<{
               toggleFormatting={toggleFormatting}
             />
           )}
+
+          <AutocompleteDropdown
+            users={
+              selectedChannel?.users ||
+              (selectedPrivateChat
+                ? [
+                    ...(currentUser ? [currentUser] : []),
+                    {
+                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                      username: selectedPrivateChat.username,
+                      isOnline: true,
+                    },
+                  ]
+                : [])
+            }
+            isVisible={showAutocomplete}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            tabCompletionMatches={tabCompletion.matches}
+            currentMatchIndex={tabCompletion.currentIndex}
+            onSelect={handleUsernameSelect}
+            onClose={handleAutocompleteClose}
+            onNavigate={handleAutocompleteNavigate}
+            inputElement={inputRef.current}
+          />
         </div>
       )}
+
+      <UserContextMenu
+        isOpen={userContextMenu.isOpen}
+        x={userContextMenu.x}
+        y={userContextMenu.y}
+        username={userContextMenu.username}
+        serverId={userContextMenu.serverId}
+        onClose={handleCloseUserContextMenu}
+        onOpenPM={handleOpenPM}
+      />
+
+      <ReactionModal
+        isOpen={reactionModal.isOpen}
+        onClose={handleCloseReactionModal}
+        onSelectEmoji={handleReactionSelect}
+      />
     </div>
   );
 };

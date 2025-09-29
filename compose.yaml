@@ -5,26 +5,28 @@ services:
       dockerfile: Dockerfile
     container_name: obsidian-irc
     ports:
-      - "3000:80"
+      - '3000:80'
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ['CMD', 'wget', '-qO-', 'http://localhost/']
       interval: 30s
       timeout: 10s
       retries: 3
 
-# TODO - Add IRC daemon + backend etc
+  # TODO - Add IRC daemon + backend etc
   ircd:
     init: true
     # TODO: Use our unrealircd custom image instead
     image: ghcr.io/ergochat/ergo
     container_name: ergo
     ports:
-      - "8097:8097"
-      - "6667:6667"
+      - '8097:8097'
+      - '6667:6667'
     restart: unless-stopped
     volumes:
       - ./docker/ergo.yaml:/ircd/ircd.yaml
+    profiles:
+      - testing
 
   echo-bot:
     image: python:3.12-alpine
@@ -39,5 +41,43 @@ services:
       PORT: 6667
       CHANNEL: '#test'
       NICK: EchoBot
-    command: ["python", "echobot.py"]
+    command: ['python', '-u', 'echobot.py']
     restart: unless-stopped
+    profiles:
+      - testing
+
+  helper-bot:
+    image: python:3.12-alpine
+    container_name: helper-bot
+    volumes:
+      - ./docker/echobot.py:/app/echobot.py:ro
+    working_dir: /app
+    depends_on:
+      - ircd
+    environment:
+      HOST: ircd
+      PORT: 6667
+      CHANNEL: '#test'
+      NICK: HelperBot1
+    command: ['python', '-u', 'echobot.py']
+    restart: unless-stopped
+    profiles:
+      - testing
+
+  chat-bot:
+    image: python:3.12-alpine
+    container_name: chat-bot
+    volumes:
+      - ./docker/echobot.py:/app/echobot.py:ro
+    working_dir: /app
+    depends_on:
+      - ircd
+    environment:
+      HOST: ircd
+      PORT: 6667
+      CHANNEL: '#test'
+      NICK: HelperBot2
+    command: ['python', '-u', 'echobot.py']
+    restart: unless-stopped
+    profiles:
+      - testing
