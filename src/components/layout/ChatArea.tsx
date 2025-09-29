@@ -1,7 +1,9 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
+import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import type * as React from "react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   FaArrowDown,
   FaAt,
@@ -33,39 +35,12 @@ import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
-import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
-
-export const OptionsDropdown: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-}> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="absolute right-0 mt-2 w-48 bg-discord-dark-300 rounded-md shadow-xl z-10 border border-discord-dark-500">
-      <div className="py-1">
-        <button
-          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
-          onClick={onClose}
-        >
-          Option 1
-        </button>
-        <button
-          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
-          onClick={onClose}
-        >
-          Option 2
-        </button>
-      </div>
-    </div>
-  );
-};
 
 export const TypingIndicator: React.FC<{
   serverId: string;
@@ -758,9 +733,15 @@ export const ChatArea: React.FC<{
     });
   };
 
-  const handleEmojiSelect = (emoji: string) => {
-    setMessageText((prev) => prev + emoji);
+  const handleEmojiSelect = (emojiData: EmojiClickData) => {
+    setMessageText((prev) => prev + emojiData.emoji);
     setIsEmojiSelectorOpen(false);
+  };
+
+  const handleEmojiModalBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setIsEmojiSelectorOpen(false);
+    }
   };
 
   const handleColorSelect = (color: string, formatting: FormattingType[]) => {
@@ -936,10 +917,6 @@ export const ChatArea: React.FC<{
       {/* Input area */}
       {(selectedChannel || selectedPrivateChat) && (
         <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
-          <OptionsDropdown
-            isOpen={isEmojiSelectorOpen}
-            onClose={() => setIsEmojiSelectorOpen(false)}
-          />
           <TypingIndicator
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId || selectedPrivateChatId || ""}
@@ -1007,12 +984,39 @@ export const ChatArea: React.FC<{
             </button>
           </div>
 
-          {isEmojiSelectorOpen && (
-            <EmojiSelector
-              onSelect={handleEmojiSelect}
-              onClose={() => setIsEmojiSelectorOpen(false)}
-            />
-          )}
+          {isEmojiSelectorOpen &&
+            createPortal(
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                onClick={handleEmojiModalBackdropClick}
+              >
+                <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">
+                  <div className="p-2">
+                    <EmojiPicker
+                      onEmojiClick={handleEmojiSelect}
+                      theme={Theme.DARK}
+                      width="100%"
+                      height={400}
+                      searchPlaceholder="Search emojis..."
+                      previewConfig={{
+                        showPreview: false,
+                      }}
+                      skinTonesDisabled={false}
+                      lazyLoadEmojis={true}
+                    />
+                  </div>
+                  <div className="p-2 border-t border-discord-dark-300">
+                    <button
+                      onClick={() => setIsEmojiSelectorOpen(false)}
+                      className="text-sm text-discord-text-muted hover:text-white w-full text-center py-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body,
+            )}
 
           {isColorPickerOpen && (
             <ColorPicker
