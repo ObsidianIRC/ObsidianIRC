@@ -6,6 +6,7 @@ export interface User {
   account?: string;
   isOnline: boolean;
   status?: string;
+  metadata?: Record<string, { value: string; visibility: string }>;
 }
 
 export interface Server {
@@ -18,9 +19,9 @@ export interface Server {
   icon?: string;
   isConnected: boolean;
   users: User[];
-}
-
-export interface ServerConfig {
+  capabilities?: string[];
+  metadata?: Record<string, { value: string; visibility: string }>;
+}export interface ServerConfig {
   id: string;
   host: string;
   port: number;
@@ -43,6 +44,7 @@ export interface Channel {
   messages: Message[];
   users: User[];
   isRead?: boolean;
+  metadata?: Record<string, { value: string; visibility: string }>;
 }
 
 export interface PrivateChat {

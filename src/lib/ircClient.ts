@@ -59,6 +59,17 @@ export interface EventMap {
   CAP_ACKNOWLEDGED: { serverId: string; key: string; capabilities: string };
   CAP_END: { serverId: string };
   AUTHENTICATE: { serverId: string; param: string };
+  METADATA: { serverId: string; target: string; key: string; visibility: string; value: string };
+  METADATA_WHOIS: { serverId: string; target: string; key: string; visibility: string; value: string };
+  METADATA_KEYVALUE: { serverId: string; target: string; key: string; visibility: string; value: string };
+  METADATA_KEYNOTSET: { serverId: string; target: string; key: string };
+  METADATA_SUBOK: { serverId: string; keys: string[] };
+  METADATA_UNSUBOK: { serverId: string; keys: string[] };
+  METADATA_SUBS: { serverId: string; keys: string[] };
+  METADATA_SYNCLATER: { serverId: string; target: string; retryAfter?: number };
+  BATCH_START: { serverId: string; batchId: string; type: string };
+  BATCH_END: { serverId: string; batchId: string };
+  METADATA_FAIL: { serverId: string; subcommand: string; code: string; target?: string; key?: string; retryAfter?: number };
 }
 
 type EventKey = keyof EventMap;
@@ -207,6 +218,46 @@ export class IRCClient {
   sendTyping(serverId: string, target: string, isActive: boolean): void {
     const typingState = isActive ? "active" : "done";
     this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
+  }
+
+  // Metadata commands
+  metadataGet(serverId: string, target: string, keys: string[]): void {
+    const keysStr = keys.join(" ");
+    this.sendRaw(serverId, `METADATA ${target} GET ${keysStr}`);
+  }
+
+  metadataList(serverId: string, target: string): void {
+    this.sendRaw(serverId, `METADATA ${target} LIST`);
+  }
+
+  metadataSet(serverId: string, target: string, key: string, value?: string): void {
+    if (value !== undefined) {
+      this.sendRaw(serverId, `METADATA ${target} SET ${key} :${value}`);
+    } else {
+      this.sendRaw(serverId, `METADATA ${target} SET ${key}`);
+    }
+  }
+
+  metadataClear(serverId: string, target: string): void {
+    this.sendRaw(serverId, `METADATA ${target} CLEAR`);
+  }
+
+  metadataSub(serverId: string, keys: string[]): void {
+    const keysStr = keys.join(" ");
+    this.sendRaw(serverId, `METADATA * SUB ${keysStr}`);
+  }
+
+  metadataUnsub(serverId: string, keys: string[]): void {
+    const keysStr = keys.join(" ");
+    this.sendRaw(serverId, `METADATA * UNSUB ${keysStr}`);
+  }
+
+  metadataSubs(serverId: string): void {
+    this.sendRaw(serverId, "METADATA * SUBS");
+  }
+
+  metadataSync(serverId: string, target: string): void {
+    this.sendRaw(serverId, `METADATA ${target} SYNC`);
   }
 
   markChannelAsRead(serverId: string, channelId: string): void {
@@ -458,6 +509,62 @@ export class IRCClient {
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
+      } else if (command === "METADATA") {
+        const target = parv[0];
+        const key = parv[1];
+        const visibility = parv[2];
+        const value = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("METADATA", { serverId, target, key, visibility, value });
+      } else if (command === "760") { // RPL_WHOISKEYVALUE
+        // RPL_WHOISKEYVALUE <Target> <Key> <Visibility> :<Value>
+        const target = parv[0];
+        const key = parv[1];
+        const visibility = parv[2];
+        const value = parv.slice(3).join(" ").substring(1);
+        this.triggerEvent("METADATA_WHOIS", { serverId, target, key, visibility, value });
+      } else if (command === "761") { // RPL_KEYVALUE
+        // RPL_KEYVALUE <Target> <Key> <Visibility> :<Value>
+        const target = parv[0];
+        const key = parv[1];
+        const visibility = parv[2];
+        const value = parv.slice(3).join(" ").substring(1);
+        this.triggerEvent("METADATA_KEYVALUE", { serverId, target, key, visibility, value });
+      } else if (command === "766") { // RPL_KEYNOTSET
+        // RPL_KEYNOTSET <Target> <Key> :key not set
+        const target = parv[0];
+        const key = parv[1];
+        this.triggerEvent("METADATA_KEYNOTSET", { serverId, target, key });
+      } else if (command === "770") { // RPL_METADATASUBOK
+        // RPL_METADATASUBOK <Key1> [<Key2> ...]
+        const keys = parv.slice(0);
+        this.triggerEvent("METADATA_SUBOK", { serverId, keys });
+      } else if (command === "771") { // RPL_METADATAUNSUBOK
+        // RPL_METADATAUNSUBOK <Key1> [<Key2> ...]
+        const keys = parv.slice(0);
+        this.triggerEvent("METADATA_UNSUBOK", { serverId, keys });
+      } else if (command === "772") { // RPL_METADATASUBS
+        // RPL_METADATASUBS <Key1> [<Key2> ...]
+        const keys = parv.slice(0);
+        this.triggerEvent("METADATA_SUBS", { serverId, keys });
+      } else if (command === "774") { // RPL_METADATASYNCLATER
+        // RPL_METADATASYNCLATER <Target> [<RetryAfter>]
+        const target = parv[0];
+        const retryAfter = parv[1] ? Number.parseInt(parv[1], 10) : undefined;
+        this.triggerEvent("METADATA_SYNCLATER", { serverId, target, retryAfter });
+      } else if (command === "FAIL") {
+        const subcommand = parv[0];
+        if (subcommand === "METADATA") {
+          const code = parv[1];
+          let target: string | undefined;
+          let key: string | undefined;
+          let retryAfter: number | undefined;
+          if (parv[2]) target = parv[2];
+          if (parv[3]) key = parv[3];
+          if (parv[4] && code === "RATE_LIMITED") {
+            retryAfter = Number.parseInt(parv[4], 10);
+          }
+          this.triggerEvent("METADATA_FAIL", { serverId, subcommand: parv[1], code, target, key, retryAfter });
+        }
       }
     }
   }
@@ -481,13 +588,14 @@ export class IRCClient {
       "draft/chathistory",
       "draft/extended-isupport",
       "sasl",
+      "draft/metadata-2",
     ];
 
     const caps = cliCaps.split(" ");
     let toRequest = "CAP REQ :";
     for (const c of caps) {
       const cap = c.includes("=") ? c.split("=")[0] : c;
-      if (ourCaps.includes(cap)) {
+      if (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) {
         if (toRequest.length + cap.length + 1 > 400) {
           this.sendRaw(serverId, toRequest);
           toRequest = "CAP REQ :";

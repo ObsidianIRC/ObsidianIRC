@@ -58,6 +58,10 @@ const UserItem: React.FC<{
     avatarElement?: Element | null,
   ) => void;
 }> = ({ user, serverId, currentUser, onContextMenu }) => {
+  // Display metadata like website or status
+  const website = user.metadata?.url?.value || user.metadata?.website?.value;
+  const status = user.metadata?.status?.value;
+
   return (
     <div
       className={`flex items-center py-2 px-3 mx-2 rounded cursor-pointer ${
@@ -73,14 +77,26 @@ const UserItem: React.FC<{
       <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold">
         {user.username.charAt(0).toUpperCase()}
       </div>
-      <span className="ml-3">
-        {user.status && (
-          <span className="inline-block bg-discord-dark-600 text-white px-1 rounded text-xs mr-1">
-            {user.status}
-          </span>
+      <div className="ml-3 flex-1 min-w-0">
+        <div className="flex items-center">
+          {user.status && (
+            <span className="inline-block bg-discord-dark-600 text-white px-1 rounded text-xs mr-1">
+              {user.status}
+            </span>
+          )}
+          <span className="truncate">{user.username}</span>
+        </div>
+        {status && (
+          <div className="text-xs text-discord-text-muted truncate">
+            {status}
+          </div>
         )}
-        {user.username}
-      </span>
+        {website && (
+          <div className="text-xs text-discord-text-muted truncate">
+            🌐 {website}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

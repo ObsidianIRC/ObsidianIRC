@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
+import useStore from "../../store";
 
 interface UserContextMenuProps {
   isOpen: boolean;
@@ -29,6 +30,17 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onBanUser,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Get user metadata
+  const servers = useStore((state) => state.servers);
+  const server = servers.find((s) => s.id === serverId);
+  const user = server?.channels
+    .flatMap((c) => c.users)
+    .find((u) => u.username === username) || 
+    server?.users.find((u) => u.username === username);
+
+  const website = user?.metadata?.url?.value || user?.metadata?.website?.value;
+  const status = user?.metadata?.status?.value;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -123,6 +135,16 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
       <div className="py-1">
         <div className="px-3 py-2 text-xs text-discord-text-muted font-semibold uppercase tracking-wide border-b border-discord-dark-500 mb-1">
           {username}
+          {status && (
+            <div className="text-xs text-discord-text-normal normal-case mt-1">
+              {status}
+            </div>
+          )}
+          {website && (
+            <div className="text-xs text-discord-text-normal normal-case mt-1">
+              🌐 {website}
+            </div>
+          )}
         </div>
         <button
           onClick={handleOpenPM}
