@@ -83,8 +83,11 @@ const UserItem: React.FC<{
             className="w-10 h-10 rounded-full object-cover"
             onError={(e) => {
               // Fallback to initial if image fails to load
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.parentElement!.textContent = user.username.charAt(0).toUpperCase();
+              e.currentTarget.style.display = "none";
+              const parent = e.currentTarget.parentElement;
+              if (parent) {
+                parent.textContent = user.username.charAt(0).toUpperCase();
+              }
             }}
           />
         ) : (

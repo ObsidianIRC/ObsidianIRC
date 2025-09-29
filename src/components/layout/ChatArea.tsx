@@ -207,7 +207,9 @@ const MessageItem: React.FC<{
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
   // Find the user for this message
-  const messageUser = users.find(user => user.username === message.userId.split("-")[0]);
+  const messageUser = users.find(
+    (user) => user.username === message.userId.split("-")[0],
+  );
   const avatarUrl = messageUser?.metadata?.avatar?.value;
   const isSystem = message.type === "system";
   // Convert message content to React elements
@@ -268,8 +270,11 @@ const MessageItem: React.FC<{
                   className="w-8 h-8 rounded-full object-cover"
                   onError={(e) => {
                     // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement!.textContent = message.userId.charAt(0).toUpperCase();
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.textContent = message.userId.charAt(0).toUpperCase();
+                    }
                   }}
                 />
               ) : (
@@ -330,8 +335,11 @@ const MessageItem: React.FC<{
                   className="w-8 h-8 rounded-full object-cover"
                   onError={(e) => {
                     // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement!.textContent = message.userId.charAt(0).toUpperCase();
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.textContent = message.userId.charAt(0).toUpperCase();
+                    }
                   }}
                 />
               ) : (

@@ -371,8 +371,11 @@ export const ChannelList: React.FC<{
                   className="w-8 h-8 rounded-full object-cover"
                   onError={(e) => {
                     // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement!.textContent = currentUser?.username?.charAt(0)?.toUpperCase();
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent && currentUser?.username) {
+                      parent.textContent = currentUser.username.charAt(0).toUpperCase();
+                    }
                   }}
                 />
               ) : (
