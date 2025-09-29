@@ -133,7 +133,7 @@ export class IRCClient {
         console.log("Parsing IRC URL:", host);
         const ircUrl = new URL(host);
         actualHost = ircUrl.hostname;
-        actualPort = ircUrl.port ? Number.parseInt(ircUrl.port) : port;
+        actualPort = ircUrl.port ? Number.parseInt(ircUrl.port, 10) : port;
         console.log("Parsed IRC URL:", {
           protocol,
           actualHost,
