@@ -29,7 +29,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import ircClient from "../../lib/ircClient";
-import { ircColors, mircToHtml, getColorStyle } from "../../lib/ircUtils";
+import { getColorStyle, ircColors, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
@@ -211,7 +211,7 @@ const MessageItem: React.FC<{
     (user) => user.username === message.userId.split("-")[0],
   );
   const avatarUrl = messageUser?.metadata?.avatar?.value;
-  const displayName = messageUser?.metadata?.displayName?.value;
+  const displayName = messageUser?.metadata?.["display-name"]?.value;
   const userColor = messageUser?.metadata?.color?.value;
   const userStatus = messageUser?.metadata?.status?.value;
   const isSystem = message.type === "system";

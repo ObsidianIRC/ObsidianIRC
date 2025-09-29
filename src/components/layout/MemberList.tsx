@@ -2,10 +2,10 @@ import type React from "react";
 import { useState } from "react";
 import { FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { getColorStyle } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import UserContextMenu from "../ui/UserContextMenu";
-import { getColorStyle } from "../../lib/ircUtils";
 
 const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   let bgColor = "bg-discord-dark-500"; // Default/offline
@@ -115,7 +115,9 @@ const UserItem: React.FC<{
               {user.status}
             </span>
           )}
-          <span className="truncate" style={getColorStyle(color)}>{user.username}</span>
+          <span className="truncate" style={getColorStyle(color)}>
+            {user.username}
+          </span>
         </div>
         {status && (
           <div className="text-xs text-discord-text-muted truncate">

@@ -283,7 +283,7 @@ export function getColorStyle(colorValue?: string): React.CSSProperties {
   if (!colorValue) return {};
 
   // If it's a hex color
-  if (colorValue.startsWith('#')) {
+  if (colorValue.startsWith("#")) {
     return { color: colorValue };
   }
 
@@ -293,7 +293,7 @@ export function getColorStyle(colorValue?: string): React.CSSProperties {
   }
 
   // If it's an RGB/RGBA value
-  if (colorValue.startsWith('rgb')) {
+  if (colorValue.startsWith("rgb")) {
     return { color: colorValue };
   }
 
