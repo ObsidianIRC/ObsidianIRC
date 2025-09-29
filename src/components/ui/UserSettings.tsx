@@ -4,8 +4,14 @@ import { FaTimes } from "react-icons/fa";
 import useStore from "../../store";
 
 const UserSettings: React.FC = () => {
-  const { toggleUserProfileModal, currentUser, servers, ui, metadataSet, sendRaw } =
-    useStore();
+  const {
+    toggleUserProfileModal,
+    currentUser,
+    servers,
+    ui,
+    metadataSet,
+    sendRaw,
+  } = useStore();
   const currentServer = servers.find((s) => s.id === ui.selectedServerId);
   const supportsMetadata =
     currentServer?.capabilities?.some((cap) =>

@@ -88,7 +88,11 @@ function restoreServerMetadata(serverId: string) {
             Object.assign(updatedChannelMetadata, channelMetadata);
           }
 
-          return { ...channel, users: updatedUsers, metadata: updatedChannelMetadata };
+          return {
+            ...channel,
+            users: updatedUsers,
+            metadata: updatedChannelMetadata,
+          };
         });
 
         return {
@@ -1188,13 +1192,14 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
   // Request metadata for all users in the channel (except current user)
   const currentState = useStore.getState();
   const currentUser = currentState.currentUser;
--  users.forEach((user, index) => {
--    if (currentUser && user.username !== currentUser.username) {
--      // Stagger requests to avoid overwhelming the server
--      setTimeout(() => {
--        useStore.getState().metadataList(serverId, user.username);
--      }, index * 200); // 200ms delay between requests
--    }
+  users.forEach((user, index) => {
+    if (currentUser && user.username !== currentUser.username) {
+      // Stagger requests to avoid overwhelming the server
+      setTimeout(() => {
+        useStore.getState().metadataList(serverId, user.username);
+      }, index * 200); // 200ms delay between requests
+    }
+  });
   const usersToFetch = users.filter(u => u.username !== currentUser?.username);
 
   // Process in batches with shorter delays
@@ -1834,7 +1839,11 @@ ircClient.on(
               channelMetadata[key] = { value, visibility };
             }
 
-            return { ...channel, users: updatedUsers, metadata: channelMetadata };
+            return {
+              ...channel,
+              users: updatedUsers,
+              metadata: channelMetadata,
+            };
           });
         }
         return server;
