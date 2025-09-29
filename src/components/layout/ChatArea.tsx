@@ -85,6 +85,7 @@ export const ChatArea: React.FC<{
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
+  const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
     x: number;
@@ -881,10 +882,20 @@ export const ChatArea: React.FC<{
     }
   };
 
-  const handleColorSelect = (color: string, formatting: FormattingType[]) => {
-    setSelectedColor(color);
-    setSelectedFormatting(formatting);
-    setIsColorPickerOpen(false);
+  const handleAtButtonClick = () => {
+    setShowMembersDropdown((prev) => {
+      const newValue = !prev;
+      // Close other dropdowns when opening members dropdown
+      if (newValue) {
+        setShowAutocomplete(false);
+        setShowEmojiAutocomplete(false);
+        setIsEmojiSelectorOpen(false);
+        setIsColorPickerOpen(false);
+        emojiCompletion.resetCompletion();
+        tabCompletion.resetCompletion();
+      }
+      return newValue;
+    });
   };
 
   const toggleFormatting = (format: FormattingType) => {
@@ -1098,13 +1109,21 @@ export const ChatArea: React.FC<{
             />
             <button
               className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => setIsEmojiSelectorOpen((prev) => !prev)}
+              onClick={() => {
+                setIsEmojiSelectorOpen((prev) => !prev);
+                setIsColorPickerOpen(false);
+                setShowMembersDropdown(false);
+              }}
             >
               <FaGrinAlt />
             </button>
             <button
               className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => setIsColorPickerOpen((prev) => !prev)}
+              onClick={() => {
+                setIsColorPickerOpen((prev) => !prev);
+                setIsEmojiSelectorOpen(false);
+                setShowMembersDropdown(false);
+              }}
             >
               <div
                 className="w-4 h-4 rounded-full border-2 border-white-700"
@@ -1116,7 +1135,10 @@ export const ChatArea: React.FC<{
                 }}
               />
             </button>
-            <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
+            <button
+              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+              onClick={handleAtButtonClick}
+            >
               <FaAt />
             </button>
           </div>
@@ -1200,6 +1222,48 @@ export const ChatArea: React.FC<{
             onClose={handleEmojiAutocompleteClose}
             onNavigate={handleEmojiAutocompleteNavigate}
             inputElement={inputRef.current}
+          />
+
+          {/* Members dropdown triggered by @ button */}
+          <AutocompleteDropdown
+            users={
+              selectedChannel?.users ||
+              (selectedPrivateChat
+                ? [
+                    ...(currentUser ? [currentUser] : []),
+                    {
+                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                      username: selectedPrivateChat.username,
+                      isOnline: true,
+                    },
+                  ]
+                : [])
+            }
+            isVisible={showMembersDropdown}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            tabCompletionMatches={
+              selectedChannel?.users ||
+              (selectedPrivateChat
+                ? [
+                    ...(currentUser ? [currentUser] : []),
+                    {
+                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                      username: selectedPrivateChat.username,
+                      isOnline: true,
+                    },
+                  ]
+                : [])
+            }
+            currentMatchIndex={-1}
+            onSelect={(username) => {
+              setMessageText((prev) => `${prev + username} `);
+              setShowMembersDropdown(false);
+            }}
+            onClose={() => setShowMembersDropdown(false)}
+            onNavigate={() => {}}
+            inputElement={inputRef.current}
+            isAtButtonTriggered={true}
           />
         </div>
       )}
