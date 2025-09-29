@@ -61,6 +61,7 @@ const UserItem: React.FC<{
   // Display metadata like website or status
   const website = user.metadata?.url?.value || user.metadata?.website?.value;
   const status = user.metadata?.status?.value;
+  const avatarUrl = user.metadata?.avatar?.value;
 
   return (
     <div
@@ -75,7 +76,20 @@ const UserItem: React.FC<{
       }}
     >
       <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold">
-        {user.username.charAt(0).toUpperCase()}
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={user.username}
+            className="w-10 h-10 rounded-full object-cover"
+            onError={(e) => {
+              // Fallback to initial if image fails to load
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.parentElement!.textContent = user.username.charAt(0).toUpperCase();
+            }}
+          />
+        ) : (
+          user.username.charAt(0).toUpperCase()
+        )}
       </div>
       <div className="ml-3 flex-1 min-w-0">
         <div className="flex items-center">

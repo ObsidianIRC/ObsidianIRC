@@ -193,7 +193,7 @@ export class IRCClient {
     const socket = this.sockets.get(serverId);
     if (socket && socket.readyState === WebSocket.OPEN) {
       // Log metadata commands but not sensitive commands
-      if (command.startsWith('METADATA')) {
+      if (command.startsWith("METADATA")) {
         console.log(`[IRC] Sending: ${command}`);
       }
       socket.send(command);
@@ -265,9 +265,10 @@ export class IRCClient {
     key: string,
     value?: string,
   ): void {
-    const command = value !== undefined
-      ? `METADATA ${target} SET ${key} :${value}`
-      : `METADATA ${target} SET ${key}`;
+    const command =
+      value !== undefined
+        ? `METADATA ${target} SET ${key} :${value}`
+        : `METADATA ${target} SET ${key}`;
     console.log(`[IRC] Sending metadata SET command: ${command}`);
     this.sendRaw(serverId, command);
   }
@@ -548,7 +549,9 @@ export class IRCClient {
         const key = parv[1];
         const visibility = parv[2];
         const value = parv.slice(3).join(" ").substring(1); // Remove leading :
-        console.log(`[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${value}`);
+        console.log(
+          `[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${value}`,
+        );
         this.triggerEvent("METADATA", {
           serverId,
           target,
@@ -627,7 +630,9 @@ export class IRCClient {
           if (parv[4] && code === "RATE_LIMITED") {
             retryAfter = Number.parseInt(parv[4], 10);
           }
-          console.log(`[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`);
+          console.log(
+            `[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
+          );
           this.triggerEvent("METADATA_FAIL", {
             serverId,
             subcommand: parv[1],

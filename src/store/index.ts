@@ -872,7 +872,9 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   metadataSet: (serverId, target, key, value) => {
-    console.log(`[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}`);
+    console.log(
+      `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}`,
+    );
     ircClient.metadataSet(serverId, target, key, value);
   },
 
@@ -1597,7 +1599,9 @@ ircClient.on("TAGMSG", (response) => {
 
 // Metadata event handlers
 ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
-  console.log(`[METADATA] Received metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`);
+  console.log(
+    `[METADATA] Received metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
+  );
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -1694,7 +1698,9 @@ ircClient.on(
 );
 
 ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
-  console.log(`[METADATA] Key not set: server=${serverId}, target=${target}, key=${key}`);
+  console.log(
+    `[METADATA] Key not set: server=${serverId}, target=${target}, key=${key}`,
+  );
   // Handle key not set responses
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {

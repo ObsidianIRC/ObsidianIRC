@@ -190,6 +190,7 @@ const MessageItem: React.FC<{
     message: MessageType,
     position: { x: number; y: number },
   ) => void;
+  users: User[];
 }> = ({
   message,
   showDate,
@@ -201,9 +202,13 @@ const MessageItem: React.FC<{
   selectedServerId,
   onReactionUnreact,
   onOpenReactionModal,
+  users,
 }) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
+  // Find the user for this message
+  const messageUser = users.find(user => user.username === message.userId.split("-")[0]);
+  const avatarUrl = messageUser?.metadata?.avatar?.value;
   const isSystem = message.type === "system";
   // Convert message content to React elements
   const htmlContent = mircToHtml(message.content);
@@ -256,7 +261,20 @@ const MessageItem: React.FC<{
         <div className="flex">
           <div className="mr-4">
             <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
-              {message.userId.charAt(0).toUpperCase()}
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={message.userId.split("-")[0]}
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.textContent = message.userId.charAt(0).toUpperCase();
+                  }}
+                />
+              ) : (
+                message.userId.charAt(0).toUpperCase()
+              )}
             </div>
           </div>
           <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
@@ -305,7 +323,20 @@ const MessageItem: React.FC<{
             <div
               className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white`}
             >
-              {message.userId.charAt(0).toUpperCase()}
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={message.userId.split("-")[0]}
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.textContent = message.userId.charAt(0).toUpperCase();
+                  }}
+                />
+              ) : (
+                message.userId.charAt(0).toUpperCase()
+              )}
             </div>
           </div>
         )}
@@ -1360,6 +1391,7 @@ export const ChatArea: React.FC<{
                 selectedServerId={selectedServerId}
                 onReactionUnreact={handleReactionUnreact}
                 onOpenReactionModal={handleOpenReactionModal}
+                users={selectedChannel?.users || []}
               />
             );
           })}
