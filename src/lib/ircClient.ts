@@ -577,7 +577,7 @@ export class IRCClient {
         // RPL_KEYVALUE
         // RPL_KEYVALUE <Target> <Key> <Visibility> :<Value>
         // Note: Server sometimes sends target twice, so detect and handle this
-        let target = parv[0];
+        const target = parv[0];
         let key = parv[1];
         let visibility = parv[2];
         let valueStartIndex = 3;

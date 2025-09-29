@@ -1851,7 +1851,7 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   if (capabilities?.startsWith("draft/metadata")) {
     // Subscribe to common metadata keys
-    const defaultKeys = ["url", "website", "status", "location", "avatar"];
+    const defaultKeys = ["url", "website", "status", "location", "avatar", "color", "displayName"];
     useStore.getState().metadataSub(serverId, defaultKeys);
   }
 });

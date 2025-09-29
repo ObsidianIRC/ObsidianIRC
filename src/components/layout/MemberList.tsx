@@ -5,6 +5,7 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
 import type { User } from "../../types";
 import UserContextMenu from "../ui/UserContextMenu";
+import { getColorStyle } from "../../lib/ircUtils";
 
 const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   let bgColor = "bg-discord-dark-500"; // Default/offline
@@ -62,6 +63,7 @@ const UserItem: React.FC<{
   const website = user.metadata?.url?.value || user.metadata?.website?.value;
   const status = user.metadata?.status?.value;
   const avatarUrl = user.metadata?.avatar?.value;
+  const color = user.metadata?.color?.value;
 
   return (
     <div
@@ -75,7 +77,7 @@ const UserItem: React.FC<{
         onContextMenu(e, user.username, serverId, avatarElement);
       }}
     >
-      <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold">
+      <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold relative">
         {avatarUrl ? (
           <img
             src={avatarUrl}
@@ -93,6 +95,18 @@ const UserItem: React.FC<{
         ) : (
           user.username.charAt(0).toUpperCase()
         )}
+        {status && (
+          <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+              <span className="text-xs">💡</span>
+            </div>
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+              <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                {status}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <div className="ml-3 flex-1 min-w-0">
         <div className="flex items-center">
@@ -101,7 +115,7 @@ const UserItem: React.FC<{
               {user.status}
             </span>
           )}
-          <span className="truncate">{user.username}</span>
+          <span className="truncate" style={getColorStyle(color)}>{user.username}</span>
         </div>
         {status && (
           <div className="text-xs text-discord-text-muted truncate">
