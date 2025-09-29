@@ -73,7 +73,18 @@ export interface AppState {
   typingUsers: Record<string, User[]>;
   // Metadata state
   metadataSubscriptions: Record<string, string[]>; // serverId -> keys
-  metadataBatches: Record<string, { type: string; messages: { target: string; key: string; visibility: string; value: string }[] }>; // batchId -> batch info
+  metadataBatches: Record<
+    string,
+    {
+      type: string;
+      messages: {
+        target: string;
+        key: string;
+        visibility: string;
+        value: string;
+      }[];
+    }
+  >; // batchId -> batch info
   // UI state
   ui: UIState;
   globalSettings: GlobalSettings;
@@ -136,7 +147,12 @@ export interface AppState {
   // Metadata actions
   metadataGet: (serverId: string, target: string, keys: string[]) => void;
   metadataList: (serverId: string, target: string) => void;
-  metadataSet: (serverId: string, target: string, key: string, value?: string) => void;
+  metadataSet: (
+    serverId: string,
+    target: string,
+    key: string,
+    value?: string,
+  ) => void;
   metadataClear: (serverId: string, target: string) => void;
   metadataSub: (serverId: string, keys: string[]) => void;
   metadataUnsub: (serverId: string, keys: string[]) => void;
@@ -856,6 +872,7 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   metadataSet: (serverId, target, key, value) => {
+    console.log(`[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}`);
     ircClient.metadataSet(serverId, target, key, value);
   },
 
@@ -1580,6 +1597,7 @@ ircClient.on("TAGMSG", (response) => {
 
 // Metadata event handlers
 ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
+  console.log(`[METADATA] Received metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`);
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -1610,7 +1628,11 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
           }
         }
 
-        return { ...server, channels: updatedChannels, metadata: updatedMetadata };
+        return {
+          ...server,
+          channels: updatedChannels,
+          metadata: updatedMetadata,
+        };
       }
       return server;
     });
@@ -1631,44 +1653,48 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
   });
 });
 
-ircClient.on("METADATA_KEYVALUE", ({ serverId, target, key, visibility, value }) => {
-  // Handle individual key-value responses (similar to METADATA)
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((server) => {
-      if (server.id === serverId) {
-        // Update metadata for users in channels
-        const updatedChannels = server.channels.map((channel) => {
-          const updatedUsers = channel.users.map((user) => {
-            if (user.username === target) {
-              const metadata = user.metadata || {};
-              metadata[key] = { value, visibility };
-              return { ...user, metadata };
-            }
-            return user;
+ircClient.on(
+  "METADATA_KEYVALUE",
+  ({ serverId, target, key, visibility, value }) => {
+    // Handle individual key-value responses (similar to METADATA)
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          // Update metadata for users in channels
+          const updatedChannels = server.channels.map((channel) => {
+            const updatedUsers = channel.users.map((user) => {
+              if (user.username === target) {
+                const metadata = user.metadata || {};
+                metadata[key] = { value, visibility };
+                return { ...user, metadata };
+              }
+              return user;
+            });
+            return { ...channel, users: updatedUsers };
           });
-          return { ...channel, users: updatedUsers };
-        });
 
-        // Update metadata for channels
-        const updatedChannelsWithMeta = updatedChannels.map((channel) => {
-          if (channel.name === target) {
-            const metadata = channel.metadata || {};
-            metadata[key] = { value, visibility };
-            return { ...channel, metadata };
-          }
-          return channel;
-        });
+          // Update metadata for channels
+          const updatedChannelsWithMeta = updatedChannels.map((channel) => {
+            if (channel.name === target) {
+              const metadata = channel.metadata || {};
+              metadata[key] = { value, visibility };
+              return { ...channel, metadata };
+            }
+            return channel;
+          });
 
-        return { ...server, channels: updatedChannelsWithMeta };
-      }
-      return server;
+          return { ...server, channels: updatedChannelsWithMeta };
+        }
+        return server;
+      });
+
+      return { servers: updatedServers };
     });
-
-    return { servers: updatedServers };
-  });
-});
+  },
+);
 
 ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
+  console.log(`[METADATA] Key not set: server=${serverId}, target=${target}, key=${key}`);
   // Handle key not set responses
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
@@ -1792,11 +1818,18 @@ ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   }
 });
 
-ircClient.on("METADATA_FAIL", ({ serverId, subcommand, code, target, key, retryAfter }) => {
-  // Handle metadata failures
-  console.error(`Metadata ${subcommand} failed: ${code}`, { target, key, retryAfter });
-  // Could show user notifications here
-});
+ircClient.on(
+  "METADATA_FAIL",
+  ({ serverId, subcommand, code, target, key, retryAfter }) => {
+    // Handle metadata failures
+    console.error(`Metadata ${subcommand} failed: ${code}`, {
+      target,
+      key,
+      retryAfter,
+    });
+    // Could show user notifications here
+  },
+);
 
 // Load saved servers on store initialization
 

@@ -59,9 +59,27 @@ export interface EventMap {
   CAP_ACKNOWLEDGED: { serverId: string; key: string; capabilities: string };
   CAP_END: { serverId: string };
   AUTHENTICATE: { serverId: string; param: string };
-  METADATA: { serverId: string; target: string; key: string; visibility: string; value: string };
-  METADATA_WHOIS: { serverId: string; target: string; key: string; visibility: string; value: string };
-  METADATA_KEYVALUE: { serverId: string; target: string; key: string; visibility: string; value: string };
+  METADATA: {
+    serverId: string;
+    target: string;
+    key: string;
+    visibility: string;
+    value: string;
+  };
+  METADATA_WHOIS: {
+    serverId: string;
+    target: string;
+    key: string;
+    visibility: string;
+    value: string;
+  };
+  METADATA_KEYVALUE: {
+    serverId: string;
+    target: string;
+    key: string;
+    visibility: string;
+    value: string;
+  };
   METADATA_KEYNOTSET: { serverId: string; target: string; key: string };
   METADATA_SUBOK: { serverId: string; keys: string[] };
   METADATA_UNSUBOK: { serverId: string; keys: string[] };
@@ -69,7 +87,14 @@ export interface EventMap {
   METADATA_SYNCLATER: { serverId: string; target: string; retryAfter?: number };
   BATCH_START: { serverId: string; batchId: string; type: string };
   BATCH_END: { serverId: string; batchId: string };
-  METADATA_FAIL: { serverId: string; subcommand: string; code: string; target?: string; key?: string; retryAfter?: number };
+  METADATA_FAIL: {
+    serverId: string;
+    subcommand: string;
+    code: string;
+    target?: string;
+    key?: string;
+    retryAfter?: number;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -167,6 +192,10 @@ export class IRCClient {
   sendRaw(serverId: string, command: string): void {
     const socket = this.sockets.get(serverId);
     if (socket && socket.readyState === WebSocket.OPEN) {
+      // Log metadata commands but not sensitive commands
+      if (command.startsWith('METADATA')) {
+        console.log(`[IRC] Sending: ${command}`);
+      }
       socket.send(command);
     } else {
       console.error(`Socket for server ${serverId} is not open`);
@@ -230,12 +259,17 @@ export class IRCClient {
     this.sendRaw(serverId, `METADATA ${target} LIST`);
   }
 
-  metadataSet(serverId: string, target: string, key: string, value?: string): void {
-    if (value !== undefined) {
-      this.sendRaw(serverId, `METADATA ${target} SET ${key} :${value}`);
-    } else {
-      this.sendRaw(serverId, `METADATA ${target} SET ${key}`);
-    }
+  metadataSet(
+    serverId: string,
+    target: string,
+    key: string,
+    value?: string,
+  ): void {
+    const command = value !== undefined
+      ? `METADATA ${target} SET ${key} :${value}`
+      : `METADATA ${target} SET ${key}`;
+    console.log(`[IRC] Sending metadata SET command: ${command}`);
+    this.sendRaw(serverId, command);
   }
 
   metadataClear(serverId: string, target: string): void {
@@ -514,43 +548,73 @@ export class IRCClient {
         const key = parv[1];
         const visibility = parv[2];
         const value = parv.slice(3).join(" ").substring(1); // Remove leading :
-        this.triggerEvent("METADATA", { serverId, target, key, visibility, value });
-      } else if (command === "760") { // RPL_WHOISKEYVALUE
+        console.log(`[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${value}`);
+        this.triggerEvent("METADATA", {
+          serverId,
+          target,
+          key,
+          visibility,
+          value,
+        });
+      } else if (command === "760") {
+        // RPL_WHOISKEYVALUE
         // RPL_WHOISKEYVALUE <Target> <Key> <Visibility> :<Value>
         const target = parv[0];
         const key = parv[1];
         const visibility = parv[2];
         const value = parv.slice(3).join(" ").substring(1);
-        this.triggerEvent("METADATA_WHOIS", { serverId, target, key, visibility, value });
-      } else if (command === "761") { // RPL_KEYVALUE
+        this.triggerEvent("METADATA_WHOIS", {
+          serverId,
+          target,
+          key,
+          visibility,
+          value,
+        });
+      } else if (command === "761") {
+        // RPL_KEYVALUE
         // RPL_KEYVALUE <Target> <Key> <Visibility> :<Value>
         const target = parv[0];
         const key = parv[1];
         const visibility = parv[2];
         const value = parv.slice(3).join(" ").substring(1);
-        this.triggerEvent("METADATA_KEYVALUE", { serverId, target, key, visibility, value });
-      } else if (command === "766") { // RPL_KEYNOTSET
+        this.triggerEvent("METADATA_KEYVALUE", {
+          serverId,
+          target,
+          key,
+          visibility,
+          value,
+        });
+      } else if (command === "766") {
+        // RPL_KEYNOTSET
         // RPL_KEYNOTSET <Target> <Key> :key not set
         const target = parv[0];
         const key = parv[1];
         this.triggerEvent("METADATA_KEYNOTSET", { serverId, target, key });
-      } else if (command === "770") { // RPL_METADATASUBOK
+      } else if (command === "770") {
+        // RPL_METADATASUBOK
         // RPL_METADATASUBOK <Key1> [<Key2> ...]
         const keys = parv.slice(0);
         this.triggerEvent("METADATA_SUBOK", { serverId, keys });
-      } else if (command === "771") { // RPL_METADATAUNSUBOK
+      } else if (command === "771") {
+        // RPL_METADATAUNSUBOK
         // RPL_METADATAUNSUBOK <Key1> [<Key2> ...]
         const keys = parv.slice(0);
         this.triggerEvent("METADATA_UNSUBOK", { serverId, keys });
-      } else if (command === "772") { // RPL_METADATASUBS
+      } else if (command === "772") {
+        // RPL_METADATASUBS
         // RPL_METADATASUBS <Key1> [<Key2> ...]
         const keys = parv.slice(0);
         this.triggerEvent("METADATA_SUBS", { serverId, keys });
-      } else if (command === "774") { // RPL_METADATASYNCLATER
+      } else if (command === "774") {
+        // RPL_METADATASYNCLATER
         // RPL_METADATASYNCLATER <Target> [<RetryAfter>]
         const target = parv[0];
         const retryAfter = parv[1] ? Number.parseInt(parv[1], 10) : undefined;
-        this.triggerEvent("METADATA_SYNCLATER", { serverId, target, retryAfter });
+        this.triggerEvent("METADATA_SYNCLATER", {
+          serverId,
+          target,
+          retryAfter,
+        });
       } else if (command === "FAIL") {
         const subcommand = parv[0];
         if (subcommand === "METADATA") {
@@ -563,7 +627,15 @@ export class IRCClient {
           if (parv[4] && code === "RATE_LIMITED") {
             retryAfter = Number.parseInt(parv[4], 10);
           }
-          this.triggerEvent("METADATA_FAIL", { serverId, subcommand: parv[1], code, target, key, retryAfter });
+          console.log(`[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`);
+          this.triggerEvent("METADATA_FAIL", {
+            serverId,
+            subcommand: parv[1],
+            code,
+            target,
+            key,
+            retryAfter,
+          });
         }
       }
     }

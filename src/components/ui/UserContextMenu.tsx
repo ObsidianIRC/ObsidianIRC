@@ -34,9 +34,10 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   // Get user metadata
   const servers = useStore((state) => state.servers);
   const server = servers.find((s) => s.id === serverId);
-  const user = server?.channels
-    .flatMap((c) => c.users)
-    .find((u) => u.username === username) || 
+  const user =
+    server?.channels
+      .flatMap((c) => c.users)
+      .find((u) => u.username === username) ||
     server?.users.find((u) => u.username === username);
 
   const website = user?.metadata?.url?.value || user?.metadata?.website?.value;

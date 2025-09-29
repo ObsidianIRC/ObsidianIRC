@@ -21,7 +21,8 @@ export interface Server {
   users: User[];
   capabilities?: string[];
   metadata?: Record<string, { value: string; visibility: string }>;
-}export interface ServerConfig {
+}
+export interface ServerConfig {
   id: string;
   host: string;
   port: number;

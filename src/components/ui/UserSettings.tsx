@@ -1,12 +1,16 @@
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import useStore from "../../store";
 
 const UserSettings: React.FC = () => {
-  const { toggleUserProfileModal, currentUser, servers, ui, metadataSet } = useStore();
-  const currentServer = servers.find(s => s.id === ui.selectedServerId);
-  const supportsMetadata = currentServer?.capabilities?.some(cap => cap.startsWith("draft/metadata")) || false;
+  const { toggleUserProfileModal, currentUser, servers, ui, metadataSet } =
+    useStore();
+  const currentServer = servers.find((s) => s.id === ui.selectedServerId);
+  const supportsMetadata =
+    currentServer?.capabilities?.some((cap) =>
+      cap.startsWith("draft/metadata"),
+    ) || false;
 
   // Metadata state
   const [avatar, setAvatar] = useState("");
@@ -30,14 +34,24 @@ const UserSettings: React.FC = () => {
 
   const handleSaveMetadata = (key: string, value: string) => {
     if (currentServer && currentUser) {
-      metadataSet(currentServer.id, currentUser.username, key, value || undefined);
+      metadataSet(
+        currentServer.id,
+        currentUser.username,
+        key,
+        value || undefined,
+      );
     }
   };
 
   const handleSaveAll = () => {
     if (currentServer && currentUser) {
       // Always save display name (not metadata)
-      metadataSet(currentServer.id, currentUser.username, "display-name", displayName || undefined);
+      metadataSet(
+        currentServer.id,
+        currentUser.username,
+        "display-name",
+        displayName || undefined,
+      );
 
       if (supportsMetadata) {
         const metadataUpdates = [
@@ -49,7 +63,12 @@ const UserSettings: React.FC = () => {
         ];
 
         metadataUpdates.forEach(({ key, value }) => {
-          metadataSet(currentServer.id, currentUser.username, key, value || undefined);
+          metadataSet(
+            currentServer.id,
+            currentUser.username,
+            key,
+            value || undefined,
+          );
         });
       }
     }
@@ -174,7 +193,9 @@ const UserSettings: React.FC = () => {
 
           {!supportsMetadata && (
             <div className="bg-discord-dark-400 rounded px-3 py-2 text-discord-text-muted text-sm">
-              This server does not support user metadata. Metadata options will appear here when connecting to a server with draft/metadata support.
+              This server does not support user metadata. Metadata options will
+              appear here when connecting to a server with draft/metadata
+              support.
             </div>
           )}
 
@@ -218,7 +239,11 @@ const UserSettings: React.FC = () => {
             disabled={!currentServer}
             className="px-4 py-2 bg-discord-primary text-white rounded font-medium hover:bg-opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {currentServer ? (supportsMetadata ? "Save Changes" : "Save Display Name") : "No Server Selected"}
+            {currentServer
+              ? supportsMetadata
+                ? "Save Changes"
+                : "Save Display Name"
+              : "No Server Selected"}
           </button>
         </div>
       </div>
