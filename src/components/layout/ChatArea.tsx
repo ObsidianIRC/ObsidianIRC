@@ -136,7 +136,7 @@ const EnhancedLinkWrapper: React.FC<{
               }}
             >
               {matches[index].length > 60
-                ? matches[index].substring(0, 60) + "..."
+                ? `${matches[index].substring(0, 60)}...`
                 : matches[index]}
             </a>
           </Fragment>
