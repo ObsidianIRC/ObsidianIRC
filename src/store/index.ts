@@ -1200,7 +1200,9 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
       }, index * 200); // 200ms delay between requests
     }
   });
-  const usersToFetch = users.filter(u => u.username !== currentUser?.username);
+  const usersToFetch = users.filter(
+    (u) => u.username !== currentUser?.username,
+  );
 
   // Process in batches with shorter delays
   const batchSize = 10;
@@ -1208,13 +1210,16 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
 
   for (let i = 0; i < usersToFetch.length; i += batchSize) {
     const batch = usersToFetch.slice(i, i + batchSize);
-    setTimeout(() => {
-      batch.forEach((user, idx) => {
-        setTimeout(() => {
-          useStore.getState().metadataList(serverId, user.username);
-        }, idx * 50); // 50ms between requests in a batch
-      });
-    }, Math.floor(i / batchSize) * batchDelay);
+    setTimeout(
+      () => {
+        batch.forEach((user, idx) => {
+          setTimeout(() => {
+            useStore.getState().metadataList(serverId, user.username);
+          }, idx * 50); // 50ms between requests in a batch
+        });
+      },
+      Math.floor(i / batchSize) * batchDelay,
+    );
   }
 });
 
