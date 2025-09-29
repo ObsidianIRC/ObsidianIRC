@@ -1242,19 +1242,7 @@ export const ChatArea: React.FC<{
             isVisible={showMembersDropdown}
             inputValue={messageText}
             cursorPosition={cursorPosition}
-            tabCompletionMatches={
-              selectedChannel?.users ||
-              (selectedPrivateChat
-                ? [
-                    ...(currentUser ? [currentUser] : []),
-                    {
-                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
-                      username: selectedPrivateChat.username,
-                      isOnline: true,
-                    },
-                  ]
-                : [])
-            }
+            tabCompletionMatches={[]}
             currentMatchIndex={-1}
             onSelect={(username) => {
               setMessageText((prev) => `${prev + username} `);
