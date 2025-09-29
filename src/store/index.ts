@@ -1188,14 +1188,29 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
   // Request metadata for all users in the channel (except current user)
   const currentState = useStore.getState();
   const currentUser = currentState.currentUser;
-  users.forEach((user, index) => {
-    if (currentUser && user.username !== currentUser.username) {
-      // Stagger requests to avoid overwhelming the server
-      setTimeout(() => {
-        useStore.getState().metadataList(serverId, user.username);
-      }, index * 200); // 200ms delay between requests
-    }
-  });
+-  users.forEach((user, index) => {
+-    if (currentUser && user.username !== currentUser.username) {
+-      // Stagger requests to avoid overwhelming the server
+-      setTimeout(() => {
+-        useStore.getState().metadataList(serverId, user.username);
+-      }, index * 200); // 200ms delay between requests
+-    }
+  const usersToFetch = users.filter(u => u.username !== currentUser?.username);
+
+  // Process in batches with shorter delays
+  const batchSize = 10;
+  const batchDelay = 500; // 500ms between batches
+
+  for (let i = 0; i < usersToFetch.length; i += batchSize) {
+    const batch = usersToFetch.slice(i, i + batchSize);
+    setTimeout(() => {
+      batch.forEach((user, idx) => {
+        setTimeout(() => {
+          useStore.getState().metadataList(serverId, user.username);
+        }, idx * 50); // 50ms between requests in a batch
+      });
+    }, Math.floor(i / batchSize) * batchDelay);
+  }
 });
 
 ircClient.on("JOIN", ({ serverId, username, channelName }) => {
