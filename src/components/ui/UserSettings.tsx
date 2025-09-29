@@ -4,7 +4,7 @@ import { FaTimes } from "react-icons/fa";
 import useStore from "../../store";
 
 const UserSettings: React.FC = () => {
-  const { toggleUserProfileModal, currentUser, servers, ui, metadataSet } =
+  const { toggleUserProfileModal, currentUser, servers, ui, metadataSet, sendRaw } =
     useStore();
   const currentServer = servers.find((s) => s.id === ui.selectedServerId);
   const supportsMetadata =
@@ -45,13 +45,26 @@ const UserSettings: React.FC = () => {
 
   const handleSaveAll = () => {
     if (currentServer && currentUser) {
-      // Always save display name (not metadata)
-      metadataSet(
-        currentServer.id,
-        currentUser.username,
-        "display-name",
-        displayName || undefined,
-      );
+      // Handle display name
+      if (supportsMetadata) {
+        try {
+          metadataSet(
+            currentServer.id,
+            currentUser.username,
+            "display-name",
+            displayName || undefined,
+          );
+        } catch (error) {
+          console.error("Failed to set display name metadata:", error);
+        }
+      } else {
+        // Fall back to NICK command for servers that don't support metadata
+        try {
+          sendRaw(currentServer.id, `NICK ${displayName}`);
+        } catch (error) {
+          console.error("Failed to send NICK command:", error);
+        }
+      }
 
       if (supportsMetadata) {
         const metadataUpdates = [
@@ -63,12 +76,16 @@ const UserSettings: React.FC = () => {
         ];
 
         metadataUpdates.forEach(({ key, value }) => {
-          metadataSet(
-            currentServer.id,
-            currentUser.username,
-            key,
-            value || undefined,
-          );
+          try {
+            metadataSet(
+              currentServer.id,
+              currentUser.username,
+              key,
+              value || undefined,
+            );
+          } catch (error) {
+            console.error(`Failed to set ${key} metadata:`, error);
+          }
         });
       }
     }

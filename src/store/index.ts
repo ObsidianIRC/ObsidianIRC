@@ -15,7 +15,10 @@ const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 
 // Type for saved metadata structure: serverId -> target -> key -> metadata
-type SavedMetadata = Record<string, Record<string, Record<string, { value: string; visibility: string }>>>;
+type SavedMetadata = Record<
+  string,
+  Record<string, Record<string, { value: string; visibility: string }>>
+>;
 
 export const getChannelMessages = (serverId: string, channelId: string) => {
   const state = useStore.getState();
@@ -77,7 +80,15 @@ function restoreServerMetadata(serverId: string) {
             }
             return user;
           });
-          return { ...channel, users: updatedUsers };
+
+          // Restore channel metadata
+          const channelMetadata = serverMetadata[channel.name];
+          const updatedChannelMetadata = channel.metadata || {};
+          if (channelMetadata) {
+            Object.assign(updatedChannelMetadata, channelMetadata);
+          }
+
+          return { ...channel, users: updatedUsers, metadata: updatedChannelMetadata };
         });
 
         return {
@@ -227,6 +238,7 @@ export interface AppState {
   metadataUnsub: (serverId: string, keys: string[]) => void;
   metadataSubs: (serverId: string) => void;
   metadataSync: (serverId: string, target: string) => void;
+  sendRaw: (serverId: string, command: string) => void;
 }
 
 // Create store with Zustand
@@ -965,6 +977,10 @@ const useStore = create<AppState>((set, get) => ({
 
   metadataSync: (serverId, target) => {
     ircClient.metadataSync(serverId, target);
+  },
+
+  sendRaw: (serverId, command) => {
+    ircClient.sendRaw(serverId, command);
   },
 
   capAck: (serverId, key, capabilities) => {
@@ -1712,7 +1728,18 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
             }
             return user;
           });
-          return { ...channel, users: updatedUsers };
+
+          // Update metadata for the channel itself if target matches channel name
+          const channelMetadata = channel.metadata || {};
+          if (target === channel.name || target.startsWith("#")) {
+            if (value) {
+              channelMetadata[key] = { value, visibility };
+            } else {
+              delete channelMetadata[key];
+            }
+          }
+
+          return { ...channel, users: updatedUsers, metadata: channelMetadata };
         });
 
         // Update metadata for the server itself if target is server
@@ -1785,20 +1812,15 @@ ircClient.on(
               }
               return user;
             });
-            return { ...channel, users: updatedUsers };
-          });
 
-          // Update metadata for channels
-          const updatedChannelsWithMeta = updatedChannels.map((channel) => {
-            if (channel.name === target) {
-              const metadata = channel.metadata || {};
-              metadata[key] = { value, visibility };
-              return { ...channel, metadata };
+            // Update metadata for the channel itself if target matches channel name
+            const channelMetadata = channel.metadata || {};
+            if (target === channel.name || target.startsWith("#")) {
+              channelMetadata[key] = { value, visibility };
             }
-            return channel;
-          });
 
-          return { ...server, channels: updatedChannelsWithMeta };
+            return { ...channel, users: updatedUsers, metadata: channelMetadata };
+          });
         }
         return server;
       });
@@ -1845,20 +1867,15 @@ ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
             }
             return user;
           });
-          return { ...channel, users: updatedUsers };
-        });
 
-        // Remove metadata for channels
-        const updatedChannelsWithMeta = updatedChannels.map((channel) => {
-          if (channel.name === target) {
-            const metadata = channel.metadata || {};
-            delete metadata[key];
-            return { ...channel, metadata };
+          // Remove metadata for the channel itself if target matches channel name
+          const channelMetadata = channel.metadata || {};
+          if (target === channel.name || target.startsWith("#")) {
+            delete channelMetadata[key];
           }
-          return channel;
-        });
 
-        return { ...server, channels: updatedChannelsWithMeta };
+          return { ...channel, users: updatedUsers, metadata: channelMetadata };
+        });
       }
       return server;
     });
