@@ -1,14 +1,14 @@
 import { v4 as uuidv4 } from "uuid";
 import type {
+  BaseIRCEvent,
+  BaseMessageEvent,
+  BaseMetadataEvent,
+  BaseUserActionEvent,
   Channel,
+  EventWithTags,
+  MetadataValueEvent,
   Server,
   User,
-  BaseIRCEvent,
-  EventWithTags,
-  BaseMetadataEvent,
-  MetadataValueEvent,
-  BaseMessageEvent,
-  BaseUserActionEvent
 } from "../types";
 import {
   parseIsupport,
