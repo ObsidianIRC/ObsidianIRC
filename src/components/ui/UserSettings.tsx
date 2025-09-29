@@ -51,7 +51,7 @@ const UserSettings: React.FC = () => {
 
   const handleSaveAll = () => {
     if (currentServer && currentUser) {
-      // Handle display name
+      // Handle display name (only when metadata is supported)
       if (supportsMetadata) {
         try {
           metadataSet(
@@ -62,13 +62,6 @@ const UserSettings: React.FC = () => {
           );
         } catch (error) {
           console.error("Failed to set display name metadata:", error);
-        }
-      } else {
-        // Fall back to NICK command for servers that don't support metadata
-        try {
-          sendRaw(currentServer.id, `NICK ${displayName}`);
-        } catch (error) {
-          console.error("Failed to send NICK command:", error);
         }
       }
 
@@ -124,21 +117,21 @@ const UserSettings: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-discord-text-muted text-sm font-medium mb-1">
-              Display Name
-            </label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Alternative display name"
-              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-            />
-          </div>
-
           {supportsMetadata && (
             <>
+              <div>
+                <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Alternative display name"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+              </div>
+
               <div>
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Avatar URL
