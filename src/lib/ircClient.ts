@@ -576,16 +576,29 @@ export class IRCClient {
       } else if (command === "761") {
         // RPL_KEYVALUE
         // RPL_KEYVALUE <Target> <Key> <Visibility> :<Value>
-        const target = parv[0];
-        const key = parv[1];
-        const visibility = parv[2];
-        const value = parv.slice(3).join(" ").substring(1);
+        // Note: Server sometimes sends target twice, so detect and handle this
+        let target = parv[0];
+        let key = parv[1];
+        let visibility = parv[2];
+        let valueStartIndex = 3;
+
+        // If target is duplicated (server bug), skip the duplicate
+        if (parv[0] === parv[1] && parv.length > 4) {
+          key = parv[2];
+          visibility = parv[3];
+          valueStartIndex = 4;
+        }
+
+        const value = parv.slice(valueStartIndex).join(" ");
+        // Remove leading ":" if present
+        const cleanValue = value.startsWith(":") ? value.substring(1) : value;
+
         this.triggerEvent("METADATA_KEYVALUE", {
           serverId,
           target,
           key,
           visibility,
-          value,
+          value: cleanValue,
         });
       } else if (command === "766") {
         // RPL_KEYNOTSET

@@ -1099,6 +1099,18 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
 
     return { servers: updatedServers };
   });
+
+  // Request metadata for all users in the channel (except current user)
+  const currentState = useStore.getState();
+  const currentUser = currentState.currentUser;
+  users.forEach((user, index) => {
+    if (currentUser && user.username !== currentUser.username) {
+      // Stagger requests to avoid overwhelming the server
+      setTimeout(() => {
+        useStore.getState().metadataList(serverId, user.username);
+      }, index * 200); // 200ms delay between requests
+    }
+  });
 });
 
 ircClient.on("JOIN", ({ serverId, username, channelName }) => {
@@ -1155,6 +1167,15 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
 
       return server;
     });
+
+    // Request metadata for the joining user (if it's not us)
+    const currentUser = state.currentUser;
+    if (currentUser && username !== currentUser.username) {
+      // Small delay to avoid spamming the server
+      setTimeout(() => {
+        useStore.getState().metadataList(serverId, username);
+      }, 100);
+    }
 
     return { servers: updatedServers };
   });
@@ -1830,7 +1851,7 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   if (capabilities?.startsWith("draft/metadata")) {
     // Subscribe to common metadata keys
-    const defaultKeys = ["url", "website", "status", "location"];
+    const defaultKeys = ["url", "website", "status", "location", "avatar"];
     useStore.getState().metadataSub(serverId, defaultKeys);
   }
 });
