@@ -1245,7 +1245,9 @@ export const ChatArea: React.FC<{
             tabCompletionMatches={[]}
             currentMatchIndex={-1}
             onSelect={(username) => {
-              setMessageText((prev) => `${prev + username} `);
+              const isAtMessageStart = messageText.trim() === "";
+              const suffix = isAtMessageStart ? ": " : " ";
+              setMessageText((prev) => prev + username + suffix);
               setShowMembersDropdown(false);
             }}
             onClose={() => setShowMembersDropdown(false)}
