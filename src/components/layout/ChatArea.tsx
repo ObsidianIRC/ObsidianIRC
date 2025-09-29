@@ -190,6 +190,7 @@ const MessageItem: React.FC<{
     message: MessageType,
     position: { x: number; y: number },
   ) => void;
+  onDirectReaction: (emoji: string, message: MessageType) => void;
   users: User[];
 }> = ({
   message,
@@ -202,6 +203,7 @@ const MessageItem: React.FC<{
   selectedServerId,
   onReactionUnreact,
   onOpenReactionModal,
+  onDirectReaction,
   users,
 }) => {
   const { currentUser } = useStore();
@@ -513,11 +515,8 @@ const MessageItem: React.FC<{
                     ) {
                       onReactionUnreact(emoji, message);
                     } else {
-                      // Otherwise, add the reaction
-                      onOpenReactionModal(message, {
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
+                      // Otherwise, add the reaction directly with the clicked emoji
+                      onDirectReaction(emoji, message);
                     }
                   }}
                 >
@@ -1266,6 +1265,18 @@ export const ChatArea: React.FC<{
     handleCloseReactionModal();
   };
 
+  const handleDirectReaction = (emoji: string, message: MessageType) => {
+    if (message.msgid && selectedServerId) {
+      const server = servers.find((s) => s.id === selectedServerId);
+      const channel = server?.channels.find((c) => c.id === message.channelId);
+      if (server && channel) {
+        // Send react message directly
+        const tagMsg = `@+draft/react=${emoji};+draft/reply=${message.msgid} TAGMSG ${channel.name}`;
+        ircClient.sendRaw(server.id, tagMsg);
+      }
+    }
+  };
+
   const handleReactionUnreact = (emoji: string, message: MessageType) => {
     if (message.msgid && selectedServerId) {
       const server = servers.find((s) => s.id === selectedServerId);
@@ -1437,6 +1448,7 @@ export const ChatArea: React.FC<{
                 selectedServerId={selectedServerId}
                 onReactionUnreact={handleReactionUnreact}
                 onOpenReactionModal={handleOpenReactionModal}
+                onDirectReaction={handleDirectReaction}
                 users={selectedChannel?.users || []}
               />
             );
