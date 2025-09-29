@@ -156,7 +156,7 @@ describe("Metadata Display Features", () => {
 
       // Bob should have blue color
       const bobElement = screen.getByText("bob");
-      expect(bobElement).toHaveStyle({ color: "rgb(0, 0, 255)" });
+      expect(bobElement).toHaveStyle({ color: "blue" });
     });
 
     it("should display user avatars", () => {
