@@ -1,5 +1,15 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Channel, Server, User } from "../types";
+import type {
+  Channel,
+  Server,
+  User,
+  BaseIRCEvent,
+  EventWithTags,
+  BaseMetadataEvent,
+  MetadataValueEvent,
+  BaseMessageEvent,
+  BaseUserActionEvent
+} from "../types";
 import {
   parseIsupport,
   parseMessageTags,
@@ -7,88 +17,50 @@ import {
 } from "./ircUtils";
 
 export interface EventMap {
-  ready: { serverId: string; serverName: string; nickname: string };
-  NICK: {
-    serverId: string;
-    mtags: Record<string, string> | undefined;
+  ready: BaseIRCEvent & { serverName: string; nickname: string };
+  NICK: EventWithTags & {
     oldNick: string;
     newNick: string;
   };
-  QUIT: { serverId: string; username: string; reason: string };
-  JOIN: { serverId: string; username: string; channelName: string };
-  PART: {
-    serverId: string;
-    username: string;
+  QUIT: BaseUserActionEvent & { reason: string };
+  JOIN: BaseUserActionEvent & { channelName: string };
+  PART: BaseUserActionEvent & {
     channelName: string;
     reason?: string;
   };
-  KICK: {
-    serverId: string;
-    mtags: Record<string, string> | undefined;
+  KICK: EventWithTags & {
     username: string;
     channelName: string;
     target: string;
     reason: string;
   };
-  CHANMSG: {
-    serverId: string;
-    mtags: Record<string, string> | undefined;
-    sender: string;
+  CHANMSG: BaseMessageEvent & {
     channelName: string;
-    message: string;
-    timestamp: Date;
   };
-  USERMSG: {
-    serverId: string;
-    mtags: Record<string, string> | undefined;
-    sender: string;
-    message: string;
-    timestamp: Date;
-  };
-  TAGMSG: {
-    serverId: string;
-    mtags: Record<string, string> | undefined;
+  USERMSG: BaseMessageEvent;
+  TAGMSG: EventWithTags & {
     sender: string;
     channelName: string;
     timestamp: Date;
   };
-  NAMES: { serverId: string; channelName: string; users: User[] };
-  "CAP LS": { serverId: string; cliCaps: string };
-  "CAP ACK": { serverId: string; cliCaps: string };
-  ISUPPORT: { serverId: string; key: string; value: string };
-  CAP_ACKNOWLEDGED: { serverId: string; key: string; capabilities: string };
-  CAP_END: { serverId: string };
-  AUTHENTICATE: { serverId: string; param: string };
-  METADATA: {
-    serverId: string;
-    target: string;
-    key: string;
-    visibility: string;
-    value: string;
-  };
-  METADATA_WHOIS: {
-    serverId: string;
-    target: string;
-    key: string;
-    visibility: string;
-    value: string;
-  };
-  METADATA_KEYVALUE: {
-    serverId: string;
-    target: string;
-    key: string;
-    visibility: string;
-    value: string;
-  };
-  METADATA_KEYNOTSET: { serverId: string; target: string; key: string };
-  METADATA_SUBOK: { serverId: string; keys: string[] };
-  METADATA_UNSUBOK: { serverId: string; keys: string[] };
-  METADATA_SUBS: { serverId: string; keys: string[] };
-  METADATA_SYNCLATER: { serverId: string; target: string; retryAfter?: number };
-  BATCH_START: { serverId: string; batchId: string; type: string };
-  BATCH_END: { serverId: string; batchId: string };
-  METADATA_FAIL: {
-    serverId: string;
+  NAMES: BaseIRCEvent & { channelName: string; users: User[] };
+  "CAP LS": BaseIRCEvent & { cliCaps: string };
+  "CAP ACK": BaseIRCEvent & { cliCaps: string };
+  ISUPPORT: BaseIRCEvent & { key: string; value: string };
+  CAP_ACKNOWLEDGED: BaseIRCEvent & { key: string; capabilities: string };
+  CAP_END: BaseIRCEvent;
+  AUTHENTICATE: BaseIRCEvent & { param: string };
+  METADATA: MetadataValueEvent;
+  METADATA_WHOIS: MetadataValueEvent;
+  METADATA_KEYVALUE: MetadataValueEvent;
+  METADATA_KEYNOTSET: BaseMetadataEvent;
+  METADATA_SUBOK: BaseIRCEvent & { keys: string[] };
+  METADATA_UNSUBOK: BaseIRCEvent & { keys: string[] };
+  METADATA_SUBS: BaseIRCEvent & { keys: string[] };
+  METADATA_SYNCLATER: BaseIRCEvent & { target: string; retryAfter?: number };
+  BATCH_START: BaseIRCEvent & { batchId: string; type: string };
+  BATCH_END: BaseIRCEvent & { batchId: string };
+  METADATA_FAIL: BaseIRCEvent & {
     subcommand: string;
     code: string;
     target?: string;

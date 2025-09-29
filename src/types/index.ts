@@ -110,3 +110,37 @@ export type MessageTag = {
   key: string;
   value?: string;
 };
+
+// Base event interface that all IRC events extend
+export interface BaseIRCEvent {
+  serverId: string;
+}
+
+// Events that include message tags
+export interface EventWithTags extends BaseIRCEvent {
+  mtags: Record<string, string> | undefined;
+}
+
+// Base metadata event interface
+export interface BaseMetadataEvent extends BaseIRCEvent {
+  target: string;
+  key: string;
+}
+
+// Metadata event with visibility and value
+export interface MetadataValueEvent extends BaseMetadataEvent {
+  visibility: string;
+  value: string;
+}
+
+// Base message event interface
+export interface BaseMessageEvent extends EventWithTags {
+  sender: string;
+  message: string;
+  timestamp: Date;
+}
+
+// Base user action event interface
+export interface BaseUserActionEvent extends BaseIRCEvent {
+  username: string;
+}
