@@ -12,6 +12,13 @@ import type {
 } from "../types";
 
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
+const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
+
+// Type for saved metadata structure: serverId -> target -> key -> metadata
+type SavedMetadata = Record<
+  string,
+  Record<string, Record<string, { value: string; visibility: string }>>
+>;
 
 export const getChannelMessages = (serverId: string, channelId: string) => {
   const state = useStore.getState();
@@ -32,8 +39,85 @@ export function loadSavedServers(): ServerConfig[] {
   return JSON.parse(localStorage.getItem(LOCAL_STORAGE_SERVERS_KEY) || "[]");
 }
 
+// Load saved metadata from localStorage
+export function loadSavedMetadata(): SavedMetadata {
+  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_METADATA_KEY) || "{}");
+}
+
+// Save metadata to localStorage
+function saveMetadataToLocalStorage(metadata: SavedMetadata) {
+  localStorage.setItem(LOCAL_STORAGE_METADATA_KEY, JSON.stringify(metadata));
+}
+
 function saveServersToLocalStorage(servers: ServerConfig[]) {
   localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
+}
+
+// Restore metadata for a server from localStorage
+function restoreServerMetadata(serverId: string) {
+  const savedMetadata = loadSavedMetadata();
+  const serverMetadata = savedMetadata[serverId];
+  if (!serverMetadata) return;
+
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        // Restore server metadata
+        const updatedMetadata = { ...server.metadata };
+        if (serverMetadata[server.name]) {
+          Object.assign(updatedMetadata, serverMetadata[server.name]);
+        }
+
+        // Restore user metadata in channels
+        const updatedChannels = server.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            const userMetadata = serverMetadata[user.username];
+            if (userMetadata) {
+              return {
+                ...user,
+                metadata: { ...user.metadata, ...userMetadata },
+              };
+            }
+            return user;
+          });
+
+          // Restore channel metadata
+          const channelMetadata = serverMetadata[channel.name];
+          const updatedChannelMetadata = channel.metadata || {};
+          if (channelMetadata) {
+            Object.assign(updatedChannelMetadata, channelMetadata);
+          }
+
+          return {
+            ...channel,
+            users: updatedUsers,
+            metadata: updatedChannelMetadata,
+          };
+        });
+
+        return {
+          ...server,
+          metadata: updatedMetadata,
+          channels: updatedChannels,
+        };
+      }
+      return server;
+    });
+
+    // Restore current user metadata
+    let updatedCurrentUser = state.currentUser;
+    if (state.currentUser && serverMetadata[state.currentUser.username]) {
+      updatedCurrentUser = {
+        ...state.currentUser,
+        metadata: {
+          ...state.currentUser.metadata,
+          ...serverMetadata[state.currentUser.username],
+        },
+      };
+    }
+
+    return { servers: updatedServers, currentUser: updatedCurrentUser };
+  });
 }
 
 interface UIState {
@@ -71,6 +155,20 @@ export interface AppState {
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
+  // Metadata state
+  metadataSubscriptions: Record<string, string[]>; // serverId -> keys
+  metadataBatches: Record<
+    string,
+    {
+      type: string;
+      messages: {
+        target: string;
+        key: string;
+        visibility: string;
+        value: string;
+      }[];
+    }
+  >; // batchId -> batch info
   // UI state
   ui: UIState;
   globalSettings: GlobalSettings;
@@ -109,6 +207,7 @@ export interface AppState {
   markChannelAsRead: (serverId: string, channelId: string) => void;
   connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
+  capAck: (serverId: string, key: string, capabilities: string) => void; // Handle CAP ACK
   // UI actions
   toggleAddServerModal: (
     isOpen?: boolean,
@@ -129,6 +228,21 @@ export interface AppState {
   ) => void;
   hideContextMenu: () => void;
   setMobileViewActiveColumn: (column: layoutColumn) => void;
+  // Metadata actions
+  metadataGet: (serverId: string, target: string, keys: string[]) => void;
+  metadataList: (serverId: string, target: string) => void;
+  metadataSet: (
+    serverId: string,
+    target: string,
+    key: string,
+    value?: string,
+  ) => void;
+  metadataClear: (serverId: string, target: string) => void;
+  metadataSub: (serverId: string, keys: string[]) => void;
+  metadataUnsub: (serverId: string, keys: string[]) => void;
+  metadataSubs: (serverId: string) => void;
+  metadataSync: (serverId: string, target: string) => void;
+  sendRaw: (serverId: string, command: string) => void;
 }
 
 // Create store with Zustand
@@ -139,6 +253,8 @@ const useStore = create<AppState>((set, get) => ({
   connectionError: null,
   messages: {},
   typingUsers: {},
+  metadataSubscriptions: {},
+  metadataBatches: {},
   selectedServerId: null,
 
   // UI state
@@ -830,6 +946,50 @@ const useStore = create<AppState>((set, get) => ({
       },
     }));
   },
+
+  // Metadata actions
+  metadataGet: (serverId, target, keys) => {
+    ircClient.metadataGet(serverId, target, keys);
+  },
+
+  metadataList: (serverId, target) => {
+    ircClient.metadataList(serverId, target);
+  },
+
+  metadataSet: (serverId, target, key, value) => {
+    console.log(
+      `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}`,
+    );
+    ircClient.metadataSet(serverId, target, key, value);
+  },
+
+  metadataClear: (serverId, target) => {
+    ircClient.metadataClear(serverId, target);
+  },
+
+  metadataSub: (serverId, keys) => {
+    ircClient.metadataSub(serverId, keys);
+  },
+
+  metadataUnsub: (serverId, keys) => {
+    ircClient.metadataUnsub(serverId, keys);
+  },
+
+  metadataSubs: (serverId) => {
+    ircClient.metadataSubs(serverId);
+  },
+
+  metadataSync: (serverId, target) => {
+    ircClient.metadataSync(serverId, target);
+  },
+
+  sendRaw: (serverId, command) => {
+    ircClient.sendRaw(serverId, command);
+  },
+
+  capAck: (serverId, key, capabilities) => {
+    ircClient.capAck(serverId, key, capabilities);
+  },
 }));
 
 // Initialize protocol handlers
@@ -1028,6 +1188,39 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
 
     return { servers: updatedServers };
   });
+
+  // Request metadata for all users in the channel (except current user)
+  const currentState = useStore.getState();
+  const currentUser = currentState.currentUser;
+  users.forEach((user, index) => {
+    if (currentUser && user.username !== currentUser.username) {
+      // Stagger requests to avoid overwhelming the server
+      setTimeout(() => {
+        useStore.getState().metadataList(serverId, user.username);
+      }, index * 200); // 200ms delay between requests
+    }
+  });
+  const usersToFetch = users.filter(
+    (u) => u.username !== currentUser?.username,
+  );
+
+  // Process in batches with shorter delays
+  const batchSize = 10;
+  const batchDelay = 500; // 500ms between batches
+
+  for (let i = 0; i < usersToFetch.length; i += batchSize) {
+    const batch = usersToFetch.slice(i, i + batchSize);
+    setTimeout(
+      () => {
+        batch.forEach((user, idx) => {
+          setTimeout(() => {
+            useStore.getState().metadataList(serverId, user.username);
+          }, idx * 50); // 50ms between requests in a batch
+        });
+      },
+      Math.floor(i / batchSize) * batchDelay,
+    );
+  }
 });
 
 ircClient.on("JOIN", ({ serverId, username, channelName }) => {
@@ -1084,6 +1277,15 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
 
       return server;
     });
+
+    // Request metadata for the joining user (if it's not us)
+    const currentUser = state.currentUser;
+    if (currentUser && username !== currentUser.username) {
+      // Small delay to avoid spamming the server
+      setTimeout(() => {
+        useStore.getState().metadataList(serverId, username);
+      }, 100);
+    }
 
     return { servers: updatedServers };
   });
@@ -1166,6 +1368,9 @@ ircClient.on("QUIT", ({ serverId, username, reason }) => {
 
 ircClient.on("ready", ({ serverId, serverName, nickname }) => {
   console.log(`Server ready: serverId=${serverId}, serverName=${serverName}`);
+
+  // Restore metadata for this server
+  restoreServerMetadata(serverId);
 
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
@@ -1526,8 +1731,297 @@ ircClient.on("TAGMSG", (response) => {
   }
 });
 
+// Metadata event handlers
+ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
+  console.log(
+    `[METADATA] Received metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
+  );
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        // Update metadata for users in channels
+        const updatedChannels = server.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            if (user.username === target) {
+              const metadata = user.metadata || {};
+              if (value) {
+                metadata[key] = { value, visibility };
+              } else {
+                delete metadata[key];
+              }
+              return { ...user, metadata };
+            }
+            return user;
+          });
+
+          // Update metadata for the channel itself if target matches channel name
+          const channelMetadata = channel.metadata || {};
+          if (target === channel.name || target.startsWith("#")) {
+            if (value) {
+              channelMetadata[key] = { value, visibility };
+            } else {
+              delete channelMetadata[key];
+            }
+          }
+
+          return { ...channel, users: updatedUsers, metadata: channelMetadata };
+        });
+
+        // Update metadata for the server itself if target is server
+        const updatedMetadata = server.metadata || {};
+        if (target === server.name) {
+          if (value) {
+            updatedMetadata[key] = { value, visibility };
+          } else {
+            delete updatedMetadata[key];
+          }
+        }
+
+        return {
+          ...server,
+          channels: updatedChannels,
+          metadata: updatedMetadata,
+        };
+      }
+      return server;
+    });
+
+    // Update current user metadata
+    let updatedCurrentUser = state.currentUser;
+    if (state.currentUser?.username === target) {
+      const metadata = state.currentUser.metadata || {};
+      if (value) {
+        metadata[key] = { value, visibility };
+      } else {
+        delete metadata[key];
+      }
+      updatedCurrentUser = { ...state.currentUser, metadata };
+    }
+
+    // Save metadata to localStorage
+    const savedMetadata = loadSavedMetadata();
+    if (!savedMetadata[serverId]) {
+      savedMetadata[serverId] = {};
+    }
+    if (!savedMetadata[serverId][target]) {
+      savedMetadata[serverId][target] = {};
+    }
+    if (value) {
+      savedMetadata[serverId][target][key] = { value, visibility };
+    } else {
+      delete savedMetadata[serverId][target][key];
+    }
+    saveMetadataToLocalStorage(savedMetadata);
+
+    return { servers: updatedServers, currentUser: updatedCurrentUser };
+  });
+});
+
+ircClient.on(
+  "METADATA_KEYVALUE",
+  ({ serverId, target, key, visibility, value }) => {
+    console.log(
+      `[METADATA_KEYVALUE] Received: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
+    );
+    // Handle individual key-value responses (similar to METADATA)
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          // Update metadata for users in channels
+          const updatedChannels = server.channels.map((channel) => {
+            const updatedUsers = channel.users.map((user) => {
+              if (user.username === target) {
+                const metadata = user.metadata || {};
+                metadata[key] = { value, visibility };
+                return { ...user, metadata };
+              }
+              return user;
+            });
+
+            // Update metadata for the channel itself if target matches channel name
+            const channelMetadata = channel.metadata || {};
+            if (target === channel.name || target.startsWith("#")) {
+              channelMetadata[key] = { value, visibility };
+            }
+
+            return {
+              ...channel,
+              users: updatedUsers,
+              metadata: channelMetadata,
+            };
+          });
+        }
+        return server;
+      });
+
+      // Update current user metadata
+      let updatedCurrentUser = state.currentUser;
+      if (state.currentUser?.username === target) {
+        const metadata = state.currentUser.metadata || {};
+        metadata[key] = { value, visibility };
+        updatedCurrentUser = { ...state.currentUser, metadata };
+      }
+
+      // Save metadata to localStorage
+      const savedMetadata = loadSavedMetadata();
+      if (!savedMetadata[serverId]) {
+        savedMetadata[serverId] = {};
+      }
+      if (!savedMetadata[serverId][target]) {
+        savedMetadata[serverId][target] = {};
+      }
+      savedMetadata[serverId][target][key] = { value, visibility };
+      saveMetadataToLocalStorage(savedMetadata);
+
+      return { servers: updatedServers, currentUser: updatedCurrentUser };
+    });
+  },
+);
+
+ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
+  console.log(
+    `[METADATA] Key not set: server=${serverId}, target=${target}, key=${key}`,
+  );
+  // Handle key not set responses
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        // Remove metadata for users in channels
+        const updatedChannels = server.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            if (user.username === target) {
+              const metadata = user.metadata || {};
+              delete metadata[key];
+              return { ...user, metadata };
+            }
+            return user;
+          });
+
+          // Remove metadata for the channel itself if target matches channel name
+          const channelMetadata = channel.metadata || {};
+          if (target === channel.name || target.startsWith("#")) {
+            delete channelMetadata[key];
+          }
+
+          return { ...channel, users: updatedUsers, metadata: channelMetadata };
+        });
+      }
+      return server;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+ircClient.on("METADATA_SUBOK", ({ serverId, keys }) => {
+  // Update subscriptions
+  useStore.setState((state) => {
+    const currentSubs = state.metadataSubscriptions[serverId] || [];
+    const newSubs = [...new Set([...currentSubs, ...keys])];
+    return {
+      metadataSubscriptions: {
+        ...state.metadataSubscriptions,
+        [serverId]: newSubs,
+      },
+    };
+  });
+});
+
+ircClient.on("METADATA_UNSUBOK", ({ serverId, keys }) => {
+  // Update subscriptions
+  useStore.setState((state) => {
+    const currentSubs = state.metadataSubscriptions[serverId] || [];
+    const newSubs = currentSubs.filter((k) => !keys.includes(k));
+    return {
+      metadataSubscriptions: {
+        ...state.metadataSubscriptions,
+        [serverId]: newSubs,
+      },
+    };
+  });
+});
+
+ircClient.on("METADATA_SUBS", ({ serverId, keys }) => {
+  // Set all subscriptions
+  useStore.setState((state) => ({
+    metadataSubscriptions: {
+      ...state.metadataSubscriptions,
+      [serverId]: keys,
+    },
+  }));
+});
+
+ircClient.on("BATCH_START", ({ serverId, batchId, type }) => {
+  // Start a batch
+  useStore.setState((state) => ({
+    metadataBatches: {
+      ...state.metadataBatches,
+      [batchId]: { type, messages: [] },
+    },
+  }));
+});
+
+ircClient.on("BATCH_END", ({ serverId, batchId }) => {
+  // End a batch - process all messages in the batch
+  useStore.setState((state) => {
+    const batch = state.metadataBatches[batchId];
+    if (batch) {
+      // Process batch messages (they should have been collected during the batch)
+      // For metadata batches, the individual METADATA_KEYVALUE events should have updated the state
+    }
+    const { [batchId]: _, ...remainingBatches } = state.metadataBatches;
+    return {
+      metadataBatches: remainingBatches,
+    };
+  });
+});
+
+ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
+  useStore.getState().capAck(serverId, "ACK", cliCaps);
+  // Store capabilities on the server
+  useStore.setState((state) => ({
+    servers: state.servers.map((server) => {
+      if (server.id === serverId) {
+        return {
+          ...server,
+          capabilities: cliCaps.split(" "),
+        };
+      }
+      return server;
+    }),
+  }));
+});
+
+ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
+  if (capabilities?.startsWith("draft/metadata")) {
+    // Subscribe to common metadata keys
+    const defaultKeys = [
+      "url",
+      "website",
+      "status",
+      "location",
+      "avatar",
+      "color",
+      "display-name",
+    ];
+    useStore.getState().metadataSub(serverId, defaultKeys);
+  }
+});
+
+ircClient.on(
+  "METADATA_FAIL",
+  ({ serverId, subcommand, code, target, key, retryAfter }) => {
+    // Handle metadata failures
+    console.error(`Metadata ${subcommand} failed: ${code}`, {
+      target,
+      key,
+      retryAfter,
+    });
+    // Could show user notifications here
+  },
+);
+
 // Load saved servers on store initialization
-useStore.getState().connectToSavedServers();
 
 // If default server is available, select it
 if (__DEFAULT_IRC_SERVER__) {

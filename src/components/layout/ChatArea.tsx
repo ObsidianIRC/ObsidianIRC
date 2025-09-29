@@ -29,7 +29,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import ircClient from "../../lib/ircClient";
-import { ircColors, mircToHtml } from "../../lib/ircUtils";
+import { getColorStyle, ircColors, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
@@ -190,6 +190,7 @@ const MessageItem: React.FC<{
     message: MessageType,
     position: { x: number; y: number },
   ) => void;
+  users: User[];
 }> = ({
   message,
   showDate,
@@ -201,9 +202,18 @@ const MessageItem: React.FC<{
   selectedServerId,
   onReactionUnreact,
   onOpenReactionModal,
+  users,
 }) => {
   const { currentUser } = useStore();
   const isCurrentUser = currentUser?.id === message.userId;
+  // Find the user for this message
+  const messageUser = users.find(
+    (user) => user.username === message.userId.split("-")[0],
+  );
+  const avatarUrl = messageUser?.metadata?.avatar?.value;
+  const displayName = messageUser?.metadata?.["display-name"]?.value;
+  const userColor = messageUser?.metadata?.color?.value;
+  const userStatus = messageUser?.metadata?.status?.value;
   const isSystem = message.type === "system";
   // Convert message content to React elements
   const htmlContent = mircToHtml(message.content);
@@ -255,8 +265,38 @@ const MessageItem: React.FC<{
         )}
         <div className="flex">
           <div className="mr-4">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white">
-              {message.userId.charAt(0).toUpperCase()}
+            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white relative">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={message.userId.split("-")[0]}
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.textContent = message.userId
+                        .charAt(0)
+                        .toUpperCase();
+                    }
+                  }}
+                />
+              ) : (
+                message.userId.charAt(0).toUpperCase()
+              )}
+              {userStatus && (
+                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
+                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+                    <span className="text-xs">💡</span>
+                  </div>
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      {userStatus}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
@@ -268,7 +308,8 @@ const MessageItem: React.FC<{
             <span className="italic text-white">
               {message.userId === "system"
                 ? "System"
-                : message.userId.split("-")[0] +
+                : (displayName || message.userId.split("-")[0]) +
+                  (displayName ? ` (${message.userId.split("-")[0]})` : "") +
                   message.content.substring(7, message.content.length - 1)}
             </span>
           </div>
@@ -303,9 +344,39 @@ const MessageItem: React.FC<{
             }}
           >
             <div
-              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white`}
+              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white relative`}
             >
-              {message.userId.charAt(0).toUpperCase()}
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={message.userId.split("-")[0]}
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.textContent = message.userId
+                        .charAt(0)
+                        .toUpperCase();
+                    }
+                  }}
+                />
+              ) : (
+                message.userId.charAt(0).toUpperCase()
+              )}
+              {userStatus && (
+                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
+                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+                    <span className="text-xs">💡</span>
+                  </div>
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      {userStatus}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -319,6 +390,7 @@ const MessageItem: React.FC<{
             <div className="flex items-center">
               <span
                 className={`font-bold text-white ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
+                style={getColorStyle(userColor)}
                 onClick={(e) => {
                   if (message.userId !== "system") {
                     // Find the avatar element to position menu over it
@@ -336,7 +408,12 @@ const MessageItem: React.FC<{
               >
                 {message.userId === "system"
                   ? "System"
-                  : message.userId.split("-")[0]}
+                  : displayName || message.userId.split("-")[0]}
+                {displayName && (
+                  <span className="ml-2 text-xs bg-discord-dark-600 px-1 py-0.5 rounded">
+                    {message.userId.split("-")[0]}
+                  </span>
+                )}
               </span>
               <span className={`ml-2 text-xs text-${theme}-text-muted`}>
                 {formatTime(new Date(message.timestamp))}
@@ -1360,6 +1437,7 @@ export const ChatArea: React.FC<{
                 selectedServerId={selectedServerId}
                 onReactionUnreact={handleReactionUnreact}
                 onOpenReactionModal={handleOpenReactionModal}
+                users={selectedChannel?.users || []}
               />
             );
           })}

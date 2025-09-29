@@ -68,11 +68,14 @@ const App: React.FC = () => {
     toggleAddServerModal,
     ui: { isAddServerModalOpen, isUserProfileModalOpen },
     joinChannel,
+    connectToSavedServers,
   } = useStore();
   // askPermissions();
   useEffect(() => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);
-  }, [toggleAddServerModal, joinChannel]);
+    // Auto-reconnect to saved servers on app startup
+    connectToSavedServers();
+  }, [toggleAddServerModal, joinChannel, connectToSavedServers]);
 
   return (
     <div className="h-screen overflow-hidden">

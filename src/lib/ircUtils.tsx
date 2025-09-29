@@ -277,3 +277,26 @@ export function mircToHtml(text: string): React.ReactNode[] {
 
   return result;
 }
+
+// Utility function to get color style from metadata color value
+export function getColorStyle(colorValue?: string): React.CSSProperties {
+  if (!colorValue) return {};
+
+  // If it's a hex color
+  if (colorValue.startsWith("#")) {
+    return { color: colorValue };
+  }
+
+  // If it's a named color
+  if (colorValue.match(/^[a-zA-Z]+$/)) {
+    return { color: colorValue };
+  }
+
+  // If it's an RGB/RGBA value
+  if (colorValue.startsWith("rgb")) {
+    return { color: colorValue };
+  }
+
+  // Default fallback
+  return {};
+}

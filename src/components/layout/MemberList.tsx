@@ -2,6 +2,7 @@ import type React from "react";
 import { useState } from "react";
 import { FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { getColorStyle } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import UserContextMenu from "../ui/UserContextMenu";
@@ -58,6 +59,12 @@ const UserItem: React.FC<{
     avatarElement?: Element | null,
   ) => void;
 }> = ({ user, serverId, currentUser, onContextMenu }) => {
+  // Display metadata like website or status
+  const website = user.metadata?.url?.value || user.metadata?.website?.value;
+  const status = user.metadata?.status?.value;
+  const avatarUrl = user.metadata?.avatar?.value;
+  const color = user.metadata?.color?.value;
+
   return (
     <div
       className={`flex items-center py-2 px-3 mx-2 rounded cursor-pointer ${
@@ -70,17 +77,59 @@ const UserItem: React.FC<{
         onContextMenu(e, user.username, serverId, avatarElement);
       }}
     >
-      <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold">
-        {user.username.charAt(0).toUpperCase()}
-      </div>
-      <span className="ml-3">
-        {user.status && (
-          <span className="inline-block bg-discord-dark-600 text-white px-1 rounded text-xs mr-1">
-            {user.status}
-          </span>
+      <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold relative">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={user.username}
+            className="w-10 h-10 rounded-full object-cover"
+            onError={(e) => {
+              // Fallback to initial if image fails to load
+              e.currentTarget.style.display = "none";
+              const parent = e.currentTarget.parentElement;
+              if (parent) {
+                parent.textContent = user.username.charAt(0).toUpperCase();
+              }
+            }}
+          />
+        ) : (
+          user.username.charAt(0).toUpperCase()
         )}
-        {user.username}
-      </span>
+        {status && (
+          <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+              <span className="text-xs">💡</span>
+            </div>
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+              <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                {status}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="ml-3 flex-1 min-w-0">
+        <div className="flex items-center">
+          {user.status && (
+            <span className="inline-block bg-discord-dark-600 text-white px-1 rounded text-xs mr-1">
+              {user.status}
+            </span>
+          )}
+          <span className="truncate" style={getColorStyle(color)}>
+            {user.username}
+          </span>
+        </div>
+        {status && (
+          <div className="text-xs text-discord-text-muted truncate">
+            {status}
+          </div>
+        )}
+        {website && (
+          <div className="text-xs text-discord-text-muted truncate">
+            🌐 {website}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

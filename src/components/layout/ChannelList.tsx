@@ -364,11 +364,21 @@ export const ChannelList: React.FC<{
         <div className="flex items-center gap-2">
           <div className="relative">
             <div className="w-8 h-8 rounded-full bg-discord-dark-100 flex items-center justify-center">
-              {currentUser?.avatar ? (
+              {currentUser?.metadata?.avatar?.value ? (
                 <img
-                  src={currentUser.avatar}
+                  src={currentUser.metadata.avatar.value}
                   alt={currentUser.username}
-                  className="w-8 h-8 rounded-full"
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    if (parent && currentUser?.username) {
+                      parent.textContent = currentUser.username
+                        .charAt(0)
+                        .toUpperCase();
+                    }
+                  }}
                 />
               ) : (
                 <span className="text-white">
