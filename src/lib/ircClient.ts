@@ -5,6 +5,7 @@ import {
   parseMessageTags,
   parseNamesResponse,
 } from "./ircUtils";
+import { createSocket, type ISocket } from "./socket";
 
 export interface EventMap {
   ready: { serverId: string; serverName: string; nickname: string };
@@ -101,7 +102,7 @@ type EventKey = keyof EventMap;
 type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 
 export class IRCClient {
-  private sockets: Map<string, WebSocket> = new Map();
+  private sockets: Map<string, ISocket> = new Map();
   private servers: Map<string, Server> = new Map();
   private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
@@ -122,9 +123,28 @@ export class IRCClient {
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
-      const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
-      const url = `${protocol}://${host}:${port}`;
-      const socket = new WebSocket(url);
+      let protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
+      let actualHost = host;
+      let actualPort = port;
+
+      if (host.startsWith("irc://") || host.startsWith("ircs://")) {
+        protocol = host.startsWith("irc://") ? "irc" : "ircs";
+        // Parse the IRC URL to extract host and port
+        console.log("Parsing IRC URL:", host);
+        const ircUrl = new URL(host);
+        actualHost = ircUrl.hostname;
+        actualPort = ircUrl.port ? Number.parseInt(ircUrl.port, 10) : port;
+        console.log("Parsed IRC URL:", {
+          protocol,
+          actualHost,
+          actualPort,
+          originalHost: host,
+        });
+      }
+
+      const url = `${protocol}://${actualHost}:${actualPort}`;
+      console.log("Final URL being sent to createSocket:", url);
+      const socket = createSocket(url);
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
@@ -133,12 +153,20 @@ export class IRCClient {
           socket.send(`PASS ${password}`);
         }
 
-        socket.send("CAP LS 302");
+        // Skip CAP negotiation for now and send registration directly
+        console.log("🔗 Sending IRC registration commands (skipping CAP)...");
+        socket.send(`NICK ${nickname}`);
+        console.log("📤 Sent NICK command:", `NICK ${nickname}`);
+        socket.send(`USER ${nickname} 0 * :${nickname}`);
+        console.log(
+          "📤 Sent USER command:",
+          `USER ${nickname} 0 * :${nickname}`,
+        );
 
         const server: Server = {
           id: uuidv4(),
-          name: host,
-          host,
+          name: actualHost,
+          host: actualHost,
           port,
           channels: [],
           privateChats: [],
@@ -157,7 +185,7 @@ export class IRCClient {
         this.nicks.set(server.id, nickname);
 
         socket.onclose = () => {
-          console.log(`Disconnected from server ${host}`);
+          console.log(`Disconnected from server ${actualHost}`);
           this.sockets.delete(server.id);
         };
 
@@ -165,7 +193,11 @@ export class IRCClient {
       };
 
       socket.onerror = (error) => {
-        reject(new Error(`Failed to connect to ${host}:${port}: ${error}`));
+        reject(
+          new Error(
+            `Failed to connect to ${actualHost}:${actualPort}: ${error}`,
+          ),
+        );
       };
 
       socket.onmessage = (event) => {

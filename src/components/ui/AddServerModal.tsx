@@ -3,6 +3,14 @@ import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
 import useStore from "../../store";
 
+// Check if we're running in Tauri
+declare global {
+  interface Window {
+    __TAURI__?: unknown;
+  }
+}
+const isTauri = typeof window !== "undefined" && window.__TAURI__ !== undefined;
+
 export const AddServerModal: React.FC = () => {
   const {
     toggleAddServerModal,
@@ -31,6 +39,7 @@ export const AddServerModal: React.FC = () => {
   const [showServerPassword, setShowServerPassword] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [registerAccount, setRegisterAccount] = useState(false);
+  const [useIrcProtocol, setUseIrcProtocol] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -59,8 +68,29 @@ export const AddServerModal: React.FC = () => {
     }
 
     try {
+      // Modify host to include protocol if IRC is selected
+      let finalHost = serverHost;
+      if (isTauri && useIrcProtocol) {
+        const port = Number.parseInt(serverPort, 10);
+        // Remove any existing protocol prefix from serverHost
+        const cleanHost = serverHost.replace(/^(https?|wss?|ircs?):\/\//, "");
+
+        // Check if this is a localhost connection (case insensitive)
+        const isLocalhost =
+          cleanHost.toLowerCase() === "localhost" ||
+          cleanHost === "127.0.0.1" ||
+          cleanHost === "::1";
+
+        // Use ircs:// for SSL ports (typically 6697, 9999, etc.) or common SSL ports, but not for localhost
+        const isSSLPort =
+          !isLocalhost &&
+          (port === 6697 || port === 9999 || port === 443 || port === 993);
+
+        finalHost = `${isSSLPort ? "ircs" : "irc"}://${cleanHost}:${port}`;
+      }
+
       await connect(
-        serverHost,
+        finalHost,
         Number.parseInt(serverPort, 10),
         nickname,
         !!saslPassword,
@@ -214,6 +244,27 @@ export const AddServerModal: React.FC = () => {
                   Use server password
                 </label>
               </div>
+              {isTauri && (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="useIrcProtocol"
+                    checked={useIrcProtocol}
+                    onChange={() => setUseIrcProtocol(!useIrcProtocol)}
+                    className="accent-discord-accent rounded"
+                  />
+                  <label
+                    htmlFor="useIrcProtocol"
+                    className="text-discord-text-muted text-sm flex items-center"
+                  >
+                    IRC{" "}
+                    <FaQuestionCircle
+                      title="RAW TCP IRC connection"
+                      className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           </div>
           {showServerPassword && (

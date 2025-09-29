@@ -21,6 +21,12 @@ const askPermissions = async () => {
   }
 };
 
+// const { onOpenUrl } = window.__TAURI__.deepLink;
+// await onOpenUrl((urls: string[]) => {
+//   // TODO: Handle deep links here
+//   console.log('deep link:', urls);
+// });
+
 const initializeEnvSettings = (
   toggleAddServerModal: (
     isOpen?: boolean,
