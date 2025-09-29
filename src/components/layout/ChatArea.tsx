@@ -273,7 +273,9 @@ const MessageItem: React.FC<{
                     e.currentTarget.style.display = "none";
                     const parent = e.currentTarget.parentElement;
                     if (parent) {
-                      parent.textContent = message.userId.charAt(0).toUpperCase();
+                      parent.textContent = message.userId
+                        .charAt(0)
+                        .toUpperCase();
                     }
                   }}
                 />
@@ -338,7 +340,9 @@ const MessageItem: React.FC<{
                     e.currentTarget.style.display = "none";
                     const parent = e.currentTarget.parentElement;
                     if (parent) {
-                      parent.textContent = message.userId.charAt(0).toUpperCase();
+                      parent.textContent = message.userId
+                        .charAt(0)
+                        .toUpperCase();
                     }
                   }}
                 />

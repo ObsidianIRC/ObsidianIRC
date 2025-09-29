@@ -1660,6 +1660,9 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
 ircClient.on(
   "METADATA_KEYVALUE",
   ({ serverId, target, key, visibility, value }) => {
+    console.log(
+      `[METADATA_KEYVALUE] Received: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
+    );
     // Handle individual key-value responses (similar to METADATA)
     useStore.setState((state) => {
       const updatedServers = state.servers.map((server) => {
@@ -1692,7 +1695,15 @@ ircClient.on(
         return server;
       });
 
-      return { servers: updatedServers };
+      // Update current user metadata
+      let updatedCurrentUser = state.currentUser;
+      if (state.currentUser?.username === target) {
+        const metadata = state.currentUser.metadata || {};
+        metadata[key] = { value, visibility };
+        updatedCurrentUser = { ...state.currentUser, metadata };
+      }
+
+      return { servers: updatedServers, currentUser: updatedCurrentUser };
     });
   },
 );

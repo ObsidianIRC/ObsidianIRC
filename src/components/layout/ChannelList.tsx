@@ -374,7 +374,9 @@ export const ChannelList: React.FC<{
                     e.currentTarget.style.display = "none";
                     const parent = e.currentTarget.parentElement;
                     if (parent && currentUser?.username) {
-                      parent.textContent = currentUser.username.charAt(0).toUpperCase();
+                      parent.textContent = currentUser.username
+                        .charAt(0)
+                        .toUpperCase();
                     }
                   }}
                 />
