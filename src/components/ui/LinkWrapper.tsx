@@ -1,4 +1,5 @@
-import React, { Children, cloneElement, Fragment, isValidElement } from "react";
+import type React from "react";
+import { Children, cloneElement, Fragment, isValidElement } from "react";
 
 interface EnhancedLinkWrapperProps {
   children: React.ReactNode;
@@ -7,7 +8,7 @@ interface EnhancedLinkWrapperProps {
 
 export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
   children,
-  onIrcLinkClick
+  onIrcLinkClick,
 }) => {
   // Regular expression to detect HTTP and HTTPS links
   const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;

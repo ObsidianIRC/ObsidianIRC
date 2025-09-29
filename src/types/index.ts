@@ -76,6 +76,9 @@ export interface Message {
   mentioned: string[];
 }
 
+// Alias for backwards compatibility
+export type MessageType = Message;
+
 export interface SocketResponse {
   event: string;
   data: unknown;

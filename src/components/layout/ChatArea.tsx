@@ -1,11 +1,7 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import type * as React from "react";
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FaArrowDown,
   FaAt,
@@ -39,7 +35,6 @@ import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiSelector from "../ui/EmojiSelector";
 import DiscoverGrid from "../ui/HomeScreen";
-import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
 
@@ -95,7 +90,6 @@ export const TypingIndicator: React.FC<{
 
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
-
 
 export const ChatArea: React.FC<{
   onToggleChanList: () => void;
