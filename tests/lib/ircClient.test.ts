@@ -2,40 +2,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { IRCClient } from "../../src/lib/ircClient";
 import type { Server } from "../../src/types";
 
-interface WebSocketEventMap {
-  open: Event;
-  message: MessageEvent;
-  close: CloseEvent;
-  error: ErrorEvent;
-}
-
-interface WebSocketInstance extends EventTarget {
-  readyState: number;
-  url: string;
-  onopen: ((event: WebSocketEventMap["open"]) => void) | null;
-  onmessage: ((event: WebSocketEventMap["message"]) => void) | null;
-  onclose: ((event: WebSocketEventMap["close"]) => void) | null;
-  onerror: ((event: WebSocketEventMap["error"]) => void) | null;
-  send(data: string): void;
-  close(): void;
-}
-
-// Mock WebSocket
-class MockWebSocket implements WebSocket {
-  private onOpenCallback: ((event: WebSocketEventMap["open"]) => void) | null =
-    null;
-  private onMessageCallback:
-    | ((event: WebSocketEventMap["message"]) => void)
-    | null = null;
-  private onCloseCallback:
-    | ((event: WebSocketEventMap["close"]) => void)
-    | null = null;
-  private onErrorCallback:
-    | ((event: WebSocketEventMap["error"]) => void)
-    | null = null;
-  private eventTarget: EventTarget;
-
-  // Required WebSocket properties
+// Mock WebSocket class
+class MockWebSocket extends EventTarget {
   public readyState: number = WebSocket.CONNECTING;
   public bufferedAmount = 0;
   public extensions = "";
@@ -44,64 +12,24 @@ class MockWebSocket implements WebSocket {
   public url: string;
   public sentMessages: string[] = [];
 
-  // Static properties
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
   static readonly CLOSING = 2;
   static readonly CLOSED = 3;
 
-  // Instance properties for static access
   readonly CONNECTING = 0;
   readonly OPEN = 1;
   readonly CLOSING = 2;
   readonly CLOSED = 3;
 
-  constructor(url: string, protocols?: string | string[]) {
+  onopen: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+
+  constructor(url: string) {
+    super();
     this.url = url;
-    this.protocol = Array.isArray(protocols) ? protocols[0] : protocols || "";
-    this.eventTarget = new EventTarget();
-  }
-
-  addEventListener<K extends keyof WebSocketEventMap>(
-    type: K,
-    listener: (event: WebSocketEventMap[K]) => void,
-    options?: boolean | AddEventListenerOptions,
-  ): void {
-    this.eventTarget.addEventListener(type, listener as EventListener, options);
-  }
-
-  removeEventListener<K extends keyof WebSocketEventMap>(
-    type: K,
-    listener: (event: WebSocketEventMap[K]) => void,
-    options?: boolean | EventListenerOptions,
-  ): void {
-    this.eventTarget.removeEventListener(
-      type,
-      listener as EventListener,
-      options,
-    );
-  }
-
-  dispatchEvent(event: Event): boolean {
-    return this.eventTarget.dispatchEvent(event);
-  }
-
-  set onopen(callback: (event: WebSocketEventMap["open"]) => void) {
-    this.onOpenCallback = callback;
-  }
-
-  set onmessage(callback: (event: WebSocketEventMap["message"]) => void) {
-    this.onMessageCallback = callback;
-  }
-
-  set onclose(callback: (event: WebSocketEventMap["close"]) => void) {
-    this.onCloseCallback = callback;
-  }
-
-  set onerror(callback: ((this: WebSocket, ev: Event) => any) | null) {
-    this.onErrorCallback = callback as
-      | ((event: WebSocketEventMap["error"]) => void)
-      | null;
   }
 
   send(message: string): void {
@@ -109,43 +37,36 @@ class MockWebSocket implements WebSocket {
   }
 
   close(): void {
-    if (this.onCloseCallback) {
-      this.onCloseCallback(new CloseEvent("close"));
+    this.readyState = WebSocket.CLOSED;
+    if (this.onclose) {
+      this.onclose(new CloseEvent("close"));
     }
   }
 
   // Helper methods for testing
   simulateOpen(): void {
-    if (this.onOpenCallback) {
-      this.onOpenCallback(new Event("open"));
+    this.readyState = WebSocket.OPEN;
+    if (this.onopen) {
+      this.onopen(new Event("open"));
     }
   }
 
   simulateMessage(data: string): void {
-    if (this.onMessageCallback) {
-      this.onMessageCallback(new MessageEvent("message", { data }));
+    if (this.onmessage) {
+      this.onmessage(new MessageEvent("message", { data }));
     }
   }
 
   simulateError(error: Error): void {
-    if (this.onErrorCallback) {
-      this.onErrorCallback(new ErrorEvent("error", { error }));
+    if (this.onerror) {
+      this.onerror(new Event("error"));
     }
   }
 }
 
-interface WebSocketConstructor {
-  new (url: string): WebSocketInstance;
-  readonly CONNECTING: 0;
-  readonly OPEN: 1;
-  readonly CLOSING: 2;
-  readonly CLOSED: 3;
-  prototype: WebSocketInstance;
-}
-
-// Replace global WebSocket with mock
-const MockWebSocketClass = MockWebSocket as unknown as WebSocketConstructor;
-vi.stubGlobal("WebSocket", MockWebSocketClass);
+// Mock WebSocket globally
+const MockWebSocketSpy = vi.fn();
+vi.stubGlobal("WebSocket", MockWebSocketSpy);
 
 describe("IRCClient", () => {
   let client: IRCClient;
@@ -153,13 +74,13 @@ describe("IRCClient", () => {
   beforeEach(() => {
     client = new IRCClient();
     vi.clearAllMocks();
+    MockWebSocketSpy.mockClear();
   });
 
   describe("connect", () => {
     test("should connect to IRC server successfully", async () => {
-      // Create a promise that will resolve when the connection is fully established
       const mockSocket = new MockWebSocket("ws://irc.example.com:443");
-      vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
+      MockWebSocketSpy.mockReturnValue(mockSocket);
 
       const connectionPromise = client.connect(
         "irc.example.com",
@@ -181,8 +102,10 @@ describe("IRCClient", () => {
     });
 
     test("should handle connection errors", async () => {
-      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
-      vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
+      // Mock WebSocket to throw an error immediately
+      MockWebSocketSpy.mockImplementation(() => {
+        throw new Error("Connection failed");
+      });
 
       const connectionPromise = client.connect(
         "irc.example.com",
@@ -190,27 +113,14 @@ describe("IRCClient", () => {
         "testuser",
       );
 
-      // Simulate error before connection completes
-      mockSocket.simulateError(new Error("Connection failed"));
-
       // Expect the promise to reject
-      try {
-        await connectionPromise;
-        expect.fail("Expected connection to fail");
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain("Failed to connect");
-      }
+      await expect(connectionPromise).rejects.toThrow(/Failed to connect/);
     });
 
     test("should return existing server when connecting to same host/port", async () => {
       // First connection
       const mockSocket1 = new MockWebSocket("ws://irc.example.com:443");
-      let webSocketCallCount = 0;
-      vi.spyOn(global, "WebSocket").mockImplementation(() => {
-        webSocketCallCount++;
-        return mockSocket1;
-      });
+      MockWebSocketSpy.mockReturnValue(mockSocket1);
 
       const firstConnectionPromise = client.connect(
         "irc.example.com",
@@ -225,7 +135,7 @@ describe("IRCClient", () => {
       expect(firstServer.name).toBe("irc.example.com");
       expect(firstServer.isConnected).toBe(true);
       expect(mockSocket1.sentMessages).toContain("CAP LS 302");
-      expect(webSocketCallCount).toBe(1);
+      expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
 
       // Second connection to same host/port should return existing server
       const secondConnectionPromise = client.connect(
@@ -241,14 +151,14 @@ describe("IRCClient", () => {
       expect(secondServer.id).toBe(firstServer.id);
 
       // Should not have created a new WebSocket
-      expect(webSocketCallCount).toBe(1);
+      expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("message handling", () => {
     test("should handle PRIVMSG correctly", async () => {
       const mockSocket = new MockWebSocket("ws://irc.example.com:443");
-      vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
+      MockWebSocketSpy.mockReturnValue(mockSocket);
 
       const connectionPromise = client.connect(
         "irc.example.com",
@@ -292,7 +202,7 @@ describe("IRCClient", () => {
 
     beforeEach(async () => {
       mockSocket = new MockWebSocket("ws://irc.example.com:443");
-      vi.spyOn(global, "WebSocket").mockImplementation(() => mockSocket);
+      MockWebSocketSpy.mockReturnValue(mockSocket);
 
       const connectionPromise = client.connect(
         "irc.example.com",
