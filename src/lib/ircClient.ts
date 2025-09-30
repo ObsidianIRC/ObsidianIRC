@@ -148,6 +148,7 @@ export class IRCClient {
   private currentUser: User | null = null;
   private saslMechanisms: Map<string, string[]> = new Map();
   private capLsAccumulated: Map<string, Set<string>> = new Map();
+  private saslEnabled: Map<string, boolean> = new Map();
   private pendingConnections: Map<string, Promise<Server>> = new Map();
 
   private eventCallbacks: {
@@ -208,6 +209,7 @@ export class IRCClient {
       };
       this.servers.set(server.id, server);
       this.sockets.set(server.id, socket);
+      this.saslEnabled.set(server.id, !!_saslAccountName);
       this.currentUser = {
         id: uuidv4(),
         username: nickname,
@@ -449,6 +451,10 @@ export class IRCClient {
 
   capEnd(_serverId: string) {}
 
+  getNick(serverId: string): string | undefined {
+    return this.nicks.get(serverId);
+  }
+
   userOnConnect(serverId: string) {
     const nickname = this.nicks.get(serverId);
     if (!nickname) {
@@ -627,54 +633,13 @@ export class IRCClient {
         console.log(names);
         const newUsers = parseNamesResponse(names); // Parse the user list
         console.log(newUsers);
-        // Find the server and channel
-        const server = this.servers.get(serverId);
-        if (server) {
-          const channel = server.channels.find((c) => c.name === channelName);
-          if (channel) {
-            // Merge new users with existing users
-            const existingUsers = channel.users || [];
-            const mergedUsers = existingUsers.map((existingUser) => {
-              const newUser = newUsers.find(
-                (u) => u.username === existingUser.username,
-              );
-              if (newUser) {
-                // Update status if different
-                return { ...existingUser, status: newUser.status };
-              }
-              return existingUser;
-            });
 
-            // Add new users
-            for (const newUser of newUsers) {
-              if (
-                !existingUsers.some(
-                  (user) => user.username === newUser.username,
-                )
-              ) {
-                mergedUsers.push(newUser);
-              }
-            }
-
-            // Update the channel's user list
-            channel.users = mergedUsers;
-
-            // Trigger an event to notify the UI
-            this.triggerEvent("NAMES", {
-              serverId,
-              channelName,
-              users: mergedUsers,
-            });
-          } else {
-            console.warn(
-              `Channel ${channelName} not found when processing NAMES response`,
-            );
-          }
-        } else {
-          console.warn(
-            `Server ${serverId} not found while processing NAMES response`,
-          );
-        }
+        // Trigger an event to notify the UI
+        this.triggerEvent("NAMES", {
+          serverId,
+          channelName,
+          users: newUsers,
+        });
       } else if (command === "CAP") {
         let i = 0;
         let caps = "";
@@ -683,6 +648,7 @@ export class IRCClient {
         // Handle CAP ACK which has nickname before subcommand
         if (
           subcommand !== "LS" &&
+          subcommand !== "ACK" &&
           subcommand !== "NEW" &&
           subcommand !== "DEL" &&
           subcommand !== "NAK"
@@ -1024,8 +990,12 @@ export class IRCClient {
     if (isFinal) {
       // Now request the caps we want from the accumulated list
       let toRequest = "CAP REQ :";
+      const saslEnabled = this.saslEnabled.get(serverId) ?? false;
       for (const cap of accumulated) {
-        if (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) {
+        if (
+          (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
+          (cap !== "sasl" || saslEnabled)
+        ) {
           if (toRequest.length + cap.length + 1 > 400) {
             this.sendRaw(serverId, toRequest);
             toRequest = "CAP REQ :";

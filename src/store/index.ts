@@ -1592,6 +1592,13 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
 
     return { servers: updatedServers };
   });
+
+  // If we joined a channel, request channel information
+  const ourNick = ircClient.getNick(serverId);
+  if (username === ourNick) {
+    ircClient.sendRaw(serverId, `NAMES ${channelName}`);
+    ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
+  }
 });
 
 // Handle user being kicked from a channel
@@ -1827,10 +1834,8 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   const server = state.servers.find((s) => s.id === serverId);
   let preventCapEnd = false;
 
-  // Check if SASL is enabled for this server (from saved config)
-  const savedServers = loadSavedServers();
-  const savedServer = savedServers.find((s) => s.id === serverId);
-  if (savedServer?.saslEnabled) {
+  // Check if SASL was requested and acknowledged
+  if (caps.some((cap) => cap.startsWith("sasl"))) {
     preventCapEnd = true;
   }
 
@@ -1843,7 +1848,12 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
       console.log(`Triggering account registration for server ${serverId}`);
       useStore
         .getState()
-        .registerAccount(serverId, "*", pendingReg.email, pendingReg.password);
+        .registerAccount(
+          serverId,
+          pendingReg.account,
+          pendingReg.email,
+          pendingReg.password,
+        );
       console.log(pendingReg);
       // Clear the pending registration
       useStore.setState({ pendingRegistration: null });

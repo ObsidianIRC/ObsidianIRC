@@ -187,7 +187,7 @@ export const ChannelList: React.FC<{
                       >
                         <div
                           className={`
-                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
+                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer relative
                           ${selectedChannelId === channel.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                         `}
                           onClick={() => selectChannel(channel.id)}
@@ -201,7 +201,7 @@ export const ChannelList: React.FC<{
                           {/* Trash Button */}
                           {selectedChannelId === channel.id && (
                             <button
-                              className="hidden group-hover:block text-discord-red hover:text-white"
+                              className="absolute -bottom-1 -right-1 bg-discord-dark-200 rounded-full p-1 text-discord-red hover:text-white hover:bg-discord-red opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (selectedServerId) {
@@ -209,7 +209,7 @@ export const ChannelList: React.FC<{
                                 }
                               }}
                             >
-                              <FaTrash />
+                              <FaTrash size={10} />
                             </button>
                           )}
                         </div>
@@ -318,7 +318,7 @@ export const ChannelList: React.FC<{
                     >
                       <div
                         className={`
-                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
+                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer relative
                           ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                         `}
                         onClick={() => selectPrivateChat(privateChat.id)}
@@ -332,7 +332,7 @@ export const ChannelList: React.FC<{
                         {/* Delete Button */}
                         {selectedPrivateChatId === privateChat.id && (
                           <button
-                            className="hidden group-hover:block text-discord-red hover:text-white"
+                            className="absolute -bottom-1 -right-1 bg-discord-dark-200 rounded-full p-1 text-discord-red hover:text-white hover:bg-discord-red opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (selectedServerId) {
@@ -343,7 +343,7 @@ export const ChannelList: React.FC<{
                               }
                             }}
                           >
-                            <FaTrash />
+                            <FaTrash size={10} />
                           </button>
                         )}
                       </div>
