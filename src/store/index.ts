@@ -444,7 +444,8 @@ const useStore = create<AppState>((set, get) => ({
         const savedServers = loadSavedServers();
         const currentServer = state.servers.find((s) => s.id === serverId);
         const savedServer = savedServers.find(
-          (s) => s.host === currentServer?.host && s.port === currentServer?.port,
+          (s) =>
+            s.host === currentServer?.host && s.port === currentServer?.port,
         );
         if (savedServer && !savedServer.channels.includes(channel.name)) {
           savedServer.channels.push(channel.name);
@@ -2173,7 +2174,8 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   if (capabilities?.startsWith("draft/metadata")) {
     // Check if already subscribed to avoid duplicate subscriptions
-    const currentSubs = useStore.getState().metadataSubscriptions[serverId] || [];
+    const currentSubs =
+      useStore.getState().metadataSubscriptions[serverId] || [];
     if (currentSubs.length === 0) {
       // Subscribe to common metadata keys
       const defaultKeys = [

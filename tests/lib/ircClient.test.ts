@@ -99,7 +99,9 @@ class MockWebSocket implements WebSocket {
   }
 
   set onerror(callback: ((this: WebSocket, ev: Event) => any) | null) {
-    this.onErrorCallback = callback as ((event: WebSocketEventMap["error"]) => void) | null;
+    this.onErrorCallback = callback as
+      | ((event: WebSocketEventMap["error"]) => void)
+      | null;
   }
 
   send(message: string): void {

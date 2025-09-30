@@ -94,7 +94,12 @@ export interface EventMap {
     realname: string;
   };
   WHO_END: { serverId: string; mask: string };
-  WHOIS_BOT: { serverId: string; nick: string; target: string; message: string };
+  WHOIS_BOT: {
+    serverId: string;
+    nick: string;
+    target: string;
+    message: string;
+  };
 }
 
 type EventKey = keyof EventMap;
