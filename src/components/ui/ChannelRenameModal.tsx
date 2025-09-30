@@ -12,14 +12,21 @@ const ChannelRenameModal: React.FC = () => {
   } = useStore();
 
   const selectedServer = servers.find((s) => s.id === selectedServerId);
-  const selectedChannel = selectedServer?.channels.find((c) => c.id === selectedChannelId);
+  const selectedChannel = selectedServer?.channels.find(
+    (c) => c.id === selectedChannelId,
+  );
 
   const [newName, setNewName] = useState(selectedChannel?.name || "");
   const [reason, setReason] = useState("");
 
   const handleRename = () => {
     if (selectedServer && selectedChannel && newName.trim()) {
-      renameChannel(selectedServer.id, selectedChannel.name, newName.trim(), reason.trim() || undefined);
+      renameChannel(
+        selectedServer.id,
+        selectedChannel.name,
+        newName.trim(),
+        reason.trim() || undefined,
+      );
       toggleChannelRenameModal(false);
     }
   };

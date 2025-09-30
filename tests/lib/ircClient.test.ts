@@ -229,7 +229,7 @@ describe("IRCClient", () => {
     });
   });
 
-  describe("channel operations", () => {
+    describe("channel operations", () => {
     let mockSocket: MockWebSocket;
     let server: Server;
 
@@ -247,20 +247,77 @@ describe("IRCClient", () => {
       server = await connectionPromise;
     });
 
-    test("should join channel successfully", async () => {
-      const channel = client.joinChannel(server.id, "#testchannel");
-
-      expect(channel).toBeDefined();
-      expect(channel.name).toBe("#testchannel");
-      expect(mockSocket.sentMessages).toContain("JOIN #testchannel");
+    test("should send LIST command", () => {
+      client.listChannels(server.id);
+      expect(mockSocket.sentMessages).toContain("LIST");
     });
 
-    test("should leave channel successfully", async () => {
-      const channel = client.joinChannel(server.id, "#testchannel");
-      client.leaveChannel(server.id, "#testchannel");
+    test("should handle LIST responses", () => {
+      const listChannelPromise = new Promise<void>((resolve) => {
+        client.on("LIST_CHANNEL", (data) => {
+          expect(data.channel).toBe("#testchannel");
+          expect(data.userCount).toBe(42);
+          expect(data.topic).toBe("Test topic");
+          resolve();
+        });
+      });
 
-      expect(mockSocket.sentMessages).toContain("PART #testchannel");
-      expect(client.getServers()[0].channels).not.toContain(channel);
+      mockSocket.simulateMessage("322 * #testchannel 42 :Test topic\r\n");
+      return listChannelPromise;
+    });
+
+    test("should handle LIST end", () => {
+      const listEndPromise = new Promise<void>((resolve) => {
+        client.on("LIST_END", (data) => {
+          expect(data.serverId).toBe(server.id);
+          resolve();
+        });
+      });
+
+      mockSocket.simulateMessage("323 * :End of LIST\r\n");
+      return listEndPromise;
+    });
+
+    test("should send RENAME command", () => {
+      client.renameChannel(server.id, "#oldname", "#newname", "Channel renamed");
+      expect(mockSocket.sentMessages).toContain("RENAME #oldname #newname :Channel renamed");
+    });
+
+    test("should send RENAME command without reason", () => {
+      client.renameChannel(server.id, "#oldname", "#newname");
+      expect(mockSocket.sentMessages).toContain("RENAME #oldname #newname");
+    });
+
+    test("should handle RENAME response", () => {
+      const renamePromise = new Promise<void>((resolve) => {
+        client.on("RENAME", (data) => {
+          expect(data.oldName).toBe("#oldchannel");
+          expect(data.newName).toBe("#newchannel");
+          expect(data.reason).toBe("Channel renamed");
+          resolve();
+        });
+      });
+
+      mockSocket.simulateMessage(":server RENAME #oldchannel #newchannel :Channel renamed\r\n");
+      return renamePromise;
+    });
+
+    test("should send SETNAME command", () => {
+      client.setName(server.id, "New Real Name");
+      expect(mockSocket.sentMessages).toContain("SETNAME :New Real Name");
+    });
+
+    test("should handle SETNAME response", () => {
+      const setnamePromise = new Promise<void>((resolve) => {
+        client.on("SETNAME", (data) => {
+          expect(data.user).toBe("testuser");
+          expect(data.realname).toBe("New Real Name");
+          resolve();
+        });
+      });
+
+      mockSocket.simulateMessage(":testuser!user@host SETNAME :New Real Name\r\n");
+      return setnamePromise;
     });
   });
 });

@@ -157,7 +157,10 @@ export interface AppState {
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
-  channelList: Record<string, { channel: string; userCount: number; topic: string }[]>; // serverId -> channels
+  channelList: Record<
+    string,
+    { channel: string; userCount: number; topic: string }[]
+  >; // serverId -> channels
   listingInProgress: Record<string, boolean>; // serverId -> is listing
   // Metadata state
   metadataSubscriptions: Record<string, string[]>; // serverId -> keys
@@ -203,7 +206,12 @@ export interface AppState {
     reason: string,
   ) => void;
   listChannels: (serverId: string) => void;
-  renameChannel: (serverId: string, oldName: string, newName: string, reason?: string) => void;
+  renameChannel: (
+    serverId: string,
+    oldName: string,
+    newName: string,
+    reason?: string,
+  ) => void;
   setName: (serverId: string, realname: string) => void;
   addMessage: (message: Message) => void;
   selectServer: (serverId: string | null) => void;
@@ -2183,7 +2191,7 @@ ircClient.on("SETNAME", ({ serverId, user, realname }) => {
         const updatedChannels = s.channels.map((c) => ({
           ...c,
           users: c.users.map((u) =>
-            u.username === user ? { ...u, displayName: realname } : u
+            u.username === user ? { ...u, displayName: realname } : u,
           ),
         }));
         return { ...s, channels: updatedChannels };

@@ -68,7 +68,12 @@ const initializeEnvSettings = (
 const App: React.FC = () => {
   const {
     toggleAddServerModal,
-    ui: { isAddServerModalOpen, isUserProfileModalOpen, isChannelListModalOpen, isChannelRenameModalOpen },
+    ui: {
+      isAddServerModalOpen,
+      isUserProfileModalOpen,
+      isChannelListModalOpen,
+      isChannelRenameModalOpen,
+    },
     joinChannel,
     connectToSavedServers,
   } = useStore();

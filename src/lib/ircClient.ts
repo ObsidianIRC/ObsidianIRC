@@ -95,9 +95,20 @@ export interface EventMap {
     key?: string;
     retryAfter?: number;
   };
-  LIST_CHANNEL: { serverId: string; channel: string; userCount: number; topic: string };
+  LIST_CHANNEL: {
+    serverId: string;
+    channel: string;
+    userCount: number;
+    topic: string;
+  };
   LIST_END: { serverId: string };
-  RENAME: { serverId: string; oldName: string; newName: string; reason: string; user: string };
+  RENAME: {
+    serverId: string;
+    oldName: string;
+    newName: string;
+    reason: string;
+    user: string;
+  };
   SETNAME: { serverId: string; user: string; realname: string };
 }
 
@@ -258,8 +269,15 @@ export class IRCClient {
     this.sendRaw(serverId, "LIST");
   }
 
-  renameChannel(serverId: string, oldName: string, newName: string, reason?: string): void {
-    const command = reason ? `RENAME ${oldName} ${newName} :${reason}` : `RENAME ${oldName} ${newName}`;
+  renameChannel(
+    serverId: string,
+    oldName: string,
+    newName: string,
+    reason?: string,
+  ): void {
+    const command = reason
+      ? `RENAME ${oldName} ${newName} :${reason}`
+      : `RENAME ${oldName} ${newName}`;
     this.sendRaw(serverId, command);
   }
 
@@ -698,7 +716,7 @@ export class IRCClient {
       } else if (command === "322") {
         // RPL_LIST: <channel> <usercount> :<topic>
         const channelName = parv[1];
-        const userCount = parv[2] ? parseInt(parv[2], 10) : 0;
+        const userCount = parv[2] ? Number.parseInt(parv[2], 10) : 0;
         const topic = parv.slice(3).join(" ").substring(1); // Remove leading :
         this.triggerEvent("LIST_CHANNEL", {
           serverId,
@@ -748,7 +766,9 @@ export class IRCClient {
       if (cap === "sasl" && value) {
         const mechanisms = value.split(",");
         this.saslMechanisms.set(serverId, mechanisms);
-        console.log(`Available SASL mechanisms for ${serverId}: ${mechanisms.join(", ")}`);
+        console.log(
+          `Available SASL mechanisms for ${serverId}: ${mechanisms.join(", ")}`,
+        );
       }
       if (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) {
         if (toRequest.length + cap.length + 1 > 400) {
@@ -774,7 +794,9 @@ export class IRCClient {
       if (cap === "sasl" && value) {
         const mechanisms = value.split(",");
         this.saslMechanisms.set(serverId, mechanisms);
-        console.log(`SASL mechanisms updated for ${serverId}: ${mechanisms.join(", ")}`);
+        console.log(
+          `SASL mechanisms updated for ${serverId}: ${mechanisms.join(", ")}`,
+        );
         // If sasl becomes available, perhaps request it if not already
         // But for now, just log
       }
