@@ -10,6 +10,7 @@ export const ServerList: React.FC = () => {
     selectServer,
     toggleAddServerModal,
     deleteServer, // Add deleteServer action
+    toggleChannelListModal, // Add toggleChannelListModal action
   } = useStore();
 
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
@@ -120,13 +121,14 @@ export const ServerList: React.FC = () => {
               </div>
             )}
             {selectedServerId === server.id && (
-              <div className="group-hover:opacity-100 opacity-0 transition-opacity duration-200">
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 group-hover:opacity-100 opacity-0 transition-opacity duration-200 flex space-x-1">
                 <button
-                  className="absolute -bottom-2 -right-2 w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
+                  className="w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteServer(server.id);
                   }}
+                  title="Disconnect"
                 >
                   <FaTrash />
                 </button>

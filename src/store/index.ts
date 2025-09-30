@@ -131,6 +131,8 @@ interface UIState {
   isMobileMenuOpen: boolean;
   isMemberListVisible: boolean;
   isChannelListVisible: boolean;
+  isChannelListModalOpen: boolean;
+  isChannelRenameModalOpen: boolean;
   mobileViewActiveColumn: layoutColumn;
   isServerMenuOpen: boolean;
   contextMenu: {
@@ -155,6 +157,8 @@ export interface AppState {
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
+  channelList: Record<string, { channel: string; userCount: number; topic: string }[]>; // serverId -> channels
+  listingInProgress: Record<string, boolean>; // serverId -> is listing
   // Metadata state
   metadataSubscriptions: Record<string, string[]>; // serverId -> keys
   metadataBatches: Record<
@@ -198,6 +202,9 @@ export interface AppState {
     username: string,
     reason: string,
   ) => void;
+  listChannels: (serverId: string) => void;
+  renameChannel: (serverId: string, oldName: string, newName: string, reason?: string) => void;
+  setName: (serverId: string, realname: string) => void;
   addMessage: (message: Message) => void;
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
@@ -219,6 +226,8 @@ export interface AppState {
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
   toggleChannelList: (isOpen?: boolean) => void;
+  toggleChannelListModal: (isOpen?: boolean) => void;
+  toggleChannelRenameModal: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
@@ -253,6 +262,8 @@ const useStore = create<AppState>((set, get) => ({
   connectionError: null,
   messages: {},
   typingUsers: {},
+  channelList: {},
+  listingInProgress: {},
   metadataSubscriptions: {},
   metadataBatches: {},
   selectedServerId: null,
@@ -269,6 +280,8 @@ const useStore = create<AppState>((set, get) => ({
     isMobileMenuOpen: false,
     isMemberListVisible: true,
     isChannelListVisible: true,
+    isChannelListModalOpen: false,
+    isChannelRenameModalOpen: false,
     mobileViewActiveColumn: "serverList", // Default to server list in mobile mode on open
     isServerMenuOpen: false,
     contextMenu: {
@@ -329,11 +342,22 @@ const useStore = create<AppState>((set, get) => ({
       });
       saveServersToLocalStorage(updatedServers);
 
-      set((state) => ({
-        servers: [...state.servers, server],
-        currentUser: ircClient.getCurrentUser(),
-        isConnecting: false,
-      }));
+      set((state) => {
+        const alreadyExists = state.servers.some(
+          (s) => s.host === host && s.port === port,
+        );
+        if (alreadyExists) {
+          return {
+            currentUser: ircClient.getCurrentUser(),
+            isConnecting: false,
+          };
+        }
+        return {
+          servers: [...state.servers, server],
+          currentUser: ircClient.getCurrentUser(),
+          isConnecting: false,
+        };
+      });
 
       return server;
     } catch (error) {
@@ -466,6 +490,34 @@ const useStore = create<AppState>((set, get) => ({
     // First ban, then kick
     ircClient.sendRaw(serverId, `MODE ${channelName} +b ${username}!*@*`);
     ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
+  },
+
+  listChannels: (serverId) => {
+    const state = get();
+    if (state.listingInProgress[serverId]) {
+      // Already listing, ignore
+      return;
+    }
+    // Clear the channel list before starting a new list
+    set((state) => ({
+      channelList: {
+        ...state.channelList,
+        [serverId]: [],
+      },
+      listingInProgress: {
+        ...state.listingInProgress,
+        [serverId]: true,
+      },
+    }));
+    ircClient.listChannels(serverId);
+  },
+
+  renameChannel: (serverId, oldName, newName, reason) => {
+    ircClient.renameChannel(serverId, oldName, newName, reason);
+  },
+
+  setName: (serverId, realname) => {
+    ircClient.setName(serverId, realname);
   },
 
   addMessage: (message) => {
@@ -899,6 +951,26 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+  },
+
+  toggleChannelListModal: (isOpen) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isChannelListModalOpen:
+          isOpen !== undefined ? isOpen : !state.ui.isChannelListModalOpen,
+      },
+    }));
+  },
+
+  toggleChannelRenameModal: (isOpen?: boolean) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isChannelRenameModalOpen:
+          isOpen !== undefined ? isOpen : !state.ui.isChannelRenameModalOpen,
+      },
+    }));
   },
 
   toggleServerMenu: (isOpen) => {
@@ -1512,6 +1584,34 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   }
 });
 
+ircClient.on("LIST_CHANNEL", ({ serverId, channel, userCount, topic }) => {
+  useStore.setState((state) => {
+    if (!state.listingInProgress[serverId]) {
+      // Not currently listing, ignore
+      return {};
+    }
+    const currentList = state.channelList[serverId] || [];
+    const updatedList = [...currentList, { channel, userCount, topic }];
+    return {
+      channelList: {
+        ...state.channelList,
+        [serverId]: updatedList,
+      },
+    };
+  });
+});
+
+ircClient.on("LIST_END", ({ serverId }) => {
+  // Set listing as complete
+  useStore.setState((state) => ({
+    listingInProgress: {
+      ...state.listingInProgress,
+      [serverId]: false,
+    },
+  }));
+  console.log(`Channel listing complete for server ${serverId}`);
+});
+
 // CTCPs lol
 ircClient.on("CHANMSG", (response) => {
   const { channelName, message, timestamp } = response;
@@ -2027,5 +2127,72 @@ ircClient.on(
 if (__DEFAULT_IRC_SERVER__) {
   console.log("Default server found, connecting...");
 }
+
+ircClient.on("RENAME", ({ serverId, oldName, newName, reason, user }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    const channel = server.channels.find((c) => c.name === oldName);
+    if (!channel) return {};
+
+    channel.name = newName;
+
+    const renameMessage: Message = {
+      id: `rename-${Date.now()}`,
+      content: `${user} renamed from ${oldName} to ${newName}${reason ? ` (${reason})` : ""}`,
+      timestamp: new Date(),
+      userId: "system",
+      channelId: channel.id,
+      serverId,
+      type: "system",
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+    };
+
+    const channelKey = `${serverId}-${channel.id}`;
+    const currentMessages = state.messages[channelKey] || [];
+    return {
+      messages: {
+        ...state.messages,
+        [channelKey]: [...currentMessages, renameMessage],
+      },
+    };
+  });
+});
+
+ircClient.on("SETNAME", ({ serverId, user, realname }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update current user if it's us
+    if (user === state.currentUser?.username) {
+      return {
+        currentUser: {
+          ...state.currentUser,
+          displayName: realname,
+        },
+      };
+    }
+
+    // Update in channels
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedChannels = s.channels.map((c) => ({
+          ...c,
+          users: c.users.map((u) =>
+            u.username === user ? { ...u, displayName: realname } : u
+          ),
+        }));
+        return { ...s, channels: updatedChannels };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
 
 export default useStore;

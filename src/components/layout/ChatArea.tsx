@@ -16,8 +16,10 @@ import {
   FaBell,
   FaChevronLeft,
   FaChevronRight,
+  FaEdit,
   FaGrinAlt,
   FaHashtag,
+  FaList,
   FaPenAlt,
   FaPlus,
   FaReply,
@@ -1373,6 +1375,27 @@ export const ChatArea: React.FC<{
             <button className="hover:text-discord-text-normal">
               <FaUserPlus />
             </button>
+            <button
+              className="hover:text-discord-text-normal"
+              onClick={() => useStore.getState().toggleChannelListModal(true)}
+              title="List Channels"
+            >
+              <FaList />
+            </button>
+            {selectedChannel && (() => {
+              const { currentUser } = useStore.getState();
+              const channelUser = selectedChannel.users.find(u => u.username === currentUser?.username);
+              const isOperator = channelUser?.status?.includes('@') || channelUser?.status?.includes('~');
+              return isOperator ? (
+                <button
+                  className="hover:text-discord-text-normal"
+                  onClick={() => useStore.getState().toggleChannelRenameModal(true)}
+                  title="Rename Channel"
+                >
+                  <FaEdit />
+                </button>
+              ) : null;
+            })()}
             {/* Only show member list toggle for channels, not private chats */}
             {selectedChannel && (
               <button

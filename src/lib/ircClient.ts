@@ -95,6 +95,10 @@ export interface EventMap {
     key?: string;
     retryAfter?: number;
   };
+  LIST_CHANNEL: { serverId: string; channel: string; userCount: number; topic: string };
+  LIST_END: { serverId: string };
+  RENAME: { serverId: string; oldName: string; newName: string; reason: string; user: string };
+  SETNAME: { serverId: string; user: string; realname: string };
 }
 
 type EventKey = keyof EventMap;
@@ -105,6 +109,7 @@ export class IRCClient {
   private servers: Map<string, Server> = new Map();
   private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
+  private saslMechanisms: Map<string, string[]> = new Map();
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
@@ -247,6 +252,19 @@ export class IRCClient {
   sendTyping(serverId: string, target: string, isActive: boolean): void {
     const typingState = isActive ? "active" : "done";
     this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
+  }
+
+  listChannels(serverId: string): void {
+    this.sendRaw(serverId, "LIST");
+  }
+
+  renameChannel(serverId: string, oldName: string, newName: string, reason?: string): void {
+    const command = reason ? `RENAME ${oldName} ${newName} :${reason}` : `RENAME ${oldName} ${newName}`;
+    this.sendRaw(serverId, command);
+  }
+
+  setName(serverId: string, realname: string): void {
+    this.sendRaw(serverId, `SETNAME :${realname}`);
   }
 
   // Metadata commands
@@ -435,7 +453,7 @@ export class IRCClient {
             sender,
             channelName,
             message,
-            timestamp: new Date(),
+            timestamp: getTimestampFromTags(mtags),
           });
         } else {
           this.triggerEvent("USERMSG", {
@@ -443,7 +461,7 @@ export class IRCClient {
             mtags,
             sender,
             message,
-            timestamp: new Date(),
+            timestamp: getTimestampFromTags(mtags),
           });
         }
       } else if (command === "TAGMSG") {
@@ -454,7 +472,27 @@ export class IRCClient {
           mtags,
           sender,
           channelName: target,
-          timestamp: new Date(),
+          timestamp: getTimestampFromTags(mtags),
+        });
+      } else if (command === "RENAME") {
+        const user = getNickFromNuh(source);
+        const oldName = parv[0];
+        const newName = parv[1];
+        const reason = parv.slice(2).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("RENAME", {
+          serverId,
+          oldName,
+          newName,
+          reason,
+          user,
+        });
+      } else if (command === "SETNAME") {
+        const user = getNickFromNuh(source);
+        const realname = parv.join(" ").substring(1); // Remove leading :
+        this.triggerEvent("SETNAME", {
+          serverId,
+          user,
+          realname,
         });
       } else if (command === "353") {
         const channelName = parv[2];
@@ -525,6 +563,8 @@ export class IRCClient {
         if (subcommand === "LS") this.onCapLs(serverId, caps);
         else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
+        else if (subcommand === "NEW") this.onCapNew(serverId, caps);
+        else if (subcommand === "DEL") this.onCapDel(serverId, caps);
       } else if (command === "005") {
         const capabilities = parseIsupport(parv.join(" "));
         console.log("ISUPPORT capabilities:", capabilities);
@@ -655,6 +695,20 @@ export class IRCClient {
             retryAfter,
           });
         }
+      } else if (command === "322") {
+        // RPL_LIST: <channel> <usercount> :<topic>
+        const channelName = parv[1];
+        const userCount = parv[2] ? parseInt(parv[2], 10) : 0;
+        const topic = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("LIST_CHANNEL", {
+          serverId,
+          channel: channelName,
+          userCount,
+          topic,
+        });
+      } else if (command === "323") {
+        // RPL_LISTEND
+        this.triggerEvent("LIST_END", { serverId });
       }
     }
   }
@@ -678,13 +732,24 @@ export class IRCClient {
       "draft/chathistory",
       "draft/extended-isupport",
       "sasl",
+      "cap-notify",
+      "draft/channel-rename",
+      "setname",
+      "account-notify",
+      "account-tag",
+      "extended-join",
       "draft/metadata-2",
     ];
 
     const caps = cliCaps.split(" ");
     let toRequest = "CAP REQ :";
     for (const c of caps) {
-      const cap = c.includes("=") ? c.split("=")[0] : c;
+      const [cap, value] = c.split("=", 2);
+      if (cap === "sasl" && value) {
+        const mechanisms = value.split(",");
+        this.saslMechanisms.set(serverId, mechanisms);
+        console.log(`Available SASL mechanisms for ${serverId}: ${mechanisms.join(", ")}`);
+      }
       if (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) {
         if (toRequest.length + cap.length + 1 > 400) {
           this.sendRaw(serverId, toRequest);
@@ -700,6 +765,31 @@ export class IRCClient {
         this.sendRaw(serverId, "ISUPPORT");
     }
     console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
+  }
+
+  onCapNew(serverId: string, cliCaps: string): void {
+    const caps = cliCaps.split(" ");
+    for (const c of caps) {
+      const [cap, value] = c.split("=", 2);
+      if (cap === "sasl" && value) {
+        const mechanisms = value.split(",");
+        this.saslMechanisms.set(serverId, mechanisms);
+        console.log(`SASL mechanisms updated for ${serverId}: ${mechanisms.join(", ")}`);
+        // If sasl becomes available, perhaps request it if not already
+        // But for now, just log
+      }
+    }
+  }
+
+  onCapDel(serverId: string, cliCaps: string): void {
+    const caps = cliCaps.split(" ");
+    for (const c of caps) {
+      const [cap] = c.split("=", 2);
+      if (cap === "sasl") {
+        this.saslMechanisms.delete(serverId);
+        console.log(`SASL capability removed for ${serverId}`);
+      }
+    }
   }
 
   on<K extends EventKey>(event: K, callback: EventCallback<K>): void {
@@ -754,6 +844,13 @@ export class IRCClient {
 function getNickFromNuh(nuh: string) {
   const nick = nuh.split("!")[0];
   return nick.startsWith(":") ? nick.substring(1) : nick;
+}
+
+function getTimestampFromTags(mtags: Record<string, string> | undefined): Date {
+  if (mtags?.time) {
+    return new Date(mtags.time);
+  }
+  return new Date();
 }
 
 export const ircClient = new IRCClient();
