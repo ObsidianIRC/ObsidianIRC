@@ -43,6 +43,12 @@ export interface EventMap {
     channelName: string;
     timestamp: Date;
   };
+  REDACT: EventWithTags & {
+    target: string;
+    msgid: string;
+    reason: string;
+    sender: string;
+  };
   NAMES: BaseIRCEvent & { channelName: string; users: User[] };
   "CAP LS": BaseIRCEvent & { cliCaps: string };
   "CAP ACK": BaseIRCEvent & { cliCaps: string };
@@ -606,6 +612,19 @@ export class IRCClient {
           sender,
           channelName: target,
           timestamp: getTimestampFromTags(mtags),
+        });
+      } else if (command === "REDACT") {
+        const target = parv[0];
+        const msgid = parv[1];
+        const reason = parv[2] ? parv[2].substring(1) : ""; // Remove leading :
+        const sender = getNickFromNuh(source);
+        this.triggerEvent("REDACT", {
+          serverId,
+          mtags,
+          target,
+          msgid,
+          reason,
+          sender,
         });
       } else if (command === "RENAME") {
         const user = getNickFromNuh(source);

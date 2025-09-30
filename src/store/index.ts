@@ -2122,6 +2122,62 @@ ircClient.on("TAGMSG", (response) => {
   }
 });
 
+ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    let channel: Channel | PrivateChat | undefined;
+    const isChannel = target.startsWith("#");
+    if (isChannel) {
+      channel = server.channels.find((c) => c.name === target);
+    } else {
+      // Private chat
+      channel = server.privateChats?.find((pc) => pc.username === target);
+    }
+
+    if (!channel) return {};
+
+    // Find and replace the message with a system message
+    const messages = getChannelMessages(server.id, channel.id);
+    const messageIndex = messages.findIndex((m) => m.msgid === msgid);
+    if (messageIndex === -1) return {};
+
+    const updatedMessages = [...messages];
+    const originalMessage = updatedMessages[messageIndex];
+    
+    // Determine if the sender deleted their own message
+    const isSender = originalMessage.userId === sender;
+    const deletionMessage = isSender 
+      ? "This message has been deleted by the sender"
+      : "This message has been deleted by a member of staff";
+    
+    // Replace the entire message with a system message
+    updatedMessages[messageIndex] = {
+      id: originalMessage.id,
+      msgid: originalMessage.msgid,
+      content: deletionMessage,
+      timestamp: originalMessage.timestamp,
+      userId: "system",
+      channelId: originalMessage.channelId,
+      serverId: originalMessage.serverId,
+      type: "system",
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+      tags: originalMessage.tags,
+    };
+
+    const key = `${server.id}-${channel.id}`;
+    return {
+      messages: {
+        ...state.messages,
+        [key]: updatedMessages,
+      },
+    };
+  });
+});
+
 // Standard reply event handlers
 ircClient.on("FAIL", ({ serverId, command, code, target, message }) => {
   console.log(`[FAIL] ${command} ${code} ${target || ""}: ${message}`);
