@@ -149,7 +149,7 @@ export class IRCClient {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
       const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
       const url = `${protocol}://${host}:${port}`;
-      
+
       let socket: WebSocket;
       try {
         socket = new WebSocket(url);
