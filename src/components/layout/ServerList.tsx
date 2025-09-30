@@ -121,7 +121,7 @@ export const ServerList: React.FC = () => {
               </div>
             )}
             {selectedServerId === server.id && (
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 group-hover:opacity-100 opacity-0 transition-opacity duration-200 flex space-x-1">
+              <div className="absolute -bottom-1 -right-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
                 <button
                   className="w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
                   onClick={(e) => {
