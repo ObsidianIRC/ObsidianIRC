@@ -1,13 +1,15 @@
 import type React from "react";
+import { useEffect, useRef } from "react";
 import { FaTimes } from "react-icons/fa";
 import { ircColors } from "../../lib/ircUtils";
+import type { FormattingType } from "../../lib/messageFormatter";
 
 const ColorPicker: React.FC<{
-  onSelect: (color: string, formatting: string[]) => void;
+  onSelect: (color: string, formatting: FormattingType[]) => void;
   onClose: () => void;
   selectedColor: string | null;
-  selectedFormatting: string[];
-  toggleFormatting: (format: string) => void;
+  selectedFormatting: FormattingType[];
+  toggleFormatting: (format: FormattingType) => void;
 }> = ({
   onSelect,
   onClose,
@@ -15,8 +17,24 @@ const ColorPicker: React.FC<{
   selectedFormatting,
   toggleFormatting,
 }) => {
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
   return (
-    <div className="absolute bottom-16 right-4 z-50 bg-discord-dark-300 p-4 rounded shadow-lg">
+    <div
+      ref={pickerRef}
+      className="absolute bottom-16 right-4 z-50 bg-discord-dark-300 p-4 rounded shadow-lg"
+    >
       {/* Color Options */}
       <div className="grid grid-cols-8 gap-2 mb-4">
         {ircColors.map((color, index) => {

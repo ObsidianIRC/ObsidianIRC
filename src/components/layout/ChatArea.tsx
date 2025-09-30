@@ -1,15 +1,9 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
+import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import type * as React from "react";
-import {
-  Children,
-  cloneElement,
-  Fragment,
-  isValidElement,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   FaArrowDown,
   FaAt,
@@ -22,54 +16,35 @@ import {
   FaList,
   FaPenAlt,
   FaPlus,
-  FaReply,
   FaSearch,
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
+import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import ircClient from "../../lib/ircClient";
-import { getColorStyle, ircColors, mircToHtml } from "../../lib/ircUtils";
+import { parseIrcUrl } from "../../lib/ircUrlParser";
+import {
+  type FormattingType,
+  formatMessageForIrc,
+  getPreviewStyles,
+  isValidFormattingType,
+} from "../../lib/messageFormatter";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
+import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
-import EmojiSelector from "../ui/EmojiSelector";
+import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
 import DiscoverGrid from "../ui/HomeScreen";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
-
-export const OptionsDropdown: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-}> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="absolute right-0 mt-2 w-48 bg-discord-dark-300 rounded-md shadow-xl z-10 border border-discord-dark-500">
-      <div className="py-1">
-        <button
-          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
-          onClick={onClose}
-        >
-          Option 1
-        </button>
-        <button
-          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
-          onClick={onClose}
-        >
-          Option 2
-        </button>
-      </div>
-    </div>
-  );
-};
 
 export const TypingIndicator: React.FC<{
   serverId: string;
@@ -95,500 +70,6 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
-const EnhancedLinkWrapper: React.FC<{
-  children: React.ReactNode;
-  onIrcLinkClick?: (url: string) => void;
-}> = ({ children, onIrcLinkClick }) => {
-  // Regular expression to detect HTTP and HTTPS links
-  const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
-  const parseContent = (content: string): React.ReactNode[] => {
-    // Split the content based on the URL regex
-    const parts = content.split(urlRegex);
-    const matches = content.match(urlRegex) || [];
-
-    return parts.map((part, index) => {
-      // Generate stable keys based on content and position
-      const partKey = `text-${part}-${index}`;
-      const textPart = (
-        <span key={partKey} className="break-words">
-          {part}
-        </span>
-      );
-
-      // If there's a matching link for this part, render it
-      if (index < matches.length) {
-        const fragmentKey = `fragment-${matches[index]}-${index}`;
-        return (
-          <Fragment key={fragmentKey}>
-            {textPart}
-            <a
-              href={matches[index]}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-discord-text-link underline hover:text-blue-700"
-              onClick={(e) => {
-                if (
-                  (matches[index].startsWith("ircs://") ||
-                    matches[index].startsWith("irc://")) &&
-                  onIrcLinkClick
-                ) {
-                  e.preventDefault();
-                  onIrcLinkClick(matches[index]);
-                }
-              }}
-            >
-              {matches[index].length > 60
-                ? `${matches[index].substring(0, 60)}...`
-                : matches[index]}
-            </a>
-          </Fragment>
-        );
-      }
-
-      return textPart;
-    });
-  };
-
-  // Since children can be React nodes, we need to process them
-  const processChildren = (node: React.ReactNode): React.ReactNode[] => {
-    return (
-      Children.map(node, (child) => {
-        if (typeof child === "string") {
-          return parseContent(child); // Process string content
-        }
-        if (isValidElement(child)) {
-          // Skip already-linkified anchors to avoid nested <a>
-          if ((child as React.ReactElement).type === "a") {
-            return child;
-          }
-          // Directly process the children of the React element
-          const processed = processChildren(
-            (child as React.ReactElement).props?.children,
-          );
-          return cloneElement(
-            child as React.ReactElement,
-            undefined,
-            processed,
-          );
-        }
-        // For other types of children, return them as is
-        return child as React.ReactNode;
-      }) ?? []
-    );
-  };
-  return <>{processChildren(children)}</>;
-};
-
-const MessageItem: React.FC<{
-  message: MessageType;
-  showDate: boolean;
-  showHeader: boolean;
-  setReplyTo: (msg: MessageType) => void;
-  onUsernameContextMenu: (
-    e: React.MouseEvent,
-    username: string,
-    serverId: string,
-    avatarElement?: Element | null,
-  ) => void;
-  onIrcLinkClick?: (url: string) => void;
-  onReactClick: (message: MessageType, buttonElement: Element) => void;
-  selectedServerId: string | null;
-  onReactionUnreact: (emoji: string, message: MessageType) => void;
-  onOpenReactionModal: (
-    message: MessageType,
-    position: { x: number; y: number },
-  ) => void;
-  users: User[];
-}> = ({
-  message,
-  showDate,
-  showHeader,
-  setReplyTo,
-  onUsernameContextMenu,
-  onIrcLinkClick,
-  onReactClick,
-  selectedServerId,
-  onReactionUnreact,
-  onOpenReactionModal,
-  users,
-}) => {
-  const { currentUser } = useStore();
-  const isCurrentUser = currentUser?.id === message.userId;
-  // Find the user for this message
-  const messageUser = users.find(
-    (user) => user.username === message.userId.split("-")[0],
-  );
-  const avatarUrl = messageUser?.metadata?.avatar?.value;
-  const displayName = messageUser?.metadata?.["display-name"]?.value;
-  const userColor = messageUser?.metadata?.color?.value;
-  const userStatus = messageUser?.metadata?.status?.value;
-  const isSystem = message.type === "system";
-  // Convert message content to React elements
-  const htmlContent = mircToHtml(message.content);
-  // Format timestamp
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  };
-
-  // Format date for message groups
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    }).format(date);
-  };
-
-  if (isSystem) {
-    return (
-      <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
-        <div className="flex items-center gap-2 break-words">
-          <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-            {htmlContent}
-          </EnhancedLinkWrapper>
-          <div className="text-xs opacity-70">
-            {formatTime(new Date(message.timestamp))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const theme = localStorage.getItem("theme") || "discord";
-  if (message.content.substring(0, 7) === "\u0001ACTION") {
-    return (
-      <div className="px-4 py-1 hover:bg-discord-message-hover group">
-        {showDate && (
-          <div className="flex items-center text-xs text-discord-text-muted mb-2">
-            <div className="flex-grow border-t border-discord-dark-400" />
-            <div className="px-2">
-              {formatDate(new Date(message.timestamp))}
-            </div>
-            <div className="flex-grow border-t border-discord-dark-400" />
-          </div>
-        )}
-        <div className="flex">
-          <div className="mr-4">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white relative">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={message.userId.split("-")[0]}
-                  className="w-8 h-8 rounded-full object-cover"
-                  onError={(e) => {
-                    // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      parent.textContent = message.userId
-                        .charAt(0)
-                        .toUpperCase();
-                    }
-                  }}
-                />
-              ) : (
-                message.userId.charAt(0).toUpperCase()
-              )}
-              {userStatus && (
-                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-                    <span className="text-xs">💡</span>
-                  </div>
-                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
-                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                      {userStatus}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
-            <div className="flex items-center">
-              <span className="ml-2 text-xs text-discord-text-muted">
-                {formatTime(new Date(message.timestamp))}
-              </span>
-            </div>
-            <span className="italic text-white break-words">
-              {message.userId === "system"
-                ? "System"
-                : (displayName || message.userId.split("-")[0]) +
-                  (displayName ? ` (${message.userId.split("-")[0]})` : "") +
-                  message.content.substring(7, message.content.length - 1)}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
-      {showDate && (
-        <div
-          className={`flex items-center text-xs text-${theme}-text-muted mb-2`}
-        >
-          <div className={`flex-grow border-t border-${theme}-dark-400`} />
-          <div className="px-2">{formatDate(new Date(message.timestamp))}</div>
-          <div className={`flex-grow border-t border-${theme}-dark-400`} />
-        </div>
-      )}
-      <div className="flex">
-        {showHeader && (
-          <div
-            className={`mr-4 ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
-            onClick={(e) => {
-              if (message.userId !== "system") {
-                onUsernameContextMenu(
-                  e,
-                  message.userId.split("-")[0],
-                  message.serverId,
-                  e.currentTarget,
-                );
-              }
-            }}
-          >
-            <div
-              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white relative`}
-            >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={message.userId.split("-")[0]}
-                  className="w-8 h-8 rounded-full object-cover"
-                  onError={(e) => {
-                    // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      parent.textContent = message.userId
-                        .charAt(0)
-                        .toUpperCase();
-                    }
-                  }}
-                />
-              ) : (
-                message.userId.charAt(0).toUpperCase()
-              )}
-              {userStatus && (
-                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-                    <span className="text-xs">💡</span>
-                  </div>
-                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
-                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                      {userStatus}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {!showHeader && (
-          <div className="mr-4">
-            <div className="w-8" />
-          </div>
-        )}
-        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
-          {showHeader && (
-            <div className="flex items-center">
-              <span
-                className={`font-bold text-white ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
-                style={getColorStyle(userColor)}
-                onClick={(e) => {
-                  if (message.userId !== "system") {
-                    // Find the avatar element to position menu over it
-                    const messageElement = e.currentTarget.closest(".flex");
-                    const avatarElement =
-                      messageElement?.querySelector(".mr-4");
-                    onUsernameContextMenu(
-                      e,
-                      message.userId.split("-")[0],
-                      message.serverId,
-                      avatarElement,
-                    );
-                  }
-                }}
-              >
-                {message.userId === "system"
-                  ? "System"
-                  : displayName || message.userId.split("-")[0]}
-                {displayName && (
-                  <span className="ml-2 text-xs bg-discord-dark-600 px-1 py-0.5 rounded">
-                    {message.userId.split("-")[0]}
-                  </span>
-                )}
-              </span>
-              <span className={`ml-2 text-xs text-${theme}-text-muted`}>
-                {formatTime(new Date(message.timestamp))}
-              </span>
-            </div>
-          )}
-          <div className="relative">
-            {message.replyMessage && (
-              <div
-                className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2 break-words`}
-              >
-                ┌ Replying to{" "}
-                <strong>
-                  <span
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      // Find the avatar element to position menu over it
-                      const messageElement = e.currentTarget.closest(".flex");
-                      const avatarElement =
-                        messageElement?.querySelector(".mr-4");
-                      onUsernameContextMenu(
-                        e,
-                        message.replyMessage?.userId.split("-")[0] || "",
-                        message.serverId,
-                        avatarElement,
-                      );
-                    }}
-                  >
-                    {message.replyMessage?.userId.split("-")[0] || ""}
-                  </span>
-                  :
-                </strong>{" "}
-                <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-                  {mircToHtml(message.replyMessage.content)}
-                </EnhancedLinkWrapper>
-              </div>
-            )}
-            <div className="break-words">
-              <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-                {htmlContent}
-              </EnhancedLinkWrapper>
-            </div>
-          </div>
-          {/* Reactions positioned below message content */}
-          {message.reactions && message.reactions.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {Object.entries(
-                message.reactions.reduce(
-                  (
-                    acc: Record<
-                      string,
-                      {
-                        count: number;
-                        users: string[];
-                        currentUserReacted: boolean;
-                      }
-                    >,
-                    reaction: { emoji: string; userId: string },
-                  ) => {
-                    if (!acc[reaction.emoji]) {
-                      acc[reaction.emoji] = {
-                        count: 0,
-                        users: [],
-                        currentUserReacted: false,
-                      };
-                    }
-                    acc[reaction.emoji].count++;
-                    acc[reaction.emoji].users.push(reaction.userId);
-                    // Check if current user reacted with this emoji
-                    if (reaction.userId === currentUser?.username) {
-                      acc[reaction.emoji].currentUserReacted = true;
-                    }
-                    return acc;
-                  },
-                  {} as Record<
-                    string,
-                    {
-                      count: number;
-                      users: string[];
-                      currentUserReacted: boolean;
-                    }
-                  >,
-                ),
-              ).map(([emoji, data]) => (
-                <div
-                  key={emoji}
-                  className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer group"
-                  title={`${emoji} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[]; currentUserReacted: boolean }).users.join(", ")}`}
-                  onClick={(e) => {
-                    // If current user has reacted, clicking removes the reaction
-                    if (
-                      (
-                        data as {
-                          count: number;
-                          users: string[];
-                          currentUserReacted: boolean;
-                        }
-                      ).currentUserReacted
-                    ) {
-                      onReactionUnreact(emoji, message);
-                    } else {
-                      // Otherwise, add the reaction
-                      onOpenReactionModal(message, {
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    }
-                  }}
-                >
-                  <span>{emoji}</span>
-                  <span className="text-xs font-medium">
-                    {
-                      (
-                        data as {
-                          count: number;
-                          users: string[];
-                          currentUserReacted: boolean;
-                        }
-                      ).count
-                    }
-                  </span>
-                  {/* Show X button if current user reacted */}
-                  {(
-                    data as {
-                      count: number;
-                      users: string[];
-                      currentUserReacted: boolean;
-                    }
-                  ).currentUserReacted && (
-                    <button
-                      className="ml-1 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onReactionUnreact(emoji, message);
-                      }}
-                      title="Remove reaction"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Hover buttons */}
-        <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-          <button
-            className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-            onClick={() => setReplyTo(message)}
-          >
-            <FaReply />
-          </button>
-          {message.msgid && (
-            <button
-              className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-              onClick={(e) => onReactClick(message, e.currentTarget)}
-            >
-              <FaGrinAlt />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const ChatArea: React.FC<{
   onToggleChanList: () => void;
   isChanListVisible: boolean;
@@ -598,11 +79,15 @@ export const ChatArea: React.FC<{
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedFormatting, setSelectedFormatting] = useState<string[]>([]);
+  const [selectedFormatting, setSelectedFormatting] = useState<
+    FormattingType[]
+  >([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
+  const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
     x: number;
@@ -646,48 +131,18 @@ export const ChatArea: React.FC<{
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
+  // Emoji completion hook
+  const emojiCompletion = useEmojiCompletion();
+
   const handleIrcLinkClick = (rawUrl: string) => {
-    // Tolerate trailing punctuation in chat text
-    const sanitized = rawUrl.trim().replace(/[),.;:]+$/, "");
-    const urlObj = new URL(sanitized);
-    const host = urlObj.hostname;
-    const scheme = urlObj.protocol.replace(":", "");
-    const port = urlObj.port
-      ? Number.parseInt(urlObj.port, 10)
-      : scheme === "ircs"
-        ? 443
-        : 8000;
-
-    // Channels may be in pathname (/chan1,chan2) or in hash (#chan1,chan2)
-    const rawChannelStr =
-      urlObj.pathname.length > 1
-        ? urlObj.pathname.slice(1)
-        : urlObj.hash.startsWith("#")
-          ? urlObj.hash.slice(1)
-          : "";
-    const channels = rawChannelStr
-      .split(",")
-      .filter(Boolean)
-      .map((c) => decodeURIComponent(c))
-      .map((c) =>
-        c.startsWith("#") ||
-        c.startsWith("&") ||
-        c.startsWith("+") ||
-        c.startsWith("!")
-          ? c
-          : `#${c}`,
-      );
-
-    const nick =
-      urlObj.searchParams.get("nick") || currentUser?.username || "user";
-    const password = urlObj.searchParams.get("password") || undefined;
+    const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
 
     // Open the connect modal with pre-filled server details
     toggleAddServerModal(true, {
-      name: host,
-      host: host,
-      port: port.toString(),
-      nickname: nick,
+      name: parsed.host,
+      host: parsed.host,
+      port: parsed.port.toString(),
+      nickname: parsed.nick || "user",
     });
   };
 
@@ -704,8 +159,12 @@ export const ChatArea: React.FC<{
       try {
         const parsedFormatting = JSON.parse(savedFormatting);
         if (Array.isArray(parsedFormatting)) {
-          console.log("Parsed formatting:", parsedFormatting);
-          setSelectedFormatting(parsedFormatting); // Apply the saved formatting
+          // Validate that all items are valid formatting types
+          const validFormatting = parsedFormatting.filter(
+            isValidFormattingType,
+          );
+          console.log("Parsed formatting:", validFormatting);
+          setSelectedFormatting(validFormatting); // Apply the saved formatting
           setIsFormattingInitialized(true); // Mark formatting as initialized
         }
       } catch (error) {
@@ -793,12 +252,6 @@ export const ChatArea: React.FC<{
       container.removeEventListener("scroll", checkIfScrolledToBottom);
   }, []);
 
-  const getColorCode = (color: string): string => {
-    const index =
-      ircColors.indexOf(color) === 99 ? -1 : ircColors.indexOf(color);
-    return index !== -1 ? `\x03${index < 10 ? `0${index}` : index}` : ""; // Return \x03 followed by the index, or an empty string if not found
-  };
-
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
     scrollDown();
@@ -845,31 +298,11 @@ export const ChatArea: React.FC<{
           );
         }
       } else {
-        const colorCode = getColorCode(selectedColor || "inherit"); // Get the IRC color code
-
-        // Apply formatting codes
-        let formattedText = messageText;
-        if (selectedFormatting.includes("bold")) {
-          formattedText = `\x02${formattedText}\x02`;
-        }
-        if (selectedFormatting.includes("italic")) {
-          formattedText = `\x1D${formattedText}\x1D`;
-        }
-        if (selectedFormatting.includes("underline")) {
-          formattedText = `\x1F${formattedText}\x1F`;
-        }
-        if (selectedFormatting.includes("strikethrough")) {
-          formattedText = `\x1E${formattedText}\x1E`;
-        }
-        if (selectedFormatting.includes("reverse")) {
-          formattedText = `\x16${formattedText}\x16`;
-        }
-        if (selectedFormatting.includes("monospace")) {
-          formattedText = `\x11${formattedText}\x11`;
-        }
-
-        // Prepend the color code
-        formattedText = `${colorCode}${formattedText}`;
+        // Format the message with color and styling
+        const formattedText = formatMessageForIrc(messageText, {
+          color: selectedColor || "inherit",
+          formatting: selectedFormatting,
+        });
 
         // Determine target: channel name or username for private messages
         const target =
@@ -923,17 +356,32 @@ export const ChatArea: React.FC<{
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Tab") {
       e.preventDefault();
-      handleTabCompletion();
+
+      // If emoji completion is already active, continue with emoji completion
+      if (emojiCompletion.isActive) {
+        handleEmojiCompletion();
+      } else {
+        // Check if we're starting emoji completion context
+        const textBeforeCursor = messageText.substring(0, cursorPosition);
+        const emojiMatch = textBeforeCursor.match(/:([a-zA-Z_]*)$/);
+
+        if (emojiMatch) {
+          handleEmojiCompletion();
+        } else {
+          handleTabCompletion();
+        }
+      }
       return;
     }
 
     // Handle keys when autocomplete dropdown is visible
     if (
-      showAutocomplete &&
+      (showAutocomplete || showEmojiAutocomplete) &&
       (e.key === "ArrowUp" ||
         e.key === "ArrowDown" ||
         e.key === "Escape" ||
-        e.key === "Enter")
+        e.key === "Enter" ||
+        e.key === " ")
     ) {
       // Let the dropdown handle these keys, don't interfere
       return;
@@ -1012,6 +460,37 @@ export const ChatArea: React.FC<{
     }
   };
 
+  const handleEmojiCompletion = () => {
+    if (!inputRef.current) return;
+
+    const result = emojiCompletion.handleEmojiCompletion(
+      messageText,
+      cursorPosition,
+    );
+
+    if (result) {
+      setMessageText(result.newText);
+      setCursorPosition(result.newCursorPosition);
+
+      // Show dropdown when there are any matches available
+      const shouldShow = emojiCompletion.matches.length > 0;
+      setShowEmojiAutocomplete(shouldShow);
+
+      // Update input cursor position
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            result.newCursorPosition,
+            result.newCursorPosition,
+          );
+        }
+      }, 0);
+    } else {
+      // No completion result, hide dropdown
+      setShowEmojiAutocomplete(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newText = e.target.value;
     const newCursorPosition = e.target.selectionStart || 0;
@@ -1025,8 +504,14 @@ export const ChatArea: React.FC<{
       tabCompletion.resetCompletion();
     }
 
+    // Reset emoji completion if text changed from non-tab input
+    if (emojiCompletion.isActive) {
+      emojiCompletion.resetCompletion();
+    }
+
     // Hide autocomplete when typing (only show on Tab completion)
     setShowAutocomplete(false);
+    setShowEmojiAutocomplete(false);
   };
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
@@ -1098,6 +583,85 @@ export const ChatArea: React.FC<{
 
     setShowAutocomplete(false);
     tabCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteSelect = (emoji: string) => {
+    if (emojiCompletion.isActive) {
+      // Use emoji completion state for accurate replacement
+      const newText =
+        emojiCompletion.originalText.substring(
+          0,
+          emojiCompletion.completionStart,
+        ) +
+        emoji +
+        emojiCompletion.originalText.substring(
+          emojiCompletion.completionStart +
+            emojiCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition = emojiCompletion.completionStart + emoji.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+
+    setShowEmojiAutocomplete(false);
+    emojiCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteClose = () => {
+    setShowEmojiAutocomplete(false);
+    emojiCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteNavigate = (emoji: string) => {
+    if (emojiCompletion.isActive) {
+      // Find the index of the selected emoji to sync state
+      const selectedIndex = emojiCompletion.matches.findIndex(
+        (match) => match.emoji === emoji,
+      );
+      if (selectedIndex !== -1) {
+        emojiCompletion.setCurrentIndex(selectedIndex);
+      }
+
+      // Update text in real-time like Tab completion does
+      const newText =
+        emojiCompletion.originalText.substring(
+          0,
+          emojiCompletion.completionStart,
+        ) +
+        emoji +
+        emojiCompletion.originalText.substring(
+          emojiCompletion.completionStart +
+            emojiCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition = emojiCompletion.completionStart + emoji.length;
+      setCursorPosition(newCursorPosition);
+
+      // Update the hook's internal previousTextRef to prevent reset on next tab
+      emojiCompletion.updatePreviousText(newText);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
   };
 
   const handleAutocompleteClose = () => {
@@ -1276,6 +840,18 @@ export const ChatArea: React.FC<{
     handleCloseReactionModal();
   };
 
+  const handleDirectReaction = (emoji: string, message: MessageType) => {
+    if (message.msgid && selectedServerId) {
+      const server = servers.find((s) => s.id === selectedServerId);
+      const channel = server?.channels.find((c) => c.id === message.channelId);
+      if (server && channel) {
+        // Send react message directly
+        const tagMsg = `@+draft/react=${emoji};+draft/reply=${message.msgid} TAGMSG ${channel.name}`;
+        ircClient.sendRaw(server.id, tagMsg);
+      }
+    }
+  };
+
   const handleReactionUnreact = (emoji: string, message: MessageType) => {
     if (message.msgid && selectedServerId) {
       const server = servers.find((s) => s.id === selectedServerId);
@@ -1297,18 +873,34 @@ export const ChatArea: React.FC<{
     });
   };
 
-  const handleEmojiSelect = (emoji: string) => {
-    setMessageText((prev) => prev + emoji);
+  const handleEmojiSelect = (emojiData: EmojiClickData) => {
+    setMessageText((prev) => prev + emojiData.emoji);
     setIsEmojiSelectorOpen(false);
   };
 
-  const handleColorSelect = (color: string, formatting: string[]) => {
-    setSelectedColor(color);
-    setSelectedFormatting(formatting);
-    setIsColorPickerOpen(false);
+  const handleEmojiModalBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setIsEmojiSelectorOpen(false);
+    }
   };
 
-  const toggleFormatting = (format: string) => {
+  const handleAtButtonClick = () => {
+    setShowMembersDropdown((prev) => {
+      const newValue = !prev;
+      // Close other dropdowns when opening members dropdown
+      if (newValue) {
+        setShowAutocomplete(false);
+        setShowEmojiAutocomplete(false);
+        setIsEmojiSelectorOpen(false);
+        setIsColorPickerOpen(false);
+        emojiCompletion.resetCompletion();
+        tabCompletion.resetCompletion();
+      }
+      return newValue;
+    });
+  };
+
+  const toggleFormatting = (format: FormattingType) => {
     setSelectedFormatting((prev) =>
       prev.includes(format)
         ? prev.filter((f) => f !== format)
@@ -1475,6 +1067,7 @@ export const ChatArea: React.FC<{
                 selectedServerId={selectedServerId}
                 onReactionUnreact={handleReactionUnreact}
                 onOpenReactionModal={handleOpenReactionModal}
+                onDirectReaction={handleDirectReaction}
                 users={selectedChannel?.users || []}
               />
             );
@@ -1502,10 +1095,6 @@ export const ChatArea: React.FC<{
       {/* Input area */}
       {(selectedChannel || selectedPrivateChat) && (
         <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
-          <OptionsDropdown
-            isOpen={isEmojiSelectorOpen}
-            onClose={() => setIsEmojiSelectorOpen(false)}
-          />
           <TypingIndicator
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId || selectedPrivateChatId || ""}
@@ -1543,33 +1132,28 @@ export const ChatArea: React.FC<{
                     : "Type a message..."
               }
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
-              style={{
+              style={getPreviewStyles({
                 color: selectedColor || "inherit",
-                fontWeight: selectedFormatting.includes("bold")
-                  ? "bold"
-                  : "normal",
-                fontStyle: selectedFormatting.includes("italic")
-                  ? "italic"
-                  : "normal",
-                textDecoration: selectedFormatting.includes("underline")
-                  ? "underline"
-                  : selectedFormatting.includes("strikethrough")
-                    ? "line-through"
-                    : "none",
-                fontFamily: selectedFormatting.includes("monospace")
-                  ? "monospace"
-                  : "inherit",
-              }}
+                formatting: selectedFormatting,
+              })}
             />
             <button
               className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => setIsEmojiSelectorOpen((prev) => !prev)}
+              onClick={() => {
+                setIsEmojiSelectorOpen((prev) => !prev);
+                setIsColorPickerOpen(false);
+                setShowMembersDropdown(false);
+              }}
             >
               <FaGrinAlt />
             </button>
             <button
               className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => setIsColorPickerOpen((prev) => !prev)}
+              onClick={() => {
+                setIsColorPickerOpen((prev) => !prev);
+                setIsEmojiSelectorOpen(false);
+                setShowMembersDropdown(false);
+              }}
             >
               <div
                 className="w-4 h-4 rounded-full border-2 border-white-700"
@@ -1581,17 +1165,47 @@ export const ChatArea: React.FC<{
                 }}
               />
             </button>
-            <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
+            <button
+              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+              onClick={handleAtButtonClick}
+            >
               <FaAt />
             </button>
           </div>
 
-          {isEmojiSelectorOpen && (
-            <EmojiSelector
-              onSelect={handleEmojiSelect}
-              onClose={() => setIsEmojiSelectorOpen(false)}
-            />
-          )}
+          {isEmojiSelectorOpen &&
+            createPortal(
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                onClick={handleEmojiModalBackdropClick}
+              >
+                <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">
+                  <div className="p-2">
+                    <EmojiPicker
+                      onEmojiClick={handleEmojiSelect}
+                      theme={Theme.DARK}
+                      width="100%"
+                      height={400}
+                      searchPlaceholder="Search emojis..."
+                      previewConfig={{
+                        showPreview: false,
+                      }}
+                      skinTonesDisabled={false}
+                      lazyLoadEmojis={true}
+                    />
+                  </div>
+                  <div className="p-2 border-t border-discord-dark-300">
+                    <button
+                      onClick={() => setIsEmojiSelectorOpen(false)}
+                      className="text-sm text-discord-text-muted hover:text-white w-full text-center py-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body,
+            )}
 
           {isColorPickerOpen && (
             <ColorPicker
@@ -1626,6 +1240,50 @@ export const ChatArea: React.FC<{
             onClose={handleAutocompleteClose}
             onNavigate={handleAutocompleteNavigate}
             inputElement={inputRef.current}
+          />
+
+          <EmojiAutocompleteDropdown
+            isVisible={showEmojiAutocomplete || emojiCompletion.isActive}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            emojiMatches={emojiCompletion.matches}
+            currentMatchIndex={emojiCompletion.currentIndex}
+            onSelect={handleEmojiAutocompleteSelect}
+            onClose={handleEmojiAutocompleteClose}
+            onNavigate={handleEmojiAutocompleteNavigate}
+            inputElement={inputRef.current}
+          />
+
+          {/* Members dropdown triggered by @ button */}
+          <AutocompleteDropdown
+            users={
+              selectedChannel?.users ||
+              (selectedPrivateChat
+                ? [
+                    ...(currentUser ? [currentUser] : []),
+                    {
+                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                      username: selectedPrivateChat.username,
+                      isOnline: true,
+                    },
+                  ]
+                : [])
+            }
+            isVisible={showMembersDropdown}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            tabCompletionMatches={[]}
+            currentMatchIndex={-1}
+            onSelect={(username) => {
+              const isAtMessageStart = messageText.trim() === "";
+              const suffix = isAtMessageStart ? ": " : " ";
+              setMessageText((prev) => prev + username + suffix);
+              setShowMembersDropdown(false);
+            }}
+            onClose={() => setShowMembersDropdown(false)}
+            onNavigate={() => {}}
+            inputElement={inputRef.current}
+            isAtButtonTriggered={true}
           />
         </div>
       )}
