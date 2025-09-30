@@ -229,7 +229,7 @@ describe("IRCClient", () => {
     });
   });
 
-    describe("channel operations", () => {
+  describe("channel operations", () => {
     let mockSocket: MockWebSocket;
     let server: Server;
 
@@ -279,8 +279,15 @@ describe("IRCClient", () => {
     });
 
     test("should send RENAME command", () => {
-      client.renameChannel(server.id, "#oldname", "#newname", "Channel renamed");
-      expect(mockSocket.sentMessages).toContain("RENAME #oldname #newname :Channel renamed");
+      client.renameChannel(
+        server.id,
+        "#oldname",
+        "#newname",
+        "Channel renamed",
+      );
+      expect(mockSocket.sentMessages).toContain(
+        "RENAME #oldname #newname :Channel renamed",
+      );
     });
 
     test("should send RENAME command without reason", () => {
@@ -298,7 +305,9 @@ describe("IRCClient", () => {
         });
       });
 
-      mockSocket.simulateMessage(":server RENAME #oldchannel #newchannel :Channel renamed\r\n");
+      mockSocket.simulateMessage(
+        ":server RENAME #oldchannel #newchannel :Channel renamed\r\n",
+      );
       return renamePromise;
     });
 
@@ -316,7 +325,9 @@ describe("IRCClient", () => {
         });
       });
 
-      mockSocket.simulateMessage(":testuser!user@host SETNAME :New Real Name\r\n");
+      mockSocket.simulateMessage(
+        ":testuser!user@host SETNAME :New Real Name\r\n",
+      );
       return setnamePromise;
     });
   });
