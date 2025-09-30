@@ -3,6 +3,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
+import { GlobalNotifications } from "../ui/GlobalNotifications";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
@@ -193,6 +194,7 @@ export const AppLayout: React.FC = () => {
       {getLayoutColumn("serverList")}
       {getLayoutColumn("chatView")}
       {selectedServerId && getLayoutColumn("memberList")}
+      <GlobalNotifications />
     </div>
   );
 };

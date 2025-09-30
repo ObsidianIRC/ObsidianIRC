@@ -147,6 +147,7 @@ export class IRCClient {
   private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
   private saslMechanisms: Map<string, string[]> = new Map();
+  private capLsAccumulated: Map<string, Set<string>> = new Map();
   private pendingConnections: Map<string, Promise<Server>> = new Map();
 
   private eventCallbacks: {
@@ -678,7 +679,18 @@ export class IRCClient {
         let i = 0;
         let caps = "";
         if (parv[i] === "*") i++;
-        const subcommand = parv[i++];
+        let subcommand = parv[i++];
+        // Handle CAP ACK which has nickname before subcommand
+        if (
+          subcommand !== "LS" &&
+          subcommand !== "NEW" &&
+          subcommand !== "DEL" &&
+          subcommand !== "NAK"
+        ) {
+          // This is likely a nickname, skip it and get the real subcommand
+          subcommand = parv[i++];
+        }
+        const isFinal = subcommand === "LS" && parv[i] !== "*";
         if (parv[i] === "*") i++;
         parv[i] = parv[i].substring(1); // trim the ":" lol
         while (parv[i]) {
@@ -686,7 +698,7 @@ export class IRCClient {
           if (parv[i]) caps += " ";
         }
 
-        if (subcommand === "LS") this.onCapLs(serverId, caps);
+        if (subcommand === "LS") this.onCapLs(serverId, caps, isFinal);
         else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
         else if (subcommand === "NEW") this.onCapNew(serverId, caps);
@@ -968,7 +980,7 @@ export class IRCClient {
     );
   }
 
-  onCapLs(serverId: string, cliCaps: string): void {
+  onCapLs(serverId: string, cliCaps: string, isFinal: boolean): void {
     const ourCaps = [
       "multi-prefix",
       "message-tags",
@@ -990,10 +1002,16 @@ export class IRCClient {
       "draft/account-registration",
     ];
 
+    let accumulated = this.capLsAccumulated.get(serverId);
+    if (!accumulated) {
+      accumulated = new Set();
+      this.capLsAccumulated.set(serverId, accumulated);
+    }
+
     const caps = cliCaps.split(" ");
-    let toRequest = "CAP REQ :";
     for (const c of caps) {
       const [cap, value] = c.split("=", 2);
+      accumulated.add(cap);
       if (cap === "sasl" && value) {
         const mechanisms = value.split(",");
         this.saslMechanisms.set(serverId, mechanisms);
@@ -1001,21 +1019,32 @@ export class IRCClient {
           `Available SASL mechanisms for ${serverId}: ${mechanisms.join(", ")}`,
         );
       }
-      if (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) {
-        if (toRequest.length + cap.length + 1 > 400) {
-          this.sendRaw(serverId, toRequest);
-          toRequest = "CAP REQ :";
+    }
+
+    if (isFinal) {
+      // Now request the caps we want from the accumulated list
+      let toRequest = "CAP REQ :";
+      for (const cap of accumulated) {
+        if (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) {
+          if (toRequest.length + cap.length + 1 > 400) {
+            this.sendRaw(serverId, toRequest);
+            toRequest = "CAP REQ :";
+          }
+          toRequest += `${cap} `;
+          console.log(`Requesting capability: ${cap}`);
         }
-        toRequest += `${cap} `;
-        console.log(`Requesting capability: ${cap}`);
       }
+      if (toRequest.length > 9) {
+        this.sendRaw(serverId, toRequest);
+        if (toRequest.includes("draft/extended-isupport"))
+          this.sendRaw(serverId, "ISUPPORT");
+      }
+      console.log(
+        `Server ${serverId} supports capabilities: ${Array.from(accumulated).join(" ")}`,
+      );
+      // Clean up
+      this.capLsAccumulated.delete(serverId);
     }
-    if (toRequest.length > 9) {
-      this.sendRaw(serverId, toRequest);
-      if (toRequest.includes("draft/extended-isupport"))
-        this.sendRaw(serverId, "ISUPPORT");
-    }
-    console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
   }
 
   onCapNew(serverId: string, cliCaps: string): void {

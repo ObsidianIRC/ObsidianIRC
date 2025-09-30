@@ -168,6 +168,16 @@ export interface AppState {
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
+  globalNotifications: {
+    id: string;
+    type: "fail" | "warn" | "note";
+    command: string;
+    code: string;
+    message: string;
+    target?: string;
+    serverId: string;
+    timestamp: Date;
+  }[];
   channelList: Record<
     string,
     { channel: string; userCount: number; topic: string }[]
@@ -248,6 +258,16 @@ export interface AppState {
   ) => void;
   setName: (serverId: string, realname: string) => void;
   addMessage: (message: Message) => void;
+  addGlobalNotification: (notification: {
+    type: "fail" | "warn" | "note";
+    command: string;
+    code: string;
+    message: string;
+    target?: string;
+    serverId: string;
+  }) => void;
+  removeGlobalNotification: (notificationId: string) => void;
+  clearGlobalNotifications: () => void;
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
   selectPrivateChat: (privateChatId: string | null) => void;
@@ -305,6 +325,7 @@ const useStore = create<AppState>((set, get) => ({
   connectionError: null,
   messages: {},
   typingUsers: {},
+  globalNotifications: [],
   channelList: {},
   listingInProgress: {},
   metadataSubscriptions: {},
@@ -632,6 +653,33 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+  },
+
+  addGlobalNotification: (notification) => {
+    set((state) => ({
+      globalNotifications: [
+        ...state.globalNotifications,
+        {
+          id: uuidv4(),
+          ...notification,
+          timestamp: new Date(),
+        },
+      ],
+    }));
+  },
+
+  removeGlobalNotification: (notificationId) => {
+    set((state) => ({
+      globalNotifications: state.globalNotifications.filter(
+        (n) => n.id !== notificationId,
+      ),
+    }));
+  },
+
+  clearGlobalNotifications: () => {
+    set(() => ({
+      globalNotifications: [],
+    }));
   },
 
   selectServer: (serverId) => {
@@ -1774,21 +1822,23 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
     return { servers: updatedServers };
   });
 
-  const servers = loadSavedServers();
+  // Check if we should prevent CAP END (for SASL or account registration)
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
   let preventCapEnd = false;
-  for (const serv of servers) {
-    if (serv.id === serverId && serv.saslEnabled) {
-      preventCapEnd = true;
-    }
+
+  // Check if SASL is enabled for this server (from saved config)
+  const savedServers = loadSavedServers();
+  const savedServer = savedServers.find((s) => s.id === serverId);
+  if (savedServer?.saslEnabled) {
+    preventCapEnd = true;
   }
 
   // Check if there's pending account registration
-  const state = useStore.getState();
   const pendingReg = state.pendingRegistration;
   if (pendingReg && pendingReg.serverId === serverId) {
     preventCapEnd = true;
     // Check if server supports account registration
-    const server = state.servers.find((s) => s.id === serverId);
     if (server?.capabilities?.includes("draft/account-registration")) {
       console.log(`Triggering account registration for server ${serverId}`);
       useStore
@@ -2065,41 +2115,16 @@ ircClient.on("TAGMSG", (response) => {
 // Standard reply event handlers
 ircClient.on("FAIL", ({ serverId, command, code, target, message }) => {
   console.log(`[FAIL] ${command} ${code} ${target || ""}: ${message}`);
-  // Add notification to the current channel or show as system message
+  // Add to global notifications for visibility
   const state = useStore.getState();
-  const server = state.servers.find((s) => s.id === serverId);
-  if (server) {
-    // For now, we'll add it as a system message to the first available channel
-    // In a real implementation, you might want to show it in a dedicated notification area
-    const channel = server.channels[0];
-    if (channel) {
-      const notificationMessage: Message = {
-        id: uuidv4(),
-        type: "standard-reply",
-        content: `FAIL ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
-        timestamp: new Date(),
-        userId: "system",
-        channelId: channel.id,
-        serverId: serverId,
-        reactions: [],
-        replyMessage: null,
-        mentioned: [],
-        standardReplyType: "FAIL",
-        standardReplyCommand: command,
-        standardReplyCode: code,
-        standardReplyTarget: target,
-        standardReplyMessage: message,
-      };
-
-      const key = `${serverId}-${channel.id}`;
-      useStore.setState((state) => ({
-        messages: {
-          ...state.messages,
-          [key]: [...(state.messages[key] || []), notificationMessage],
-        },
-      }));
-    }
-  }
+  state.addGlobalNotification({
+    type: "fail",
+    command,
+    code,
+    message,
+    target,
+    serverId,
+  });
 });
 
 ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
@@ -2107,7 +2132,13 @@ ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   if (server) {
-    const channel = server.channels[0];
+    // Try to add to the currently selected channel first, fallback to first channel
+    let channel = server.channels.find(
+      (c) => c.id === state.ui.selectedChannelId,
+    );
+    if (!channel) {
+      channel = server.channels[0];
+    }
     if (channel) {
       const notificationMessage: Message = {
         id: uuidv4(),
@@ -2143,7 +2174,13 @@ ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   if (server) {
-    const channel = server.channels[0];
+    // Try to add to the currently selected channel first, fallback to first channel
+    let channel = server.channels.find(
+      (c) => c.id === state.ui.selectedChannelId,
+    );
+    if (!channel) {
+      channel = server.channels[0];
+    }
     if (channel) {
       const notificationMessage: Message = {
         id: uuidv4(),
