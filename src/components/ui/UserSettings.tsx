@@ -1,7 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
-import useStore from "../../store";
+import useStore, { serverSupportsMetadata } from "../../store";
 
 const UserSettings: React.FC = () => {
   const {
@@ -14,10 +14,7 @@ const UserSettings: React.FC = () => {
     setName,
   } = useStore();
   const currentServer = servers.find((s) => s.id === ui.selectedServerId);
-  const supportsMetadata =
-    currentServer?.capabilities?.some((cap) =>
-      cap.startsWith("draft/metadata"),
-    ) || false;
+  const supportsMetadata = currentServer ? serverSupportsMetadata(currentServer.id) : false;
 
   // Metadata state
   const [avatar, setAvatar] = useState("");

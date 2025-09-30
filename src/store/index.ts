@@ -60,6 +60,8 @@ function serverSupportsMetadata(serverId: string): boolean {
   );
 }
 
+export { serverSupportsMetadata };
+
 function saveServersToLocalStorage(servers: ServerConfig[]) {
   localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
 }
