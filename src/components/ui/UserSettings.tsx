@@ -14,7 +14,9 @@ const UserSettings: React.FC = () => {
     setName,
   } = useStore();
   const currentServer = servers.find((s) => s.id === ui.selectedServerId);
-  const supportsMetadata = currentServer ? serverSupportsMetadata(currentServer.id) : false;
+  const supportsMetadata = currentServer
+    ? serverSupportsMetadata(currentServer.id)
+    : false;
 
   // Metadata state
   const [avatar, setAvatar] = useState("");
