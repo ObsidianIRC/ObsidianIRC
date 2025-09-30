@@ -72,11 +72,24 @@ export interface Message {
   userId: string;
   channelId: string;
   serverId: string;
-  type: "message" | "system" | "error" | "join" | "leave" | "nick";
+  type:
+    | "message"
+    | "system"
+    | "error"
+    | "join"
+    | "leave"
+    | "nick"
+    | "standard-reply";
   reactions: Reaction[];
   replyMessage: Message | null | undefined;
   mentioned: string[];
   tags?: Record<string, string>;
+  // Standard reply fields
+  standardReplyType?: "FAIL" | "WARN" | "NOTE";
+  standardReplyCommand?: string;
+  standardReplyCode?: string;
+  standardReplyTarget?: string;
+  standardReplyMessage?: string;
 }
 
 // Alias for backwards compatibility

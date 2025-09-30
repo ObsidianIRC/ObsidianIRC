@@ -126,6 +126,7 @@ export const ChatArea: React.FC<{
     connect,
     joinChannel,
     toggleAddServerModal,
+    redactMessage,
   } = useStore();
 
   // Tab completion hook
@@ -863,6 +864,23 @@ export const ChatArea: React.FC<{
     }
   };
 
+  const handleRedactMessage = (message: MessageType) => {
+    if (message.msgid && selectedServerId) {
+      const confirmed = window.confirm(
+        "Are you sure you want to delete this message? This action cannot be undone.",
+      );
+      if (confirmed) {
+        const server = servers.find((s) => s.id === selectedServerId);
+        const channel = server?.channels.find(
+          (c) => c.id === message.channelId,
+        );
+        if (server && channel) {
+          redactMessage(selectedServerId, channel.name, message.msgid);
+        }
+      }
+    }
+  };
+
   const handleOpenReactionModal = (
     message: MessageType,
     position: { x: number; y: number },
@@ -1069,6 +1087,7 @@ export const ChatArea: React.FC<{
                 onOpenReactionModal={handleOpenReactionModal}
                 onDirectReaction={handleDirectReaction}
                 users={selectedChannel?.users || []}
+                onRedactMessage={handleRedactMessage}
               />
             );
           })}

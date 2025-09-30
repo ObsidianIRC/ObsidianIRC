@@ -187,6 +187,13 @@ export interface AppState {
       }[];
     }
   >; // batchId -> batch info
+  // Account registration state
+  pendingRegistration: {
+    serverId: string;
+    account: string;
+    email: string;
+    password: string;
+  } | null;
   // UI state
   ui: UIState;
   globalSettings: GlobalSettings;
@@ -199,11 +206,27 @@ export interface AppState {
     password?: string,
     saslAccountName?: string,
     saslPassword?: string,
+    registerAccount?: boolean,
+    registerEmail?: string,
+    registerPassword?: string,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
   leaveChannel: (serverId: string, channelName: string) => void;
   sendMessage: (serverId: string, channelId: string, content: string) => void;
+  redactMessage: (
+    serverId: string,
+    target: string,
+    msgid: string,
+    reason?: string,
+  ) => void;
+  registerAccount: (
+    serverId: string,
+    account: string,
+    email: string,
+    password: string,
+  ) => void;
+  verifyAccount: (serverId: string, account: string, code: string) => void;
   kickUser: (
     serverId: string,
     channelName: string,
@@ -286,6 +309,7 @@ const useStore = create<AppState>((set, get) => ({
   listingInProgress: {},
   metadataSubscriptions: {},
   metadataBatches: {},
+  pendingRegistration: null,
   selectedServerId: null,
 
   // UI state
@@ -326,6 +350,9 @@ const useStore = create<AppState>((set, get) => ({
     password,
     saslAccountName,
     saslPassword,
+    registerAccount,
+    registerEmail,
+    registerPassword,
   ) => {
     // Check if already connected to this server
     const state = get();
@@ -400,6 +427,18 @@ const useStore = create<AppState>((set, get) => ({
       // for (const channelName of channelsToJoin) {
       //   get().joinChannel(server.id, channelName);
       // }
+
+      // Set up pending account registration if requested
+      if (registerAccount && registerEmail && registerPassword) {
+        set({
+          pendingRegistration: {
+            serverId: server.id,
+            account: nickname, // Use nickname as account name for now
+            email: registerEmail,
+            password: registerPassword,
+          },
+        });
+      }
 
       return server;
     } catch (error) {
@@ -520,6 +559,28 @@ const useStore = create<AppState>((set, get) => ({
 
   sendMessage: (serverId, channelId, content) => {
     const message = ircClient.sendMessage(serverId, channelId, content);
+  },
+
+  redactMessage: (
+    serverId: string,
+    target: string,
+    msgid: string,
+    reason?: string,
+  ) => {
+    ircClient.sendRedact(serverId, target, msgid, reason);
+  },
+
+  registerAccount: (
+    serverId: string,
+    account: string,
+    email: string,
+    password: string,
+  ) => {
+    ircClient.registerAccount(serverId, account, email, password);
+  },
+
+  verifyAccount: (serverId: string, account: string, code: string) => {
+    ircClient.verifyAccount(serverId, account, code);
   },
 
   kickUser: (serverId, channelName, username, reason) => {
@@ -1688,7 +1749,7 @@ ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
     `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
   );
   ircClient.sendRaw(serverId, "CAP END");
-  ircClient.nickOnConnect(serverId);
+  ircClient.userOnConnect(serverId);
 });
 
 ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
@@ -1720,10 +1781,35 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
       preventCapEnd = true;
     }
   }
+
+  // Check if there's pending account registration
+  const state = useStore.getState();
+  const pendingReg = state.pendingRegistration;
+  if (pendingReg && pendingReg.serverId === serverId) {
+    preventCapEnd = true;
+    // Check if server supports account registration
+    const server = state.servers.find((s) => s.id === serverId);
+    if (server?.capabilities?.includes("draft/account-registration")) {
+      console.log(`Triggering account registration for server ${serverId}`);
+      useStore
+        .getState()
+        .registerAccount(serverId, "*", pendingReg.email, pendingReg.password);
+      console.log(pendingReg);
+      // Clear the pending registration
+      useStore.setState({ pendingRegistration: null });
+    } else {
+      console.log(`Server ${serverId} does not support account registration`);
+      // Clear the pending registration
+      useStore.setState({ pendingRegistration: null });
+      // Send CAP END since registration is not possible
+      preventCapEnd = false;
+    }
+  }
+
   if (!preventCapEnd) {
     console.log(`Sending CAP END for server ${serverId}`);
     ircClient.sendRaw(serverId, "CAP END");
-    ircClient.nickOnConnect(serverId);
+    ircClient.userOnConnect(serverId);
   } else {
     console.log(`Preventing CAP END for server ${serverId}`);
   }
@@ -1972,6 +2058,217 @@ ircClient.on("TAGMSG", (response) => {
           },
         };
       });
+    }
+  }
+});
+
+// Standard reply event handlers
+ircClient.on("FAIL", ({ serverId, command, code, target, message }) => {
+  console.log(`[FAIL] ${command} ${code} ${target || ""}: ${message}`);
+  // Add notification to the current channel or show as system message
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    // For now, we'll add it as a system message to the first available channel
+    // In a real implementation, you might want to show it in a dedicated notification area
+    const channel = server.channels[0];
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "standard-reply",
+        content: `FAIL ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+        standardReplyType: "FAIL",
+        standardReplyCommand: command,
+        standardReplyCode: code,
+        standardReplyTarget: target,
+        standardReplyMessage: message,
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
+    }
+  }
+});
+
+ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
+  console.log(`[WARN] ${command} ${code} ${target || ""}: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels[0];
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "standard-reply",
+        content: `WARN ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+        standardReplyType: "WARN",
+        standardReplyCommand: command,
+        standardReplyCode: code,
+        standardReplyTarget: target,
+        standardReplyMessage: message,
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
+    }
+  }
+});
+
+ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
+  console.log(`[NOTE] ${command} ${code} ${target || ""}: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels[0];
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "standard-reply",
+        content: `NOTE ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+        standardReplyType: "NOTE",
+        standardReplyCommand: command,
+        standardReplyCode: code,
+        standardReplyTarget: target,
+        standardReplyMessage: message,
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
+    }
+  }
+});
+
+// Account registration event handlers
+ircClient.on("REGISTER_SUCCESS", ({ serverId, account, message }) => {
+  console.log(`[REGISTER_SUCCESS] Account ${account} registered: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels[0];
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "system",
+        content: `Account registration successful for ${account}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
+    }
+  }
+});
+
+ircClient.on(
+  "REGISTER_VERIFICATION_REQUIRED",
+  ({ serverId, account, message }) => {
+    console.log(
+      `[REGISTER_VERIFICATION_REQUIRED] Account ${account} requires verification: ${message}`,
+    );
+    const state = useStore.getState();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (server) {
+      const channel = server.channels[0];
+      if (channel) {
+        const notificationMessage: Message = {
+          id: uuidv4(),
+          type: "system",
+          content: `Account registration for ${account} requires verification: ${message}`,
+          timestamp: new Date(),
+          userId: "system",
+          channelId: channel.id,
+          serverId: serverId,
+          reactions: [],
+          replyMessage: null,
+          mentioned: [],
+        };
+
+        const key = `${serverId}-${channel.id}`;
+        useStore.setState((state) => ({
+          messages: {
+            ...state.messages,
+            [key]: [...(state.messages[key] || []), notificationMessage],
+          },
+        }));
+      }
+    }
+  },
+);
+
+ircClient.on("VERIFY_SUCCESS", ({ serverId, account, message }) => {
+  console.log(`[VERIFY_SUCCESS] Account ${account} verified: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels[0];
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "system",
+        content: `Account verification successful for ${account}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
     }
   }
 });

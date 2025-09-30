@@ -1,3 +1,4 @@
+export { StandardReplyNotification } from "../ui/StandardReplyNotification";
 export { ActionMessage } from "./ActionMessage";
 export { DateSeparator } from "./DateSeparator";
 export { MessageActions } from "./MessageActions";

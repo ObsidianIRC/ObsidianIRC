@@ -82,6 +82,42 @@ export interface EventMap {
     user: string;
   };
   SETNAME: { serverId: string; user: string; realname: string };
+  FAIL: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  WARN: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  NOTE: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  SUCCESS: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  REGISTER_SUCCESS: EventWithTags & {
+    account: string;
+    message: string;
+  };
+  REGISTER_VERIFICATION_REQUIRED: EventWithTags & {
+    account: string;
+    message: string;
+  };
+  VERIFY_SUCCESS: EventWithTags & {
+    account: string;
+    message: string;
+  };
   WHO_REPLY: {
     serverId: string;
     channel: string;
@@ -187,6 +223,7 @@ export class IRCClient {
         }
 
         socket.send("CAP LS 302");
+        socket.send(`NICK ${nickname}`);
 
         // Update server to mark as connected
         server.isConnected = true;
@@ -306,6 +343,31 @@ export class IRCClient {
     this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
   }
 
+  sendRedact(
+    serverId: string,
+    target: string,
+    msgid: string,
+    reason?: string,
+  ): void {
+    const command = reason
+      ? `REDACT ${target} ${msgid} :${reason}`
+      : `REDACT ${target} ${msgid}`;
+    this.sendRaw(serverId, command);
+  }
+
+  registerAccount(
+    serverId: string,
+    account: string,
+    email: string,
+    password: string,
+  ): void {
+    this.sendRaw(serverId, `REGISTER ${account} ${email} ${password}`);
+  }
+
+  verifyAccount(serverId: string, account: string, code: string): void {
+    this.sendRaw(serverId, `VERIFY ${account} ${code}`);
+  }
+
   listChannels(serverId: string): void {
     this.sendRaw(serverId, "LIST");
   }
@@ -386,13 +448,13 @@ export class IRCClient {
 
   capEnd(_serverId: string) {}
 
-  nickOnConnect(serverId: string) {
+  userOnConnect(serverId: string) {
     const nickname = this.nicks.get(serverId);
     if (!nickname) {
       console.error(`No nickname found for serverId ${serverId}`);
       return;
     }
-    this.sendRaw(serverId, `NICK ${nickname}`);
+    // NICK is already sent before CAP negotiation, only send USER now
     this.sendRaw(serverId, `USER ${nickname} 0 * :${nickname}`);
   }
 
@@ -735,30 +797,29 @@ export class IRCClient {
           target,
           retryAfter,
         });
-      } else if (command === "FAIL") {
+      } else if (command === "FAIL" && parv[0] === "METADATA") {
+        // ERR_METADATATOOMANY, ERR_METADATATARGETINVALID, ERR_METADATANOACCESS, ERR_METADATANOKEY, ERR_METADATARATELIMITED
         const subcommand = parv[0];
-        if (subcommand === "METADATA") {
-          const code = parv[1];
-          let target: string | undefined;
-          let key: string | undefined;
-          let retryAfter: number | undefined;
-          if (parv[2]) target = parv[2];
-          if (parv[3]) key = parv[3];
-          if (parv[4] && code === "RATE_LIMITED") {
-            retryAfter = Number.parseInt(parv[4], 10);
-          }
-          console.log(
-            `[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
-          );
-          this.triggerEvent("METADATA_FAIL", {
-            serverId,
-            subcommand: parv[1],
-            code,
-            target,
-            key,
-            retryAfter,
-          });
+        const code = parv[1];
+        let target: string | undefined;
+        let key: string | undefined;
+        let retryAfter: number | undefined;
+        if (parv[2]) target = parv[2];
+        if (parv[3]) key = parv[3];
+        if (parv[4] && code === "RATE_LIMITED") {
+          retryAfter = Number.parseInt(parv[4], 10);
         }
+        console.log(
+          `[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
+        );
+        this.triggerEvent("METADATA_FAIL", {
+          serverId,
+          subcommand: parv[1],
+          code,
+          target,
+          key,
+          retryAfter,
+        });
       } else if (command === "322") {
         // RPL_LIST: <channel> <usercount> :<topic>
         const channelName = parv[1];
@@ -804,6 +865,97 @@ export class IRCClient {
         const target = parv[1];
         const message = parv.slice(2).join(" ").substring(1);
         this.triggerEvent("WHOIS_BOT", { serverId, nick, target, message });
+      } else if (command === "FAIL") {
+        // Standard replies: FAIL <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("FAIL", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "WARN") {
+        // Standard replies: WARN <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("WARN", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "NOTE") {
+        // Standard replies: NOTE <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("NOTE", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "SUCCESS") {
+        // Standard replies: SUCCESS <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("SUCCESS", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "REGISTER") {
+        // Account registration responses
+        const subcommand = parv[0];
+        if (subcommand === "SUCCESS") {
+          const account = parv[1];
+          const message = parv.slice(2).join(" ").substring(1);
+          this.triggerEvent("REGISTER_SUCCESS", {
+            serverId,
+            mtags,
+            account,
+            message,
+          });
+        } else if (subcommand === "VERIFICATION_REQUIRED") {
+          const account = parv[1];
+          const message = parv.slice(2).join(" ").substring(1);
+          this.triggerEvent("REGISTER_VERIFICATION_REQUIRED", {
+            serverId,
+            mtags,
+            account,
+            message,
+          });
+        }
+      } else if (command === "VERIFY") {
+        // Account verification responses
+        const subcommand = parv[0];
+        if (subcommand === "SUCCESS") {
+          const account = parv[1];
+          const message = parv.slice(2).join(" ").substring(1);
+          this.triggerEvent("VERIFY_SUCCESS", {
+            serverId,
+            mtags,
+            account,
+            message,
+          });
+        }
       }
     }
   }
@@ -834,6 +986,8 @@ export class IRCClient {
       "account-tag",
       "extended-join",
       "draft/metadata-2",
+      "draft/message-redaction",
+      "draft/account-registration",
     ];
 
     const caps = cliCaps.split(" ");

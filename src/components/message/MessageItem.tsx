@@ -11,6 +11,7 @@ import {
   MessageHeader,
   MessageReactions,
   MessageReply,
+  StandardReplyNotification,
   SystemMessage,
 } from "./index";
 
@@ -35,6 +36,7 @@ interface MessageItemProps {
   ) => void;
   onDirectReaction: (emoji: string, message: MessageType) => void;
   users: User[];
+  onRedactMessage?: (message: MessageType) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -50,9 +52,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onOpenReactionModal,
   onDirectReaction,
   users,
+  onRedactMessage,
 }) => {
   const { currentUser } = useStore();
-  const isCurrentUser = currentUser?.id === message.userId;
+  const isCurrentUser = currentUser?.username === message.userId;
 
   // Find the user for this message
   const messageUser = users.find(
@@ -65,6 +68,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isSystem = message.type === "system";
   const isBot = message.tags?.bot === "";
 
+  // Check if message redaction is supported and possible
+  const server = useStore
+    .getState()
+    .servers.find((s) => s.id === message.serverId);
+  const canRedact =
+    !isSystem &&
+    isCurrentUser &&
+    !!message.msgid &&
+    !!server?.capabilities?.includes("draft/message-redaction") &&
+    !!onRedactMessage;
+
   // Convert message content to React elements
   const htmlContent = mircToHtml(message.content);
   const theme = localStorage.getItem("theme") || "discord";
@@ -73,6 +87,34 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   // Handle system messages
   if (isSystem) {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
+  }
+
+  // Handle standard reply messages
+  if (message.type === "standard-reply") {
+    // Ensure all required standard reply properties are present
+    if (
+      message.standardReplyType &&
+      message.standardReplyCommand &&
+      message.standardReplyCode &&
+      message.standardReplyMessage
+    ) {
+      return (
+        <>
+          {showDate && (
+            <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+          )}
+          <StandardReplyNotification
+            type={message.standardReplyType}
+            command={message.standardReplyCommand}
+            code={message.standardReplyCode}
+            message={message.standardReplyMessage}
+            target={message.standardReplyTarget}
+            timestamp={new Date(message.timestamp)}
+            onIrcLinkClick={onIrcLinkClick}
+          />
+        </>
+      );
+    }
   }
 
   // Handle ACTION messages
@@ -190,6 +232,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           message={message}
           onReplyClick={() => setReplyTo(message)}
           onReactClick={(buttonElement) => onReactClick(message, buttonElement)}
+          onRedactClick={
+            canRedact ? () => onRedactMessage?.(message) : undefined
+          }
+          canRedact={canRedact}
         />
       </div>
     </div>
