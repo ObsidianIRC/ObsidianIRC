@@ -519,7 +519,10 @@ export class IRCClient {
           });
         }
       } else if (command === "TAGMSG") {
-        const target = parv[0];
+        const rawTarget = parv[0] || "";
+        const target = rawTarget.startsWith(":")
+          ? rawTarget.substring(1)
+          : rawTarget;
         const sender = getNickFromNuh(source);
         this.triggerEvent("TAGMSG", {
           serverId,

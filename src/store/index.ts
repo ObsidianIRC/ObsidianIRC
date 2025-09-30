@@ -49,6 +49,17 @@ function saveMetadataToLocalStorage(metadata: SavedMetadata) {
   localStorage.setItem(LOCAL_STORAGE_METADATA_KEY, JSON.stringify(metadata));
 }
 
+// Check if a server supports metadata
+function serverSupportsMetadata(serverId: string): boolean {
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  return (
+    server?.capabilities?.some(
+      (cap) => cap === "draft/metadata-2" || cap.startsWith("draft/metadata"),
+    ) ?? false
+  );
+}
+
 function saveServersToLocalStorage(servers: ServerConfig[]) {
   localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
 }
@@ -1050,38 +1061,54 @@ const useStore = create<AppState>((set, get) => ({
 
   // Metadata actions
   metadataGet: (serverId, target, keys) => {
-    ircClient.metadataGet(serverId, target, keys);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataGet(serverId, target, keys);
+    }
   },
 
   metadataList: (serverId, target) => {
-    ircClient.metadataList(serverId, target);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataList(serverId, target);
+    }
   },
 
   metadataSet: (serverId, target, key, value, visibility) => {
-    console.log(
-      `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
-    );
-    ircClient.metadataSet(serverId, target, key, value, visibility);
+    if (serverSupportsMetadata(serverId)) {
+      console.log(
+        `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
+      );
+      ircClient.metadataSet(serverId, target, key, value, visibility);
+    }
   },
 
   metadataClear: (serverId, target) => {
-    ircClient.metadataClear(serverId, target);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataClear(serverId, target);
+    }
   },
 
   metadataSub: (serverId, keys) => {
-    ircClient.metadataSub(serverId, keys);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataSub(serverId, keys);
+    }
   },
 
   metadataUnsub: (serverId, keys) => {
-    ircClient.metadataUnsub(serverId, keys);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataUnsub(serverId, keys);
+    }
   },
 
   metadataSubs: (serverId) => {
-    ircClient.metadataSubs(serverId);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataSubs(serverId);
+    }
   },
 
   metadataSync: (serverId, target) => {
-    ircClient.metadataSync(serverId, target);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataSync(serverId, target);
+    }
   },
 
   sendRaw: (serverId, command) => {
@@ -1671,6 +1698,20 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
     ircClient.capAck(serverId, tok[0], tok[1] ?? null);
     console.log(`Capability acknowledged: ${cap}`);
   }
+
+  // Update server capabilities in store
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        return {
+          ...server,
+          capabilities: cliCaps.split(" "),
+        };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
 
   const servers = loadSavedServers();
   let preventCapEnd = false;
