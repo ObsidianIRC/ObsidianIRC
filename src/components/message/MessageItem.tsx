@@ -63,6 +63,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const userColor = messageUser?.metadata?.color?.value;
   const userStatus = messageUser?.metadata?.status?.value;
   const isSystem = message.type === "system";
+  const isBot = message.tags?.bot === "";
 
   // Convert message content to React elements
   const htmlContent = mircToHtml(message.content);
@@ -159,6 +160,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               theme={theme}
               isClickable={isClickable}
               onClick={handleUsernameClick}
+              isBot={isBot}
             />
           )}
 

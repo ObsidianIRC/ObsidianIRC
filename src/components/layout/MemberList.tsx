@@ -64,6 +64,7 @@ const UserItem: React.FC<{
   const status = user.metadata?.status?.value;
   const avatarUrl = user.metadata?.avatar?.value;
   const color = user.metadata?.color?.value;
+  const isBot = user.metadata?.bot?.value === "true";
 
   return (
     <div
@@ -117,6 +118,7 @@ const UserItem: React.FC<{
           )}
           <span className="truncate" style={getColorStyle(color)}>
             {user.username}
+            {isBot && <span className="ml-1">🤖</span>}
           </span>
         </div>
         {status && (

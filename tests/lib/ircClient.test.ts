@@ -44,10 +44,17 @@ class MockWebSocket implements WebSocket {
   public url: string;
   public sentMessages: string[] = [];
 
+  // Static properties
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
   static readonly CLOSING = 2;
   static readonly CLOSED = 3;
+
+  // Instance properties for static access
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSING = 2;
+  readonly CLOSED = 3;
 
   constructor(url: string, protocols?: string | string[]) {
     this.url = url;
@@ -91,8 +98,8 @@ class MockWebSocket implements WebSocket {
     this.onCloseCallback = callback;
   }
 
-  set onerror(callback: (event: WebSocketEventMap["error"]) => void) {
-    this.onErrorCallback = callback;
+  set onerror(callback: ((this: WebSocket, ev: Event) => any) | null) {
+    this.onErrorCallback = callback as ((event: WebSocketEventMap["error"]) => void) | null;
   }
 
   send(message: string): void {
@@ -185,6 +192,47 @@ describe("IRCClient", () => {
       mockSocket.simulateError(new Error("Connection failed"));
 
       await expect(connectionPromise).rejects.toThrow("Failed to connect");
+    });
+
+    test("should return existing server when connecting to same host/port", async () => {
+      // First connection
+      const mockSocket1 = new MockWebSocket("ws://irc.example.com:443");
+      let webSocketCallCount = 0;
+      vi.spyOn(global, "WebSocket").mockImplementation(() => {
+        webSocketCallCount++;
+        return mockSocket1;
+      });
+
+      const firstConnectionPromise = client.connect(
+        "irc.example.com",
+        443,
+        "testuser",
+      );
+
+      mockSocket1.simulateOpen();
+      const firstServer = await firstConnectionPromise;
+
+      expect(firstServer).toBeDefined();
+      expect(firstServer.name).toBe("irc.example.com");
+      expect(firstServer.isConnected).toBe(true);
+      expect(mockSocket1.sentMessages).toContain("CAP LS 302");
+      expect(webSocketCallCount).toBe(1);
+
+      // Second connection to same host/port should return existing server
+      const secondConnectionPromise = client.connect(
+        "irc.example.com",
+        443,
+        "testuser2", // Different nickname
+      );
+
+      const secondServer = await secondConnectionPromise;
+
+      // Should return the same server instance
+      expect(secondServer).toBe(firstServer);
+      expect(secondServer.id).toBe(firstServer.id);
+
+      // Should not have created a new WebSocket
+      expect(webSocketCallCount).toBe(1);
     });
   });
 

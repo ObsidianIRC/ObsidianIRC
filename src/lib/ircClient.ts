@@ -82,6 +82,19 @@ export interface EventMap {
     user: string;
   };
   SETNAME: { serverId: string; user: string; realname: string };
+  WHO_REPLY: {
+    serverId: string;
+    channel: string;
+    username: string;
+    host: string;
+    server: string;
+    nick: string;
+    flags: string;
+    hopcount: string;
+    realname: string;
+  };
+  WHO_END: { serverId: string; mask: string };
+  WHOIS_BOT: { serverId: string; nick: string; target: string; message: string };
 }
 
 type EventKey = keyof EventMap;
@@ -109,6 +122,16 @@ export class IRCClient {
     _saslPassword?: string,
   ): Promise<Server> {
     return new Promise((resolve, reject) => {
+      // Check if already connected to this server
+      const existingServer = Array.from(this.servers.values()).find(
+        (server) => server.host === host && server.port === port,
+      );
+      if (existingServer) {
+        // Already connected, return the existing server
+        resolve(existingServer);
+        return;
+      }
+
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
       const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
       const url = `${protocol}://${host}:${port}`;
@@ -198,6 +221,7 @@ export class IRCClient {
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
       this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+      this.sendRaw(serverId, `WHO ${channelName}`);
 
       const channel: Channel = {
         id: uuidv4(),
@@ -699,6 +723,37 @@ export class IRCClient {
       } else if (command === "323") {
         // RPL_LISTEND
         this.triggerEvent("LIST_END", { serverId });
+      } else if (command === "352") {
+        // RPL_WHOREPLY: <channel> <user> <host> <server> <nick> <flags> :<hopcount> <realname>
+        const channel = parv[1];
+        const username = parv[2];
+        const host = parv[3];
+        const server = parv[4];
+        const nick = parv[5];
+        const flags = parv[6];
+        const hopcount = parv[7];
+        const realname = parv.slice(8).join(" ").substring(1);
+        this.triggerEvent("WHO_REPLY", {
+          serverId,
+          channel,
+          username,
+          host,
+          server,
+          nick,
+          flags,
+          hopcount,
+          realname,
+        });
+      } else if (command === "315") {
+        // RPL_ENDOFWHO
+        const mask = parv[1];
+        this.triggerEvent("WHO_END", { serverId, mask });
+      } else if (command === "335") {
+        // RPL_WHOISBOT: <nick> <target> :<message>
+        const nick = parv[0];
+        const target = parv[1];
+        const message = parv.slice(2).join(" ").substring(1);
+        this.triggerEvent("WHOIS_BOT", { serverId, nick, target, message });
       }
     }
   }

@@ -315,6 +315,16 @@ const useStore = create<AppState>((set, get) => ({
     saslAccountName,
     saslPassword,
   ) => {
+    // Check if already connected to this server
+    const state = get();
+    const existingServer = state.servers.find(
+      (s) => s.host === host && s.port === port && s.isConnected,
+    );
+    if (existingServer) {
+      // Already connected, just return the existing server
+      return existingServer;
+    }
+
     set({ isConnecting: true, connectionError: null });
 
     try {
@@ -366,6 +376,11 @@ const useStore = create<AppState>((set, get) => ({
           isConnecting: false,
         };
       });
+
+      // Join saved channels
+      for (const channelName of channelsToJoin) {
+        get().joinChannel(server.id, channelName);
+      }
 
       return server;
     } catch (error) {
@@ -427,8 +442,11 @@ const useStore = create<AppState>((set, get) => ({
 
         // Update localStorage with the new channel
         const savedServers = loadSavedServers();
-        const savedServer = savedServers.find((s) => s.id === serverId);
-        if (savedServer) {
+        const currentServer = state.servers.find((s) => s.id === serverId);
+        const savedServer = savedServers.find(
+          (s) => s.host === currentServer?.host && s.port === currentServer?.port,
+        );
+        if (savedServer && !savedServer.channels.includes(channel.name)) {
           savedServer.channels.push(channel.name);
           saveServersToLocalStorage(savedServers);
         }
@@ -467,18 +485,12 @@ const useStore = create<AppState>((set, get) => ({
 
       // Update localStorage to remove the channel
       const savedServers = loadSavedServers();
+      const currentServer = updatedServers.find((s) => s.id === serverId);
       const savedServer = savedServers.find(
-        (s: { host: string }) =>
-          s.host ===
-          updatedServers.find(
-            (s: { id: string; host: string }) => s.id === serverId,
-          )?.host,
+        (s) => s.host === currentServer?.host && s.port === currentServer?.port,
       );
       if (savedServer) {
-        savedServer.channels =
-          updatedServers
-            .find((s) => s.id === serverId)
-            ?.channels.map((c) => c.name) || [];
+        savedServer.channels = currentServer?.channels.map((c) => c.name) || [];
         saveServersToLocalStorage(savedServers);
       }
 
@@ -1146,7 +1158,36 @@ ircClient.on("CHANMSG", (response) => {
         reactions: [],
         replyMessage: replyMessage,
         mentioned: [], // Add logic for mentions if needed
+        tags: mtags,
       };
+
+      // If message has bot tag, mark user as bot
+      if (mtags?.bot !== undefined) {
+        useStore.setState((state) => {
+          const updatedServers = state.servers.map((s) => {
+            if (s.id === server.id) {
+              const updatedChannels = s.channels.map((channel) => {
+                const updatedUsers = channel.users.map((user) => {
+                  if (user.username === response.sender) {
+                    return {
+                      ...user,
+                      metadata: {
+                        ...user.metadata,
+                        bot: { value: "true", visibility: "public" },
+                      },
+                    };
+                  }
+                  return user;
+                });
+                return { ...channel, users: updatedUsers };
+              });
+              return { ...s, channels: updatedChannels };
+            }
+            return s;
+          });
+          return { servers: updatedServers };
+        });
+      }
 
       useStore.getState().addMessage(newMessage);
       // Remove any typing users from the state
@@ -1206,7 +1247,36 @@ ircClient.on("USERMSG", (response) => {
         reactions: [],
         replyMessage: null,
         mentioned: [], // PMs don't have mentions in the traditional sense
+        tags: mtags,
       };
+
+      // If message has bot tag, mark user as bot
+      if (mtags?.bot !== undefined) {
+        useStore.setState((state) => {
+          const updatedServers = state.servers.map((s) => {
+            if (s.id === server.id) {
+              const updatedChannels = s.channels.map((channel) => {
+                const updatedUsers = channel.users.map((user) => {
+                  if (user.username === sender) {
+                    return {
+                      ...user,
+                      metadata: {
+                        ...user.metadata,
+                        bot: { value: "true", visibility: "public" },
+                      },
+                    };
+                  }
+                  return user;
+                });
+                return { ...channel, users: updatedUsers };
+              });
+              return { ...s, channels: updatedChannels };
+            }
+            return s;
+          });
+          return { servers: updatedServers };
+        });
+      }
 
       useStore.getState().addMessage(newMessage);
 
@@ -2102,17 +2172,36 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
 
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   if (capabilities?.startsWith("draft/metadata")) {
-    // Subscribe to common metadata keys
-    const defaultKeys = [
-      "url",
-      "website",
-      "status",
-      "location",
-      "avatar",
-      "color",
-      "display-name",
-    ];
-    useStore.getState().metadataSub(serverId, defaultKeys);
+    // Check if already subscribed to avoid duplicate subscriptions
+    const currentSubs = useStore.getState().metadataSubscriptions[serverId] || [];
+    if (currentSubs.length === 0) {
+      // Subscribe to common metadata keys
+      const defaultKeys = [
+        "url",
+        "website",
+        "status",
+        "location",
+        "avatar",
+        "color",
+        "display-name",
+      ];
+      useStore.getState().metadataSub(serverId, defaultKeys);
+    }
+
+    // Restore saved metadata for this server
+    restoreServerMetadata(serverId);
+    const savedMetadata = loadSavedMetadata();
+    const serverMetadata = savedMetadata[serverId];
+    if (serverMetadata) {
+      // Send all saved metadata to the server
+      Object.entries(serverMetadata).forEach(([target, metadata]) => {
+        Object.entries(metadata).forEach(([key, { value }]) => {
+          if (value !== undefined) {
+            useStore.getState().metadataSet(serverId, target, key, value);
+          }
+        });
+      });
+    }
   }
 });
 
@@ -2199,6 +2288,70 @@ ircClient.on("SETNAME", ({ serverId, user, realname }) => {
       return s;
     });
 
+    return { servers: updatedServers };
+  });
+});
+
+ircClient.on("WHO_REPLY", ({ serverId, nick, flags }) => {
+  const server = useStore.getState().servers.find((s) => s.id === serverId);
+  if (!server || !server.botMode) return;
+
+  const botFlag = server.botMode;
+  const isBot = flags.includes(botFlag);
+
+  if (isBot) {
+    // Update user objects in channels
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedChannels = s.channels.map((channel) => {
+            const updatedUsers = channel.users.map((user) => {
+              if (user.username === nick) {
+                return {
+                  ...user,
+                  metadata: {
+                    ...user.metadata,
+                    bot: { value: "true", visibility: "public" },
+                  },
+                };
+              }
+              return user;
+            });
+            return { ...channel, users: updatedUsers };
+          });
+          return { ...s, channels: updatedChannels };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
+    });
+  }
+});
+
+ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
+  // Update user objects in channels
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedChannels = s.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            if (user.username === target) {
+              return {
+                ...user,
+                metadata: {
+                  ...user.metadata,
+                  bot: { value: "true", visibility: "public" },
+                },
+              };
+            }
+            return user;
+          });
+          return { ...channel, users: updatedUsers };
+        });
+        return { ...s, channels: updatedChannels };
+      }
+      return s;
+    });
     return { servers: updatedServers };
   });
 });
