@@ -111,6 +111,7 @@ export class IRCClient {
   private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
   private saslMechanisms: Map<string, string[]> = new Map();
+  private pendingConnections: Map<string, Promise<Server>> = new Map();
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
@@ -125,22 +126,51 @@ export class IRCClient {
     password?: string,
     _saslAccountName?: string,
     _saslPassword?: string,
+    serverId?: string,
   ): Promise<Server> {
-    return new Promise((resolve, reject) => {
-      // Check if already connected to this server
-      const existingServer = Array.from(this.servers.values()).find(
-        (server) => server.host === host && server.port === port,
-      );
-      if (existingServer) {
-        // Already connected, return the existing server
-        resolve(existingServer);
-        return;
-      }
+    const connectionKey = `${host}:${port}`;
 
+    // Check if there's already a pending connection to this server
+    const existingConnection = this.pendingConnections.get(connectionKey);
+    if (existingConnection) {
+      return existingConnection;
+    }
+
+    // Check if already connected to this server
+    const existingServer = Array.from(this.servers.values()).find(
+      (server) => server.host === host && server.port === port,
+    );
+    if (existingServer) {
+      return Promise.resolve(existingServer);
+    }
+
+    // Create a new connection promise and store it
+    const connectionPromise = new Promise<Server>((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
       const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
       const url = `${protocol}://${host}:${port}`;
       const socket = new WebSocket(url);
+
+      // Create server object immediately and add to servers map
+      const server: Server = {
+        id: serverId || uuidv4(),
+        name: host,
+        host,
+        port,
+        channels: [],
+        privateChats: [],
+        isConnected: false, // Not connected yet
+        users: [],
+      };
+      this.servers.set(server.id, server);
+      this.sockets.set(server.id, socket);
+      this.currentUser = {
+        id: uuidv4(),
+        username: nickname,
+        isOnline: true,
+        status: "online",
+      };
+      this.nicks.set(server.id, nickname);
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
@@ -151,37 +181,25 @@ export class IRCClient {
 
         socket.send("CAP LS 302");
 
-        const server: Server = {
-          id: uuidv4(),
-          name: host,
-          host,
-          port,
-          channels: [],
-          privateChats: [],
-          isConnected: true,
-          users: [],
-        };
-
-        this.servers.set(server.id, server);
-        this.sockets.set(server.id, socket);
-        this.currentUser = {
-          id: uuidv4(),
-          username: nickname,
-          isOnline: true,
-          status: "online",
-        };
-        this.nicks.set(server.id, nickname);
+        // Update server to mark as connected
+        server.isConnected = true;
 
         socket.onclose = () => {
           console.log(`Disconnected from server ${host}`);
           this.sockets.delete(server.id);
+          server.isConnected = false;
+          this.pendingConnections.delete(connectionKey);
         };
 
         resolve(server);
       };
 
       socket.onerror = (error) => {
-        reject(new Error(`Failed to connect to ${host}:${port}: ${error}`));
+        // Clean up failed connection
+        this.servers.delete(server.id);
+        this.sockets.delete(server.id);
+        this.pendingConnections.delete(connectionKey);
+        reject(new Error(`Failed to connect to ${host}:${port}`));
       };
 
       socket.onmessage = (event) => {
@@ -193,6 +211,16 @@ export class IRCClient {
         }
       };
     });
+
+    // Store the pending connection
+    this.pendingConnections.set(connectionKey, connectionPromise);
+
+    // Clean up the pending connection when it resolves or rejects
+    connectionPromise.finally(() => {
+      this.pendingConnections.delete(connectionKey);
+    });
+
+    return connectionPromise;
   }
 
   disconnect(serverId: string): void {
@@ -202,7 +230,12 @@ export class IRCClient {
       socket.close();
       this.sockets.delete(serverId);
     }
-    this.servers.delete(serverId);
+    const server = this.servers.get(serverId);
+    if (server) {
+      server.isConnected = false;
+      const connectionKey = `${server.host}:${server.port}`;
+      this.pendingConnections.delete(connectionKey);
+    }
   }
 
   sendRaw(serverId: string, command: string): void {
@@ -301,11 +334,13 @@ export class IRCClient {
     target: string,
     key: string,
     value?: string,
+    visibility?: string,
   ): void {
+    const visibilityStr = visibility ? ` ${visibility}` : "";
     const command =
       value !== undefined
-        ? `METADATA ${target} SET ${key} :${value}`
-        : `METADATA ${target} SET ${key}`;
+        ? `METADATA * SET ${key} :${value}`
+        : `METADATA * SET ${key} :`;
     console.log(`[IRC] Sending metadata SET command: ${command}`);
     this.sendRaw(serverId, command);
   }

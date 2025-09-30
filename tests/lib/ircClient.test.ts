@@ -193,7 +193,14 @@ describe("IRCClient", () => {
       // Simulate error before connection completes
       mockSocket.simulateError(new Error("Connection failed"));
 
-      await expect(connectionPromise).rejects.toThrow("Failed to connect");
+      // Expect the promise to reject
+      try {
+        await connectionPromise;
+        expect.fail("Expected connection to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toContain("Failed to connect");
+      }
     });
 
     test("should return existing server when connecting to same host/port", async () => {

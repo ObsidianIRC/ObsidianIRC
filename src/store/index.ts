@@ -253,6 +253,7 @@ export interface AppState {
     target: string,
     key: string,
     value?: string,
+    visibility?: string,
   ) => void;
   metadataClear: (serverId: string, target: string) => void;
   metadataSub: (serverId: string, keys: string[]) => void;
@@ -328,6 +329,12 @@ const useStore = create<AppState>((set, get) => ({
     set({ isConnecting: true, connectionError: null });
 
     try {
+      // Look up saved server to get its ID
+      const existingSavedServers: ServerConfig[] = loadSavedServers();
+      const existingSavedServer = existingSavedServers.find(
+        (s) => s.host === host && s.port === port,
+      );
+
       const server = await ircClient.connect(
         host,
         port,
@@ -335,6 +342,7 @@ const useStore = create<AppState>((set, get) => ({
         password,
         saslAccountName,
         saslPassword,
+        existingSavedServer?.id, // Pass the saved server ID if it exists
       );
 
       // Save server to localStorage
@@ -377,10 +385,10 @@ const useStore = create<AppState>((set, get) => ({
         };
       });
 
-      // Join saved channels
-      for (const channelName of channelsToJoin) {
-        get().joinChannel(server.id, channelName);
-      }
+      // Join saved channels - now handled in the ready event handler
+      // for (const channelName of channelsToJoin) {
+      //   get().joinChannel(server.id, channelName);
+      // }
 
       return server;
     } catch (error) {
@@ -1049,11 +1057,11 @@ const useStore = create<AppState>((set, get) => ({
     ircClient.metadataList(serverId, target);
   },
 
-  metadataSet: (serverId, target, key, value) => {
+  metadataSet: (serverId, target, key, value, visibility) => {
     console.log(
-      `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}`,
+      `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
     );
-    ircClient.metadataSet(serverId, target, key, value);
+    ircClient.metadataSet(serverId, target, key, value, visibility);
   },
 
   metadataClear: (serverId, target) => {
@@ -1406,6 +1414,13 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
               (user) => user.username === username,
             );
             if (!userAlreadyExists) {
+              // Check if this is the current user and copy their metadata
+              const isCurrentUser = state.currentUser?.username === username;
+              const userMetadata =
+                isCurrentUser && state.currentUser
+                  ? state.currentUser.metadata
+                  : {};
+
               return {
                 ...channel,
                 users: [
@@ -1415,6 +1430,7 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
                     username,
                     isOnline: true,
                     status: "",
+                    metadata: userMetadata,
                   },
                 ],
               };
@@ -1429,9 +1445,9 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
       return server;
     });
 
-    // Request metadata for the joining user (if it's not us)
+    // Request metadata for the joining user
     const currentUser = state.currentUser;
-    if (currentUser && username !== currentUser.username) {
+    if (currentUser) {
       // Small delay to avoid spamming the server
       setTimeout(() => {
         useStore.getState().metadataList(serverId, username);
@@ -1531,7 +1547,16 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
       return server;
     });
 
-    return { servers: updatedServers };
+    const ircCurrentUser = ircClient.getCurrentUser();
+    const updatedCurrentUser =
+      state.currentUser && ircCurrentUser
+        ? { ...ircCurrentUser, metadata: state.currentUser.metadata }
+        : ircCurrentUser || state.currentUser;
+
+    return {
+      servers: updatedServers,
+      currentUser: updatedCurrentUser,
+    };
   });
 
   const savedServers = loadSavedServers();
@@ -1541,7 +1566,7 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
     console.log(`Joining saved channels for serverId=${serverId}`);
     for (const channelName of savedServer.channels) {
       if (channelName) {
-        ircClient.joinChannel(serverId, channelName);
+        useStore.getState().joinChannel(serverId, channelName);
       }
     }
 
@@ -2197,9 +2222,11 @@ ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
     if (serverMetadata) {
       // Send all saved metadata to the server
       Object.entries(serverMetadata).forEach(([target, metadata]) => {
-        Object.entries(metadata).forEach(([key, { value }]) => {
+        Object.entries(metadata).forEach(([key, { value, visibility }]) => {
           if (value !== undefined) {
-            useStore.getState().metadataSet(serverId, target, key, value);
+            useStore
+              .getState()
+              .metadataSet(serverId, target, key, value, visibility);
           }
         });
       });
