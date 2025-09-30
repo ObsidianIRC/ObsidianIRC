@@ -2145,13 +2145,13 @@ ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
 
     const updatedMessages = [...messages];
     const originalMessage = updatedMessages[messageIndex];
-    
+
     // Determine if the sender deleted their own message
     const isSender = originalMessage.userId === sender;
-    const deletionMessage = isSender 
+    const deletionMessage = isSender
       ? "This message has been deleted by the sender"
       : "This message has been deleted by a member of staff";
-    
+
     // Replace the entire message with a system message
     updatedMessages[messageIndex] = {
       id: originalMessage.id,
