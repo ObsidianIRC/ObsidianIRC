@@ -2710,7 +2710,51 @@ ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
 // Nick error event handler
 ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
   console.log(`[NICK_ERROR] ${code} ${error}: ${message}`);
-  // Add to global notifications for visibility
+  
+  // Handle 433 (nickname already in use) with automatic retry
+  if (code === "433" && nick) {
+    const newNick = nick + "_";
+    console.log(`Nickname '${nick}' already in use, retrying with '${newNick}'`);
+    
+    // Attempt to change to the nick with underscore appended
+    ircClient.changeNick(serverId, newNick);
+    
+    // Add a system message about the retry
+    const state = useStore.getState();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (server && state.ui.selectedChannelId) {
+      const channel = server.channels.find(
+        (c) => c.id === state.ui.selectedChannelId,
+      );
+      if (channel) {
+        const retryMessage: Message = {
+          id: uuidv4(),
+          type: "system",
+          content: `Nickname '${nick}' already in use, retrying with '${newNick}'`,
+          timestamp: new Date(),
+          userId: "system",
+          channelId: channel.id,
+          serverId: serverId,
+          reactions: [],
+          replyMessage: null,
+          mentioned: [],
+        };
+
+        const key = `${serverId}-${channel.id}`;
+        useStore.setState((state) => ({
+          messages: {
+            ...state.messages,
+            [key]: [...(state.messages[key] || []), retryMessage],
+          },
+        }));
+      }
+    }
+    
+    // Don't show error notification for 433 since we're auto-retrying
+    return;
+  }
+  
+  // Add to global notifications for visibility (for other error codes)
   const state = useStore.getState();
   state.addGlobalNotification({
     type: "fail",
