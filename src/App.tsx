@@ -6,6 +6,8 @@ import type React from "react";
 import { useEffect } from "react";
 import AppLayout from "./components/layout/AppLayout";
 import AddServerModal from "./components/ui/AddServerModal";
+import ChannelListModal from "./components/ui/ChannelListModal";
+import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import UserSettings from "./components/ui/UserSettings";
 import ircClient from "./lib/ircClient";
 import useStore, { loadSavedServers } from "./store";
@@ -66,7 +68,12 @@ const initializeEnvSettings = (
 const App: React.FC = () => {
   const {
     toggleAddServerModal,
-    ui: { isAddServerModalOpen, isUserProfileModalOpen },
+    ui: {
+      isAddServerModalOpen,
+      isUserProfileModalOpen,
+      isChannelListModalOpen,
+      isChannelRenameModalOpen,
+    },
     joinChannel,
     connectToSavedServers,
   } = useStore();
@@ -82,6 +89,8 @@ const App: React.FC = () => {
       <AppLayout />
       {isAddServerModalOpen && <AddServerModal />}
       {isUserProfileModalOpen && <UserSettings />}
+      {isChannelListModalOpen && <ChannelListModal />}
+      {isChannelRenameModalOpen && <ChannelRenameModal />}
     </div>
   );
 };

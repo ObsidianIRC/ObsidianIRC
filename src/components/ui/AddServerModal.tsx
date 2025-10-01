@@ -31,6 +31,8 @@ export const AddServerModal: React.FC = () => {
   const [showServerPassword, setShowServerPassword] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [registerAccount, setRegisterAccount] = useState(false);
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
 
   const [error, setError] = useState("");
 
@@ -67,6 +69,9 @@ export const AddServerModal: React.FC = () => {
         password,
         saslAccountName,
         saslPassword,
+        registerAccount,
+        registerEmail,
+        registerPassword,
       );
       toggleAddServerModal(false);
     } catch (err) {
@@ -234,51 +239,84 @@ export const AddServerModal: React.FC = () => {
             </div>
           )}
           {showAccount && (
-            <>
-              <div className="mb-4 flex gap-4">
-                <div className="mb-4">
-                  <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                    Account details
-                  </label>
-                  <input
-                    type="text"
-                    value={saslAccountName || nickname}
-                    onChange={(e) => setSaslAccountName(e.target.value)}
-                    onFocus={(e) => {
-                      e.target.select();
-                    }}
-                    placeholder="SASL Account Name"
-                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
-                  <input
-                    type="password"
-                    value={atob(saslPassword)}
-                    onChange={(e) => setSaslPassword(btoa(e.target.value))}
-                    onFocus={(e) => {
-                      e.target.select();
-                    }}
-                    placeholder="Password"
-                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="registerAccount"
-                  checked={registerAccount}
-                  onChange={() => setRegisterAccount(!registerAccount)}
-                  className="accent-discord-accent rounded"
-                />
-                <label
-                  htmlFor="registerAccount"
-                  className="text-discord-text-muted text-sm"
-                >
-                  Register for an account
+            <div className="mb-4 flex gap-4">
+              <div className="mb-4">
+                <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                  Account details
                 </label>
+                <input
+                  type="text"
+                  value={saslAccountName || nickname}
+                  onChange={(e) => setSaslAccountName(e.target.value)}
+                  onFocus={(e) => {
+                    e.target.select();
+                  }}
+                  placeholder="SASL Account Name"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
+                <input
+                  type="password"
+                  value={atob(saslPassword)}
+                  onChange={(e) => setSaslPassword(btoa(e.target.value))}
+                  onFocus={(e) => {
+                    e.target.select();
+                  }}
+                  placeholder="Password"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="registerAccount"
+              checked={registerAccount}
+              onChange={() => setRegisterAccount(!registerAccount)}
+              className="accent-discord-accent rounded"
+            />
+            <label
+              htmlFor="registerAccount"
+              className="text-discord-text-muted text-sm"
+            >
+              Register for an account
+            </label>
+          </div>
+          {registerAccount && (
+            <>
+              <div className="mb-4">
+                <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                  Account Email
+                </label>
+                <input
+                  type="email"
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
+                  onFocus={(e) => {
+                    e.target.select();
+                  }}
+                  placeholder="your@email.com"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                  Account Password
+                </label>
+                <input
+                  type="password"
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
+                  onFocus={(e) => {
+                    e.target.select();
+                  }}
+                  placeholder="Choose a secure password"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                />
               </div>
             </>
           )}

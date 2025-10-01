@@ -47,5 +47,18 @@ export function registerISupportHandler(
       });
       return;
     }
+
+    if (key === "BOT") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server: Server) => {
+          if (server.id === serverId) {
+            return { ...server, botMode: value };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+      return;
+    }
   });
 }

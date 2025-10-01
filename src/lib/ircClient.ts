@@ -43,6 +43,12 @@ export interface EventMap {
     channelName: string;
     timestamp: Date;
   };
+  REDACT: EventWithTags & {
+    target: string;
+    msgid: string;
+    reason: string;
+    sender: string;
+  };
   NAMES: BaseIRCEvent & { channelName: string; users: User[] };
   "CAP LS": BaseIRCEvent & { cliCaps: string };
   "CAP ACK": BaseIRCEvent & { cliCaps: string };
@@ -67,6 +73,75 @@ export interface EventMap {
     key?: string;
     retryAfter?: number;
   };
+  LIST_CHANNEL: {
+    serverId: string;
+    channel: string;
+    userCount: number;
+    topic: string;
+  };
+  LIST_END: { serverId: string };
+  RENAME: {
+    serverId: string;
+    oldName: string;
+    newName: string;
+    reason: string;
+    user: string;
+  };
+  SETNAME: { serverId: string; user: string; realname: string };
+  FAIL: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  WARN: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  NOTE: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  SUCCESS: EventWithTags & {
+    command: string;
+    code: string;
+    target?: string;
+    message: string;
+  };
+  REGISTER_SUCCESS: EventWithTags & {
+    account: string;
+    message: string;
+  };
+  REGISTER_VERIFICATION_REQUIRED: EventWithTags & {
+    account: string;
+    message: string;
+  };
+  VERIFY_SUCCESS: EventWithTags & {
+    account: string;
+    message: string;
+  };
+  WHO_REPLY: {
+    serverId: string;
+    channel: string;
+    username: string;
+    host: string;
+    server: string;
+    nick: string;
+    flags: string;
+    hopcount: string;
+    realname: string;
+  };
+  WHO_END: { serverId: string; mask: string };
+  WHOIS_BOT: {
+    serverId: string;
+    nick: string;
+    target: string;
+    message: string;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -77,6 +152,10 @@ export class IRCClient {
   private servers: Map<string, Server> = new Map();
   private nicks: Map<string, string> = new Map();
   private currentUser: User | null = null;
+  private saslMechanisms: Map<string, string[]> = new Map();
+  private capLsAccumulated: Map<string, Set<string>> = new Map();
+  private saslEnabled: Map<string, boolean> = new Map();
+  private pendingConnections: Map<string, Promise<Server>> = new Map();
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
@@ -91,12 +170,59 @@ export class IRCClient {
     password?: string,
     _saslAccountName?: string,
     _saslPassword?: string,
+    serverId?: string,
   ): Promise<Server> {
-    return new Promise((resolve, reject) => {
+    const connectionKey = `${host}:${port}`;
+
+    // Check if there's already a pending connection to this server
+    const existingConnection = this.pendingConnections.get(connectionKey);
+    if (existingConnection) {
+      return existingConnection;
+    }
+
+    // Check if already connected to this server
+    const existingServer = Array.from(this.servers.values()).find(
+      (server) => server.host === host && server.port === port,
+    );
+    if (existingServer) {
+      return Promise.resolve(existingServer);
+    }
+
+    // Create a new connection promise and store it
+    const connectionPromise = new Promise<Server>((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
       const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
       const url = `${protocol}://${host}:${port}`;
-      const socket = new WebSocket(url);
+
+      let socket: WebSocket;
+      try {
+        socket = new WebSocket(url);
+      } catch (error) {
+        reject(new Error(`Failed to connect to ${host}:${port}`));
+        return;
+      }
+
+      // Create server object immediately and add to servers map
+      const server: Server = {
+        id: serverId || uuidv4(),
+        name: host,
+        host,
+        port,
+        channels: [],
+        privateChats: [],
+        isConnected: false, // Not connected yet
+        users: [],
+      };
+      this.servers.set(server.id, server);
+      this.sockets.set(server.id, socket);
+      this.saslEnabled.set(server.id, !!_saslAccountName);
+      this.currentUser = {
+        id: uuidv4(),
+        username: nickname,
+        isOnline: true,
+        status: "online",
+      };
+      this.nicks.set(server.id, nickname);
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
@@ -106,38 +232,27 @@ export class IRCClient {
         }
 
         socket.send("CAP LS 302");
+        socket.send(`NICK ${nickname}`);
 
-        const server: Server = {
-          id: uuidv4(),
-          name: host,
-          host,
-          port,
-          channels: [],
-          privateChats: [],
-          isConnected: true,
-          users: [],
-        };
-
-        this.servers.set(server.id, server);
-        this.sockets.set(server.id, socket);
-        this.currentUser = {
-          id: uuidv4(),
-          username: nickname,
-          isOnline: true,
-          status: "online",
-        };
-        this.nicks.set(server.id, nickname);
+        // Update server to mark as connected
+        server.isConnected = true;
 
         socket.onclose = () => {
           console.log(`Disconnected from server ${host}`);
           this.sockets.delete(server.id);
+          server.isConnected = false;
+          this.pendingConnections.delete(connectionKey);
         };
 
         resolve(server);
       };
 
       socket.onerror = (error) => {
-        reject(new Error(`Failed to connect to ${host}:${port}: ${error}`));
+        // Clean up failed connection
+        this.servers.delete(server.id);
+        this.sockets.delete(server.id);
+        this.pendingConnections.delete(connectionKey);
+        reject(new Error(`Failed to connect to ${host}:${port}`));
       };
 
       socket.onmessage = (event) => {
@@ -149,6 +264,16 @@ export class IRCClient {
         }
       };
     });
+
+    // Store the pending connection
+    this.pendingConnections.set(connectionKey, connectionPromise);
+
+    // Clean up the pending connection when it resolves or rejects
+    connectionPromise.finally(() => {
+      this.pendingConnections.delete(connectionKey);
+    });
+
+    return connectionPromise;
   }
 
   disconnect(serverId: string): void {
@@ -158,7 +283,12 @@ export class IRCClient {
       socket.close();
       this.sockets.delete(serverId);
     }
-    this.servers.delete(serverId);
+    const server = this.servers.get(serverId);
+    if (server) {
+      server.isConnected = false;
+      const connectionKey = `${server.host}:${server.port}`;
+      this.pendingConnections.delete(connectionKey);
+    }
   }
 
   sendRaw(serverId: string, command: string): void {
@@ -182,6 +312,7 @@ export class IRCClient {
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
       this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+      this.sendRaw(serverId, `WHO ${channelName}`);
 
       const channel: Channel = {
         id: uuidv4(),
@@ -221,6 +352,51 @@ export class IRCClient {
     this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
   }
 
+  sendRedact(
+    serverId: string,
+    target: string,
+    msgid: string,
+    reason?: string,
+  ): void {
+    const command = reason
+      ? `REDACT ${target} ${msgid} :${reason}`
+      : `REDACT ${target} ${msgid}`;
+    this.sendRaw(serverId, command);
+  }
+
+  registerAccount(
+    serverId: string,
+    account: string,
+    email: string,
+    password: string,
+  ): void {
+    this.sendRaw(serverId, `REGISTER ${account} ${email} ${password}`);
+  }
+
+  verifyAccount(serverId: string, account: string, code: string): void {
+    this.sendRaw(serverId, `VERIFY ${account} ${code}`);
+  }
+
+  listChannels(serverId: string): void {
+    this.sendRaw(serverId, "LIST");
+  }
+
+  renameChannel(
+    serverId: string,
+    oldName: string,
+    newName: string,
+    reason?: string,
+  ): void {
+    const command = reason
+      ? `RENAME ${oldName} ${newName} :${reason}`
+      : `RENAME ${oldName} ${newName}`;
+    this.sendRaw(serverId, command);
+  }
+
+  setName(serverId: string, realname: string): void {
+    this.sendRaw(serverId, `SETNAME :${realname}`);
+  }
+
   // Metadata commands
   metadataGet(serverId: string, target: string, keys: string[]): void {
     const keysStr = keys.join(" ");
@@ -236,11 +412,13 @@ export class IRCClient {
     target: string,
     key: string,
     value?: string,
+    visibility?: string,
   ): void {
+    const visibilityStr = visibility ? ` ${visibility}` : "";
     const command =
       value !== undefined
-        ? `METADATA ${target} SET ${key} :${value}`
-        : `METADATA ${target} SET ${key}`;
+        ? `METADATA * SET ${key} :${value}`
+        : `METADATA * SET ${key} :`;
     console.log(`[IRC] Sending metadata SET command: ${command}`);
     this.sendRaw(serverId, command);
   }
@@ -279,13 +457,17 @@ export class IRCClient {
 
   capEnd(_serverId: string) {}
 
-  nickOnConnect(serverId: string) {
+  getNick(serverId: string): string | undefined {
+    return this.nicks.get(serverId);
+  }
+
+  userOnConnect(serverId: string) {
     const nickname = this.nicks.get(serverId);
     if (!nickname) {
       console.error(`No nickname found for serverId ${serverId}`);
       return;
     }
-    this.sendRaw(serverId, `NICK ${nickname}`);
+    // NICK is already sent before CAP negotiation, only send USER now
     this.sendRaw(serverId, `USER ${nickname} 0 * :${nickname}`);
   }
 
@@ -407,7 +589,7 @@ export class IRCClient {
             sender,
             channelName,
             message,
-            timestamp: new Date(),
+            timestamp: getTimestampFromTags(mtags),
           });
         } else {
           this.triggerEvent("USERMSG", {
@@ -415,18 +597,54 @@ export class IRCClient {
             mtags,
             sender,
             message,
-            timestamp: new Date(),
+            timestamp: getTimestampFromTags(mtags),
           });
         }
       } else if (command === "TAGMSG") {
-        const target = parv[0];
+        const rawTarget = parv[0] || "";
+        const target = rawTarget.startsWith(":")
+          ? rawTarget.substring(1)
+          : rawTarget;
         const sender = getNickFromNuh(source);
         this.triggerEvent("TAGMSG", {
           serverId,
           mtags,
           sender,
           channelName: target,
-          timestamp: new Date(),
+          timestamp: getTimestampFromTags(mtags),
+        });
+      } else if (command === "REDACT") {
+        const target = parv[0];
+        const msgid = parv[1];
+        const reason = parv[2] ? parv[2].substring(1) : ""; // Remove leading :
+        const sender = getNickFromNuh(source);
+        this.triggerEvent("REDACT", {
+          serverId,
+          mtags,
+          target,
+          msgid,
+          reason,
+          sender,
+        });
+      } else if (command === "RENAME") {
+        const user = getNickFromNuh(source);
+        const oldName = parv[0];
+        const newName = parv[1];
+        const reason = parv.slice(2).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("RENAME", {
+          serverId,
+          oldName,
+          newName,
+          reason,
+          user,
+        });
+      } else if (command === "SETNAME") {
+        const user = getNickFromNuh(source);
+        const realname = parv.join(" ").substring(1); // Remove leading :
+        this.triggerEvent("SETNAME", {
+          serverId,
+          user,
+          realname,
         });
       } else if (command === "353") {
         const channelName = parv[2];
@@ -434,59 +652,30 @@ export class IRCClient {
         console.log(names);
         const newUsers = parseNamesResponse(names); // Parse the user list
         console.log(newUsers);
-        // Find the server and channel
-        const server = this.servers.get(serverId);
-        if (server) {
-          const channel = server.channels.find((c) => c.name === channelName);
-          if (channel) {
-            // Merge new users with existing users
-            const existingUsers = channel.users || [];
-            const mergedUsers = existingUsers.map((existingUser) => {
-              const newUser = newUsers.find(
-                (u) => u.username === existingUser.username,
-              );
-              if (newUser) {
-                // Update status if different
-                return { ...existingUser, status: newUser.status };
-              }
-              return existingUser;
-            });
 
-            // Add new users
-            for (const newUser of newUsers) {
-              if (
-                !existingUsers.some(
-                  (user) => user.username === newUser.username,
-                )
-              ) {
-                mergedUsers.push(newUser);
-              }
-            }
-
-            // Update the channel's user list
-            channel.users = mergedUsers;
-
-            // Trigger an event to notify the UI
-            this.triggerEvent("NAMES", {
-              serverId,
-              channelName,
-              users: mergedUsers,
-            });
-          } else {
-            console.warn(
-              `Channel ${channelName} not found when processing NAMES response`,
-            );
-          }
-        } else {
-          console.warn(
-            `Server ${serverId} not found while processing NAMES response`,
-          );
-        }
+        // Trigger an event to notify the UI
+        this.triggerEvent("NAMES", {
+          serverId,
+          channelName,
+          users: newUsers,
+        });
       } else if (command === "CAP") {
         let i = 0;
         let caps = "";
         if (parv[i] === "*") i++;
-        const subcommand = parv[i++];
+        let subcommand = parv[i++];
+        // Handle CAP ACK which has nickname before subcommand
+        if (
+          subcommand !== "LS" &&
+          subcommand !== "ACK" &&
+          subcommand !== "NEW" &&
+          subcommand !== "DEL" &&
+          subcommand !== "NAK"
+        ) {
+          // This is likely a nickname, skip it and get the real subcommand
+          subcommand = parv[i++];
+        }
+        const isFinal = subcommand === "LS" && parv[i] !== "*";
         if (parv[i] === "*") i++;
         parv[i] = parv[i].substring(1); // trim the ":" lol
         while (parv[i]) {
@@ -494,9 +683,11 @@ export class IRCClient {
           if (parv[i]) caps += " ";
         }
 
-        if (subcommand === "LS") this.onCapLs(serverId, caps);
+        if (subcommand === "LS") this.onCapLs(serverId, caps, isFinal);
         else if (subcommand === "ACK")
           this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
+        else if (subcommand === "NEW") this.onCapNew(serverId, caps);
+        else if (subcommand === "DEL") this.onCapDel(serverId, caps);
       } else if (command === "005") {
         const capabilities = parseIsupport(parv.join(" "));
         console.log("ISUPPORT capabilities:", capabilities);
@@ -603,28 +794,163 @@ export class IRCClient {
           target,
           retryAfter,
         });
-      } else if (command === "FAIL") {
+      } else if (command === "FAIL" && parv[0] === "METADATA") {
+        // ERR_METADATATOOMANY, ERR_METADATATARGETINVALID, ERR_METADATANOACCESS, ERR_METADATANOKEY, ERR_METADATARATELIMITED
         const subcommand = parv[0];
-        if (subcommand === "METADATA") {
-          const code = parv[1];
-          let target: string | undefined;
-          let key: string | undefined;
-          let retryAfter: number | undefined;
-          if (parv[2]) target = parv[2];
-          if (parv[3]) key = parv[3];
-          if (parv[4] && code === "RATE_LIMITED") {
-            retryAfter = Number.parseInt(parv[4], 10);
-          }
-          console.log(
-            `[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
-          );
-          this.triggerEvent("METADATA_FAIL", {
+        const code = parv[1];
+        let target: string | undefined;
+        let key: string | undefined;
+        let retryAfter: number | undefined;
+        if (parv[2]) target = parv[2];
+        if (parv[3]) key = parv[3];
+        if (parv[4] && code === "RATE_LIMITED") {
+          retryAfter = Number.parseInt(parv[4], 10);
+        }
+        console.log(
+          `[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
+        );
+        this.triggerEvent("METADATA_FAIL", {
+          serverId,
+          subcommand: parv[1],
+          code,
+          target,
+          key,
+          retryAfter,
+        });
+      } else if (command === "322") {
+        // RPL_LIST: <channel> <usercount> :<topic>
+        const channelName = parv[1];
+        const userCount = parv[2] ? Number.parseInt(parv[2], 10) : 0;
+        const topic = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("LIST_CHANNEL", {
+          serverId,
+          channel: channelName,
+          userCount,
+          topic,
+        });
+      } else if (command === "323") {
+        // RPL_LISTEND
+        this.triggerEvent("LIST_END", { serverId });
+      } else if (command === "352") {
+        // RPL_WHOREPLY: <channel> <user> <host> <server> <nick> <flags> :<hopcount> <realname>
+        const channel = parv[1];
+        const username = parv[2];
+        const host = parv[3];
+        const server = parv[4];
+        const nick = parv[5];
+        const flags = parv[6];
+        const hopcount = parv[7];
+        const realname = parv.slice(8).join(" ").substring(1);
+        this.triggerEvent("WHO_REPLY", {
+          serverId,
+          channel,
+          username,
+          host,
+          server,
+          nick,
+          flags,
+          hopcount,
+          realname,
+        });
+      } else if (command === "315") {
+        // RPL_ENDOFWHO
+        const mask = parv[1];
+        this.triggerEvent("WHO_END", { serverId, mask });
+      } else if (command === "335") {
+        // RPL_WHOISBOT: <nick> <target> :<message>
+        const nick = parv[0];
+        const target = parv[1];
+        const message = parv.slice(2).join(" ").substring(1);
+        this.triggerEvent("WHOIS_BOT", { serverId, nick, target, message });
+      } else if (command === "FAIL") {
+        // Standard replies: FAIL <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("FAIL", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "WARN") {
+        // Standard replies: WARN <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("WARN", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "NOTE") {
+        // Standard replies: NOTE <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("NOTE", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "SUCCESS") {
+        // Standard replies: SUCCESS <command> <code> <target> :<message>
+        const cmd = parv[0];
+        const code = parv[1];
+        const target = parv[2] || undefined;
+        const message = parv.slice(3).join(" ").substring(1); // Remove leading :
+        this.triggerEvent("SUCCESS", {
+          serverId,
+          mtags,
+          command: cmd,
+          code,
+          target,
+          message,
+        });
+      } else if (command === "REGISTER") {
+        // Account registration responses
+        const subcommand = parv[0];
+        if (subcommand === "SUCCESS") {
+          const account = parv[1];
+          const message = parv.slice(2).join(" ").substring(1);
+          this.triggerEvent("REGISTER_SUCCESS", {
             serverId,
-            subcommand: parv[1],
-            code,
-            target,
-            key,
-            retryAfter,
+            mtags,
+            account,
+            message,
+          });
+        } else if (subcommand === "VERIFICATION_REQUIRED") {
+          const account = parv[1];
+          const message = parv.slice(2).join(" ").substring(1);
+          this.triggerEvent("REGISTER_VERIFICATION_REQUIRED", {
+            serverId,
+            mtags,
+            account,
+            message,
+          });
+        }
+      } else if (command === "VERIFY") {
+        // Account verification responses
+        const subcommand = parv[0];
+        if (subcommand === "SUCCESS") {
+          const account = parv[1];
+          const message = parv.slice(2).join(" ").substring(1);
+          this.triggerEvent("VERIFY_SUCCESS", {
+            serverId,
+            mtags,
+            account,
+            message,
           });
         }
       }
@@ -639,7 +965,7 @@ export class IRCClient {
     );
   }
 
-  onCapLs(serverId: string, cliCaps: string): void {
+  onCapLs(serverId: string, cliCaps: string, isFinal: boolean): void {
     const ourCaps = [
       "multi-prefix",
       "message-tags",
@@ -650,28 +976,91 @@ export class IRCClient {
       "draft/chathistory",
       "draft/extended-isupport",
       "sasl",
+      "cap-notify",
+      "draft/channel-rename",
+      "setname",
+      "account-notify",
+      "account-tag",
+      "extended-join",
       "draft/metadata-2",
+      "draft/message-redaction",
+      "draft/account-registration",
     ];
 
+    let accumulated = this.capLsAccumulated.get(serverId);
+    if (!accumulated) {
+      accumulated = new Set();
+      this.capLsAccumulated.set(serverId, accumulated);
+    }
+
     const caps = cliCaps.split(" ");
-    let toRequest = "CAP REQ :";
     for (const c of caps) {
-      const cap = c.includes("=") ? c.split("=")[0] : c;
-      if (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) {
-        if (toRequest.length + cap.length + 1 > 400) {
-          this.sendRaw(serverId, toRequest);
-          toRequest = "CAP REQ :";
-        }
-        toRequest += `${cap} `;
-        console.log(`Requesting capability: ${cap}`);
+      const [cap, value] = c.split("=", 2);
+      accumulated.add(cap);
+      if (cap === "sasl" && value) {
+        const mechanisms = value.split(",");
+        this.saslMechanisms.set(serverId, mechanisms);
+        console.log(
+          `Available SASL mechanisms for ${serverId}: ${mechanisms.join(", ")}`,
+        );
       }
     }
-    if (toRequest.length > 9) {
-      this.sendRaw(serverId, toRequest);
-      if (toRequest.includes("draft/extended-isupport"))
-        this.sendRaw(serverId, "ISUPPORT");
+
+    if (isFinal) {
+      // Now request the caps we want from the accumulated list
+      let toRequest = "CAP REQ :";
+      const saslEnabled = this.saslEnabled.get(serverId) ?? false;
+      for (const cap of accumulated) {
+        if (
+          (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
+          (cap !== "sasl" || saslEnabled)
+        ) {
+          if (toRequest.length + cap.length + 1 > 400) {
+            this.sendRaw(serverId, toRequest);
+            toRequest = "CAP REQ :";
+          }
+          toRequest += `${cap} `;
+          console.log(`Requesting capability: ${cap}`);
+        }
+      }
+      if (toRequest.length > 9) {
+        this.sendRaw(serverId, toRequest);
+        if (toRequest.includes("draft/extended-isupport"))
+          this.sendRaw(serverId, "ISUPPORT");
+      }
+      console.log(
+        `Server ${serverId} supports capabilities: ${Array.from(accumulated).join(" ")}`,
+      );
+      // Clean up
+      this.capLsAccumulated.delete(serverId);
     }
-    console.log(`Server ${serverId} supports capabilities: ${cliCaps}`);
+  }
+
+  onCapNew(serverId: string, cliCaps: string): void {
+    const caps = cliCaps.split(" ");
+    for (const c of caps) {
+      const [cap, value] = c.split("=", 2);
+      if (cap === "sasl" && value) {
+        const mechanisms = value.split(",");
+        this.saslMechanisms.set(serverId, mechanisms);
+        console.log(
+          `SASL mechanisms updated for ${serverId}: ${mechanisms.join(", ")}`,
+        );
+        // If sasl becomes available, perhaps request it if not already
+        // But for now, just log
+      }
+    }
+  }
+
+  onCapDel(serverId: string, cliCaps: string): void {
+    const caps = cliCaps.split(" ");
+    for (const c of caps) {
+      const [cap] = c.split("=", 2);
+      if (cap === "sasl") {
+        this.saslMechanisms.delete(serverId);
+        console.log(`SASL capability removed for ${serverId}`);
+      }
+    }
   }
 
   on<K extends EventKey>(event: K, callback: EventCallback<K>): void {
@@ -726,6 +1115,13 @@ export class IRCClient {
 function getNickFromNuh(nuh: string) {
   const nick = nuh.split("!")[0];
   return nick.startsWith(":") ? nick.substring(1) : nick;
+}
+
+function getTimestampFromTags(mtags: Record<string, string> | undefined): Date {
+  if (mtags?.time) {
+    return new Date(mtags.time);
+  }
+  return new Date();
 }
 
 export const ircClient = new IRCClient();

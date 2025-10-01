@@ -6,7 +6,7 @@ export interface User {
   account?: string;
   isOnline: boolean;
   status?: string;
-  metadata?: Record<string, { value: string; visibility: string }>;
+  metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
 export interface Server {
@@ -20,7 +20,9 @@ export interface Server {
   isConnected: boolean;
   users: User[];
   capabilities?: string[];
-  metadata?: Record<string, { value: string; visibility: string }>;
+  metadata?: Record<string, { value: string | undefined; visibility: string }>;
+  prefix?: string;
+  botMode?: string;
 }
 export interface ServerConfig {
   id: string;
@@ -45,7 +47,7 @@ export interface Channel {
   messages: Message[];
   users: User[];
   isRead?: boolean;
-  metadata?: Record<string, { value: string; visibility: string }>;
+  metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
 export interface PrivateChat {
@@ -70,10 +72,24 @@ export interface Message {
   userId: string;
   channelId: string;
   serverId: string;
-  type: "message" | "system" | "error" | "join" | "leave" | "nick";
+  type:
+    | "message"
+    | "system"
+    | "error"
+    | "join"
+    | "leave"
+    | "nick"
+    | "standard-reply";
   reactions: Reaction[];
   replyMessage: Message | null | undefined;
   mentioned: string[];
+  tags?: Record<string, string>;
+  // Standard reply fields
+  standardReplyType?: "FAIL" | "WARN" | "NOTE";
+  standardReplyCommand?: string;
+  standardReplyCode?: string;
+  standardReplyTarget?: string;
+  standardReplyMessage?: string;
 }
 
 // Alias for backwards compatibility

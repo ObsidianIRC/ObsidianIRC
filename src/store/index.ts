@@ -49,6 +49,19 @@ function saveMetadataToLocalStorage(metadata: SavedMetadata) {
   localStorage.setItem(LOCAL_STORAGE_METADATA_KEY, JSON.stringify(metadata));
 }
 
+// Check if a server supports metadata
+function serverSupportsMetadata(serverId: string): boolean {
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  return (
+    server?.capabilities?.some(
+      (cap) => cap === "draft/metadata-2" || cap.startsWith("draft/metadata"),
+    ) ?? false
+  );
+}
+
+export { serverSupportsMetadata };
+
 function saveServersToLocalStorage(servers: ServerConfig[]) {
   localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
 }
@@ -131,6 +144,8 @@ interface UIState {
   isMobileMenuOpen: boolean;
   isMemberListVisible: boolean;
   isChannelListVisible: boolean;
+  isChannelListModalOpen: boolean;
+  isChannelRenameModalOpen: boolean;
   mobileViewActiveColumn: layoutColumn;
   isServerMenuOpen: boolean;
   contextMenu: {
@@ -155,6 +170,21 @@ export interface AppState {
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
+  globalNotifications: {
+    id: string;
+    type: "fail" | "warn" | "note";
+    command: string;
+    code: string;
+    message: string;
+    target?: string;
+    serverId: string;
+    timestamp: Date;
+  }[];
+  channelList: Record<
+    string,
+    { channel: string; userCount: number; topic: string }[]
+  >; // serverId -> channels
+  listingInProgress: Record<string, boolean>; // serverId -> is listing
   // Metadata state
   metadataSubscriptions: Record<string, string[]>; // serverId -> keys
   metadataBatches: Record<
@@ -169,6 +199,13 @@ export interface AppState {
       }[];
     }
   >; // batchId -> batch info
+  // Account registration state
+  pendingRegistration: {
+    serverId: string;
+    account: string;
+    email: string;
+    password: string;
+  } | null;
   // UI state
   ui: UIState;
   globalSettings: GlobalSettings;
@@ -181,11 +218,27 @@ export interface AppState {
     password?: string,
     saslAccountName?: string,
     saslPassword?: string,
+    registerAccount?: boolean,
+    registerEmail?: string,
+    registerPassword?: string,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
   leaveChannel: (serverId: string, channelName: string) => void;
   sendMessage: (serverId: string, channelId: string, content: string) => void;
+  redactMessage: (
+    serverId: string,
+    target: string,
+    msgid: string,
+    reason?: string,
+  ) => void;
+  registerAccount: (
+    serverId: string,
+    account: string,
+    email: string,
+    password: string,
+  ) => void;
+  verifyAccount: (serverId: string, account: string, code: string) => void;
   kickUser: (
     serverId: string,
     channelName: string,
@@ -198,7 +251,25 @@ export interface AppState {
     username: string,
     reason: string,
   ) => void;
+  listChannels: (serverId: string) => void;
+  renameChannel: (
+    serverId: string,
+    oldName: string,
+    newName: string,
+    reason?: string,
+  ) => void;
+  setName: (serverId: string, realname: string) => void;
   addMessage: (message: Message) => void;
+  addGlobalNotification: (notification: {
+    type: "fail" | "warn" | "note";
+    command: string;
+    code: string;
+    message: string;
+    target?: string;
+    serverId: string;
+  }) => void;
+  removeGlobalNotification: (notificationId: string) => void;
+  clearGlobalNotifications: () => void;
   selectServer: (serverId: string | null) => void;
   selectChannel: (channelId: string | null) => void;
   selectPrivateChat: (privateChatId: string | null) => void;
@@ -219,6 +290,8 @@ export interface AppState {
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
   toggleChannelList: (isOpen?: boolean) => void;
+  toggleChannelListModal: (isOpen?: boolean) => void;
+  toggleChannelRenameModal: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
@@ -236,6 +309,7 @@ export interface AppState {
     target: string,
     key: string,
     value?: string,
+    visibility?: string,
   ) => void;
   metadataClear: (serverId: string, target: string) => void;
   metadataSub: (serverId: string, keys: string[]) => void;
@@ -253,8 +327,12 @@ const useStore = create<AppState>((set, get) => ({
   connectionError: null,
   messages: {},
   typingUsers: {},
+  globalNotifications: [],
+  channelList: {},
+  listingInProgress: {},
   metadataSubscriptions: {},
   metadataBatches: {},
+  pendingRegistration: null,
   selectedServerId: null,
 
   // UI state
@@ -269,6 +347,8 @@ const useStore = create<AppState>((set, get) => ({
     isMobileMenuOpen: false,
     isMemberListVisible: true,
     isChannelListVisible: true,
+    isChannelListModalOpen: false,
+    isChannelRenameModalOpen: false,
     mobileViewActiveColumn: "serverList", // Default to server list in mobile mode on open
     isServerMenuOpen: false,
     contextMenu: {
@@ -293,10 +373,29 @@ const useStore = create<AppState>((set, get) => ({
     password,
     saslAccountName,
     saslPassword,
+    registerAccount,
+    registerEmail,
+    registerPassword,
   ) => {
+    // Check if already connected to this server
+    const state = get();
+    const existingServer = state.servers.find(
+      (s) => s.host === host && s.port === port && s.isConnected,
+    );
+    if (existingServer) {
+      // Already connected, just return the existing server
+      return existingServer;
+    }
+
     set({ isConnecting: true, connectionError: null });
 
     try {
+      // Look up saved server to get its ID
+      const existingSavedServers: ServerConfig[] = loadSavedServers();
+      const existingSavedServer = existingSavedServers.find(
+        (s) => s.host === host && s.port === port,
+      );
+
       const server = await ircClient.connect(
         host,
         port,
@@ -304,6 +403,7 @@ const useStore = create<AppState>((set, get) => ({
         password,
         saslAccountName,
         saslPassword,
+        existingSavedServer?.id, // Pass the saved server ID if it exists
       );
 
       // Save server to localStorage
@@ -329,11 +429,39 @@ const useStore = create<AppState>((set, get) => ({
       });
       saveServersToLocalStorage(updatedServers);
 
-      set((state) => ({
-        servers: [...state.servers, server],
-        currentUser: ircClient.getCurrentUser(),
-        isConnecting: false,
-      }));
+      set((state) => {
+        const alreadyExists = state.servers.some(
+          (s) => s.host === host && s.port === port,
+        );
+        if (alreadyExists) {
+          return {
+            currentUser: ircClient.getCurrentUser(),
+            isConnecting: false,
+          };
+        }
+        return {
+          servers: [...state.servers, server],
+          currentUser: ircClient.getCurrentUser(),
+          isConnecting: false,
+        };
+      });
+
+      // Join saved channels - now handled in the ready event handler
+      // for (const channelName of channelsToJoin) {
+      //   get().joinChannel(server.id, channelName);
+      // }
+
+      // Set up pending account registration if requested
+      if (registerAccount && registerEmail && registerPassword) {
+        set({
+          pendingRegistration: {
+            serverId: server.id,
+            account: nickname, // Use nickname as account name for now
+            email: registerEmail,
+            password: registerPassword,
+          },
+        });
+      }
 
       return server;
     } catch (error) {
@@ -395,8 +523,12 @@ const useStore = create<AppState>((set, get) => ({
 
         // Update localStorage with the new channel
         const savedServers = loadSavedServers();
-        const savedServer = savedServers.find((s) => s.id === serverId);
-        if (savedServer) {
+        const currentServer = state.servers.find((s) => s.id === serverId);
+        const savedServer = savedServers.find(
+          (s) =>
+            s.host === currentServer?.host && s.port === currentServer?.port,
+        );
+        if (savedServer && !savedServer.channels.includes(channel.name)) {
           savedServer.channels.push(channel.name);
           saveServersToLocalStorage(savedServers);
         }
@@ -435,18 +567,12 @@ const useStore = create<AppState>((set, get) => ({
 
       // Update localStorage to remove the channel
       const savedServers = loadSavedServers();
+      const currentServer = updatedServers.find((s) => s.id === serverId);
       const savedServer = savedServers.find(
-        (s: { host: string }) =>
-          s.host ===
-          updatedServers.find(
-            (s: { id: string; host: string }) => s.id === serverId,
-          )?.host,
+        (s) => s.host === currentServer?.host && s.port === currentServer?.port,
       );
       if (savedServer) {
-        savedServer.channels =
-          updatedServers
-            .find((s) => s.id === serverId)
-            ?.channels.map((c) => c.name) || [];
+        savedServer.channels = currentServer?.channels.map((c) => c.name) || [];
         saveServersToLocalStorage(savedServers);
       }
 
@@ -458,6 +584,28 @@ const useStore = create<AppState>((set, get) => ({
     const message = ircClient.sendMessage(serverId, channelId, content);
   },
 
+  redactMessage: (
+    serverId: string,
+    target: string,
+    msgid: string,
+    reason?: string,
+  ) => {
+    ircClient.sendRedact(serverId, target, msgid, reason);
+  },
+
+  registerAccount: (
+    serverId: string,
+    account: string,
+    email: string,
+    password: string,
+  ) => {
+    ircClient.registerAccount(serverId, account, email, password);
+  },
+
+  verifyAccount: (serverId: string, account: string, code: string) => {
+    ircClient.verifyAccount(serverId, account, code);
+  },
+
   kickUser: (serverId, channelName, username, reason) => {
     ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
   },
@@ -466,6 +614,34 @@ const useStore = create<AppState>((set, get) => ({
     // First ban, then kick
     ircClient.sendRaw(serverId, `MODE ${channelName} +b ${username}!*@*`);
     ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
+  },
+
+  listChannels: (serverId) => {
+    const state = get();
+    if (state.listingInProgress[serverId]) {
+      // Already listing, ignore
+      return;
+    }
+    // Clear the channel list before starting a new list
+    set((state) => ({
+      channelList: {
+        ...state.channelList,
+        [serverId]: [],
+      },
+      listingInProgress: {
+        ...state.listingInProgress,
+        [serverId]: true,
+      },
+    }));
+    ircClient.listChannels(serverId);
+  },
+
+  renameChannel: (serverId, oldName, newName, reason) => {
+    ircClient.renameChannel(serverId, oldName, newName, reason);
+  },
+
+  setName: (serverId, realname) => {
+    ircClient.setName(serverId, realname);
   },
 
   addMessage: (message) => {
@@ -479,6 +655,33 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+  },
+
+  addGlobalNotification: (notification) => {
+    set((state) => ({
+      globalNotifications: [
+        ...state.globalNotifications,
+        {
+          id: uuidv4(),
+          ...notification,
+          timestamp: new Date(),
+        },
+      ],
+    }));
+  },
+
+  removeGlobalNotification: (notificationId) => {
+    set((state) => ({
+      globalNotifications: state.globalNotifications.filter(
+        (n) => n.id !== notificationId,
+      ),
+    }));
+  },
+
+  clearGlobalNotifications: () => {
+    set(() => ({
+      globalNotifications: [],
+    }));
   },
 
   selectServer: (serverId) => {
@@ -901,6 +1104,26 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
+  toggleChannelListModal: (isOpen) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isChannelListModalOpen:
+          isOpen !== undefined ? isOpen : !state.ui.isChannelListModalOpen,
+      },
+    }));
+  },
+
+  toggleChannelRenameModal: (isOpen?: boolean) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isChannelRenameModalOpen:
+          isOpen !== undefined ? isOpen : !state.ui.isChannelRenameModalOpen,
+      },
+    }));
+  },
+
   toggleServerMenu: (isOpen) => {
     set((state) => ({
       ui: {
@@ -949,38 +1172,54 @@ const useStore = create<AppState>((set, get) => ({
 
   // Metadata actions
   metadataGet: (serverId, target, keys) => {
-    ircClient.metadataGet(serverId, target, keys);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataGet(serverId, target, keys);
+    }
   },
 
   metadataList: (serverId, target) => {
-    ircClient.metadataList(serverId, target);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataList(serverId, target);
+    }
   },
 
-  metadataSet: (serverId, target, key, value) => {
-    console.log(
-      `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}`,
-    );
-    ircClient.metadataSet(serverId, target, key, value);
+  metadataSet: (serverId, target, key, value, visibility) => {
+    if (serverSupportsMetadata(serverId)) {
+      console.log(
+        `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
+      );
+      ircClient.metadataSet(serverId, target, key, value, visibility);
+    }
   },
 
   metadataClear: (serverId, target) => {
-    ircClient.metadataClear(serverId, target);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataClear(serverId, target);
+    }
   },
 
   metadataSub: (serverId, keys) => {
-    ircClient.metadataSub(serverId, keys);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataSub(serverId, keys);
+    }
   },
 
   metadataUnsub: (serverId, keys) => {
-    ircClient.metadataUnsub(serverId, keys);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataUnsub(serverId, keys);
+    }
   },
 
   metadataSubs: (serverId) => {
-    ircClient.metadataSubs(serverId);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataSubs(serverId);
+    }
   },
 
   metadataSync: (serverId, target) => {
-    ircClient.metadataSync(serverId, target);
+    if (serverSupportsMetadata(serverId)) {
+      ircClient.metadataSync(serverId, target);
+    }
   },
 
   sendRaw: (serverId, command) => {
@@ -1066,7 +1305,36 @@ ircClient.on("CHANMSG", (response) => {
         reactions: [],
         replyMessage: replyMessage,
         mentioned: [], // Add logic for mentions if needed
+        tags: mtags,
       };
+
+      // If message has bot tag, mark user as bot
+      if (mtags?.bot !== undefined) {
+        useStore.setState((state) => {
+          const updatedServers = state.servers.map((s) => {
+            if (s.id === server.id) {
+              const updatedChannels = s.channels.map((channel) => {
+                const updatedUsers = channel.users.map((user) => {
+                  if (user.username === response.sender) {
+                    return {
+                      ...user,
+                      metadata: {
+                        ...user.metadata,
+                        bot: { value: "true", visibility: "public" },
+                      },
+                    };
+                  }
+                  return user;
+                });
+                return { ...channel, users: updatedUsers };
+              });
+              return { ...s, channels: updatedChannels };
+            }
+            return s;
+          });
+          return { servers: updatedServers };
+        });
+      }
 
       useStore.getState().addMessage(newMessage);
       // Remove any typing users from the state
@@ -1126,7 +1394,36 @@ ircClient.on("USERMSG", (response) => {
         reactions: [],
         replyMessage: null,
         mentioned: [], // PMs don't have mentions in the traditional sense
+        tags: mtags,
       };
+
+      // If message has bot tag, mark user as bot
+      if (mtags?.bot !== undefined) {
+        useStore.setState((state) => {
+          const updatedServers = state.servers.map((s) => {
+            if (s.id === server.id) {
+              const updatedChannels = s.channels.map((channel) => {
+                const updatedUsers = channel.users.map((user) => {
+                  if (user.username === sender) {
+                    return {
+                      ...user,
+                      metadata: {
+                        ...user.metadata,
+                        bot: { value: "true", visibility: "public" },
+                      },
+                    };
+                  }
+                  return user;
+                });
+                return { ...channel, users: updatedUsers };
+              });
+              return { ...s, channels: updatedChannels };
+            }
+            return s;
+          });
+          return { servers: updatedServers };
+        });
+      }
 
       useStore.getState().addMessage(newMessage);
 
@@ -1255,6 +1552,13 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
               (user) => user.username === username,
             );
             if (!userAlreadyExists) {
+              // Check if this is the current user and copy their metadata
+              const isCurrentUser = state.currentUser?.username === username;
+              const userMetadata =
+                isCurrentUser && state.currentUser
+                  ? state.currentUser.metadata
+                  : {};
+
               return {
                 ...channel,
                 users: [
@@ -1264,6 +1568,7 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
                     username,
                     isOnline: true,
                     status: "",
+                    metadata: userMetadata,
                   },
                 ],
               };
@@ -1278,9 +1583,9 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
       return server;
     });
 
-    // Request metadata for the joining user (if it's not us)
+    // Request metadata for the joining user
     const currentUser = state.currentUser;
-    if (currentUser && username !== currentUser.username) {
+    if (currentUser) {
       // Small delay to avoid spamming the server
       setTimeout(() => {
         useStore.getState().metadataList(serverId, username);
@@ -1289,6 +1594,13 @@ ircClient.on("JOIN", ({ serverId, username, channelName }) => {
 
     return { servers: updatedServers };
   });
+
+  // If we joined a channel, request channel information
+  const ourNick = ircClient.getNick(serverId);
+  if (username === ourNick) {
+    ircClient.sendRaw(serverId, `NAMES ${channelName}`);
+    ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
+  }
 });
 
 // Handle user being kicked from a channel
@@ -1380,7 +1692,16 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
       return server;
     });
 
-    return { servers: updatedServers };
+    const ircCurrentUser = ircClient.getCurrentUser();
+    const updatedCurrentUser =
+      state.currentUser && ircCurrentUser
+        ? { ...ircCurrentUser, metadata: state.currentUser.metadata }
+        : ircCurrentUser || state.currentUser;
+
+    return {
+      servers: updatedServers,
+      currentUser: updatedCurrentUser,
+    };
   });
 
   const savedServers = loadSavedServers();
@@ -1390,7 +1711,7 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
     console.log(`Joining saved channels for serverId=${serverId}`);
     for (const channelName of savedServer.channels) {
       if (channelName) {
-        ircClient.joinChannel(serverId, channelName);
+        useStore.getState().joinChannel(serverId, channelName);
       }
     }
 
@@ -1485,7 +1806,7 @@ ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
     `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
   );
   ircClient.sendRaw(serverId, "CAP END");
-  ircClient.nickOnConnect(serverId);
+  ircClient.userOnConnect(serverId);
 });
 
 ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
@@ -1496,20 +1817,92 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
     console.log(`Capability acknowledged: ${cap}`);
   }
 
-  const servers = loadSavedServers();
+  // Update server capabilities in store
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        return {
+          ...server,
+          capabilities: cliCaps.split(" "),
+        };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
+
+  // Check if we should prevent CAP END (for SASL or account registration)
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
   let preventCapEnd = false;
-  for (const serv of servers) {
-    if (serv.id === serverId && serv.saslEnabled) {
-      preventCapEnd = true;
+
+  // Check if SASL was requested and acknowledged
+  if (caps.some((cap) => cap.startsWith("sasl"))) {
+    preventCapEnd = true;
+  }
+
+  // Check if there's pending account registration
+  const pendingReg = state.pendingRegistration;
+  if (pendingReg && pendingReg.serverId === serverId) {
+    preventCapEnd = true;
+    // Check if server supports account registration
+    if (server?.capabilities?.includes("draft/account-registration")) {
+      console.log(`Triggering account registration for server ${serverId}`);
+      useStore
+        .getState()
+        .registerAccount(
+          serverId,
+          pendingReg.account,
+          pendingReg.email,
+          pendingReg.password,
+        );
+      console.log(pendingReg);
+      // Clear the pending registration
+      useStore.setState({ pendingRegistration: null });
+    } else {
+      console.log(`Server ${serverId} does not support account registration`);
+      // Clear the pending registration
+      useStore.setState({ pendingRegistration: null });
+      // Send CAP END since registration is not possible
+      preventCapEnd = false;
     }
   }
+
   if (!preventCapEnd) {
     console.log(`Sending CAP END for server ${serverId}`);
     ircClient.sendRaw(serverId, "CAP END");
-    ircClient.nickOnConnect(serverId);
+    ircClient.userOnConnect(serverId);
   } else {
     console.log(`Preventing CAP END for server ${serverId}`);
   }
+});
+
+ircClient.on("LIST_CHANNEL", ({ serverId, channel, userCount, topic }) => {
+  useStore.setState((state) => {
+    if (!state.listingInProgress[serverId]) {
+      // Not currently listing, ignore
+      return {};
+    }
+    const currentList = state.channelList[serverId] || [];
+    const updatedList = [...currentList, { channel, userCount, topic }];
+    return {
+      channelList: {
+        ...state.channelList,
+        [serverId]: updatedList,
+      },
+    };
+  });
+});
+
+ircClient.on("LIST_END", ({ serverId }) => {
+  // Set listing as complete
+  useStore.setState((state) => ({
+    listingInProgress: {
+      ...state.listingInProgress,
+      [serverId]: false,
+    },
+  }));
+  console.log(`Channel listing complete for server ${serverId}`);
 });
 
 // CTCPs lol
@@ -1727,6 +2120,260 @@ ircClient.on("TAGMSG", (response) => {
           },
         };
       });
+    }
+  }
+});
+
+ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    let channel: Channel | PrivateChat | undefined;
+    const isChannel = target.startsWith("#");
+    if (isChannel) {
+      channel = server.channels.find((c) => c.name === target);
+    } else {
+      // Private chat
+      channel = server.privateChats?.find((pc) => pc.username === target);
+    }
+
+    if (!channel) return {};
+
+    // Find and replace the message with a system message
+    const messages = getChannelMessages(server.id, channel.id);
+    const messageIndex = messages.findIndex((m) => m.msgid === msgid);
+    if (messageIndex === -1) return {};
+
+    const updatedMessages = [...messages];
+    const originalMessage = updatedMessages[messageIndex];
+
+    // Determine if the sender deleted their own message
+    const isSender = originalMessage.userId === sender;
+    const deletionMessage = isSender
+      ? "This message has been deleted by the sender"
+      : "This message has been deleted by a member of staff";
+
+    // Replace the entire message with a system message
+    updatedMessages[messageIndex] = {
+      id: originalMessage.id,
+      msgid: originalMessage.msgid,
+      content: deletionMessage,
+      timestamp: originalMessage.timestamp,
+      userId: "system",
+      channelId: originalMessage.channelId,
+      serverId: originalMessage.serverId,
+      type: "system",
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+      tags: originalMessage.tags,
+    };
+
+    const key = `${server.id}-${channel.id}`;
+    return {
+      messages: {
+        ...state.messages,
+        [key]: updatedMessages,
+      },
+    };
+  });
+});
+
+// Standard reply event handlers
+ircClient.on("FAIL", ({ serverId, command, code, target, message }) => {
+  console.log(`[FAIL] ${command} ${code} ${target || ""}: ${message}`);
+  // Add to global notifications for visibility
+  const state = useStore.getState();
+  state.addGlobalNotification({
+    type: "fail",
+    command,
+    code,
+    message,
+    target,
+    serverId,
+  });
+});
+
+ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
+  console.log(`[WARN] ${command} ${code} ${target || ""}: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    // Try to add to the currently selected channel first, fallback to first channel
+    let channel = server.channels.find(
+      (c) => c.id === state.ui.selectedChannelId,
+    );
+    if (!channel) {
+      channel = server.channels[0];
+    }
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "standard-reply",
+        content: `WARN ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+        standardReplyType: "WARN",
+        standardReplyCommand: command,
+        standardReplyCode: code,
+        standardReplyTarget: target,
+        standardReplyMessage: message,
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
+    }
+  }
+});
+
+ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
+  console.log(`[NOTE] ${command} ${code} ${target || ""}: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    // Try to add to the currently selected channel first, fallback to first channel
+    let channel = server.channels.find(
+      (c) => c.id === state.ui.selectedChannelId,
+    );
+    if (!channel) {
+      channel = server.channels[0];
+    }
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "standard-reply",
+        content: `NOTE ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+        standardReplyType: "NOTE",
+        standardReplyCommand: command,
+        standardReplyCode: code,
+        standardReplyTarget: target,
+        standardReplyMessage: message,
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
+    }
+  }
+});
+
+// Account registration event handlers
+ircClient.on("REGISTER_SUCCESS", ({ serverId, account, message }) => {
+  console.log(`[REGISTER_SUCCESS] Account ${account} registered: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels[0];
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "system",
+        content: `Account registration successful for ${account}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
+    }
+  }
+});
+
+ircClient.on(
+  "REGISTER_VERIFICATION_REQUIRED",
+  ({ serverId, account, message }) => {
+    console.log(
+      `[REGISTER_VERIFICATION_REQUIRED] Account ${account} requires verification: ${message}`,
+    );
+    const state = useStore.getState();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (server) {
+      const channel = server.channels[0];
+      if (channel) {
+        const notificationMessage: Message = {
+          id: uuidv4(),
+          type: "system",
+          content: `Account registration for ${account} requires verification: ${message}`,
+          timestamp: new Date(),
+          userId: "system",
+          channelId: channel.id,
+          serverId: serverId,
+          reactions: [],
+          replyMessage: null,
+          mentioned: [],
+        };
+
+        const key = `${serverId}-${channel.id}`;
+        useStore.setState((state) => ({
+          messages: {
+            ...state.messages,
+            [key]: [...(state.messages[key] || []), notificationMessage],
+          },
+        }));
+      }
+    }
+  },
+);
+
+ircClient.on("VERIFY_SUCCESS", ({ serverId, account, message }) => {
+  console.log(`[VERIFY_SUCCESS] Account ${account} verified: ${message}`);
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels[0];
+    if (channel) {
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "system",
+        content: `Account verification successful for ${account}: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+      };
+
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => ({
+        messages: {
+          ...state.messages,
+          [key]: [...(state.messages[key] || []), notificationMessage],
+        },
+      }));
     }
   }
 });
@@ -1994,17 +2641,39 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
 
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   if (capabilities?.startsWith("draft/metadata")) {
-    // Subscribe to common metadata keys
-    const defaultKeys = [
-      "url",
-      "website",
-      "status",
-      "location",
-      "avatar",
-      "color",
-      "display-name",
-    ];
-    useStore.getState().metadataSub(serverId, defaultKeys);
+    // Check if already subscribed to avoid duplicate subscriptions
+    const currentSubs =
+      useStore.getState().metadataSubscriptions[serverId] || [];
+    if (currentSubs.length === 0) {
+      // Subscribe to common metadata keys
+      const defaultKeys = [
+        "url",
+        "website",
+        "status",
+        "location",
+        "avatar",
+        "color",
+        "display-name",
+      ];
+      useStore.getState().metadataSub(serverId, defaultKeys);
+    }
+
+    // Restore saved metadata for this server
+    restoreServerMetadata(serverId);
+    const savedMetadata = loadSavedMetadata();
+    const serverMetadata = savedMetadata[serverId];
+    if (serverMetadata) {
+      // Send all saved metadata to the server
+      Object.entries(serverMetadata).forEach(([target, metadata]) => {
+        Object.entries(metadata).forEach(([key, { value, visibility }]) => {
+          if (value !== undefined) {
+            useStore
+              .getState()
+              .metadataSet(serverId, target, key, value, visibility);
+          }
+        });
+      });
+    }
   }
 });
 
@@ -2027,5 +2696,136 @@ ircClient.on(
 if (__DEFAULT_IRC_SERVER__) {
   console.log("Default server found, connecting...");
 }
+
+ircClient.on("RENAME", ({ serverId, oldName, newName, reason, user }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    const channel = server.channels.find((c) => c.name === oldName);
+    if (!channel) return {};
+
+    channel.name = newName;
+
+    const renameMessage: Message = {
+      id: `rename-${Date.now()}`,
+      content: `${user} renamed from ${oldName} to ${newName}${reason ? ` (${reason})` : ""}`,
+      timestamp: new Date(),
+      userId: "system",
+      channelId: channel.id,
+      serverId,
+      type: "system",
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+    };
+
+    const channelKey = `${serverId}-${channel.id}`;
+    const currentMessages = state.messages[channelKey] || [];
+    return {
+      messages: {
+        ...state.messages,
+        [channelKey]: [...currentMessages, renameMessage],
+      },
+    };
+  });
+});
+
+ircClient.on("SETNAME", ({ serverId, user, realname }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update current user if it's us
+    if (user === state.currentUser?.username) {
+      return {
+        currentUser: {
+          ...state.currentUser,
+          displayName: realname,
+        },
+      };
+    }
+
+    // Update in channels
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedChannels = s.channels.map((c) => ({
+          ...c,
+          users: c.users.map((u) =>
+            u.username === user ? { ...u, displayName: realname } : u,
+          ),
+        }));
+        return { ...s, channels: updatedChannels };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+ircClient.on("WHO_REPLY", ({ serverId, nick, flags }) => {
+  const server = useStore.getState().servers.find((s) => s.id === serverId);
+  if (!server || !server.botMode) return;
+
+  const botFlag = server.botMode;
+  const isBot = flags.includes(botFlag);
+
+  if (isBot) {
+    // Update user objects in channels
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedChannels = s.channels.map((channel) => {
+            const updatedUsers = channel.users.map((user) => {
+              if (user.username === nick) {
+                return {
+                  ...user,
+                  metadata: {
+                    ...user.metadata,
+                    bot: { value: "true", visibility: "public" },
+                  },
+                };
+              }
+              return user;
+            });
+            return { ...channel, users: updatedUsers };
+          });
+          return { ...s, channels: updatedChannels };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
+    });
+  }
+});
+
+ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
+  // Update user objects in channels
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedChannels = s.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            if (user.username === target) {
+              return {
+                ...user,
+                metadata: {
+                  ...user.metadata,
+                  bot: { value: "true", visibility: "public" },
+                },
+              };
+            }
+            return user;
+          });
+          return { ...channel, users: updatedUsers };
+        });
+        return { ...s, channels: updatedChannels };
+      }
+      return s;
+    });
+    return { servers: updatedServers };
+  });
+});
 
 export default useStore;

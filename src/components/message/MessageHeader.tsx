@@ -9,6 +9,7 @@ interface MessageHeaderProps {
   theme: string;
   isClickable?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  isBot?: boolean;
 }
 
 export const MessageHeader: React.FC<MessageHeaderProps> = ({
@@ -19,6 +20,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
   theme,
   isClickable = false,
   onClick,
+  isBot = false,
 }) => {
   const username = userId.split("-")[0];
   const isSystem = userId === "system";
@@ -38,6 +40,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
         onClick={onClick}
       >
         {isSystem ? "System" : displayName || username}
+        {isBot && <span className="ml-1 text-xs">🤖</span>}
         {displayName && (
           <span className="ml-2 text-xs bg-discord-dark-600 px-1 py-0.5 rounded">
             {username}

@@ -87,6 +87,7 @@ describe("App", () => {
         "",
         "",
         "c3VwZXIgYXdlc29tZSBwYXNzd29yZCBsbWFvIDEyMyAhPyE/IQ==",
+        undefined,
       );
     });
 

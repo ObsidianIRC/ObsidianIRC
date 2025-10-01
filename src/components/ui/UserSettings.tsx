@@ -1,7 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
-import useStore from "../../store";
+import useStore, { serverSupportsMetadata } from "../../store";
 
 const UserSettings: React.FC = () => {
   const {
@@ -11,16 +11,17 @@ const UserSettings: React.FC = () => {
     ui,
     metadataSet,
     sendRaw,
+    setName,
   } = useStore();
   const currentServer = servers.find((s) => s.id === ui.selectedServerId);
-  const supportsMetadata =
-    currentServer?.capabilities?.some((cap) =>
-      cap.startsWith("draft/metadata"),
-    ) || false;
+  const supportsMetadata = currentServer
+    ? serverSupportsMetadata(currentServer.id)
+    : false;
 
   // Metadata state
   const [avatar, setAvatar] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [realname, setRealname] = useState("");
   const [homepage, setHomepage] = useState("");
   const [status, setStatus] = useState("");
   const [color, setColor] = useState("#800040");
@@ -28,13 +29,14 @@ const UserSettings: React.FC = () => {
 
   // Load existing metadata on mount
   useEffect(() => {
-    if (currentUser?.metadata) {
-      setAvatar(currentUser.metadata.avatar?.value || "");
-      setDisplayName(currentUser.metadata["display-name"]?.value || "");
-      setHomepage(currentUser.metadata.homepage?.value || "");
-      setStatus(currentUser.metadata.status?.value || "");
-      setColor(currentUser.metadata.color?.value || "#800040");
-      setBot(currentUser.metadata.bot?.value || "");
+    if (currentUser) {
+      setAvatar(currentUser.metadata?.avatar?.value || "");
+      setDisplayName(currentUser.metadata?.["display-name"]?.value || "");
+      setRealname(currentUser.displayName || "");
+      setHomepage(currentUser.metadata?.homepage?.value || "");
+      setStatus(currentUser.metadata?.status?.value || "");
+      setColor(currentUser.metadata?.color?.value || "#800040");
+      setBot(currentUser.metadata?.bot?.value || "");
     }
   }, [currentUser]);
 
@@ -86,6 +88,13 @@ const UserSettings: React.FC = () => {
             console.error(`Failed to set ${key} metadata:`, error);
           }
         });
+      }
+
+      // Handle realname
+      try {
+        setName(currentServer.id, realname);
+      } catch (error) {
+        console.error("Failed to set realname:", error);
       }
     }
     toggleUserProfileModal(false);
@@ -201,6 +210,19 @@ const UserSettings: React.FC = () => {
                   value={bot}
                   onChange={(e) => setBot(e.target.value)}
                   placeholder="Bot software name"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                  Real Name
+                </label>
+                <input
+                  type="text"
+                  value={realname}
+                  onChange={(e) => setRealname(e.target.value)}
+                  placeholder="Your real name"
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
               </div>
