@@ -1759,10 +1759,6 @@ ircClient.on("USERNOTICE", (response) => {
 });
 
 ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
-  console.log(
-    `[DEBUG] JOIN event: ${username} joined ${channelName} on server ${serverId}`,
-  );
-
   // If this event is part of a batch, store it for later processing
   if (batchTag) {
     const state = useStore.getState();
@@ -1851,16 +1847,10 @@ ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
 
   // If we joined a channel, request channel information
   const ourNick = ircClient.getNick(serverId);
-  console.log(`[DEBUG] Our nick: "${ourNick}", joining user: "${username}"`);
   if (username === ourNick) {
-    console.log(
-      `[DEBUG] We joined channel ${channelName}, requesting TOPIC and WHO`,
-    );
     // Request topic and user list
     ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
     ircClient.sendRaw(serverId, `WHO ${channelName}`);
-  } else {
-    console.log(`[DEBUG] Someone else joined: ${username} !== ${ourNick}`);
   }
 
   // Add join message if settings allow
@@ -3513,9 +3503,6 @@ ircClient.on(
     hopcount,
     realname,
   }) => {
-    console.log(
-      `[DEBUG] WHO_REPLY received: ${nick} in ${channel} on server ${serverId}`,
-    );
     const state = useStore.getState();
     const serverData = state.servers.find((s) => s.id === serverId);
     if (!serverData) return;
@@ -3523,14 +3510,8 @@ ircClient.on(
     // Find the channel this WHO reply belongs to
     const channelData = serverData.channels.find((c) => c.name === channel);
     if (!channelData) {
-      console.log(
-        `[DEBUG] Channel ${channel} not found for WHO_REPLY on server ${serverId}`,
-      );
       return;
     }
-    console.log(
-      `[DEBUG] Found channel ${channel} for WHO_REPLY, adding user ${nick}`,
-    );
 
     // Create user object from WHO data with proper User type
     const user: User = {

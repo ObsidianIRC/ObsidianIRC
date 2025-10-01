@@ -170,7 +170,10 @@ export class IRCClient {
   private saslMechanisms: Map<string, string[]> = new Map();
   private capLsAccumulated: Map<string, Set<string>> = new Map();
   private saslEnabled: Map<string, boolean> = new Map();
+  private saslCredentials: Map<string, { username: string; password: string }> =
+    new Map();
   private pendingConnections: Map<string, Promise<Server>> = new Map();
+  private pendingCapReqs: Map<string, number> = new Map(); // Track how many CAP REQ batches are pending ACK
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
@@ -231,6 +234,27 @@ export class IRCClient {
       this.servers.set(server.id, server);
       this.sockets.set(server.id, socket);
       this.saslEnabled.set(server.id, !!_saslAccountName);
+      console.log(
+        `[SASL] SASL enabled for ${server.id}: ${!!_saslAccountName}`,
+      );
+      console.log(`[SASL] SASL account name: ${_saslAccountName}`);
+      console.log(`[SASL] SASL password provided: ${!!_saslPassword}`);
+
+      // Store SASL credentials if provided
+      if (_saslAccountName && _saslPassword) {
+        this.saslCredentials.set(server.id, {
+          username: _saslAccountName,
+          password: _saslPassword,
+        });
+        console.log(
+          `[SASL] Stored SASL credentials for ${server.id}: ${_saslAccountName}`,
+        );
+      } else {
+        console.log(
+          `[SASL] No SASL credentials stored for ${server.id} - account: ${_saslAccountName}, password: ${!!_saslPassword}`,
+        );
+      }
+
       this.currentUsers.set(server.id, {
         id: uuidv4(),
         username: nickname,
@@ -499,22 +523,56 @@ export class IRCClient {
   }
 
   private handleMessage(data: string, serverId: string): void {
-    console.log(`IRC Message from serverId=${serverId}:`, data);
-
     const lines = data.split("\r\n");
     for (let line of lines) {
       let mtags: Record<string, string> | undefined;
       let source: string;
-      const parv = [];
+      const parv: string[] = [];
       let i = 0;
       let l: string[];
       line = line.trim();
-      l = line.split(" ") ?? line;
 
-      if (l[i][0] === "@") {
-        mtags = parseMessageTags(l[i]);
-        i++;
+      // Skip empty lines
+      if (!line) continue;
+
+      // Debug: Log ALL lines that contain CAP to see if CAP ACK is even being processed
+      if (line.includes("CAP")) {
+        console.log(`[HANDLE-MSG] Processing line: '${line}'`);
       }
+
+      // Debug: Log all incoming IRC messages
+      console.log(`[IRC] ${serverId}: ${line}`);
+
+      // Handle message tags first, before splitting on trailing parameter
+      let lineAfterTags = line;
+      if (line[0] === "@") {
+        const spaceIndex = line.indexOf(" ");
+        if (spaceIndex !== -1) {
+          console.log(
+            `[MTAGS] Parsing message tags from: '${line.substring(0, spaceIndex)}', original line length: ${line.length}`,
+          );
+          mtags = parseMessageTags(line.substring(0, spaceIndex));
+          lineAfterTags = line.substring(spaceIndex + 1);
+          console.log(
+            `[MTAGS] After parsing tags, remaining line: '${lineAfterTags}'`,
+          );
+        }
+      }
+
+      // Parse IRC message properly handling colon-prefixed trailing parameter
+      const spaceIndex = lineAfterTags.indexOf(" :");
+      let trailing = "";
+      let mainPart = lineAfterTags;
+
+      if (spaceIndex !== -1) {
+        trailing = lineAfterTags.substring(spaceIndex + 2); // Skip ' :'
+        mainPart = lineAfterTags.substring(0, spaceIndex);
+      }
+
+      l = mainPart.split(" ").filter((part) => part.length > 0);
+
+      // Ensure we have at least one element
+      if (l.length === 0) continue;
 
       // Determine the source. if none, spoof as host server
       if (l[i][0] !== ":") {
@@ -535,6 +593,40 @@ export class IRCClient {
       for (i++; l[i]; i++) {
         parv.push(l[i]);
       }
+
+      // Add trailing parameter if it exists
+      if (trailing) {
+        parv.push(trailing);
+      }
+
+      // Debug: ALWAYS log when line contains @time and CAP
+      if (line.includes("@time") && line.includes("CAP")) {
+        console.log(`[DEBUG-ALWAYS] Line: '${line}'`);
+        console.log(`[DEBUG-ALWAYS] Command detected: '${command}'`);
+        console.log(`[DEBUG-ALWAYS] l array: ${JSON.stringify(l)}`);
+        console.log(`[DEBUG-ALWAYS] i when command detected: ${i - 1}`);
+        console.log(`[DEBUG-ALWAYS] mtags: ${JSON.stringify(mtags)}`);
+        console.log(`[DEBUG-ALWAYS] source: '${source}'`);
+      }
+
+      // Debug: log command and parv for CAP messages
+      if (command === "CAP" || line.includes("CAP")) {
+        console.log(
+          `[DEBUG] Command: '${command}', Source: '${source}', Parv: ${JSON.stringify(parv)}, Trailing: '${trailing}'`,
+        );
+      }
+
+      // Debug: for message tags, show what l array looks like
+      if (line.includes("@time") && line.includes("CAP")) {
+        console.log(`[DEBUG-TAGS] Original line: '${line}'`);
+        console.log(`[DEBUG-TAGS] mainPart: '${mainPart}'`);
+        console.log(`[DEBUG-TAGS] trailing: '${trailing}'`);
+        console.log(`[DEBUG-TAGS] l array: ${JSON.stringify(l)}`);
+        console.log(
+          `[DEBUG-TAGS] i when command parsed: ${i - 1}, command: '${command}'`,
+        );
+      }
+
       const parc = parv.length;
 
       if (command === "PING") {
@@ -556,10 +648,6 @@ export class IRCClient {
             username: nickname,
           });
         }
-
-        console.log(
-          `[DEBUG] 001 received: Server assigned us nick "${nickname}"`,
-        );
 
         this.triggerEvent("ready", { serverId, serverName, nickname });
       } else if (command === "NICK") {
@@ -641,8 +729,8 @@ export class IRCClient {
         const isChannel = target.startsWith("#");
         const sender = getNickFromNuh(source);
 
-        parv[0] = "";
-        const message = parv.join(" ").trim().substring(1);
+        // Message content is in parv[1] and onwards after target
+        const message = parv.slice(1).join(" ");
 
         if (isChannel) {
           const channelName = target;
@@ -720,7 +808,7 @@ export class IRCClient {
         const user = getNickFromNuh(source);
         const oldName = parv[0];
         const newName = parv[1];
-        const reason = parv.slice(2).join(" ").substring(1); // Remove leading :
+        const reason = parv.slice(2).join(" "); // No need to remove leading : anymore
         this.triggerEvent("RENAME", {
           serverId,
           oldName,
@@ -730,7 +818,7 @@ export class IRCClient {
         });
       } else if (command === "SETNAME") {
         const user = getNickFromNuh(source);
-        const realname = parv.join(" ").substring(1); // Remove leading :
+        const realname = parv.join(" "); // No need to remove leading : anymore
         this.triggerEvent("SETNAME", {
           serverId,
           user,
@@ -750,10 +838,22 @@ export class IRCClient {
           users: newUsers,
         });
       } else if (command === "CAP") {
+        console.log(
+          `[CAP] Processing CAP command, parv: ${JSON.stringify(parv)}, trailing: "${trailing}"`,
+        );
+        console.log(`[CAP] Received CAP message: ${parv.join(" ")}`);
+        console.log(`[CAP] Full parv array: ${JSON.stringify(parv)}`);
+        console.log(`[CAP] Trailing parameter: "${trailing}"`);
         let i = 0;
         let caps = "";
-        if (parv[i] === "*") i++;
+        if (parv[i] === "*") {
+          console.log(`[CAP] Skipping * at position ${i}`);
+          i++;
+        }
         let subcommand = parv[i++];
+        console.log(
+          `[CAP] Subcommand: '${subcommand}', i after increment: ${i}, parv length: ${parv.length}`,
+        );
         // Handle CAP ACK which has nickname before subcommand
         if (
           subcommand !== "LS" &&
@@ -767,17 +867,36 @@ export class IRCClient {
         }
         const isFinal = subcommand === "LS" && parv[i] !== "*";
         if (parv[i] === "*") i++;
-        parv[i] = parv[i].substring(1); // trim the ":" lol
-        while (parv[i]) {
-          caps += parv[i++];
-          if (parv[i]) caps += " ";
+
+        // Build caps string - use trailing parameter if available, otherwise join remaining parv
+        if (trailing) {
+          caps = trailing;
+        } else {
+          while (parv[i]) {
+            caps += parv[i++];
+            if (parv[i]) caps += " ";
+          }
         }
 
+        console.log(`[CAP] Final caps string: "${caps}"`);
+
         if (subcommand === "LS") this.onCapLs(serverId, caps, isFinal);
-        else if (subcommand === "ACK")
-          this.triggerEvent("CAP ACK", { serverId, cliCaps: caps });
-        else if (subcommand === "NEW") this.onCapNew(serverId, caps);
+        else if (subcommand === "ACK") {
+          console.log(`[CAP ACK] Received for ${serverId}: ${caps}`);
+          this.onCapAck(serverId, caps);
+        } else if (subcommand === "NAK") {
+          console.log(
+            `[CAP NAK] Server rejected capabilities for ${serverId}: ${caps}`,
+          );
+          // Server rejected some capabilities, but we should still end CAP negotiation
+          this.sendRaw(serverId, "CAP END");
+        } else if (subcommand === "NEW") this.onCapNew(serverId, caps);
         else if (subcommand === "DEL") this.onCapDel(serverId, caps);
+        else {
+          console.log(
+            `[CAP] Unknown subcommand '${subcommand}' for ${serverId}: ${caps}`,
+          );
+        }
       } else if (command === "005") {
         const capabilities = parseIsupport(parv.join(" "));
         console.log("ISUPPORT capabilities:", capabilities);
@@ -797,6 +916,15 @@ export class IRCClient {
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
+
+        // Handle SASL PLAIN authentication
+        if (param === "+") {
+          const creds = this.saslCredentials.get(serverId);
+          if (creds) {
+            console.log(`Sending SASL PLAIN credentials for ${serverId}`);
+            this.sendSaslPlain(serverId, creds.username, creds.password);
+          }
+        }
       } else if (command === "BATCH") {
         // BATCH +reference-tag type [parameters...] or BATCH -reference-tag
         const batchRef = parv[0];
@@ -823,21 +951,29 @@ export class IRCClient {
           });
         }
       } else if (command === "METADATA") {
-        const target = parv[0];
-        const key = parv[1];
-        const visibility = parv[2];
-        const value = parv.slice(3).join(" ");
-        // Remove leading : only if it exists
-        const cleanValue = value.startsWith(":") ? value.substring(1) : value;
+        // METADATA PARAM1 PARAM2 [PARAM3 PARAM4 etc optional params] :the actual value
+        // The trailing value is the last parameter, optional params can be between PARAM2 and value
+        const target = parv[0]; // PARAM1
+        const key = parv[1]; // PARAM2
+
+        // The actual value is the last parameter (trailing parameter from original message)
+        const value = parv[parv.length - 1] || "";
+
+        // Everything between key and value are optional parameters (visibility, etc.)
+        const optionalParams = parv.length > 2 ? parv.slice(2, -1) : [];
+
+        // For backward compatibility, assume first optional param is visibility if present
+        const visibility = optionalParams.length > 0 ? optionalParams[0] : "";
+
         console.log(
-          `[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${cleanValue}`,
+          `[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${value}, optionalParams=${optionalParams.join(" ")}`,
         );
         this.triggerEvent("METADATA", {
           serverId,
           target,
           key,
           visibility,
-          value: cleanValue,
+          value,
         });
       } else if (command === "760") {
         // RPL_WHOISKEYVALUE
@@ -845,7 +981,7 @@ export class IRCClient {
         const target = parv[0];
         const key = parv[1];
         const visibility = parv[2];
-        const value = parv.slice(3).join(" ").substring(1);
+        const value = parv.slice(3).join(" "); // No need to remove leading : anymore
         this.triggerEvent("METADATA_WHOIS", {
           serverId,
           target,
@@ -925,20 +1061,38 @@ export class IRCClient {
           retryAfter,
         });
       } else if (command === "FAIL" && parv[0] === "METADATA") {
-        // FAIL METADATA <subcommand> <code> [<target>] [<key>] [<retryAfter>]
+        // FAIL METADATA <subcommand> <code> [<target>] [<key>] [<retryAfter>] :[<message>]
         // ERR_METADATATOOMANY, ERR_METADATATARGETINVALID, ERR_METADATANOACCESS, ERR_METADATANOKEY, ERR_METADATARATELIMITED
         const subcommand = parv[1]; // The METADATA subcommand that failed (SUB, SET, etc.)
         const code = parv[2]; // The error code
+
+        // Check if the last parameter is a trailing message (starts with original ":")
+        // If so, the parameters before it are the optional params
+        let paramCount = parv.length;
+        let errorMessage = "";
+
+        // If there are more than 3 params and the last one doesn't look like a number,
+        // it's likely a trailing error message
+        if (paramCount > 3) {
+          const lastParam = parv[paramCount - 1];
+          if (lastParam && Number.isNaN(Number.parseInt(lastParam, 10))) {
+            errorMessage = lastParam;
+            paramCount = paramCount - 1; // Don't count the error message as a regular param
+          }
+        }
+
         let target: string | undefined;
         let key: string | undefined;
         let retryAfter: number | undefined;
-        if (parv[3]) target = parv[3];
-        if (parv[4]) key = parv[4];
-        if (parv[5] && code === "RATE_LIMITED") {
+
+        if (paramCount > 3) target = parv[3];
+        if (paramCount > 4) key = parv[4];
+        if (paramCount > 5 && code === "RATE_LIMITED") {
           retryAfter = Number.parseInt(parv[5], 10);
         }
+
         console.log(
-          `[IRC] Received METADATA FAIL: subcommand=${subcommand}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
+          `[IRC] Received METADATA FAIL: subcommand=${subcommand}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}, message=${errorMessage}`,
         );
         this.triggerEvent("METADATA_FAIL", {
           serverId,
@@ -952,7 +1106,7 @@ export class IRCClient {
         // RPL_LIST: <channel> <usercount> :<topic>
         const channelName = parv[1];
         const userCount = parv[2] ? Number.parseInt(parv[2], 10) : 0;
-        const topic = parv.slice(3).join(" ").substring(1); // Remove leading :
+        const topic = parv.slice(3).join(" "); // No need to remove leading : anymore
         this.triggerEvent("LIST_CHANNEL", {
           serverId,
           channel: channelName,
@@ -971,7 +1125,7 @@ export class IRCClient {
         const nick = parv[5];
         const flags = parv[6];
         const hopcount = parv[7];
-        const realname = parv.slice(8).join(" ").substring(1);
+        const realname = parv.slice(8).join(" "); // No need to remove leading : anymore
         this.triggerEvent("WHO_REPLY", {
           serverId,
           channel,
@@ -991,17 +1145,41 @@ export class IRCClient {
         // RPL_WHOISBOT: <nick> <target> :<message>
         const nick = parv[0];
         const target = parv[1];
-        const message = parv.slice(2).join(" ").substring(1);
+        const message = parv.slice(2).join(" "); // No need to remove leading : anymore
         this.triggerEvent("WHOIS_BOT", { serverId, nick, target, message });
       } else if (command === "431") {
         // ERR_NONICKNAMEGIVEN: :No nickname given
-        const message = parv.join(" ").substring(1);
+        const message = parv.join(" "); // No need to remove leading : anymore
         this.triggerEvent("NICK_ERROR", {
           serverId,
           code: "431",
           error: "No nickname given",
           message,
         });
+      } else if (
+        command === "900" ||
+        command === "901" ||
+        command === "902" ||
+        command === "903"
+      ) {
+        // SASL authentication successful
+        const message = parv.slice(2).join(" ");
+        console.log(
+          `SASL authentication successful for ${serverId}: ${message}`,
+        );
+        // Finish capability negotiation
+        this.sendRaw(serverId, "CAP END");
+      } else if (
+        command === "904" ||
+        command === "905" ||
+        command === "906" ||
+        command === "907"
+      ) {
+        // SASL authentication failed
+        const message = parv.slice(2).join(" ");
+        console.log(`SASL authentication failed for ${serverId}: ${message}`);
+        // Still finish capability negotiation even if SASL failed
+        this.sendRaw(serverId, "CAP END");
       } else if (command === "432") {
         // ERR_ERRONEUSNICKNAME: <nick> :Erroneous nickname
         const nick = parv[1];
@@ -1182,25 +1360,73 @@ export class IRCClient {
 
     if (isFinal) {
       // Now request the caps we want from the accumulated list
-      let toRequest = "CAP REQ :";
+      const capsToRequest: string[] = [];
       const saslEnabled = this.saslEnabled.get(serverId) ?? false;
       for (const cap of accumulated) {
         if (
           (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
           (cap !== "sasl" || saslEnabled)
         ) {
-          if (toRequest.length + cap.length + 1 > 400) {
-            this.sendRaw(serverId, toRequest);
-            toRequest = "CAP REQ :";
-          }
-          toRequest += `${cap} `;
+          capsToRequest.push(cap);
           console.log(`Requesting capability: ${cap}`);
         }
       }
-      if (toRequest.length > 9) {
-        this.sendRaw(serverId, toRequest);
-        if (toRequest.includes("draft/extended-isupport"))
+
+      if (capsToRequest.length > 0) {
+        // Send capabilities in batches to avoid IRC line length limits (512 bytes)
+        let currentBatch: string[] = [];
+        const baseLength = "CAP REQ :".length + 2; // +2 for \r\n
+        let currentLength = baseLength;
+        let batchCount = 0;
+
+        for (const cap of capsToRequest) {
+          const capLength = cap.length + (currentBatch.length > 0 ? 1 : 0); // +1 for space if not first
+
+          if (currentLength + capLength > 500 && currentBatch.length > 0) {
+            // Leave some margin
+            // Send current batch
+            const reqMessage = `CAP REQ :${currentBatch.join(" ")}`;
+            console.log(
+              `Sending CAP REQ batch ${batchCount + 1} (${reqMessage.length} chars): ${reqMessage}`,
+            );
+            this.sendRaw(serverId, reqMessage);
+            batchCount++;
+            currentBatch = [];
+            currentLength = baseLength;
+          }
+
+          currentBatch.push(cap);
+          currentLength += capLength;
+        }
+
+        // Send remaining batch
+        if (currentBatch.length > 0) {
+          const reqMessage = `CAP REQ :${currentBatch.join(" ")}`;
+          console.log(
+            `Sending CAP REQ batch ${batchCount + 1} (${reqMessage.length} chars): ${reqMessage}`,
+          );
+          this.sendRaw(serverId, reqMessage);
+          batchCount++;
+        }
+
+        // Track how many CAP REQ batches we sent
+        this.pendingCapReqs.set(serverId, batchCount);
+        console.log(`Sent ${batchCount} CAP REQ batches for ${serverId}`);
+
+        // Set a timeout to send CAP END if server doesn't respond
+        setTimeout(() => {
+          if (this.pendingCapReqs.has(serverId)) {
+            console.log(
+              `[CAP] Timeout waiting for CAP ACK from ${serverId}, sending CAP END`,
+            );
+            this.pendingCapReqs.delete(serverId);
+            this.sendRaw(serverId, "CAP END");
+          }
+        }, 5000); // 5 second timeout
+
+        if (capsToRequest.includes("draft/extended-isupport")) {
           this.sendRaw(serverId, "ISUPPORT");
+        }
       }
       console.log(
         `Server ${serverId} supports capabilities: ${Array.from(accumulated).join(" ")}`,
@@ -1234,6 +1460,39 @@ export class IRCClient {
         this.saslMechanisms.delete(serverId);
         console.log(`SASL capability removed for ${serverId}`);
       }
+    }
+  }
+
+  onCapAck(serverId: string, cliCaps: string): void {
+    console.log(`[CAP ACK] onCapAck called for ${serverId}: ${cliCaps}`);
+
+    // Trigger the original event for compatibility
+    this.triggerEvent("CAP ACK", { serverId, cliCaps });
+
+    // Decrement pending CAP REQ count
+    const pendingCount = this.pendingCapReqs.get(serverId) || 0;
+    if (pendingCount > 0) {
+      const newCount = pendingCount - 1;
+      console.log(
+        `[CAP ACK] ${serverId}: ${pendingCount} -> ${newCount} pending batches`,
+      );
+
+      if (newCount === 0) {
+        // All CAP REQ batches acknowledged
+        this.pendingCapReqs.delete(serverId);
+
+        // Note: SASL authentication is handled by the store's event handlers
+        // The store will check capabilities and initiate SASL if needed
+        console.log(
+          `[CAP ACK] All capability batches acknowledged for ${serverId}, SASL handled by store`,
+        );
+      } else {
+        this.pendingCapReqs.set(serverId, newCount);
+      }
+    } else {
+      console.log(
+        `[CAP ACK] Warning: Received CAP ACK for ${serverId} but no pending requests`,
+      );
     }
   }
 
