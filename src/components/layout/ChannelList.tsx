@@ -23,6 +23,7 @@ export const ChannelList: React.FC<{
 }> = ({ onToggle }: { onToggle: () => void }) => {
   const {
     servers,
+    currentUser: globalCurrentUser,
     ui: { selectedServerId, selectedChannelId, selectedPrivateChatId },
     selectChannel,
     selectPrivateChat,
@@ -40,6 +41,14 @@ export const ChannelList: React.FC<{
     const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
     if (!ircCurrentUser) return null;
 
+    // First, check if we have a global current user with metadata for this username
+    if (
+      globalCurrentUser &&
+      globalCurrentUser.username === ircCurrentUser.username
+    ) {
+      return globalCurrentUser;
+    }
+
     // Find the current user in the server's channel data to get metadata
     const selectedServer = servers.find((s) => s.id === selectedServerId);
     if (!selectedServer) return ircCurrentUser;
@@ -56,7 +65,7 @@ export const ChannelList: React.FC<{
 
     // If not found in channels, return the basic IRC user
     return ircCurrentUser;
-  }, [selectedServerId, servers]);
+  }, [selectedServerId, servers, globalCurrentUser]);
 
   const [isTextChannelsOpen, setIsTextChannelsOpen] = useState(true);
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
@@ -70,10 +79,18 @@ export const ChannelList: React.FC<{
     (server) => server.id === selectedServerId,
   );
 
-  // Reset avatar load failed state when user changes or server changes
+  // Reset avatar load failed state when user or server changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We want to reset when user/server changes
   useEffect(() => {
     setAvatarLoadFailed(false);
-  }, []);
+  }, [currentUser?.username, selectedServerId]);
+
+  // Get user status from metadata or fallback to direct property
+  const userStatus = useMemo(() => {
+    return (
+      currentUser?.metadata?.status?.value || currentUser?.status || "offline"
+    );
+  }, [currentUser]);
 
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
@@ -412,7 +429,7 @@ export const ChannelList: React.FC<{
               )}
             </div>
             <div
-              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${currentUser?.status === "online" ? "bg-discord-green" : currentUser?.status === "idle" ? "bg-discord-yellow" : currentUser?.status === "dnd" ? "bg-discord-red" : "bg-discord-dark-500"}`}
+              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${userStatus === "online" ? "bg-discord-green" : userStatus === "idle" ? "bg-discord-yellow" : userStatus === "dnd" ? "bg-discord-red" : "bg-discord-dark-500"}`}
             />
           </div>
           <div>
@@ -420,11 +437,11 @@ export const ChannelList: React.FC<{
               {currentUser?.username || "User"}
             </div>
             <div className="text-xs text-discord-channels-default">
-              {currentUser?.status === "online"
+              {userStatus === "online"
                 ? "Online"
-                : currentUser?.status === "idle"
+                : userStatus === "idle"
                   ? "Idle"
-                  : currentUser?.status === "dnd"
+                  : userStatus === "dnd"
                     ? "Do Not Disturb"
                     : "Offline"}
             </div>

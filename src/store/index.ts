@@ -2195,10 +2195,30 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
     });
 
     const ircCurrentUser = ircClient.getCurrentUser(serverId);
-    const updatedCurrentUser =
-      state.currentUser && ircCurrentUser
-        ? { ...ircCurrentUser, metadata: state.currentUser.metadata }
-        : ircCurrentUser || state.currentUser;
+    let updatedCurrentUser = state.currentUser;
+
+    if (ircCurrentUser) {
+      // Get saved metadata for this user on this server
+      const savedMetadata = loadSavedMetadata();
+      const serverMetadata = savedMetadata[serverId];
+      const userMetadata = serverMetadata?.[ircCurrentUser.username] || {};
+
+      // Create current user with IRC data and any saved metadata
+      updatedCurrentUser = {
+        ...ircCurrentUser,
+        metadata: {
+          ...(state.currentUser?.metadata || {}),
+          ...userMetadata,
+        },
+      };
+
+      console.log(
+        `[READY] Set current user for server ${serverId}:`,
+        updatedCurrentUser.username,
+        "with metadata:",
+        updatedCurrentUser.metadata,
+      );
+    }
 
     return {
       servers: updatedServers,
@@ -3082,26 +3102,45 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
       return server;
     });
 
-    // Update current user metadata only if this is for the currently selected server
+    // Update current user metadata if the target matches any connected user
     let updatedCurrentUser = state.currentUser;
-    const isSelectedServer = state.ui.selectedServerId === serverId;
     const currentUserForServer = ircClient.getCurrentUser(serverId);
 
+    // Check if this metadata is for the current user on this server
     if (
-      isSelectedServer &&
       currentUserForServer &&
-      state.currentUser?.username === resolvedTarget
+      currentUserForServer.username === resolvedTarget
     ) {
-      const metadata = { ...(state.currentUser.metadata || {}) };
-      if (value) {
-        metadata[key] = { value, visibility };
-      } else {
-        delete metadata[key];
+      // If this is the first time setting current user or it's for the selected server, update global state
+      if (!updatedCurrentUser || state.ui.selectedServerId === serverId) {
+        const metadata = { ...(currentUserForServer.metadata || {}) };
+        if (value) {
+          metadata[key] = { value, visibility };
+        } else {
+          delete metadata[key];
+        }
+        updatedCurrentUser = { ...currentUserForServer, metadata };
+        console.log(
+          `[METADATA] Updated current user ${resolvedTarget} on server ${serverId} with ${key}=${value}`,
+        );
       }
-      updatedCurrentUser = { ...state.currentUser, metadata };
-      console.log(
-        `[METADATA] Updated current user ${resolvedTarget} with ${key}=${value}`,
-      );
+      // If there's already a current user but it's for a different server,
+      // still update if this is the selected server or if there's no current user
+      else if (
+        state.currentUser &&
+        state.currentUser.username === resolvedTarget
+      ) {
+        const metadata = { ...(state.currentUser.metadata || {}) };
+        if (value) {
+          metadata[key] = { value, visibility };
+        } else {
+          delete metadata[key];
+        }
+        updatedCurrentUser = { ...state.currentUser, metadata };
+        console.log(
+          `[METADATA] Updated global current user ${resolvedTarget} with ${key}=${value}`,
+        );
+      }
     }
 
     // Save metadata to localStorage

@@ -547,6 +547,16 @@ export class IRCClient {
 
         // Update our stored nick to match what the server assigned us
         this.nicks.set(serverId, nickname);
+
+        // Update current user's username to match server-assigned nick
+        const currentUser = this.currentUsers.get(serverId);
+        if (currentUser) {
+          this.currentUsers.set(serverId, {
+            ...currentUser,
+            username: nickname,
+          });
+        }
+
         console.log(
           `[DEBUG] 001 received: Server assigned us nick "${nickname}"`,
         );
