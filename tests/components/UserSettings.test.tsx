@@ -1,6 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import UserSettings from "../../src/components/ui/UserSettings";
+
+// Extend window interface for test environment
+declare global {
+  interface Window {
+    __HIDE_SERVER_LIST__?: boolean;
+  }
+}
 
 // Mock the store
 vi.mock("../../src/store", () => ({
@@ -97,33 +104,37 @@ describe("UserSettings", () => {
 
   it("displays notification settings with correct text", async () => {
     render(<UserSettings />);
-    
+
     // Click on the Notifications tab first
     fireEvent.click(screen.getByText("Notifications"));
-    
+
     // Wait for the content to update and just check that the header changes
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Notifications" }),
+      ).toBeInTheDocument();
     });
-    
+
     // If the content area shows the notifications heading, the tab navigation works
     // This test verifies the tab switching functionality
   });
 
   it("displays account password field with correct text", async () => {
     // Set the environment variable BEFORE rendering to ensure Account tab is visible
-    (window as any).__HIDE_SERVER_LIST__ = true; // Note: true means hosted chat mode, which shows Account tab
-    
+    window.__HIDE_SERVER_LIST__ = true; // Note: true means hosted chat mode, which shows Account tab
+
     render(<UserSettings />);
-    
+
     // Click on the Account tab first
     fireEvent.click(screen.getByText("Account"));
-    
+
     // Wait for the content to update
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Account" }),
+      ).toBeInTheDocument();
     });
-    
+
     // This test verifies the Account tab navigation works
   });
 });
