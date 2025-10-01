@@ -3513,6 +3513,16 @@ ircClient.on(
       return;
     }
 
+    // Parse channel status from flags (e.g., "H@" means here and operator)
+    let channelStatus = "";
+    if (flags) {
+      // Extract channel status prefixes from flags
+      const statusChars = flags.match(/[~&@%+]/g);
+      if (statusChars) {
+        channelStatus = statusChars.join("");
+      }
+    }
+
     // Create user object from WHO data with proper User type
     const user: User = {
       id: nick,
@@ -3520,6 +3530,7 @@ ircClient.on(
       avatar: undefined,
       isOnline: true,
       isBot: false,
+      status: channelStatus, // Set the channel status here
       metadata: {},
     };
 
