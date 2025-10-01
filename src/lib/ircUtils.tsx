@@ -43,6 +43,23 @@ export function parseMessageTags(tags: string): Record<string, string> {
   return parsedTags;
 }
 
+/**
+ * Check if a user is verified based on the account tag matching their nickname.
+ * According to IRCv3 account-tag spec, if the account tag matches the sender's nick
+ * (case-insensitively), the user is authenticated to that account.
+ */
+export function isUserVerified(
+  senderNick: string,
+  messageTags?: Record<string, string>,
+): boolean {
+  if (!messageTags?.account) {
+    return false;
+  }
+
+  // Case-insensitive comparison as per the requirement
+  return senderNick.toLowerCase() === messageTags.account.toLowerCase();
+}
+
 export function parseIsupport(tokens: string): Record<string, string> {
   const tokenMap: Record<string, string> = {};
   const tokenPairs = tokens.split(" ");

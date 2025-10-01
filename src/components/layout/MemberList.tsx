@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { getColorStyle } from "../../lib/ircUtils";
@@ -59,12 +59,20 @@ const UserItem: React.FC<{
     avatarElement?: Element | null,
   ) => void;
 }> = ({ user, serverId, currentUser, onContextMenu }) => {
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
   // Display metadata like website or status
   const website = user.metadata?.url?.value || user.metadata?.website?.value;
   const status = user.metadata?.status?.value;
   const avatarUrl = user.metadata?.avatar?.value;
   const color = user.metadata?.color?.value;
-  const isBot = user.metadata?.bot?.value === "true";
+  const isBot = user.isBot || user.metadata?.bot?.value === "true";
+  const botInfo = user.metadata?.bot?.value; // Bot software info for tooltip
+
+  // Reset avatar load failed state when avatar URL changes
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, []);
 
   return (
     <div
@@ -79,18 +87,13 @@ const UserItem: React.FC<{
       }}
     >
       <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold relative">
-        {avatarUrl ? (
+        {avatarUrl && !avatarLoadFailed ? (
           <img
             src={avatarUrl}
             alt={user.username}
             className="w-10 h-10 rounded-full object-cover"
-            onError={(e) => {
-              // Fallback to initial if image fails to load
-              e.currentTarget.style.display = "none";
-              const parent = e.currentTarget.parentElement;
-              if (parent) {
-                parent.textContent = user.username.charAt(0).toUpperCase();
-              }
+            onError={() => {
+              setAvatarLoadFailed(true);
             }}
           />
         ) : (
@@ -118,7 +121,18 @@ const UserItem: React.FC<{
           )}
           <span className="truncate" style={getColorStyle(color)}>
             {user.username}
-            {isBot && <span className="ml-1">🤖</span>}
+            {isBot && (
+              <span className="ml-1 group relative">
+                🤖
+                {botInfo && botInfo !== "true" && (
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      {botInfo}
+                    </div>
+                  </div>
+                )}
+              </span>
+            )}
           </span>
         </div>
         {status && (

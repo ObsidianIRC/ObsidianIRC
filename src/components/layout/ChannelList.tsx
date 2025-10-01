@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaChevronDown,
   FaChevronLeft,
@@ -13,6 +13,7 @@ import {
   FaVolumeUp,
 } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
 import AddPrivateChatModal from "../ui/AddPrivateChatModal";
@@ -29,8 +30,33 @@ export const ChannelList: React.FC<{
     leaveChannel,
     deletePrivateChat,
     toggleUserProfileModal,
-    currentUser,
   } = useStore();
+
+  // Get the current user for the selected server from the store data (includes metadata)
+  const currentUser = useMemo(() => {
+    if (!selectedServerId) return null;
+
+    // Get the current user's username from IRCClient
+    const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
+    if (!ircCurrentUser) return null;
+
+    // Find the current user in the server's channel data to get metadata
+    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    if (!selectedServer) return ircCurrentUser;
+
+    // Look for the user in any channel to get their metadata
+    for (const channel of selectedServer.channels) {
+      const userWithMetadata = channel.users.find(
+        (u) => u.username === ircCurrentUser.username,
+      );
+      if (userWithMetadata) {
+        return userWithMetadata;
+      }
+    }
+
+    // If not found in channels, return the basic IRC user
+    return ircCurrentUser;
+  }, [selectedServerId, servers]);
 
   const [isTextChannelsOpen, setIsTextChannelsOpen] = useState(true);
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
@@ -38,10 +64,16 @@ export const ChannelList: React.FC<{
   const [newChannelName, setNewChannelName] = useState("");
   const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
     useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
   );
+
+  // Reset avatar load failed state when user changes or server changes
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, []);
 
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
@@ -364,20 +396,13 @@ export const ChannelList: React.FC<{
         <div className="flex items-center gap-2">
           <div className="relative">
             <div className="w-8 h-8 rounded-full bg-discord-dark-100 flex items-center justify-center">
-              {currentUser?.metadata?.avatar?.value ? (
+              {currentUser?.metadata?.avatar?.value && !avatarLoadFailed ? (
                 <img
                   src={currentUser.metadata.avatar.value}
                   alt={currentUser.username}
                   className="w-8 h-8 rounded-full object-cover"
-                  onError={(e) => {
-                    // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    if (parent && currentUser?.username) {
-                      parent.textContent = currentUser.username
-                        .charAt(0)
-                        .toUpperCase();
-                    }
+                  onError={() => {
+                    setAvatarLoadFailed(true);
                   }}
                 />
               ) : (

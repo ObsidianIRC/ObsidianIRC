@@ -1,4 +1,5 @@
 import type React from "react";
+import { useEffect, useState } from "react";
 
 interface MessageAvatarProps {
   userId: string;
@@ -19,7 +20,13 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
   onClick,
   isClickable = false,
 }) => {
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const username = userId.split("-")[0];
+
+  // Reset image load failed state when avatar URL changes
+  useEffect(() => {
+    setImageLoadFailed(false);
+  }, []);
 
   if (!showHeader) {
     return (
@@ -34,21 +41,15 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
       className={`mr-4 ${isClickable ? "cursor-pointer" : ""}`}
       onClick={onClick}
     >
-      <div
-        className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white relative`}
-      >
-        {avatarUrl ? (
+      <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white relative">
+        {avatarUrl && !imageLoadFailed ? (
           <img
             src={avatarUrl}
             alt={username}
             className="w-8 h-8 rounded-full object-cover"
-            onError={(e) => {
-              // Fallback to initial if image fails to load
-              e.currentTarget.style.display = "none";
-              const parent = e.currentTarget.parentElement;
-              if (parent) {
-                parent.textContent = username.charAt(0).toUpperCase();
-              }
+            onError={() => {
+              // Use React state instead of direct DOM manipulation
+              setImageLoadFailed(true);
             }}
           />
         ) : (

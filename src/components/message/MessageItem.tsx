@@ -1,11 +1,13 @@
 import type React from "react";
-import { mircToHtml } from "../../lib/ircUtils";
+import ircClient from "../../lib/ircClient";
+import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import {
   ActionMessage,
   DateSeparator,
+  EventMessage,
   MessageActions,
   MessageAvatar,
   MessageHeader,
@@ -54,8 +56,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   users,
   onRedactMessage,
 }) => {
-  const { currentUser } = useStore();
-  const isCurrentUser = currentUser?.username === message.userId;
+  const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
+  const isCurrentUser = ircCurrentUser?.username === message.userId;
 
   // Find the user for this message
   const messageUser = users.find(
@@ -66,7 +68,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const userColor = messageUser?.metadata?.color?.value;
   const userStatus = messageUser?.metadata?.status?.value;
   const isSystem = message.type === "system";
-  const isBot = message.tags?.bot === "";
+  const isBot =
+    messageUser?.isBot ||
+    messageUser?.metadata?.bot?.value === "true" ||
+    message.tags?.bot === "";
+  const isVerified = isUserVerified(message.userId, message.tags);
 
   // Check if message redaction is supported and possible
   const server = useStore
@@ -87,6 +93,24 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   // Handle system messages
   if (isSystem) {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
+  }
+
+  // Handle event messages (join, part, quit, nick)
+  if (["join", "part", "quit", "nick"].includes(message.type)) {
+    return (
+      <>
+        {showDate && (
+          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+        )}
+        <EventMessage
+          message={message}
+          messageUser={messageUser}
+          users={users}
+          showDate={showDate}
+          onUsernameContextMenu={onUsernameContextMenu}
+        />
+      </>
+    );
   }
 
   // Handle standard reply messages
@@ -173,7 +197,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   };
 
   const isClickable =
-    message.userId !== "system" && currentUser?.username !== username;
+    message.userId !== "system" && ircCurrentUser?.username !== username;
 
   return (
     <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
@@ -203,6 +227,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               isClickable={isClickable}
               onClick={handleUsernameClick}
               isBot={isBot}
+              isVerified={isVerified}
             />
           )}
 
@@ -223,7 +248,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
           <MessageReactions
             reactions={message.reactions}
-            currentUserUsername={currentUser?.username}
+            currentUserUsername={ircCurrentUser?.username}
             onReactionClick={handleReactionClick}
           />
         </div>

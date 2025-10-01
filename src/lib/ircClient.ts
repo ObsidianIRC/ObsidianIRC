@@ -22,8 +22,8 @@ export interface EventMap {
     oldNick: string;
     newNick: string;
   };
-  QUIT: BaseUserActionEvent & { reason: string };
-  JOIN: BaseUserActionEvent & { channelName: string };
+  QUIT: BaseUserActionEvent & { reason: string; batchTag?: string };
+  JOIN: BaseUserActionEvent & { channelName: string; batchTag?: string };
   PART: BaseUserActionEvent & {
     channelName: string;
     reason?: string;
@@ -38,6 +38,10 @@ export interface EventMap {
     channelName: string;
   };
   USERMSG: BaseMessageEvent;
+  CHANNNOTICE: BaseMessageEvent & {
+    channelName: string;
+  };
+  USERNOTICE: BaseMessageEvent;
   TAGMSG: EventWithTags & {
     sender: string;
     channelName: string;
@@ -64,7 +68,11 @@ export interface EventMap {
   METADATA_UNSUBOK: BaseIRCEvent & { keys: string[] };
   METADATA_SUBS: BaseIRCEvent & { keys: string[] };
   METADATA_SYNCLATER: BaseIRCEvent & { target: string; retryAfter?: number };
-  BATCH_START: BaseIRCEvent & { batchId: string; type: string };
+  BATCH_START: BaseIRCEvent & {
+    batchId: string;
+    type: string;
+    parameters?: string[];
+  };
   BATCH_END: BaseIRCEvent & { batchId: string };
   METADATA_FAIL: BaseIRCEvent & {
     subcommand: string;
@@ -142,6 +150,13 @@ export interface EventMap {
     target: string;
     message: string;
   };
+  NICK_ERROR: {
+    serverId: string;
+    code: string;
+    error: string;
+    nick?: string;
+    message: string;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -151,7 +166,7 @@ export class IRCClient {
   private sockets: Map<string, WebSocket> = new Map();
   private servers: Map<string, Server> = new Map();
   private nicks: Map<string, string> = new Map();
-  private currentUser: User | null = null;
+  private currentUsers: Map<string, User | null> = new Map(); // Per-server current users
   private saslMechanisms: Map<string, string[]> = new Map();
   private capLsAccumulated: Map<string, Set<string>> = new Map();
   private saslEnabled: Map<string, boolean> = new Map();
@@ -216,12 +231,12 @@ export class IRCClient {
       this.servers.set(server.id, server);
       this.sockets.set(server.id, socket);
       this.saslEnabled.set(server.id, !!_saslAccountName);
-      this.currentUser = {
+      this.currentUsers.set(server.id, {
         id: uuidv4(),
         username: nickname,
         isOnline: true,
         status: "online",
-      };
+      });
       this.nicks.set(server.id, nickname);
 
       socket.onopen = () => {
@@ -294,8 +309,8 @@ export class IRCClient {
   sendRaw(serverId: string, command: string): void {
     const socket = this.sockets.get(serverId);
     if (socket && socket.readyState === WebSocket.OPEN) {
-      // Log metadata commands but not sensitive commands
-      if (command.startsWith("METADATA")) {
+      // Log metadata and command-related outgoing messages for debugging
+      if (command.startsWith("METADATA") || command.startsWith("/")) {
         console.log(`[IRC] Sending: ${command}`);
       }
       socket.send(command);
@@ -397,6 +412,10 @@ export class IRCClient {
     this.sendRaw(serverId, `SETNAME :${realname}`);
   }
 
+  changeNick(serverId: string, newNick: string): void {
+    this.sendRaw(serverId, `NICK ${newNick}`);
+  }
+
   // Metadata commands
   metadataGet(serverId: string, target: string, keys: string[]): void {
     const keysStr = keys.join(" ");
@@ -414,11 +433,15 @@ export class IRCClient {
     value?: string,
     visibility?: string,
   ): void {
-    const visibilityStr = visibility ? ` ${visibility}` : "";
+    // Use the provided target. If it's "*" or the current user's nickname, use "*"
+    // Otherwise use the provided target (for channels, other users if admin, etc.)
+    const currentNick = this.getNick(serverId);
+    const actualTarget =
+      target === "*" || target === currentNick ? "*" : target;
     const command =
-      value !== undefined
-        ? `METADATA * SET ${key} :${value}`
-        : `METADATA * SET ${key} :`;
+      value !== undefined && value !== ""
+        ? `METADATA ${actualTarget} SET ${key} :${value}`
+        : `METADATA ${actualTarget} SET ${key}`;
     console.log(`[IRC] Sending metadata SET command: ${command}`);
     this.sendRaw(serverId, command);
   }
@@ -428,8 +451,12 @@ export class IRCClient {
   }
 
   metadataSub(serverId: string, keys: string[]): void {
-    const keysStr = keys.join(" ");
-    this.sendRaw(serverId, `METADATA * SUB ${keysStr}`);
+    // Send individual SUB commands for each key to avoid parsing issues
+    keys.forEach((key) => {
+      const command = `METADATA * SUB ${key}`;
+      console.log(`[IRC] Sending metadata subscription command: ${command}`);
+      this.sendRaw(serverId, command);
+    });
   }
 
   metadataUnsub(serverId: string, keys: string[]): void {
@@ -521,14 +548,23 @@ export class IRCClient {
       } else if (command === "NICK") {
         console.log("triggered nickchange");
         const oldNick = getNickFromNuh(source);
-        const newNick = parv[0];
+        let newNick = parv[0];
+
+        // Remove leading colon if present
+        if (newNick.startsWith(":")) {
+          newNick = newNick.substring(1);
+        }
 
         // We changed our own nick
         if (oldNick === this.nicks.get(serverId)) {
           this.nicks.set(serverId, newNick);
-          // Update current user's username
-          if (this.currentUser) {
-            this.currentUser.username = newNick;
+          // Update current user's username for this server
+          const currentUser = this.currentUsers.get(serverId);
+          if (currentUser) {
+            this.currentUsers.set(serverId, {
+              ...currentUser,
+              username: newNick,
+            });
           }
         }
 
@@ -542,11 +578,21 @@ export class IRCClient {
       } else if (command === "QUIT") {
         const username = getNickFromNuh(source);
         const reason = parv.join(" ");
-        this.triggerEvent("QUIT", { serverId, username, reason });
+        this.triggerEvent("QUIT", {
+          serverId,
+          username,
+          reason,
+          batchTag: mtags?.batch,
+        });
       } else if (command === "JOIN") {
         const username = getNickFromNuh(source);
         const channelName = parv[0][0] === ":" ? parv[0].substring(1) : parv[0];
-        this.triggerEvent("JOIN", { serverId, username, channelName });
+        this.triggerEvent("JOIN", {
+          serverId,
+          username,
+          channelName,
+          batchTag: mtags?.batch,
+        });
       } else if (command === "PART") {
         const username = getNickFromNuh(source);
         const channelName = parv[0];
@@ -593,6 +639,33 @@ export class IRCClient {
           });
         } else {
           this.triggerEvent("USERMSG", {
+            serverId,
+            mtags,
+            sender,
+            message,
+            timestamp: getTimestampFromTags(mtags),
+          });
+        }
+      } else if (command === "NOTICE") {
+        const target = parv[0];
+        const isChannel = target.startsWith("#");
+        const sender = getNickFromNuh(source);
+
+        parv[0] = "";
+        const message = parv.join(" ").trim().substring(1);
+
+        if (isChannel) {
+          const channelName = target;
+          this.triggerEvent("CHANNNOTICE", {
+            serverId,
+            mtags,
+            sender,
+            channelName,
+            message,
+            timestamp: getTimestampFromTags(mtags),
+          });
+        } else {
+          this.triggerEvent("USERNOTICE", {
             serverId,
             mtags,
             sender,
@@ -707,20 +780,47 @@ export class IRCClient {
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
+      } else if (command === "BATCH") {
+        // BATCH +reference-tag type [parameters...] or BATCH -reference-tag
+        const batchRef = parv[0];
+        const isStart = batchRef.startsWith("+");
+        const batchId = batchRef.substring(1); // Remove + or -
+
+        if (isStart) {
+          const batchType = parv[1];
+          const parameters = parv.slice(2);
+          console.log(
+            `[IRC] Starting batch: id=${batchId}, type=${batchType}, params=${parameters.join(" ")}`,
+          );
+          this.triggerEvent("BATCH_START", {
+            serverId,
+            batchId,
+            type: batchType,
+            parameters,
+          });
+        } else {
+          console.log(`[IRC] Ending batch: id=${batchId}`);
+          this.triggerEvent("BATCH_END", {
+            serverId,
+            batchId,
+          });
+        }
       } else if (command === "METADATA") {
         const target = parv[0];
         const key = parv[1];
         const visibility = parv[2];
-        const value = parv.slice(3).join(" ").substring(1); // Remove leading :
+        const value = parv.slice(3).join(" ");
+        // Remove leading : only if it exists
+        const cleanValue = value.startsWith(":") ? value.substring(1) : value;
         console.log(
-          `[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${value}`,
+          `[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${cleanValue}`,
         );
         this.triggerEvent("METADATA", {
           serverId,
           target,
           key,
           visibility,
-          value,
+          value: cleanValue,
         });
       } else if (command === "760") {
         // RPL_WHOISKEYVALUE
@@ -738,18 +838,18 @@ export class IRCClient {
         });
       } else if (command === "761") {
         // RPL_KEYVALUE
-        // RPL_KEYVALUE <Target> <Key> <Visibility> :<Value>
-        // Note: Server sometimes sends target twice, so detect and handle this
-        const target = parv[0];
-        let key = parv[1];
-        let visibility = parv[2];
-        let valueStartIndex = 3;
+        // Format: 761 <recipient> <target> <key> <visibility> :<value>
+        const recipient = parv[0]; // The user receiving this message (usually current user)
+        const target = parv[1]; // The user whose metadata this is
+        let key = parv[2];
+        let visibility = parv[3];
+        let valueStartIndex = 4;
 
-        // If target is duplicated (server bug), skip the duplicate
-        if (parv[0] === parv[1] && parv.length > 4) {
-          key = parv[2];
-          visibility = parv[3];
-          valueStartIndex = 4;
+        // If target is duplicated (server bug), adjust parsing
+        if (parv[1] === parv[2] && parv.length > 5) {
+          key = parv[3];
+          visibility = parv[4];
+          valueStartIndex = 5;
         }
 
         const value = parv.slice(valueStartIndex).join(" ");
@@ -771,18 +871,31 @@ export class IRCClient {
         this.triggerEvent("METADATA_KEYNOTSET", { serverId, target, key });
       } else if (command === "770") {
         // RPL_METADATASUBOK
-        // RPL_METADATASUBOK <Key1> [<Key2> ...]
-        const keys = parv.slice(0);
+        // Format: 770 <target> <key1> [<key2> ...]
+        const target = parv[0];
+        const keys = parv
+          .slice(1)
+          .map((key) => (key.startsWith(":") ? key.substring(1) : key));
+        console.log(
+          `[IRC] Received METADATA_SUBOK for target ${target}, keys:`,
+          keys,
+        );
         this.triggerEvent("METADATA_SUBOK", { serverId, keys });
       } else if (command === "771") {
         // RPL_METADATAUNSUBOK
-        // RPL_METADATAUNSUBOK <Key1> [<Key2> ...]
-        const keys = parv.slice(0);
+        // Format: 771 <target> <key1> [<key2> ...]
+        const target = parv[0];
+        const keys = parv
+          .slice(1)
+          .map((key) => (key.startsWith(":") ? key.substring(1) : key));
         this.triggerEvent("METADATA_UNSUBOK", { serverId, keys });
       } else if (command === "772") {
         // RPL_METADATASUBS
-        // RPL_METADATASUBS <Key1> [<Key2> ...]
-        const keys = parv.slice(0);
+        // Format: 772 <target> <key1> [<key2> ...]
+        const target = parv[0];
+        const keys = parv
+          .slice(1)
+          .map((key) => (key.startsWith(":") ? key.substring(1) : key));
         this.triggerEvent("METADATA_SUBS", { serverId, keys });
       } else if (command === "774") {
         // RPL_METADATASYNCLATER
@@ -795,23 +908,24 @@ export class IRCClient {
           retryAfter,
         });
       } else if (command === "FAIL" && parv[0] === "METADATA") {
+        // FAIL METADATA <subcommand> <code> [<target>] [<key>] [<retryAfter>]
         // ERR_METADATATOOMANY, ERR_METADATATARGETINVALID, ERR_METADATANOACCESS, ERR_METADATANOKEY, ERR_METADATARATELIMITED
-        const subcommand = parv[0];
-        const code = parv[1];
+        const subcommand = parv[1]; // The METADATA subcommand that failed (SUB, SET, etc.)
+        const code = parv[2]; // The error code
         let target: string | undefined;
         let key: string | undefined;
         let retryAfter: number | undefined;
-        if (parv[2]) target = parv[2];
-        if (parv[3]) key = parv[3];
-        if (parv[4] && code === "RATE_LIMITED") {
-          retryAfter = Number.parseInt(parv[4], 10);
+        if (parv[3]) target = parv[3];
+        if (parv[4]) key = parv[4];
+        if (parv[5] && code === "RATE_LIMITED") {
+          retryAfter = Number.parseInt(parv[5], 10);
         }
         console.log(
-          `[IRC] Received METADATA FAIL: subcommand=${parv[1]}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
+          `[IRC] Received METADATA FAIL: subcommand=${subcommand}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}`,
         );
         this.triggerEvent("METADATA_FAIL", {
           serverId,
-          subcommand: parv[1],
+          subcommand,
           code,
           target,
           key,
@@ -862,6 +976,48 @@ export class IRCClient {
         const target = parv[1];
         const message = parv.slice(2).join(" ").substring(1);
         this.triggerEvent("WHOIS_BOT", { serverId, nick, target, message });
+      } else if (command === "431") {
+        // ERR_NONICKNAMEGIVEN: :No nickname given
+        const message = parv.join(" ").substring(1);
+        this.triggerEvent("NICK_ERROR", {
+          serverId,
+          code: "431",
+          error: "No nickname given",
+          message,
+        });
+      } else if (command === "432") {
+        // ERR_ERRONEUSNICKNAME: <nick> :Erroneous nickname
+        const nick = parv[1];
+        const message = parv.slice(2).join(" ").substring(1);
+        this.triggerEvent("NICK_ERROR", {
+          serverId,
+          code: "432",
+          error: "Invalid nickname",
+          nick,
+          message,
+        });
+      } else if (command === "433") {
+        // ERR_NICKNAMEINUSE: <nick> :Nickname is already in use
+        const nick = parv[1];
+        const message = parv.slice(2).join(" ").substring(1);
+        this.triggerEvent("NICK_ERROR", {
+          serverId,
+          code: "433",
+          error: "Nickname already in use",
+          nick,
+          message,
+        });
+      } else if (command === "436") {
+        // ERR_NICKCOLLISION: <nick> :Nickname collision KILL from <user>@<host>
+        const nick = parv[1];
+        const message = parv.slice(2).join(" ").substring(1);
+        this.triggerEvent("NICK_ERROR", {
+          serverId,
+          code: "436",
+          error: "Nickname collision",
+          nick,
+          message,
+        });
       } else if (command === "FAIL") {
         // Standard replies: FAIL <command> <code> <target> :<message>
         const cmd = parv[0];
@@ -985,6 +1141,7 @@ export class IRCClient {
       "draft/metadata-2",
       "draft/message-redaction",
       "draft/account-registration",
+      "batch",
     ];
 
     let accumulated = this.capLsAccumulated.get(serverId);
@@ -1091,8 +1248,10 @@ export class IRCClient {
     return Array.from(this.servers.values());
   }
 
-  getCurrentUser(): User | null {
-    return this.currentUser;
+  getCurrentUser(serverId?: string): User | null {
+    // If no serverId provided, return null (we need server context now)
+    if (!serverId) return null;
+    return this.currentUsers.get(serverId) || null;
   }
 
   getAllUsers(serverId: string): User[] {

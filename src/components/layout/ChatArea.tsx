@@ -2,7 +2,7 @@ import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import type * as React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   FaArrowDown,
@@ -24,6 +24,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
+import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
 import {
@@ -34,6 +35,7 @@ import {
 } from "../../lib/messageFormatter";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
+import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
@@ -111,7 +113,7 @@ export const ChatArea: React.FC<{
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { currentUser } = useStore();
+
   const {
     servers,
     ui: {
@@ -128,6 +130,32 @@ export const ChatArea: React.FC<{
     toggleAddServerModal,
     redactMessage,
   } = useStore();
+
+  // Get the current user for the selected server with metadata from store
+  const currentUser = useMemo(() => {
+    if (!selectedServerId) return null;
+
+    // Get the current user's username from IRCClient
+    const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
+    if (!ircCurrentUser) return null;
+
+    // Find the current user in the server's channel data to get metadata
+    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    if (!selectedServer) return ircCurrentUser;
+
+    // Look for the user in any channel to get their metadata
+    for (const channel of selectedServer.channels) {
+      const userWithMetadata = channel.users.find(
+        (u) => u.username === ircCurrentUser.username,
+      );
+      if (userWithMetadata) {
+        return userWithMetadata;
+      }
+    }
+
+    // If not found in channels, return the basic IRC user
+    return ircCurrentUser;
+  }, [selectedServerId, servers]);
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
@@ -293,10 +321,10 @@ export const ChatArea: React.FC<{
             `PRIVMSG ${selectedChannel ? selectedChannel.name : ""} :\u0001ACTION ${actionMessage}\u0001`,
           );
         } else {
-          ircClient.sendRaw(
-            selectedServerId,
-            `${commandName} :${args.join(" ")}`,
-          );
+          const fullCommand =
+            args.length > 0 ? `${commandName} ${args.join(" ")}` : commandName;
+          console.log(`[IRC] Sending command: ${fullCommand}`);
+          ircClient.sendRaw(selectedServerId, fullCommand);
         }
       } else {
         // Format the message with color and styling
@@ -343,7 +371,11 @@ export const ChatArea: React.FC<{
       }
 
       // Send typing done notification
-      if (selectedChannel?.name || selectedPrivateChat?.username) {
+      const { globalSettings } = useStore.getState();
+      if (
+        globalSettings.sendTypingNotifications &&
+        (selectedChannel?.name || selectedPrivateChat?.username)
+      ) {
         const target = selectedChannel?.name ?? selectedPrivateChat?.username;
         ircClient.sendTyping(
           selectedServerId as string,
@@ -392,18 +424,21 @@ export const ChatArea: React.FC<{
       e.preventDefault();
       handleSendMessage();
       // Send typing done notification
-      if (selectedChannel?.name) {
-        ircClient.sendTyping(
-          selectedServerId ?? "",
-          selectedChannel.name,
-          false,
-        );
-      } else if (selectedPrivateChat?.username) {
-        ircClient.sendTyping(
-          selectedServerId ?? "",
-          selectedPrivateChat.username,
-          false,
-        );
+      const { globalSettings } = useStore.getState();
+      if (globalSettings.sendTypingNotifications) {
+        if (selectedChannel?.name) {
+          ircClient.sendTyping(
+            selectedServerId ?? "",
+            selectedChannel.name,
+            false,
+          );
+        } else if (selectedPrivateChat?.username) {
+          ircClient.sendTyping(
+            selectedServerId ?? "",
+            selectedPrivateChat.username,
+            false,
+          );
+        }
       }
       lastTypingTime = 0;
       return;
@@ -713,6 +748,10 @@ export const ChatArea: React.FC<{
   };
 
   const handleUpdatedText = (text: string) => {
+    // Check if typing notifications are enabled
+    const { globalSettings } = useStore.getState();
+    if (!globalSettings.sendTypingNotifications) return;
+
     if (text.length > 0 && text[0] !== "/") {
       const server = useStore
         .getState()
@@ -994,9 +1033,11 @@ export const ChatArea: React.FC<{
             </button>
             {selectedChannel &&
               (() => {
-                const { currentUser } = useStore.getState();
+                const serverCurrentUser = selectedServerId
+                  ? ircClient.getCurrentUser(selectedServerId)
+                  : null;
                 const channelUser = selectedChannel.users.find(
-                  (u) => u.username === currentUser?.username,
+                  (u) => u.username === serverCurrentUser?.username,
                 );
                 const isOperator =
                   channelUser?.status?.includes("@") ||
@@ -1055,42 +1096,80 @@ export const ChatArea: React.FC<{
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
         >
-          {channelMessages.map((message, index) => {
-            const previousMessage = channelMessages[index - 1];
-            const showHeader =
-              !previousMessage ||
-              previousMessage.userId !== message.userId ||
-              new Date(message.timestamp).getTime() -
-                new Date(previousMessage.timestamp).getTime() >
-                5 * 60 * 1000;
+          {(() => {
+            // Group consecutive events before rendering
+            const eventGroups = groupConsecutiveEvents(channelMessages);
 
-            return (
-              <MessageItem
-                key={message.id}
-                message={message}
-                showDate={
-                  index === 0 ||
-                  new Date(message.timestamp).toDateString() !==
-                    new Date(
-                      channelMessages[index - 1]?.timestamp,
-                    ).toDateString()
-                }
-                showHeader={showHeader}
-                setReplyTo={setLocalReplyTo}
-                onUsernameContextMenu={(e, username, serverId, avatarElement) =>
-                  handleUsernameClick(e, username, serverId, avatarElement)
-                }
-                onIrcLinkClick={handleIrcLinkClick}
-                onReactClick={handleReactClick}
-                selectedServerId={selectedServerId}
-                onReactionUnreact={handleReactionUnreact}
-                onOpenReactionModal={handleOpenReactionModal}
-                onDirectReaction={handleDirectReaction}
-                users={selectedChannel?.users || []}
-                onRedactMessage={handleRedactMessage}
-              />
-            );
-          })}
+            return eventGroups.map((group) => {
+              if (group.type === "eventGroup") {
+                // Create a stable key from the first and last message IDs in the group
+                const firstId = group.messages[0]?.id || "";
+                const lastId =
+                  group.messages[group.messages.length - 1]?.id || "";
+                const groupKey = `group-${firstId}-${lastId}`;
+
+                return (
+                  <CollapsedEventMessage
+                    key={groupKey}
+                    eventGroup={group}
+                    users={selectedChannel?.users || []}
+                    onUsernameContextMenu={(
+                      e,
+                      username,
+                      serverId,
+                      avatarElement,
+                    ) =>
+                      handleUsernameClick(e, username, serverId, avatarElement)
+                    }
+                  />
+                );
+              }
+              // Single message - find its original index for date/header logic
+              const message = group.messages[0];
+              const originalIndex = channelMessages.findIndex(
+                (m) => m.id === message.id,
+              );
+              const previousMessage = channelMessages[originalIndex - 1];
+              const showHeader =
+                !previousMessage ||
+                previousMessage.userId !== message.userId ||
+                new Date(message.timestamp).getTime() -
+                  new Date(previousMessage.timestamp).getTime() >
+                  5 * 60 * 1000;
+
+              return (
+                <MessageItem
+                  key={message.id}
+                  message={message}
+                  showDate={
+                    originalIndex === 0 ||
+                    new Date(message.timestamp).toDateString() !==
+                      new Date(
+                        channelMessages[originalIndex - 1]?.timestamp,
+                      ).toDateString()
+                  }
+                  showHeader={showHeader}
+                  setReplyTo={setLocalReplyTo}
+                  onUsernameContextMenu={(
+                    e,
+                    username,
+                    serverId,
+                    avatarElement,
+                  ) =>
+                    handleUsernameClick(e, username, serverId, avatarElement)
+                  }
+                  onIrcLinkClick={handleIrcLinkClick}
+                  onReactClick={handleReactClick}
+                  selectedServerId={selectedServerId}
+                  onReactionUnreact={handleReactionUnreact}
+                  onOpenReactionModal={handleOpenReactionModal}
+                  onDirectReaction={handleDirectReaction}
+                  users={selectedChannel?.users || []}
+                  onRedactMessage={handleRedactMessage}
+                />
+              );
+            });
+          })()}
 
           <div ref={messagesEndRef} />
         </div>
