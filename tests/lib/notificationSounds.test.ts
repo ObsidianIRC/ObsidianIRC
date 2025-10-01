@@ -41,8 +41,18 @@ describe("notificationSounds", () => {
   beforeEach(() => {
     // Mock globals
     global.window = global.window || {};
-    (global.window as unknown as { AudioContext: unknown; webkitAudioContext: unknown }).AudioContext = vi.fn(() => mockAudioContext);
-    (global.window as unknown as { AudioContext: unknown; webkitAudioContext: unknown }).webkitAudioContext = vi.fn(() => mockAudioContext);
+    (
+      global.window as unknown as {
+        AudioContext: unknown;
+        webkitAudioContext: unknown;
+      }
+    ).AudioContext = vi.fn(() => mockAudioContext);
+    (
+      global.window as unknown as {
+        AudioContext: unknown;
+        webkitAudioContext: unknown;
+      }
+    ).webkitAudioContext = vi.fn(() => mockAudioContext);
     (global as unknown as { Audio: unknown }).Audio = vi.fn(() => mockAudio);
     (global as unknown as { URL: unknown }).URL = mockURL;
 
@@ -118,7 +128,11 @@ describe("notificationSounds", () => {
     const mockCurrentUser = { username: "testuser" };
 
     it("should return false if notification sounds are disabled", () => {
-      const message = { userId: "otheruser", content: "Hello testuser!", type: "message" };
+      const message = {
+        userId: "otheruser",
+        content: "Hello testuser!",
+        type: "message",
+      };
       const globalSettings = {
         enableNotificationSounds: false,
         enableHighlights: true,
@@ -134,7 +148,11 @@ describe("notificationSounds", () => {
     });
 
     it("should return false for messages from current user", () => {
-      const message = { userId: "testuser", content: "Hello everyone!", type: "message" };
+      const message = {
+        userId: "testuser",
+        content: "Hello everyone!",
+        type: "message",
+      };
       const globalSettings = {
         enableNotificationSounds: true,
         enableHighlights: true,
@@ -150,7 +168,11 @@ describe("notificationSounds", () => {
     });
 
     it("should return true for mentions when highlights are enabled", () => {
-      const message = { userId: "otheruser", content: "Hello testuser!", type: "message" };
+      const message = {
+        userId: "otheruser",
+        content: "Hello testuser!",
+        type: "message",
+      };
       const globalSettings = {
         enableNotificationSounds: true,
         enableHighlights: true,
@@ -166,7 +188,11 @@ describe("notificationSounds", () => {
     });
 
     it("should return false for non-mentions when highlights are enabled", () => {
-      const message = { userId: "otheruser", content: "Hello everyone!", type: "message" };
+      const message = {
+        userId: "otheruser",
+        content: "Hello everyone!",
+        type: "message",
+      };
       const globalSettings = {
         enableNotificationSounds: true,
         enableHighlights: true,
@@ -182,7 +208,11 @@ describe("notificationSounds", () => {
     });
 
     it("should return true for all messages when highlights are disabled", () => {
-      const message = { userId: "otheruser", content: "Hello everyone!", type: "message" };
+      const message = {
+        userId: "otheruser",
+        content: "Hello everyone!",
+        type: "message",
+      };
       const globalSettings = {
         enableNotificationSounds: true,
         enableHighlights: false,
@@ -198,7 +228,11 @@ describe("notificationSounds", () => {
     });
 
     it("should detect mentions case-insensitively", () => {
-      const message = { userId: "otheruser", content: "Hello TESTUSER!", type: "message" };
+      const message = {
+        userId: "otheruser",
+        content: "Hello TESTUSER!",
+        type: "message",
+      };
       const globalSettings = {
         enableNotificationSounds: true,
         enableHighlights: true,
@@ -214,7 +248,11 @@ describe("notificationSounds", () => {
     });
 
     it("should handle null current user gracefully", () => {
-      const message = { userId: "otheruser", content: "Hello everyone!", type: "message" };
+      const message = {
+        userId: "otheruser",
+        content: "Hello everyone!",
+        type: "message",
+      };
       const globalSettings = {
         enableNotificationSounds: true,
         enableHighlights: true,

@@ -276,13 +276,7 @@ export interface AppState {
       }[];
     }
   >; // batchId -> batch info
-  activeBatches: Record<
-    string,
-    Record<
-      string,
-      BatchInfo
-    >
-  >; // serverId -> batchId -> batch info
+  activeBatches: Record<string, Record<string, BatchInfo>>; // serverId -> batchId -> batch info
   // Account registration state
   pendingRegistration: {
     serverId: string;
@@ -3610,7 +3604,11 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
 });
 
 // Helper function to process netsplit batches
-function processBatchedNetsplit(serverId: string, batchId: string, batch: BatchInfo) {
+function processBatchedNetsplit(
+  serverId: string,
+  batchId: string,
+  batch: BatchInfo,
+) {
   const store = useStore.getState();
   const batch_info = store.activeBatches[serverId]?.[batchId];
   if (!batch_info) return;
@@ -3681,7 +3679,11 @@ function processBatchedNetsplit(serverId: string, batchId: string, batch: BatchI
 }
 
 // Helper function to process netjoin batches
-function processBatchedNetjoin(serverId: string, batchId: string, batch: BatchInfo) {
+function processBatchedNetjoin(
+  serverId: string,
+  batchId: string,
+  batch: BatchInfo,
+) {
   const store = useStore.getState();
   const batch_info = store.activeBatches[serverId]?.[batchId];
   if (!batch_info) return;
