@@ -1759,6 +1759,8 @@ ircClient.on("USERNOTICE", (response) => {
 });
 
 ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
+  console.log(`[DEBUG] JOIN event: ${username} joined ${channelName} on server ${serverId}`);
+  
   // If this event is part of a batch, store it for later processing
   if (batchTag) {
     const state = useStore.getState();
@@ -1847,9 +1849,14 @@ ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
 
   // If we joined a channel, request channel information
   const ourNick = ircClient.getNick(serverId);
+  console.log(`[DEBUG] Our nick: "${ourNick}", joining user: "${username}"`);
   if (username === ourNick) {
-    // Only request topic - user list comes from WHO responses
+    console.log(`[DEBUG] We joined channel ${channelName}, requesting TOPIC and WHO`);
+    // Request topic and user list
     ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
+    ircClient.sendRaw(serverId, `WHO ${channelName}`);
+  } else {
+    console.log(`[DEBUG] Someone else joined: ${username} !== ${ourNick}`);
   }
 
   // Add join message if settings allow
@@ -2710,15 +2717,17 @@ ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
 // Nick error event handler
 ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
   console.log(`[NICK_ERROR] ${code} ${error}: ${message}`);
-  
+
   // Handle 433 (nickname already in use) with automatic retry
   if (code === "433" && nick) {
-    const newNick = nick + "_";
-    console.log(`Nickname '${nick}' already in use, retrying with '${newNick}'`);
-    
+    const newNick = `${nick}_`;
+    console.log(
+      `Nickname '${nick}' already in use, retrying with '${newNick}'`,
+    );
+
     // Attempt to change to the nick with underscore appended
     ircClient.changeNick(serverId, newNick);
-    
+
     // Add a system message about the retry
     const state = useStore.getState();
     const server = state.servers.find((s) => s.id === serverId);
@@ -2749,11 +2758,11 @@ ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
         }));
       }
     }
-    
+
     // Don't show error notification for 433 since we're auto-retrying
     return;
   }
-  
+
   // Add to global notifications for visibility (for other error codes)
   const state = useStore.getState();
   state.addGlobalNotification({
@@ -3461,13 +3470,18 @@ ircClient.on(
     hopcount,
     realname,
   }) => {
+    console.log(`[DEBUG] WHO_REPLY received: ${nick} in ${channel} on server ${serverId}`);
     const state = useStore.getState();
     const serverData = state.servers.find((s) => s.id === serverId);
     if (!serverData) return;
 
     // Find the channel this WHO reply belongs to
     const channelData = serverData.channels.find((c) => c.name === channel);
-    if (!channelData) return;
+    if (!channelData) {
+      console.log(`[DEBUG] Channel ${channel} not found for WHO_REPLY on server ${serverId}`);
+      return;
+    }
+    console.log(`[DEBUG] Found channel ${channel} for WHO_REPLY, adding user ${nick}`);
 
     // Create user object from WHO data with proper User type
     const user: User = {

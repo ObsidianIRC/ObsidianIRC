@@ -543,7 +543,12 @@ export class IRCClient {
         console.log(`PONG sent to server ${serverId} with key ${key}`);
       } else if (command === "001") {
         const serverName = source;
-        const nickname = parv.join(" ");
+        const nickname = parv[0]; // Our actual nick as assigned by the server
+        
+        // Update our stored nick to match what the server assigned us
+        this.nicks.set(serverId, nickname);
+        console.log(`[DEBUG] 001 received: Server assigned us nick "${nickname}"`);
+        
         this.triggerEvent("ready", { serverId, serverName, nickname });
       } else if (command === "NICK") {
         console.log("triggered nickchange");
