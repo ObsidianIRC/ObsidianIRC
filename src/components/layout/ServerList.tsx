@@ -28,7 +28,7 @@ export const ServerList: React.FC = () => {
       <div className="md:hidden w-full bg-yellow-500 text-black text-center text-xs py-1">
         ServerList Active
       </div>
-      
+
       {/* Home button - in Discord this would be DMs */}
       <div
         className={`

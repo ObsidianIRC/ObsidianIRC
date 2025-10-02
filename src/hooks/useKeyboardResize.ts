@@ -5,9 +5,11 @@ import { useEffect } from "react";
 export const useKeyboardResize = () => {
   useEffect(() => {
     // Check if we're on a mobile device
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                    window.innerWidth <= 768;
-    
+    const isMobile =
+      /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      ) || window.innerWidth <= 768;
+
     // Only apply this for mobile platforms, but be more permissive than just Tauri
     if (!isMobile) {
       return;
@@ -22,7 +24,10 @@ export const useKeyboardResize = () => {
         }
       } catch (error) {
         // If platform() fails, continue anyway on mobile devices
-        console.warn("Failed to detect platform, continuing with keyboard handling:", error);
+        console.warn(
+          "Failed to detect platform, continuing with keyboard handling:",
+          error,
+        );
       }
     }
 

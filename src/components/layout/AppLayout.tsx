@@ -69,7 +69,9 @@ export const AppLayout: React.FC = () => {
         return (
           <>
             {__HIDE_SERVER_LIST__ ? null : (
-              <div className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${isNarrowView ? 'w-full' : 'w-[72px]'}`}>
+              <div
+                className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${isNarrowView ? "w-full" : "w-[72px]"}`}
+              >
                 <ServerList />
               </div>
             )}
