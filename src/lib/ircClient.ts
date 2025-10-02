@@ -1566,6 +1566,7 @@ export class IRCClient {
       "draft/account-registration",
       "batch",
       "draft/multiline",
+      "znc.in/playback",
     ];
 
     let accumulated = this.capLsAccumulated.get(serverId);
