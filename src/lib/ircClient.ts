@@ -756,8 +756,8 @@ export class IRCClient {
         const isChannel = target.startsWith("#");
         const sender = getNickFromNuh(source);
 
-        parv[0] = "";
-        const message = parv.join(" ").trim().substring(1);
+        // The message content is now properly parsed as the trailing parameter
+        const message = trailing || parv.slice(1).join(" ");
 
         if (isChannel) {
           const channelName = target;

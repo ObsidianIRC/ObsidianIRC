@@ -33,6 +33,7 @@ body {
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
+  --keyboard-height: 0px;
 }
 
 .dark {
@@ -60,4 +61,32 @@ body {
   --chart-3: 30 80% 55%;
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
+}
+
+/* Mobile keyboard handling */
+@media (max-width: 768px) {
+  body {
+    overflow: hidden;
+  }
+  
+  #root {
+    height: 100vh;
+    height: calc(100vh - var(--keyboard-height, 0px));
+    transition: height 0.2s ease-in-out;
+  }
+  
+  /* Ensure proper viewport handling on mobile */
+  html, body {
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* Ensure chat layout adjusts properly to keyboard */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific adjustments */
+  #root {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
 }
