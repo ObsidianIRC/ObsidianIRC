@@ -3891,15 +3891,6 @@ ircClient.on(
       return { servers: updatedServers };
     });
 
-    // Request metadata for the user (except current user) is not needed since we have subscriptions
-    // The metadata subscription (SUB) will automatically send us updates when metadata changes
-    // Commenting out to reduce server load and batch spam
-    // const currentUser = ircClient.getCurrentUser(serverId);
-    // if (currentUser && user.username !== currentUser.username) {
-    //   setTimeout(() => {
-    //     useStore.getState().metadataList(serverId, user.username);
-    //   }, 100);
-    // }
   },
 );
 
