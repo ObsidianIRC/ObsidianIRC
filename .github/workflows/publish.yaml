@@ -6,10 +6,11 @@ on:
       - main
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 jobs:
   collect-version:
-    if: github.ref_name == 'main' || github.ref_type == 'tag'
+    if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
