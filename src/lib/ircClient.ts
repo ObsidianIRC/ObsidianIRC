@@ -74,6 +74,11 @@ export interface EventMap {
     parameters?: string[];
   };
   BATCH_END: BaseIRCEvent & { batchId: string };
+  MULTILINE_MESSAGE: BaseMessageEvent & {
+    channelName?: string;
+    lines: string[];
+    messageIds: string[]; // All message IDs that make up this multiline message
+  };
   METADATA_FAIL: BaseIRCEvent & {
     subcommand: string;
     code: string;
@@ -157,6 +162,11 @@ export interface EventMap {
     nick?: string;
     message: string;
   };
+  CHATHISTORY_LOADING: {
+    serverId: string;
+    channelName: string;
+    isLoading: boolean;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -174,6 +184,21 @@ export class IRCClient {
     new Map();
   private pendingConnections: Map<string, Promise<Server>> = new Map();
   private pendingCapReqs: Map<string, number> = new Map(); // Track how many CAP REQ batches are pending ACK
+  private activeBatches: Map<
+    string,
+    Map<
+      string,
+      {
+        type: string;
+        parameters?: string[];
+        messages: string[];
+        concatFlags?: boolean[];
+        sender?: string;
+        messageIds?: string[];
+        batchMsgId?: string;
+      }
+    >
+  > = new Map(); // Track active batches per server
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
@@ -363,8 +388,17 @@ export class IRCClient {
         isMentioned: false,
         messages: [],
         users: [],
+        isLoadingHistory: true, // Start in loading state
       };
       server.channels.push(channel);
+
+      // Trigger event to notify store that history loading started
+      this.triggerEvent("CHATHISTORY_LOADING", {
+        serverId,
+        channelName,
+        isLoading: true,
+      });
+
       return channel;
     }
     throw new Error(`Server with ID ${serverId} not found`);
@@ -383,7 +417,74 @@ export class IRCClient {
     if (!server) throw new Error(`Server ${serverId} not found`);
     const channel = server.channels.find((c) => c.id === channelId);
     if (!channel) throw new Error(`Channel ${channelId} not found`);
-    this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
+
+    // Check if server supports multiline and message has newlines
+    // Note: We'll check server capabilities from the store later via helper function
+    const lines = content.split("\n");
+
+    if (lines.length > 1) {
+      // For now, send multiline if there are multiple lines
+      // Server capability check will be done by the calling code
+      this.sendMultilineMessage(serverId, channel.name, lines);
+    } else {
+      // Send as regular single message
+      this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
+    }
+  }
+
+  sendMultilineMessage(
+    serverId: string,
+    target: string,
+    lines: string[],
+  ): void {
+    const batchId = `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Start multiline batch
+    this.sendRaw(serverId, `BATCH +${batchId} draft/multiline ${target}`);
+
+    // Send each line as a separate PRIVMSG with batch tag
+    // Handle long lines by splitting them if needed
+    for (const line of lines) {
+      const splitLines = this.splitLongLine(line);
+      for (const splitLine of splitLines) {
+        this.sendRaw(
+          serverId,
+          `@batch=${batchId} PRIVMSG ${target} :${splitLine}`,
+        );
+      }
+    }
+
+    // End batch
+    this.sendRaw(serverId, `BATCH -${batchId}`);
+  }
+
+  // Split long lines to respect IRC message length limits (512 bytes)
+  private splitLongLine(text: string, maxLength = 450): string[] {
+    if (!text) return [""];
+
+    // Account for IRC overhead (PRIVMSG + target + formatting)
+    // Conservative limit to account for formatting codes and IRC overhead
+    const lines: string[] = [];
+    let remaining = text;
+
+    while (remaining.length > maxLength) {
+      // Try to split at word boundaries
+      let splitIndex = maxLength;
+      const lastSpace = remaining.lastIndexOf(" ", maxLength);
+      if (lastSpace > maxLength * 0.7) {
+        // Don't split too early
+        splitIndex = lastSpace;
+      }
+
+      lines.push(remaining.substring(0, splitIndex));
+      remaining = remaining.substring(splitIndex).trim();
+    }
+
+    if (remaining) {
+      lines.push(remaining);
+    }
+
+    return lines.length > 0 ? lines : [""];
   }
 
   sendTyping(serverId: string, target: string, isActive: boolean): void {
@@ -732,6 +833,56 @@ export class IRCClient {
         // Message content is in parv[1] and onwards after target
         const message = parv.slice(1).join(" ");
 
+        // Check if this message is part of a multiline batch
+        const batchId = mtags?.batch;
+        if (batchId) {
+          const serverBatches = this.activeBatches.get(serverId);
+          const batch = serverBatches?.get(batchId);
+          if (
+            batch &&
+            (batch.type === "multiline" || batch.type === "draft/multiline")
+          ) {
+            // Add this message line to the batch
+            batch.messages.push(message);
+
+            console.log(
+              `[IRC] Adding message to batch ${batchId}: mtags=`,
+              mtags,
+              `msgid=${mtags?.msgid}`,
+            );
+
+            // Store sender from the first message
+            if (!batch.sender) {
+              batch.sender = sender;
+            }
+
+            // Track message IDs for redaction
+            if (!batch.messageIds) {
+              batch.messageIds = [];
+            }
+            if (mtags?.msgid) {
+              batch.messageIds.push(mtags.msgid);
+              console.log(
+                `[IRC] Added msgid ${mtags.msgid} to batch ${batchId}`,
+              );
+            } else {
+              console.log(
+                `[IRC] No msgid found for message in batch ${batchId}`,
+              );
+            }
+
+            // Track if this message has the concat flag
+            if (!batch.concatFlags) {
+              batch.concatFlags = [];
+            }
+            const hasMultilineConcat =
+              mtags && mtags["draft/multiline-concat"] !== undefined;
+            batch.concatFlags.push(!!hasMultilineConcat);
+
+            return; // Don't trigger individual message event, wait for batch completion
+          }
+        }
+
         if (isChannel) {
           const channelName = target;
           this.triggerEvent("CHANMSG", {
@@ -937,6 +1088,20 @@ export class IRCClient {
           console.log(
             `[IRC] Starting batch: id=${batchId}, type=${batchType}, params=${parameters.join(" ")}`,
           );
+
+          // Initialize batch tracking for this server if not exists
+          if (!this.activeBatches.has(serverId)) {
+            this.activeBatches.set(serverId, new Map());
+          }
+
+          // Track this batch
+          this.activeBatches.get(serverId)?.set(batchId, {
+            type: batchType,
+            parameters,
+            messages: [],
+            batchMsgId: mtags?.msgid, // Store the msgid from the BATCH command itself
+          });
+
           this.triggerEvent("BATCH_START", {
             serverId,
             batchId,
@@ -945,6 +1110,69 @@ export class IRCClient {
           });
         } else {
           console.log(`[IRC] Ending batch: id=${batchId}`);
+
+          // Process completed batch
+          const serverBatches = this.activeBatches.get(serverId);
+          const batch = serverBatches?.get(batchId);
+
+          if (
+            batch &&
+            (batch.type === "multiline" || batch.type === "draft/multiline")
+          ) {
+            // Handle completed multiline batch
+            // For multiline batches, parameters[0] is the target, sender comes from the PRIVMSG lines
+            const target =
+              batch.parameters && batch.parameters.length > 0
+                ? batch.parameters[0]
+                : "";
+            const sender = batch.sender || "unknown";
+
+            console.log(
+              `[IRC] Processing multiline batch: target=${target}, sender=${sender}, messages=${batch.messages.length}`,
+            );
+
+            // Combine messages, handling draft/multiline-concat tags
+            let combinedMessage = "";
+            batch.messages.forEach((message, index) => {
+              const wasConcat = batch.concatFlags?.[index];
+              console.log(
+                `[IRC] Message ${index}: concat=${wasConcat}, content="${message}"`,
+              );
+
+              if (index === 0) {
+                combinedMessage = message;
+              } else {
+                // Check if this message was tagged with draft/multiline-concat
+                if (wasConcat) {
+                  // Concatenate directly without separator
+                  console.log("[IRC] Concatenating without separator");
+                  combinedMessage += message;
+                } else {
+                  // Join with newline (normal multiline)
+                  console.log("[IRC] Adding newline separator");
+                  combinedMessage += `\n${message}`;
+                }
+              }
+            });
+
+            console.log(
+              `[IRC] Triggering MULTILINE_MESSAGE for batch ${batchId}, combined message length: ${combinedMessage.length}, batchMsgId: ${batch.batchMsgId}`,
+            );
+            this.triggerEvent("MULTILINE_MESSAGE", {
+              serverId,
+              mtags: batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined, // Use the msgid from the BATCH command
+              sender,
+              channelName: target.startsWith("#") ? target : undefined,
+              message: combinedMessage,
+              lines: batch.messages,
+              messageIds: batch.messageIds || [],
+              timestamp: getTimestampFromTags(mtags),
+            });
+          }
+
+          // Clean up batch tracking
+          serverBatches?.delete(batchId);
+
           this.triggerEvent("BATCH_END", {
             serverId,
             batchId,
@@ -1337,6 +1565,7 @@ export class IRCClient {
       "draft/message-redaction",
       "draft/account-registration",
       "batch",
+      "draft/multiline",
     ];
 
     let accumulated = this.capLsAccumulated.get(serverId);

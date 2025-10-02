@@ -75,9 +75,13 @@ describe("App", () => {
         showJoinsParts: true,
         showQuits: true,
         customMentions: [],
+        ignoreList: ["HistServ!*@*"],
         nickname: "",
         accountName: "",
         accountPassword: "",
+        enableMultilineInput: true,
+        multilineOnShiftEnter: true,
+        autoFallbackToSingleLine: true,
       },
     });
   });

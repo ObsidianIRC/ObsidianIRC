@@ -13,6 +13,7 @@ import {
   FaUpload,
   FaUser,
 } from "react-icons/fa";
+import { isValidIgnorePattern } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
 import useStore, { serverSupportsMetadata } from "../../store";
 
@@ -108,6 +109,123 @@ const CustomMentionsList: React.FC<{
   );
 };
 
+// Component for managing ignore list
+const IgnoreList: React.FC<{
+  ignoreList: string[];
+  addToIgnoreList: (pattern: string) => void;
+  removeFromIgnoreList: (pattern: string) => void;
+}> = ({ ignoreList, addToIgnoreList, removeFromIgnoreList }) => {
+  const [newPattern, setNewPattern] = useState("");
+  const [validationError, setValidationError] = useState("");
+
+  const handleAddPattern = () => {
+    const trimmed = newPattern.trim();
+    if (!trimmed) {
+      setValidationError("Pattern cannot be empty");
+      return;
+    }
+
+    if (!isValidIgnorePattern(trimmed)) {
+      setValidationError(
+        "Invalid pattern format. Use nick!user@host format (wildcards * allowed)",
+      );
+      return;
+    }
+
+    if (ignoreList.includes(trimmed)) {
+      setValidationError("Pattern already exists");
+      return;
+    }
+
+    addToIgnoreList(trimmed);
+    setNewPattern("");
+    setValidationError("");
+  };
+
+  const handleRemovePattern = (pattern: string) => {
+    removeFromIgnoreList(pattern);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleAddPattern();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPattern(e.target.value);
+    setValidationError(""); // Clear error when user types
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <div className="flex space-x-2">
+          <input
+            type="text"
+            value={newPattern}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            placeholder="nick!user@host (e.g., spam*!*@*, *!*@badhost.com)"
+            className={`flex-1 rounded border px-3 py-2 text-discord-text-normal placeholder-discord-text-muted focus:outline-none ${
+              validationError
+                ? "border-red-500 bg-red-900/20 focus:border-red-400"
+                : "border-discord-button-secondary-default bg-discord-input-bg focus:border-discord-text-link"
+            }`}
+          />
+          <button
+            type="button"
+            onClick={handleAddPattern}
+            className="rounded bg-discord-button-success-default px-4 py-2 text-white hover:bg-discord-button-success-hover"
+          >
+            Add
+          </button>
+        </div>
+        {validationError && (
+          <p className="text-red-400 text-xs">{validationError}</p>
+        )}
+        <p className="text-discord-text-muted text-xs">
+          Use * for wildcards. Examples: baduser!*@*, *!*@spammer.com,
+          nick123!user@host.net
+        </p>
+      </div>
+      {ignoreList.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-discord-text-muted text-sm">
+            {ignoreList.length} ignored pattern
+            {ignoreList.length !== 1 ? "s" : ""}:
+          </p>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {ignoreList.map((pattern) => (
+              <div
+                key={pattern}
+                className="flex items-center justify-between bg-discord-dark-400 rounded px-3 py-2"
+              >
+                <code className="text-discord-text-normal text-sm font-mono">
+                  {pattern}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => handleRemovePattern(pattern)}
+                  className="ml-2 text-discord-text-muted hover:text-red-400 transition-colors"
+                  title="Remove pattern"
+                >
+                  <FaTimes size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {ignoreList.length === 0 && (
+        <p className="text-discord-text-muted text-sm italic">
+          No users ignored
+        </p>
+      )}
+    </div>
+  );
+};
+
 const UserSettings: React.FC = React.memo(() => {
   const {
     toggleUserProfileModal,
@@ -126,12 +244,18 @@ const UserSettings: React.FC = React.memo(() => {
       accountName: globalAccountName,
       accountPassword: globalAccountPassword,
       customMentions: globalCustomMentions,
+      ignoreList: globalIgnoreList,
       showEvents: globalShowEvents,
       showNickChanges: globalShowNickChanges,
       showJoinsParts: globalShowJoinsParts,
       showQuits: globalShowQuits,
+      enableMultilineInput: globalEnableMultilineInput,
+      multilineOnShiftEnter: globalMultilineOnShiftEnter,
+      autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
     },
     updateGlobalSettings,
+    addToIgnoreList,
+    removeFromIgnoreList,
   } = useStore();
 
   // Memoize the current server and metadata support to prevent unnecessary re-renders
@@ -1027,6 +1151,76 @@ const UserSettings: React.FC = React.memo(() => {
             Send typing indicators
           </span>
         </label>
+      </SettingField>
+
+      <SettingField
+        label="Multiline Messages"
+        description="Configure how multiline messages are handled"
+      >
+        <div className="space-y-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={globalEnableMultilineInput}
+              onChange={(e) =>
+                updateGlobalSettings({ enableMultilineInput: e.target.checked })
+              }
+              className="mr-3 accent-discord-primary"
+            />
+            <span className="text-discord-text-normal">
+              Enable multiline input (Shift+Enter for new line)
+            </span>
+          </label>
+
+          {globalEnableMultilineInput && (
+            <div className="ml-6 space-y-3 bg-discord-dark-400 p-4 rounded">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={globalMultilineOnShiftEnter}
+                  onChange={(e) =>
+                    updateGlobalSettings({
+                      multilineOnShiftEnter: e.target.checked,
+                    })
+                  }
+                  className="mr-3 accent-discord-primary"
+                />
+                <span className="text-discord-text-muted">
+                  Require Shift+Enter for new lines (uncheck to always allow
+                  Enter for new lines)
+                </span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={globalAutoFallbackToSingleLine}
+                  onChange={(e) =>
+                    updateGlobalSettings({
+                      autoFallbackToSingleLine: e.target.checked,
+                    })
+                  }
+                  className="mr-3 accent-discord-primary"
+                />
+                <span className="text-discord-text-muted">
+                  Auto-concatenate multiline messages when server doesn't
+                  support multiline
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
+      </SettingField>
+
+      <SettingField
+        label="Ignore List"
+        description="Users matching these patterns will have their messages hidden"
+      >
+        <IgnoreList
+          ignoreList={globalIgnoreList}
+          addToIgnoreList={addToIgnoreList}
+          removeFromIgnoreList={removeFromIgnoreList}
+        />
       </SettingField>
 
       <SettingField

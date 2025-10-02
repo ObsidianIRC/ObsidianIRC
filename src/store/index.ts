@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
+import { isUserIgnored } from "../lib/ignoreUtils";
 import ircClient from "../lib/ircClient";
 import {
   playNotificationSound,
@@ -122,7 +123,19 @@ function serverSupportsMetadata(serverId: string): boolean {
   return supports;
 }
 
-export { serverSupportsMetadata };
+// Check if a server supports multiline
+function serverSupportsMultiline(serverId: string): boolean {
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  const supports = server?.capabilities?.includes("draft/multiline") ?? false;
+  console.log(
+    `[SERVER_CAPS] Server ${serverId} supports draft/multiline:`,
+    supports,
+  );
+  return supports;
+}
+
+export { serverSupportsMetadata, serverSupportsMultiline };
 
 function saveServersToLocalStorage(servers: ServerConfig[]) {
   localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
@@ -233,10 +246,16 @@ interface GlobalSettings {
   showQuits: boolean;
   // Custom mentions
   customMentions: string[];
+  // Ignore list
+  ignoreList: string[];
   // Hosted chat mode settings
   nickname: string;
   accountName: string;
   accountPassword: string;
+  // Multiline settings
+  enableMultilineInput: boolean;
+  multilineOnShiftEnter: boolean;
+  autoFallbackToSingleLine: boolean;
 }
 
 export interface AppState {
@@ -382,6 +401,9 @@ export interface AppState {
   setMobileViewActiveColumn: (column: layoutColumn) => void;
   // Settings actions
   updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
+  // Ignore list actions
+  addToIgnoreList: (pattern: string) => void;
+  removeFromIgnoreList: (pattern: string) => void;
   // Metadata actions
   metadataGet: (serverId: string, target: string, keys: string[]) => void;
   metadataList: (serverId: string, target: string) => void;
@@ -455,10 +477,16 @@ const useStore = create<AppState>((set, get) => ({
     showQuits: true,
     // Custom mentions
     customMentions: [],
+    // Ignore list
+    ignoreList: ["HistServ!*@*"],
     // Hosted chat mode settings
     nickname: "",
     accountName: "",
     accountPassword: "",
+    // Multiline settings
+    enableMultilineInput: true,
+    multilineOnShiftEnter: true,
+    autoFallbackToSingleLine: true,
     ...loadSavedGlobalSettings(), // Load saved settings from localStorage
   },
 
@@ -1288,6 +1316,54 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
+  // Ignore list actions
+  addToIgnoreList: (pattern: string) => {
+    set((state) => {
+      const trimmedPattern = pattern.trim();
+      if (
+        !trimmedPattern ||
+        state.globalSettings.ignoreList.includes(trimmedPattern)
+      ) {
+        return state;
+      }
+
+      const newIgnoreList = [
+        ...state.globalSettings.ignoreList,
+        trimmedPattern,
+      ];
+      const newGlobalSettings = {
+        ...state.globalSettings,
+        ignoreList: newIgnoreList,
+      };
+
+      // Save to localStorage
+      saveGlobalSettingsToLocalStorage(newGlobalSettings);
+
+      return {
+        globalSettings: newGlobalSettings,
+      };
+    });
+  },
+
+  removeFromIgnoreList: (pattern: string) => {
+    set((state) => {
+      const newIgnoreList = state.globalSettings.ignoreList.filter(
+        (p) => p !== pattern,
+      );
+      const newGlobalSettings = {
+        ...state.globalSettings,
+        ignoreList: newIgnoreList,
+      };
+
+      // Save to localStorage
+      saveGlobalSettingsToLocalStorage(newGlobalSettings);
+
+      return {
+        globalSettings: newGlobalSettings,
+      };
+    });
+  },
+
   // Metadata actions
   metadataGet: (serverId, target, keys) => {
     if (serverSupportsMetadata(serverId)) {
@@ -1401,6 +1477,23 @@ registerAllProtocolHandlers(ircClient, useStore);
 ircClient.on("CHANMSG", (response) => {
   const { mtags, channelName, message, timestamp } = response;
 
+  // Check if sender is ignored
+  const globalSettings = useStore.getState().globalSettings;
+  if (
+    isUserIgnored(
+      response.sender,
+      undefined,
+      undefined,
+      globalSettings.ignoreList,
+    )
+  ) {
+    // User is ignored, skip processing this message
+    console.log(
+      `[IGNORE] Skipping message from ignored user: ${response.sender}`,
+    );
+    return;
+  }
+
   // Find the server and channel
   const server = useStore
     .getState()
@@ -1493,6 +1586,174 @@ ircClient.on("CHANMSG", (response) => {
   }
 });
 
+// Handle multiline messages
+ircClient.on("MULTILINE_MESSAGE", (response) => {
+  console.log("[STORE] Received MULTILINE_MESSAGE:", response);
+  const { mtags, channelName, sender, message, messageIds, timestamp } =
+    response;
+
+  // Check if sender is ignored
+  const globalSettings = useStore.getState().globalSettings;
+  if (isUserIgnored(sender, undefined, undefined, globalSettings.ignoreList)) {
+    // User is ignored, skip processing this message
+    console.log(
+      `[IGNORE] Skipping multiline message from ignored user: ${sender}`,
+    );
+    return;
+  }
+
+  // Find the server and channel
+  const server = useStore
+    .getState()
+    .servers.find((s) => s.id === response.serverId);
+
+  if (server) {
+    const channel = channelName
+      ? server.channels.find((c) => c.name === channelName)
+      : null;
+
+    if (channel) {
+      const replyId = mtags?.["+draft/reply"]
+        ? mtags["+draft/reply"].trim()
+        : null;
+
+      const replyMessage = replyId
+        ? findChannelMessageById(server.id, channel.id, replyId) || null
+        : null;
+
+      const newMessage = {
+        id: uuidv4(),
+        msgid: mtags?.msgid,
+        multilineMessageIds: messageIds, // Store all message IDs for redaction
+        content: message, // Use the properly combined message from IRC client
+        timestamp,
+        userId: sender,
+        channelId: channel.id,
+        serverId: server.id,
+        type: "message" as const,
+        reactions: [],
+        replyMessage: replyMessage,
+        mentioned: [], // Add logic for mentions if needed
+        tags: mtags,
+      };
+
+      console.log("[STORE] Created multiline message with IDs:", messageIds);
+
+      // If message has bot tag, mark user as bot
+      if (mtags?.bot !== undefined) {
+        useStore.setState((state) => {
+          const updatedServers = state.servers.map((s) => {
+            if (s.id === server.id) {
+              const updatedChannels = s.channels.map((channel) => {
+                const updatedUsers = channel.users.map((user) => {
+                  if (user.username === sender) {
+                    return {
+                      ...user,
+                      isBot: true,
+                    };
+                  }
+                  return user;
+                });
+                return { ...channel, users: updatedUsers };
+              });
+              return { ...s, channels: updatedChannels };
+            }
+            return s;
+          });
+          return { servers: updatedServers };
+        });
+      }
+
+      useStore.getState().addMessage(newMessage);
+
+      // Play notification sound if appropriate
+      const state = useStore.getState();
+      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+      if (
+        shouldPlayNotificationSound(
+          newMessage,
+          serverCurrentUser,
+          state.globalSettings,
+        )
+      ) {
+        playNotificationSound(state.globalSettings);
+      }
+
+      // Remove any typing users from the state
+      useStore.setState((state) => {
+        const key = `${server.id}-${channel.id}`;
+        const currentUsers = state.typingUsers[key] || [];
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [key]: currentUsers.filter((u) => u.username !== sender),
+          },
+        };
+      });
+    } else if (!channelName) {
+      // Handle multiline private messages
+      // Similar logic to USERMSG but for multiline content
+      const currentUser = ircClient.getCurrentUser(response.serverId);
+      if (currentUser && sender === currentUser.username) {
+        return; // Don't create private chats with ourselves
+      }
+
+      // Create or find private chat
+      let privateChat = server.privateChats.find(
+        (chat) => chat.username === sender,
+      );
+      if (!privateChat) {
+        const newPrivateChat = {
+          id: uuidv4(),
+          username: sender,
+          serverId: server.id,
+          unreadCount: 0,
+          isMentioned: false,
+        };
+        privateChat = newPrivateChat;
+        useStore.setState((state) => ({
+          servers: state.servers.map((s) =>
+            s.id === server.id
+              ? { ...s, privateChats: [...s.privateChats, newPrivateChat] }
+              : s,
+          ),
+        }));
+      }
+
+      const newMessage = {
+        id: uuidv4(),
+        msgid: mtags?.msgid,
+        multilineMessageIds: messageIds, // Store all message IDs for redaction
+        content: message, // Use the properly combined message from IRC client
+        timestamp,
+        userId: sender,
+        channelId: privateChat.id,
+        serverId: server.id,
+        type: "message" as const,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+        tags: mtags,
+      };
+
+      useStore.getState().addMessage(newMessage);
+
+      // Play notification sound if appropriate
+      const state = useStore.getState();
+      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+      if (
+        shouldPlayNotificationSound(
+          newMessage,
+          serverCurrentUser,
+          state.globalSettings,
+        )
+      ) {
+        playNotificationSound(state.globalSettings);
+      }
+    }
+  }
+});
+
 // Handle private messages (USERMSG)
 ircClient.on("USERMSG", (response) => {
   const { mtags, sender, message, timestamp } = response;
@@ -1500,6 +1761,16 @@ ircClient.on("USERMSG", (response) => {
   // Don't create private chats with ourselves when the server echoes back our own messages
   const currentUser = ircClient.getCurrentUser(response.serverId);
   if (currentUser?.username === sender) {
+    return;
+  }
+
+  // Check if sender is ignored
+  const globalSettings = useStore.getState().globalSettings;
+  if (isUserIgnored(sender, undefined, undefined, globalSettings.ignoreList)) {
+    // User is ignored, skip processing this message
+    console.log(
+      `[IGNORE] Skipping private message from ignored user: ${sender}`,
+    );
     return;
   }
 
@@ -1625,6 +1896,23 @@ ircClient.on("USERMSG", (response) => {
 ircClient.on("CHANNNOTICE", (response) => {
   const { mtags, channelName, message, timestamp } = response;
 
+  // Check if sender is ignored
+  const globalSettings = useStore.getState().globalSettings;
+  if (
+    isUserIgnored(
+      response.sender,
+      undefined,
+      undefined,
+      globalSettings.ignoreList,
+    )
+  ) {
+    // User is ignored, skip processing this notice
+    console.log(
+      `[IGNORE] Skipping channel notice from ignored user: ${response.sender}`,
+    );
+    return;
+  }
+
   // Find the server and channel
   const server = useStore
     .getState()
@@ -1668,6 +1956,23 @@ ircClient.on("CHANNNOTICE", (response) => {
 
 ircClient.on("USERNOTICE", (response) => {
   const { mtags, message, timestamp } = response;
+
+  // Check if sender is ignored
+  const globalSettings = useStore.getState().globalSettings;
+  if (
+    isUserIgnored(
+      response.sender,
+      undefined,
+      undefined,
+      globalSettings.ignoreList,
+    )
+  ) {
+    // User is ignored, skip processing this notice
+    console.log(
+      `[IGNORE] Skipping user notice from ignored user: ${response.sender}`,
+    );
+    return;
+  }
 
   // Find the server
   const server = useStore
@@ -1833,14 +2138,15 @@ ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
       return server;
     });
 
-    // Request metadata for the joining user
-    const currentUser = state.currentUser;
-    if (currentUser) {
-      // Small delay to avoid spamming the server
-      setTimeout(() => {
-        useStore.getState().metadataList(serverId, username);
-      }, 100);
-    }
+    // Request metadata for the joining user is not needed since we have subscriptions
+    // The metadata subscription (SUB) will automatically send us updates when metadata changes
+    // Commenting out to reduce server load and batch spam
+    // const currentUser = state.currentUser;
+    // if (currentUser) {
+    //   setTimeout(() => {
+    //     useStore.getState().metadataList(serverId, username);
+    //   }, 100);
+    // }
 
     return { servers: updatedServers };
   });
@@ -3585,14 +3891,15 @@ ircClient.on(
       return { servers: updatedServers };
     });
 
-    // Request metadata for the user (except current user)
-    const currentUser = ircClient.getCurrentUser(serverId);
-    if (currentUser && user.username !== currentUser.username) {
-      // Add a small delay to avoid overwhelming the server
-      setTimeout(() => {
-        useStore.getState().metadataList(serverId, user.username);
-      }, 100);
-    }
+    // Request metadata for the user (except current user) is not needed since we have subscriptions
+    // The metadata subscription (SUB) will automatically send us updates when metadata changes
+    // Commenting out to reduce server load and batch spam
+    // const currentUser = ircClient.getCurrentUser(serverId);
+    // if (currentUser && user.username !== currentUser.username) {
+    //   setTimeout(() => {
+    //     useStore.getState().metadataList(serverId, user.username);
+    //   }, 100);
+    // }
   },
 );
 
@@ -3670,6 +3977,36 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
       processBatchedNetsplit(serverId, batchId, batch);
     } else if (batch.type === "netjoin") {
       processBatchedNetjoin(serverId, batchId, batch);
+    } else if (batch.type === "draft/multiline" || batch.type === "multiline") {
+      // Multiline batches are handled by the IRC client directly via MULTILINE_MESSAGE events
+      // Don't process individual events here, the IRC client already combined them
+      console.log(`[BATCH] Multiline batch ${batchId} handled by IRC client`);
+    } else if (batch.type === "metadata") {
+      // Metadata batches are handled by the IRC client directly via individual METADATA events
+      // Don't process individual events here, metadata updates are already processed
+      console.log(`[BATCH] Metadata batch ${batchId} handled by IRC client`);
+    } else if (batch.type === "chathistory") {
+      // Chathistory batch completed - turn off loading state for the channel
+      console.log(`[BATCH] Chathistory batch ${batchId} completed`);
+
+      // Try to determine the channel from batch parameters
+      // Chathistory batch parameters typically include the channel name
+      const channelName =
+        batch.parameters && batch.parameters.length > 0
+          ? batch.parameters[0]
+          : null;
+
+      if (channelName) {
+        console.log(
+          `[CHATHISTORY] History loading completed for ${channelName}`,
+        );
+        // Trigger event to turn off loading state
+        ircClient.triggerEvent("CHATHISTORY_LOADING", {
+          serverId,
+          channelName,
+          isLoading: false,
+        });
+      }
     } else {
       // For unknown batch types, process events individually
       console.log(
@@ -3830,5 +4167,27 @@ function processBatchedNetjoin(
     return { messages: updatedMessages };
   });
 }
+
+// Handle chathistory loading state
+ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
+  console.log(
+    `[CHATHISTORY] Setting loading state for ${channelName}: ${isLoading}`,
+  );
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          if (channel.name === channelName) {
+            return { ...channel, isLoadingHistory: isLoading };
+          }
+          return channel;
+        });
+        return { ...server, channels: updatedChannels };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
+});
 
 export default useStore;

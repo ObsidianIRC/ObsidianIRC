@@ -242,7 +242,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             )}
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {htmlContent}
+              <div style={{ whiteSpace: "pre-wrap" }}>{htmlContent}</div>
             </EnhancedLinkWrapper>
           </div>
 

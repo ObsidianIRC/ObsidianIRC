@@ -48,6 +48,7 @@ export interface Channel {
   messages: Message[];
   users: User[];
   isRead?: boolean;
+  isLoadingHistory?: boolean;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
@@ -68,6 +69,7 @@ export interface Reaction {
 export interface Message {
   id: string;
   msgid?: string; // IRC message ID from IRCv3 message-ids capability
+  multilineMessageIds?: string[]; // For multiline messages: all message IDs that make up this message
   type:
     | "message"
     | "system"

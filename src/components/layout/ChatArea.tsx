@@ -33,7 +33,7 @@ import {
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
-import useStore from "../../store";
+import useStore, { serverSupportsMultiline } from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
@@ -42,11 +42,86 @@ import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
 import DiscoverGrid from "../ui/HomeScreen";
+import LoadingSpinner from "../ui/LoadingSpinner";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
+
+// Helper function to split long messages while respecting IRC protocol limits
+const splitLongMessage = (message: string, target = "#channel"): string[] => {
+  // Calculate IRC protocol overhead for a PRIVMSG (excluding message tags)
+  // Format: :nick!user@host PRIVMSG #target :message\r\n
+  // Message tags don't count toward the 512-byte limit
+
+  // Conservative estimates for variable parts (as per IRC spec recommendations)
+  const maxNickLength = 20;
+  const maxUserLength = 20;
+  const maxHostLength = 63;
+  const targetLength = target.length;
+
+  // Fixed protocol parts (excluding tags)
+  const protocolOverhead =
+    1 + // ':'
+    maxNickLength +
+    1 + // '!'
+    maxUserLength +
+    1 + // '@'
+    maxHostLength +
+    1 + // ' '
+    7 + // 'PRIVMSG'
+    1 + // ' '
+    targetLength +
+    2 + // ' :'
+    2; // '\r\n'
+
+  const safetyBuffer = 10; // Small safety margin
+
+  // Available space for the actual message content
+  const maxMessageLength = 512 - protocolOverhead - safetyBuffer;
+
+  console.log(
+    `[MULTILINE] Protocol overhead: ${protocolOverhead}, Max message length: ${maxMessageLength}, Input length: ${message.length}`,
+  );
+
+  if (message.length <= maxMessageLength) {
+    return [message];
+  }
+
+  const lines: string[] = [];
+  let currentLine = "";
+  const words = message.split(" ");
+
+  for (const word of words) {
+    if (word.length > maxMessageLength) {
+      // If a single word is too long, we have to break it
+      if (currentLine) {
+        lines.push(currentLine.trim());
+        currentLine = "";
+      }
+
+      // Split the long word
+      for (let i = 0; i < word.length; i += maxMessageLength) {
+        lines.push(word.slice(i, i + maxMessageLength));
+      }
+    } else if (`${currentLine} ${word}`.length > maxMessageLength) {
+      // Adding this word would exceed the limit
+      if (currentLine) {
+        lines.push(currentLine.trim());
+      }
+      currentLine = word;
+    } else {
+      currentLine = currentLine ? `${currentLine} ${word}` : word;
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine.trim());
+  }
+
+  return lines.filter((line) => line.length > 0);
+};
 
 export const TypingIndicator: React.FC<{
   serverId: string;
@@ -112,7 +187,7 @@ export const ChatArea: React.FC<{
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     servers,
@@ -129,6 +204,7 @@ export const ChatArea: React.FC<{
     joinChannel,
     toggleAddServerModal,
     redactMessage,
+    globalSettings,
   } = useStore();
 
   // Get the current user for the selected server with metadata from store
@@ -327,20 +403,162 @@ export const ChatArea: React.FC<{
           ircClient.sendRaw(selectedServerId, fullCommand);
         }
       } else {
-        // Format the message with color and styling
-        const formattedText = formatMessageForIrc(messageText, {
-          color: selectedColor || "inherit",
-          formatting: selectedFormatting,
-        });
-
         // Determine target: channel name or username for private messages
         const target =
           selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
 
-        ircClient.sendRaw(
-          selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${formattedText}`,
-        );
+        // Check if message contains newlines or is very long
+        const lines = messageText.split("\n");
+        const supportsMultiline = serverSupportsMultiline(selectedServerId);
+        const hasMultipleLines = lines.length > 1;
+
+        // Calculate the same limit as splitLongMessage for consistency
+        const maxNickLength = 20;
+        const maxUserLength = 20;
+        const maxHostLength = 63;
+        const protocolOverhead =
+          1 +
+          maxNickLength +
+          1 +
+          maxUserLength +
+          1 +
+          maxHostLength +
+          1 +
+          7 +
+          1 +
+          target.length +
+          2 +
+          2;
+        const maxMessageLength = 512 - protocolOverhead - 10; // 10 byte safety buffer
+        const isSingleLongLine =
+          lines.length === 1 && messageText.length > maxMessageLength;
+
+        if (supportsMultiline && (hasMultipleLines || isSingleLongLine)) {
+          // Send as multiline message using BATCH
+          const batchId = `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const replyPrefix = localReplyTo
+            ? `@+draft/reply=${localReplyTo.id};`
+            : "";
+          ircClient.sendRaw(
+            selectedServerId,
+            `${replyPrefix}BATCH +${batchId} draft/multiline ${target}`,
+          );
+
+          if (hasMultipleLines) {
+            // Case 1: Multi-line message (preserve line breaks)
+            lines.forEach((line) => {
+              const formattedLine = formatMessageForIrc(line, {
+                color: selectedColor || "inherit",
+                formatting: selectedFormatting,
+              });
+
+              // Check if this individual line is too long and needs splitting
+              const maxLineLengthForTarget =
+                512 -
+                (1 + 20 + 1 + 20 + 1 + 63 + 1 + 7 + 1 + target.length + 2 + 2) -
+                10;
+              if (formattedLine.length > maxLineLengthForTarget) {
+                const splitLines = splitLongMessage(formattedLine, target);
+                splitLines.forEach((splitLine: string, index: number) => {
+                  if (index === 0) {
+                    // First part goes normally
+                    ircClient.sendRaw(
+                      selectedServerId,
+                      `@batch=${batchId} PRIVMSG ${target} :${splitLine}`,
+                    );
+                  } else {
+                    // Subsequent parts use multiline-concat to join without line break
+                    ircClient.sendRaw(
+                      selectedServerId,
+                      `@batch=${batchId};draft/multiline-concat PRIVMSG ${target} :${splitLine}`,
+                    );
+                  }
+                });
+              } else {
+                ircClient.sendRaw(
+                  selectedServerId,
+                  `@batch=${batchId} PRIVMSG ${target} :${formattedLine}`,
+                );
+              }
+            });
+          } else {
+            // Case 2: Single very long line (split and concat)
+            const formattedText = formatMessageForIrc(messageText, {
+              color: selectedColor || "inherit",
+              formatting: selectedFormatting,
+            });
+
+            const splitLines = splitLongMessage(formattedText, target);
+            splitLines.forEach((splitLine: string, index: number) => {
+              if (index === 0) {
+                // First part goes normally
+                ircClient.sendRaw(
+                  selectedServerId,
+                  `@batch=${batchId} PRIVMSG ${target} :${splitLine}`,
+                );
+              } else {
+                // Subsequent parts use multiline-concat to join without separation
+                ircClient.sendRaw(
+                  selectedServerId,
+                  `@batch=${batchId};draft/multiline-concat PRIVMSG ${target} :${splitLine}`,
+                );
+              }
+            });
+          }
+
+          ircClient.sendRaw(selectedServerId, `BATCH -${batchId}`);
+        } else if (hasMultipleLines && !supportsMultiline) {
+          // Handle fallback based on user preference
+          if (globalSettings.autoFallbackToSingleLine) {
+            // Concatenate with spaces and send as single message
+            const combinedText = lines.join(" ");
+            const formattedText = formatMessageForIrc(combinedText, {
+              color: selectedColor || "inherit",
+              formatting: selectedFormatting,
+            });
+
+            // Split if too long
+            const splitLines = splitLongMessage(formattedText, target);
+            splitLines.forEach((line: string) => {
+              ircClient.sendRaw(
+                selectedServerId,
+                `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+              );
+            });
+          } else {
+            // Send as separate messages
+            lines.forEach((line) => {
+              const formattedLine = formatMessageForIrc(line, {
+                color: selectedColor || "inherit",
+                formatting: selectedFormatting,
+              });
+
+              // Split long lines
+              const splitLines = splitLongMessage(formattedLine, target);
+              splitLines.forEach((splitLine: string) => {
+                ircClient.sendRaw(
+                  selectedServerId,
+                  `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${splitLine}`,
+                );
+              });
+            });
+          }
+        } else {
+          // Send as regular single message
+          const formattedText = formatMessageForIrc(messageText, {
+            color: selectedColor || "inherit",
+            formatting: selectedFormatting,
+          });
+
+          // Split if too long
+          const splitLines = splitLongMessage(formattedText, target);
+          splitLines.forEach((line: string) => {
+            ircClient.sendRaw(
+              selectedServerId,
+              `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+            );
+          });
+        }
 
         // For private messages, manually add our own message to the chat
         // since the server doesn't echo private messages back to us
@@ -370,10 +588,15 @@ export const ChatArea: React.FC<{
         tabCompletion.resetCompletion();
       }
 
+      // Reset textarea height
+      if (inputRef.current) {
+        inputRef.current.style.height = "auto";
+      }
+
       // Send typing done notification
-      const { globalSettings } = useStore.getState();
+      const storeState = useStore.getState();
       if (
-        globalSettings.sendTypingNotifications &&
+        storeState.globalSettings.sendTypingNotifications &&
         (selectedChannel?.name || selectedPrivateChat?.username)
       ) {
         const target = selectedChannel?.name ?? selectedPrivateChat?.username;
@@ -420,12 +643,22 @@ export const ChatArea: React.FC<{
       return;
     }
 
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Handle Enter key behavior based on settings
+    if (e.key === "Enter") {
+      const shouldCreateNewline =
+        globalSettings.enableMultilineInput &&
+        (globalSettings.multilineOnShiftEnter ? e.shiftKey : !e.shiftKey);
+
+      if (shouldCreateNewline) {
+        // Allow the default behavior (add newline)
+        return;
+      }
+      // Send message
       e.preventDefault();
       handleSendMessage();
       // Send typing done notification
-      const { globalSettings } = useStore.getState();
-      if (globalSettings.sendTypingNotifications) {
+      const storeState = useStore.getState();
+      if (storeState.globalSettings.sendTypingNotifications) {
         if (selectedChannel?.name) {
           ircClient.sendTyping(
             selectedServerId ?? "",
@@ -527,13 +760,20 @@ export const ChatArea: React.FC<{
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     const newCursorPosition = e.target.selectionStart || 0;
 
     setMessageText(newText);
     setCursorPosition(newCursorPosition);
     handleUpdatedText(newText);
+
+    // Auto-resize textarea
+    const textarea = e.target;
+    textarea.style.height = "auto";
+    const scrollHeight = textarea.scrollHeight;
+    const maxHeight = 128; // 8 lines (16px line height * 8)
+    textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
 
     // Reset tab completion if text changed from non-tab input
     if (tabCompletion.isActive) {
@@ -550,8 +790,8 @@ export const ChatArea: React.FC<{
     setShowEmojiAutocomplete(false);
   };
 
-  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
-    const target = e.target as HTMLInputElement;
+  const handleInputClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
     const newCursorPos = target.selectionStart || 0;
     setCursorPosition(newCursorPos);
   };
@@ -738,11 +978,11 @@ export const ChatArea: React.FC<{
     }
   };
 
-  const handleInputKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Skip if it was Tab key (handled by keyDown)
     if (e.key === "Tab") return;
 
-    const target = e.target as HTMLInputElement;
+    const target = e.target as HTMLTextAreaElement;
     const newCursorPos = target.selectionStart || 0;
     setCursorPosition(newCursorPos);
   };
@@ -1096,23 +1336,76 @@ export const ChatArea: React.FC<{
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
         >
-          {(() => {
-            // Group consecutive events before rendering
-            const eventGroups = groupConsecutiveEvents(channelMessages);
+          {selectedChannel?.isLoadingHistory ? (
+            // Show loading spinner when channel is loading history
+            <div className="flex-grow flex items-center justify-center">
+              <LoadingSpinner
+                size="lg"
+                text="Loading chat history..."
+                className="text-discord-text-muted"
+              />
+            </div>
+          ) : (
+            // Show messages when not loading
+            (() => {
+              // Group consecutive events before rendering
+              const eventGroups = groupConsecutiveEvents(channelMessages);
 
-            return eventGroups.map((group) => {
-              if (group.type === "eventGroup") {
-                // Create a stable key from the first and last message IDs in the group
-                const firstId = group.messages[0]?.id || "";
-                const lastId =
-                  group.messages[group.messages.length - 1]?.id || "";
-                const groupKey = `group-${firstId}-${lastId}`;
+              return eventGroups.map((group) => {
+                if (group.type === "eventGroup") {
+                  // Create a stable key from the first and last message IDs in the group
+                  const firstId = group.messages[0]?.id || "";
+                  const lastId =
+                    group.messages[group.messages.length - 1]?.id || "";
+                  const groupKey = `group-${firstId}-${lastId}`;
+
+                  return (
+                    <CollapsedEventMessage
+                      key={groupKey}
+                      eventGroup={group}
+                      users={selectedChannel?.users || []}
+                      onUsernameContextMenu={(
+                        e,
+                        username,
+                        serverId,
+                        avatarElement,
+                      ) =>
+                        handleUsernameClick(
+                          e,
+                          username,
+                          serverId,
+                          avatarElement,
+                        )
+                      }
+                    />
+                  );
+                }
+                // Single message - find its original index for date/header logic
+                const message = group.messages[0];
+                const originalIndex = channelMessages.findIndex(
+                  (m) => m.id === message.id,
+                );
+                const previousMessage = channelMessages[originalIndex - 1];
+                const showHeader =
+                  !previousMessage ||
+                  previousMessage.userId !== message.userId ||
+                  new Date(message.timestamp).getTime() -
+                    new Date(previousMessage.timestamp).getTime() >
+                    5 * 60 * 1000;
 
                 return (
-                  <CollapsedEventMessage
-                    key={groupKey}
-                    eventGroup={group}
-                    users={selectedChannel?.users || []}
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    showDate={
+                      originalIndex === 0 ||
+                      new Date(message.timestamp).toDateString() !==
+                        new Date(
+                          channelMessages[originalIndex - 1]?.timestamp,
+                        ).toDateString()
+                    }
+                    showHeader={showHeader}
+                    setReplyTo={setLocalReplyTo}
                     onUsernameContextMenu={(
                       e,
                       username,
@@ -1121,55 +1414,19 @@ export const ChatArea: React.FC<{
                     ) =>
                       handleUsernameClick(e, username, serverId, avatarElement)
                     }
+                    onIrcLinkClick={handleIrcLinkClick}
+                    onReactClick={handleReactClick}
+                    selectedServerId={selectedServerId}
+                    onReactionUnreact={handleReactionUnreact}
+                    onOpenReactionModal={handleOpenReactionModal}
+                    onDirectReaction={handleDirectReaction}
+                    users={selectedChannel?.users || []}
+                    onRedactMessage={handleRedactMessage}
                   />
                 );
-              }
-              // Single message - find its original index for date/header logic
-              const message = group.messages[0];
-              const originalIndex = channelMessages.findIndex(
-                (m) => m.id === message.id,
-              );
-              const previousMessage = channelMessages[originalIndex - 1];
-              const showHeader =
-                !previousMessage ||
-                previousMessage.userId !== message.userId ||
-                new Date(message.timestamp).getTime() -
-                  new Date(previousMessage.timestamp).getTime() >
-                  5 * 60 * 1000;
-
-              return (
-                <MessageItem
-                  key={message.id}
-                  message={message}
-                  showDate={
-                    originalIndex === 0 ||
-                    new Date(message.timestamp).toDateString() !==
-                      new Date(
-                        channelMessages[originalIndex - 1]?.timestamp,
-                      ).toDateString()
-                  }
-                  showHeader={showHeader}
-                  setReplyTo={setLocalReplyTo}
-                  onUsernameContextMenu={(
-                    e,
-                    username,
-                    serverId,
-                    avatarElement,
-                  ) =>
-                    handleUsernameClick(e, username, serverId, avatarElement)
-                  }
-                  onIrcLinkClick={handleIrcLinkClick}
-                  onReactClick={handleReactClick}
-                  selectedServerId={selectedServerId}
-                  onReactionUnreact={handleReactionUnreact}
-                  onOpenReactionModal={handleOpenReactionModal}
-                  onDirectReaction={handleDirectReaction}
-                  users={selectedChannel?.users || []}
-                  onRedactMessage={handleRedactMessage}
-                />
-              );
-            });
-          })()}
+              });
+            })()
+          )}
 
           <div ref={messagesEndRef} />
         </div>
@@ -1214,9 +1471,8 @@ export const ChatArea: React.FC<{
                 </button>
               </div>
             )}
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
               value={messageText}
               onChange={handleInputChange}
               onClick={handleInputClick}
@@ -1224,16 +1480,29 @@ export const ChatArea: React.FC<{
               onKeyDown={handleKeyDown}
               placeholder={
                 selectedChannel
-                  ? `Message #${selectedChannel.name.replace(/^#/, "")}`
+                  ? `Message #${selectedChannel.name.replace(/^#/, "")}${
+                      globalSettings.enableMultilineInput
+                        ? globalSettings.multilineOnShiftEnter
+                          ? " (Shift+Enter for new line)"
+                          : " (Enter for new line, Shift+Enter to send)"
+                        : ""
+                    }`
                   : selectedPrivateChat
-                    ? `Message @${selectedPrivateChat.username}`
+                    ? `Message @${selectedPrivateChat.username}${
+                        globalSettings.enableMultilineInput
+                          ? globalSettings.multilineOnShiftEnter
+                            ? " (Shift+Enter for new line)"
+                            : " (Enter for new line, Shift+Enter to send)"
+                          : ""
+                      }`
                     : "Type a message..."
               }
-              className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
+              className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-32 overflow-y-auto"
               style={getPreviewStyles({
                 color: selectedColor || "inherit",
                 formatting: selectedFormatting,
               })}
+              rows={1}
             />
             <button
               className="px-3 text-discord-text-muted hover:text-discord-text-normal"
