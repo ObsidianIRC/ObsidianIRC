@@ -73,12 +73,7 @@ body {
     height: 100vh;
     height: calc(100vh - var(--keyboard-height, 0px));
     transition: height 0.2s ease-in-out;
-  }
-  
-  /* Ensure proper viewport handling on mobile */
-  html, body {
-    position: fixed;
-    width: 100%;
+    position: relative;
   }
 }
 

@@ -4,9 +4,26 @@ import { useEffect } from "react";
 // Hook to handle keyboard visibility and viewport resizing on mobile platforms
 export const useKeyboardResize = () => {
   useEffect(() => {
-    // Only apply this for mobile platforms
-    if (!("__TAURI__" in window) || !["android", "ios"].includes(platform())) {
+    // Check if we're on a mobile device
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                    window.innerWidth <= 768;
+    
+    // Only apply this for mobile platforms, but be more permissive than just Tauri
+    if (!isMobile) {
       return;
+    }
+
+    // If we're in Tauri, check the platform
+    if ("__TAURI__" in window) {
+      try {
+        const currentPlatform = platform();
+        if (!["android", "ios"].includes(currentPlatform)) {
+          return;
+        }
+      } catch (error) {
+        // If platform() fails, continue anyway on mobile devices
+        console.warn("Failed to detect platform, continuing with keyboard handling:", error);
+      }
     }
 
     let isKeyboardVisible = false;
