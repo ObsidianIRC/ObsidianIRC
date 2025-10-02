@@ -78,10 +78,10 @@ const App: React.FC = () => {
     joinChannel,
     connectToSavedServers,
   } = useStore();
-  
+
   // Initialize keyboard resize handling for mobile platforms
   useKeyboardResize();
-  
+
   // askPermissions();
   useEffect(() => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);
