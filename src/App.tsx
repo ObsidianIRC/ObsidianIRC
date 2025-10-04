@@ -9,6 +9,7 @@ import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import UserSettings from "./components/ui/UserSettings";
+import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import useStore, { loadSavedServers } from "./store";
 
@@ -77,6 +78,10 @@ const App: React.FC = () => {
     joinChannel,
     connectToSavedServers,
   } = useStore();
+
+  // Initialize keyboard resize handling for mobile platforms
+  useKeyboardResize();
+
   // askPermissions();
   useEffect(() => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);

@@ -83,6 +83,7 @@ describe("IRCClient", () => {
       MockWebSocketSpy.mockReturnValue(mockSocket);
 
       const connectionPromise = client.connect(
+        "Test Server",
         "irc.example.com",
         443,
         "testuser",
@@ -94,7 +95,7 @@ describe("IRCClient", () => {
       const server = await connectionPromise;
 
       expect(server).toBeDefined();
-      expect(server.name).toBe("irc.example.com");
+      expect(server.name).toBe("Test Server");
       expect(server.isConnected).toBe(true);
 
       // Verify sent messages
@@ -108,6 +109,7 @@ describe("IRCClient", () => {
       MockWebSocketSpy.mockReturnValue(mockSocket);
 
       const connectionPromise = client.connect(
+        "Test Server",
         "irc.example.com",
         443,
         "testuser",
@@ -130,6 +132,7 @@ describe("IRCClient", () => {
       MockWebSocketSpy.mockReturnValue(mockSocket1);
 
       const firstConnectionPromise = client.connect(
+        "Test Server",
         "irc.example.com",
         443,
         "testuser",
@@ -139,13 +142,14 @@ describe("IRCClient", () => {
       const firstServer = await firstConnectionPromise;
 
       expect(firstServer).toBeDefined();
-      expect(firstServer.name).toBe("irc.example.com");
+      expect(firstServer.name).toBe("Test Server");
       expect(firstServer.isConnected).toBe(true);
       expect(mockSocket1.sentMessages).toContain("CAP LS 302");
       expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
 
       // Second connection to same host/port should return existing server
       const secondConnectionPromise = client.connect(
+        "Test Server 2",
         "irc.example.com",
         443,
         "testuser2", // Different nickname
@@ -168,6 +172,7 @@ describe("IRCClient", () => {
       MockWebSocketSpy.mockReturnValue(mockSocket);
 
       const connectionPromise = client.connect(
+        "Test Server",
         "irc.example.com",
         443,
         "testuser",
@@ -212,6 +217,7 @@ describe("IRCClient", () => {
       MockWebSocketSpy.mockReturnValue(mockSocket);
 
       const connectionPromise = client.connect(
+        "Test Server",
         "irc.example.com",
         443,
         "testuser",

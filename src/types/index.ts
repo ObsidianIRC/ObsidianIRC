@@ -5,7 +5,10 @@ export interface User {
   displayName?: string;
   account?: string;
   isOnline: boolean;
+  isAway?: boolean; // Whether user is marked as away (from WHO flags or AWAY notify)
+  awayMessage?: string; // Away message if user is away
   status?: string;
+  isBot?: boolean; // Bot detection from WHO response
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
@@ -18,6 +21,8 @@ export interface Server {
   privateChats: PrivateChat[];
   icon?: string;
   isConnected: boolean;
+  isAway?: boolean; // Whether we are marked as away on this server
+  awayMessage?: string; // Our away message on this server
   users: User[];
   capabilities?: string[];
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
@@ -26,6 +31,7 @@ export interface Server {
 }
 export interface ServerConfig {
   id: string;
+  name?: string;
   host: string;
   port: number;
   nickname: string;
@@ -47,6 +53,7 @@ export interface Channel {
   messages: Message[];
   users: User[];
   isRead?: boolean;
+  isLoadingHistory?: boolean;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
@@ -65,23 +72,29 @@ export interface Reaction {
 }
 
 export interface Message {
-  id?: string;
-  msgid?: string;
-  content: string;
-  timestamp: Date;
-  userId: string;
-  channelId: string;
-  serverId: string;
+  id: string;
+  msgid?: string; // IRC message ID from IRCv3 message-ids capability
+  multilineMessageIds?: string[]; // For multiline messages: all message IDs that make up this message
   type:
     | "message"
     | "system"
     | "error"
     | "join"
-    | "leave"
+    | "part"
+    | "quit"
     | "nick"
-    | "standard-reply";
+    | "leave"
+    | "standard-reply"
+    | "notice"
+    | "netsplit"
+    | "netjoin";
+  content: string;
+  timestamp: Date;
+  userId: string;
+  channelId: string;
+  serverId: string;
   reactions: Reaction[];
-  replyMessage: Message | null | undefined;
+  replyMessage: Message | null;
   mentioned: string[];
   tags?: Record<string, string>;
   // Standard reply fields
@@ -90,6 +103,11 @@ export interface Message {
   standardReplyCode?: string;
   standardReplyTarget?: string;
   standardReplyMessage?: string;
+  // Batch-related fields for netsplit/netjoin
+  batchId?: string;
+  quitUsers?: string[];
+  server1?: string;
+  server2?: string;
 }
 
 // Alias for backwards compatibility

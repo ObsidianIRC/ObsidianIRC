@@ -69,7 +69,15 @@ export const AppLayout: React.FC = () => {
         return (
           <>
             {__HIDE_SERVER_LIST__ ? null : (
-              <div className="server-list flex-shrink-0 w-[72px] h-full bg-discord-dark-300 z-30">
+              <div
+                className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${
+                  isNarrowView && mobileViewActiveColumn === "serverList"
+                    ? "w-[72px]"
+                    : isNarrowView
+                      ? "w-0"
+                      : "w-[72px]"
+                }`}
+              >
                 <ServerList />
               </div>
             )}
@@ -161,7 +169,8 @@ export const AppLayout: React.FC = () => {
   }, [isTooNarrowForMemberList, toggleMemberList, isNarrowView]);
 
   const getLayoutColumn = (column: layoutColumn) => {
-    if (isNarrowView && column !== mobileViewActiveColumn) return;
+    // On mobile, only show the active column
+    if (isNarrowView && column !== mobileViewActiveColumn) return null;
     return getLayoutColumnElement(column);
   };
 

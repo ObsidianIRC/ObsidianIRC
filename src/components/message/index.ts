@@ -1,6 +1,8 @@
 export { StandardReplyNotification } from "../ui/StandardReplyNotification";
 export { ActionMessage } from "./ActionMessage";
+export { CollapsedEventMessage } from "./CollapsedEventMessage";
 export { DateSeparator } from "./DateSeparator";
+export { EventMessage } from "./EventMessage";
 export { MessageActions } from "./MessageActions";
 export { MessageAvatar } from "./MessageAvatar";
 export { MessageHeader } from "./MessageHeader";

@@ -1,6 +1,7 @@
 import type React from "react";
 import { useMemo, useState } from "react";
 import { FaSearch, FaTimes, FaUser } from "react-icons/fa";
+import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 
 interface AddPrivateChatModalProps {
@@ -14,13 +15,16 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
   onClose,
   serverId,
 }) => {
-  const { openPrivateChat, currentUser, servers } = useStore();
+  const { openPrivateChat, servers } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
 
   const availableUsers = useMemo(() => {
     // Get users from the store instead of ircClient directly
     const server = servers.find((s) => s.id === serverId);
     if (!server) return [];
+
+    // Get the current user for this specific server
+    const currentUser = ircClient.getCurrentUser(serverId);
 
     const allUsers = new Map<string, (typeof server.channels)[0]["users"][0]>();
 
@@ -43,7 +47,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
     return filteredUsers.filter((user) =>
       user.username.toLowerCase().includes(searchTerm.toLowerCase()),
     );
-  }, [serverId, currentUser?.username, searchTerm, servers]);
+  }, [serverId, searchTerm, servers]);
 
   const handleUserSelect = (username: string) => {
     openPrivateChat(serverId, username);

@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { createIgnorePattern, isUserIgnored } from "../../lib/ignoreUtils";
 import useStore from "../../store";
 
 interface UserContextMenuProps {
@@ -88,6 +89,36 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
     onClose();
   };
 
+  // Ignore list functionality
+  const globalSettings = useStore((state) => state.globalSettings);
+  const addToIgnoreList = useStore((state) => state.addToIgnoreList);
+  const removeFromIgnoreList = useStore((state) => state.removeFromIgnoreList);
+
+  const isIgnored = isUserIgnored(
+    username,
+    undefined,
+    undefined,
+    globalSettings.ignoreList,
+  );
+
+  const handleIgnoreUser = () => {
+    const pattern = createIgnorePattern(username);
+    addToIgnoreList(pattern);
+    onClose();
+  };
+
+  const handleUnignoreUser = () => {
+    // Find and remove any patterns that match this user
+    const matchingPatterns = globalSettings.ignoreList.filter((pattern) =>
+      isUserIgnored(username, undefined, undefined, [pattern]),
+    );
+
+    matchingPatterns.forEach((pattern) => {
+      removeFromIgnoreList(pattern);
+    });
+    onClose();
+  };
+
   const getStatusPriority = (status?: string): number => {
     if (!status) return 1;
     let maxPriority = 1;
@@ -166,6 +197,40 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
           </svg>
           Send Message
         </button>
+        {!isOwnUser && (
+          <button
+            onClick={isIgnored ? handleUnignoreUser : handleIgnoreUser}
+            className={`w-full px-3 py-2 text-left transition-colors duration-150 flex items-center gap-2 ${
+              isIgnored
+                ? "text-green-400 hover:bg-discord-dark-200 hover:text-green-300"
+                : "text-red-400 hover:bg-discord-dark-200 hover:text-red-300"
+            }`}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              {isIgnored ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
+                />
+              )}
+            </svg>
+            {isIgnored ? "Unignore User" : "Ignore User"}
+          </button>
+        )}
         {canModerate && !isOwnUser && (
           <>
             <button
