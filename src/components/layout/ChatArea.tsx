@@ -196,6 +196,11 @@ export const ChatArea: React.FC<{
       selectedChannelId,
       selectedPrivateChatId,
       isMemberListVisible,
+      isSettingsModalOpen,
+      isUserProfileModalOpen,
+      isAddServerModalOpen,
+      isChannelListModalOpen,
+      isChannelRenameModalOpen,
     },
     toggleMemberList,
     openPrivateChat,
@@ -1208,11 +1213,30 @@ export const ChatArea: React.FC<{
   const isNarrowView = useMediaQuery();
 
   // Focus input on channel change
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Only focus when channel changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Only focus when private chat changes
   useEffect(() => {
     if ("__TAURI__" in window && ["android", "ios"].includes(platform()))
       return;
+    // Don't steal focus if any modal is open
+    if (
+      isSettingsModalOpen ||
+      isUserProfileModalOpen ||
+      isAddServerModalOpen ||
+      isChannelListModalOpen ||
+      isChannelRenameModalOpen
+    )
+      return;
     inputRef.current?.focus();
-  });
+  }, [
+    selectedChannelId,
+    selectedPrivateChatId,
+    isSettingsModalOpen,
+    isUserProfileModalOpen,
+    isAddServerModalOpen,
+    isChannelListModalOpen,
+    isChannelRenameModalOpen,
+  ]);
 
   return (
     <div className="flex flex-col h-full">
@@ -1481,7 +1505,11 @@ export const ChatArea: React.FC<{
               placeholder={
                 selectedChannel
                   ? `Message #${selectedChannel.name.replace(/^#/, "")}${
-                      globalSettings.enableMultilineInput
+                      globalSettings.enableMultilineInput &&
+                      !(
+                        "__TAURI__" in window &&
+                        ["android", "ios"].includes(platform())
+                      )
                         ? globalSettings.multilineOnShiftEnter
                           ? " (Shift+Enter for new line)"
                           : " (Enter for new line, Shift+Enter to send)"
@@ -1489,7 +1517,11 @@ export const ChatArea: React.FC<{
                     }`
                   : selectedPrivateChat
                     ? `Message @${selectedPrivateChat.username}${
-                        globalSettings.enableMultilineInput
+                        globalSettings.enableMultilineInput &&
+                        !(
+                          "__TAURI__" in window &&
+                          ["android", "ios"].includes(platform())
+                        )
                           ? globalSettings.multilineOnShiftEnter
                             ? " (Shift+Enter for new line)"
                             : " (Enter for new line, Shift+Enter to send)"
