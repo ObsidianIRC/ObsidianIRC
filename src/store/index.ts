@@ -3900,7 +3900,6 @@ ircClient.on(
 
       return { servers: updatedServers };
     });
-
   },
 );
 
