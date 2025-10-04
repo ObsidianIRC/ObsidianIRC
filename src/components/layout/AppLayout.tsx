@@ -71,11 +71,11 @@ export const AppLayout: React.FC = () => {
             {__HIDE_SERVER_LIST__ ? null : (
               <div
                 className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${
-                  isNarrowView && mobileViewActiveColumn === "serverList" 
-                    ? "w-[72px]" 
-                    : isNarrowView 
-                    ? "w-0" 
-                    : "w-[72px]"
+                  isNarrowView && mobileViewActiveColumn === "serverList"
+                    ? "w-[72px]"
+                    : isNarrowView
+                      ? "w-0"
+                      : "w-[72px]"
                 }`}
               >
                 <ServerList />
