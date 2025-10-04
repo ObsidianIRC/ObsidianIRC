@@ -31,6 +31,7 @@ export const ChannelList: React.FC<{
     leaveChannel,
     deletePrivateChat,
     toggleUserProfileModal,
+    setMobileViewActiveColumn,
   } = useStore();
 
   // Get the current user for the selected server from the store data (includes metadata)
@@ -111,6 +112,16 @@ export const ChannelList: React.FC<{
 
   const isNarrowView = useMediaQuery();
 
+  const handleCollapseClick = () => {
+    if (isNarrowView) {
+      // On mobile, navigate to chat view
+      setMobileViewActiveColumn("chatView");
+    } else {
+      // On desktop, toggle the channel list
+      onToggle();
+    }
+  };
+
   return (
     <div className="h-full flex flex-col text-discord-channels-default">
       {/* Server header */}
@@ -118,14 +129,12 @@ export const ChannelList: React.FC<{
         <h1 className="font-bold text-white truncate">
           {selectedServer?.name || "Home"}
         </h1>
-        {!isNarrowView && (
-          <button
-            onClick={onToggle}
-            className="text-discord-channels-default hover:text-white"
-          >
-            <FaChevronLeft />
-          </button>
-        )}
+        <button
+          onClick={handleCollapseClick}
+          className="text-discord-channels-default hover:text-white"
+        >
+          <FaChevronLeft />
+        </button>
       </div>
 
       {/* Channel list */}

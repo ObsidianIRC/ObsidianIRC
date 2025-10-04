@@ -70,7 +70,13 @@ export const AppLayout: React.FC = () => {
           <>
             {__HIDE_SERVER_LIST__ ? null : (
               <div
-                className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${isNarrowView ? "w-full" : "w-[72px]"}`}
+                className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${
+                  isNarrowView && mobileViewActiveColumn === "serverList" 
+                    ? "w-[72px]" 
+                    : isNarrowView 
+                    ? "w-0" 
+                    : "w-[72px]"
+                }`}
               >
                 <ServerList />
               </div>
@@ -194,12 +200,6 @@ export const AppLayout: React.FC = () => {
         isDarkMode ? "text-white" : "text-gray-900"
       }`}
     >
-      {/* Debug indicator for mobile */}
-      {isNarrowView && (
-        <div className="absolute top-2 right-2 z-50 bg-red-500 text-white px-2 py-1 text-xs rounded">
-          Mobile: {mobileViewActiveColumn}
-        </div>
-      )}
       {getLayoutColumn("serverList")}
       {getLayoutColumn("chatView")}
       {selectedServerId && getLayoutColumn("memberList")}

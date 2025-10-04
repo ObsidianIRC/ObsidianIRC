@@ -24,11 +24,6 @@ export const ServerList: React.FC = () => {
 
   return (
     <div className="py-3 flex flex-col items-center h-full overflow-visible relative">
-      {/* Mobile debug indicator */}
-      <div className="md:hidden w-full bg-yellow-500 text-black text-center text-xs py-1">
-        ServerList Active
-      </div>
-
       {/* Home button - in Discord this would be DMs */}
       <div
         className={`

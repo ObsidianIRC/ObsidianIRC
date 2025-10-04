@@ -1207,12 +1207,19 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const openState =
         isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+      
+      // Only change mobileViewActiveColumn if we're not on the serverList view
+      // This prevents desktop member list toggles from affecting mobile navigation
+      const shouldUpdateMobileColumn = state.ui.mobileViewActiveColumn !== "serverList";
+      
       return {
         ui: {
           ...state.ui,
           isMemberListVisible:
             openState !== undefined ? openState : !state.ui.isMemberListVisible,
-          mobileViewActiveColumn: openState ? "memberList" : "chatView",
+          mobileViewActiveColumn: shouldUpdateMobileColumn 
+            ? (openState ? "memberList" : "chatView")
+            : state.ui.mobileViewActiveColumn,
         },
       };
     });
