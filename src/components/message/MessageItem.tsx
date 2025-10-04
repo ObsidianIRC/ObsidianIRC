@@ -210,6 +210,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           userId={message.userId}
           avatarUrl={avatarUrl}
           userStatus={userStatus}
+          isAway={messageUser?.isAway}
           theme={theme}
           showHeader={showHeader}
           onClick={handleAvatarClick}

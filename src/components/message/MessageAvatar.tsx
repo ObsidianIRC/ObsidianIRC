@@ -5,6 +5,7 @@ interface MessageAvatarProps {
   userId: string;
   avatarUrl?: string;
   userStatus?: string;
+  isAway?: boolean;
   theme: string;
   showHeader: boolean;
   onClick?: (e: React.MouseEvent) => void;
@@ -15,6 +16,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
   userId,
   avatarUrl,
   userStatus,
+  isAway,
   theme,
   showHeader,
   onClick,
@@ -55,6 +57,11 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
         ) : (
           username.charAt(0).toUpperCase()
         )}
+        {/* Presence indicator - green if here, yellow if away */}
+        <div
+          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-discord-dark-600 ${isAway ? "bg-discord-yellow" : "bg-discord-green"}`}
+        />
+        {/* Status metadata indicator (if set via metadata) */}
         {userStatus && (
           <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
             <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">

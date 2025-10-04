@@ -5,6 +5,8 @@ export interface User {
   displayName?: string;
   account?: string;
   isOnline: boolean;
+  isAway?: boolean; // Whether user is marked as away (from WHO flags or AWAY notify)
+  awayMessage?: string; // Away message if user is away
   status?: string;
   isBot?: boolean; // Bot detection from WHO response
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
@@ -19,6 +21,8 @@ export interface Server {
   privateChats: PrivateChat[];
   icon?: string;
   isConnected: boolean;
+  isAway?: boolean; // Whether we are marked as away on this server
+  awayMessage?: string; // Our away message on this server
   users: User[];
   capabilities?: string[];
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
@@ -27,6 +31,7 @@ export interface Server {
 }
 export interface ServerConfig {
   id: string;
+  name?: string;
   host: string;
   port: number;
   nickname: string;

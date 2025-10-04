@@ -86,12 +86,16 @@ export const ChannelList: React.FC<{
     setAvatarLoadFailed(false);
   }, [currentUser?.username, selectedServerId]);
 
-  // Get user status from metadata or fallback to direct property
+  // Get user status based on server connection and away status
   const userStatus = useMemo(() => {
-    return (
-      currentUser?.metadata?.status?.value || currentUser?.status || "offline"
-    );
-  }, [currentUser]);
+    if (!selectedServer || !selectedServer.isConnected) {
+      return "offline";
+    }
+    if (selectedServer.isAway) {
+      return "away";
+    }
+    return "online";
+  }, [selectedServer]);
 
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
@@ -438,7 +442,7 @@ export const ChannelList: React.FC<{
               )}
             </div>
             <div
-              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${userStatus === "online" ? "bg-discord-green" : userStatus === "idle" ? "bg-discord-yellow" : userStatus === "dnd" ? "bg-discord-red" : "bg-discord-dark-500"}`}
+              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${userStatus === "online" ? "bg-discord-green" : userStatus === "away" ? "bg-discord-yellow" : "bg-discord-dark-500"}`}
             />
           </div>
           <div>
@@ -448,11 +452,9 @@ export const ChannelList: React.FC<{
             <div className="text-xs text-discord-channels-default">
               {userStatus === "online"
                 ? "Online"
-                : userStatus === "idle"
-                  ? "Idle"
-                  : userStatus === "dnd"
-                    ? "Do Not Disturb"
-                    : "Offline"}
+                : userStatus === "away"
+                  ? selectedServer?.awayMessage || "Away"
+                  : "Offline"}
             </div>
           </div>
         </div>

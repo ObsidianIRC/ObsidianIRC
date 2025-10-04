@@ -155,6 +155,19 @@ export interface EventMap {
     target: string;
     message: string;
   };
+  AWAY: {
+    serverId: string;
+    username: string;
+    awayMessage?: string;
+  };
+  RPL_NOWAWAY: {
+    serverId: string;
+    message: string;
+  };
+  RPL_UNAWAY: {
+    serverId: string;
+    message: string;
+  };
   NICK_ERROR: {
     serverId: string;
     code: string;
@@ -207,6 +220,7 @@ export class IRCClient {
   public version = __APP_VERSION__;
 
   connect(
+    name: string,
     host: string,
     port: number,
     nickname: string,
@@ -246,9 +260,12 @@ export class IRCClient {
       }
 
       // Create server object immediately and add to servers map
+      // Use provided name, default to host if name is empty
+      const finalName = name?.trim() || host;
+
       const server: Server = {
         id: serverId || uuidv4(),
-        name: host,
+        name: finalName,
         host,
         port,
         channels: [],
@@ -789,6 +806,17 @@ export class IRCClient {
           username,
           reason,
           batchTag: mtags?.batch,
+        });
+      } else if (command === "AWAY") {
+        // AWAY command for away-notify extension
+        // Format: :nick!user@host AWAY :away message
+        // or:     :nick!user@host AWAY (when user returns)
+        const username = getNickFromNuh(source);
+        const awayMessage = parv.length > 0 ? parv.join(" ") : undefined;
+        this.triggerEvent("AWAY", {
+          serverId,
+          username,
+          awayMessage,
         });
       } else if (command === "JOIN") {
         const username = getNickFromNuh(source);
@@ -1364,6 +1392,22 @@ export class IRCClient {
           flags,
           hopcount,
           realname,
+        });
+      } else if (command === "305") {
+        // RPL_UNAWAY: <client> :<message>
+        // You are no longer marked as being away
+        const message = parv.slice(1).join(" ");
+        this.triggerEvent("RPL_UNAWAY", {
+          serverId,
+          message,
+        });
+      } else if (command === "306") {
+        // RPL_NOWAWAY: <client> :<message>
+        // You have been marked as being away
+        const message = parv.slice(1).join(" ");
+        this.triggerEvent("RPL_NOWAWAY", {
+          serverId,
+          message,
         });
       } else if (command === "315") {
         // RPL_ENDOFWHO

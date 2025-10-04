@@ -208,6 +208,59 @@ function restoreServerMetadata(serverId: string) {
   });
 }
 
+// Fetch our own metadata from the server and update saved values
+async function fetchAndMergeOwnMetadata(serverId: string): Promise<void> {
+  return new Promise((resolve) => {
+    const nickname = ircClient.getNick(serverId);
+    if (!nickname) {
+      console.log(`[METADATA_FETCH] No nickname found for server ${serverId}`);
+      resolve();
+      return;
+    }
+
+    console.log(
+      `[METADATA_FETCH] Fetching metadata for ${nickname} on server ${serverId}`,
+    );
+
+    // Mark as fetching
+    useStore.setState((state) => ({
+      metadataFetchInProgress: {
+        ...state.metadataFetchInProgress,
+        [serverId]: true,
+      },
+    }));
+
+    // Request all metadata for ourselves (target "*" means us)
+    const defaultKeys = [
+      "url",
+      "website",
+      "status",
+      "location",
+      "avatar",
+      "color",
+      "display-name",
+    ];
+
+    // Get our metadata from the server
+    ircClient.metadataGet(serverId, "*", defaultKeys);
+
+    // Wait a bit for responses to come in, then resolve
+    // The METADATA_KEYVALUE handler will update saved values
+    setTimeout(() => {
+      console.log(
+        `[METADATA_FETCH] Metadata fetch completed for server ${serverId}`,
+      );
+      useStore.setState((state) => ({
+        metadataFetchInProgress: {
+          ...state.metadataFetchInProgress,
+          [serverId]: false,
+        },
+      }));
+      resolve();
+    }, 1000);
+  });
+}
+
 interface UIState {
   selectedServerId: string | null;
   selectedChannelId: string | null;
@@ -296,6 +349,7 @@ export interface AppState {
     }
   >; // batchId -> batch info
   activeBatches: Record<string, Record<string, BatchInfo>>; // serverId -> batchId -> batch info
+  metadataFetchInProgress: Record<string, boolean>; // serverId -> is fetching own metadata
   // Account registration state
   pendingRegistration: {
     serverId: string;
@@ -308,6 +362,7 @@ export interface AppState {
   globalSettings: GlobalSettings;
   // Actions
   connect: (
+    name: string,
     host: string,
     port: number,
     nickname: string,
@@ -436,6 +491,7 @@ const useStore = create<AppState>((set, get) => ({
   metadataSubscriptions: {},
   metadataBatches: {},
   activeBatches: {},
+  metadataFetchInProgress: {},
   pendingRegistration: null,
   selectedServerId: null,
 
@@ -492,6 +548,7 @@ const useStore = create<AppState>((set, get) => ({
 
   // IRC client actions
   connect: async (
+    name,
     host,
     port,
     nickname,
@@ -523,6 +580,7 @@ const useStore = create<AppState>((set, get) => ({
       );
 
       const server = await ircClient.connect(
+        name,
         host,
         port,
         nickname,
@@ -544,6 +602,7 @@ const useStore = create<AppState>((set, get) => ({
       );
       updatedServers.push({
         id: server.id, // Include the server ID here
+        name: server.name, // Save the server name
         host,
         port,
         nickname,
@@ -1092,6 +1151,7 @@ const useStore = create<AppState>((set, get) => ({
   connectToSavedServers: async () => {
     const savedServers = loadSavedServers();
     for (const {
+      name,
       host,
       port,
       nickname,
@@ -1103,6 +1163,7 @@ const useStore = create<AppState>((set, get) => ({
     } of savedServers) {
       try {
         const server = await get().connect(
+          name || host, // Use saved name, default to host
           host,
           port,
           nickname,
@@ -2430,7 +2491,7 @@ ircClient.on("QUIT", ({ serverId, username, reason, batchTag }) => {
   }
 });
 
-ircClient.on("ready", ({ serverId, serverName, nickname }) => {
+ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
   console.log(`Server ready: serverId=${serverId}, serverName=${serverName}`);
 
   // Restore metadata for this server
@@ -2440,7 +2501,7 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
   // Only if server supports metadata
   if (serverSupportsMetadata(serverId)) {
     console.log(
-      `[READY] Server ${serverId} supports metadata, setting up subscriptions and restoring data`,
+      `[READY] Server ${serverId} supports metadata, setting up subscriptions and checking existing data`,
     );
 
     // First, subscribe to metadata updates
@@ -2469,24 +2530,32 @@ ircClient.on("ready", ({ serverId, serverName, nickname }) => {
       );
     }
 
-    // Then restore saved metadata
+    // Fetch our own metadata from the server first
+    // This will update saved values with what the server has
+    console.log(`[READY] Fetching own metadata from server ${serverId}`);
+    await fetchAndMergeOwnMetadata(serverId);
+
+    // Now send any metadata we have saved (updated values after merge)
     const savedMetadata = loadSavedMetadata();
     const serverMetadata = savedMetadata[serverId];
-    if (serverMetadata) {
-      console.log(`Restoring metadata for server ${serverId}:`, serverMetadata);
-      // Send all saved metadata to the server
-      Object.entries(serverMetadata).forEach(([target, metadata]) => {
-        Object.entries(metadata).forEach(([key, { value, visibility }]) => {
+    const ourNick = ircClient.getNick(serverId);
+
+    if (serverMetadata && ourNick) {
+      console.log(`[READY] Sending updated metadata for server ${serverId}`);
+      const ourMetadata = serverMetadata[ourNick];
+      if (ourMetadata) {
+        // Send our own metadata to the server
+        Object.entries(ourMetadata).forEach(([key, { value, visibility }]) => {
           if (value !== undefined) {
             console.log(
-              `Sending metadata: target=${target}, key=${key}, value=${value}`,
+              `[READY] Sending metadata: target=*, key=${key}, value=${value}`,
             );
             useStore
               .getState()
-              .metadataSet(serverId, target, key, value, visibility);
+              .metadataSet(serverId, "*", key, value, visibility);
           }
         });
-      });
+      }
     }
   } else {
     console.log(`[READY] Server ${serverId} does not support metadata`);
@@ -3474,6 +3543,10 @@ ircClient.on(
     console.log(
       `[METADATA_KEYVALUE] Received: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
     );
+
+    const state = useStore.getState();
+    const isFetchingOwn = state.metadataFetchInProgress[serverId];
+
     // Handle individual key-value responses (similar to METADATA)
     useStore.setState((state) => {
       // Resolve the target - if it's "*", it refers to the current user
@@ -3485,6 +3558,24 @@ ircClient.on(
       console.log(
         `[METADATA_KEYVALUE] Resolving target "${target}" to "${resolvedTarget}"`,
       );
+
+      // If we're fetching our own metadata, update saved values
+      if (isFetchingOwn && target === "*") {
+        console.log(
+          `[METADATA_KEYVALUE] Updating saved metadata during fetch: ${key}=${value}`,
+        );
+        const savedMetadata = loadSavedMetadata();
+        if (!savedMetadata[serverId]) {
+          savedMetadata[serverId] = {};
+        }
+        if (!savedMetadata[serverId][resolvedTarget]) {
+          savedMetadata[serverId][resolvedTarget] = {};
+        }
+        // Overwrite saved value with server value
+        savedMetadata[serverId][resolvedTarget][key] = { value, visibility };
+        saveMetadataToLocalStorage(savedMetadata);
+      }
+
       console.log(
         `[METADATA_KEYVALUE] Looking for user in ${state.servers.find((s) => s.id === serverId)?.channels.length || 0} channels`,
       );
@@ -3549,16 +3640,18 @@ ircClient.on(
         );
       }
 
-      // Save metadata to localStorage
-      const savedMetadata = loadSavedMetadata();
-      if (!savedMetadata[serverId]) {
-        savedMetadata[serverId] = {};
+      // Save metadata to localStorage (unless we're in fetch mode - already saved above)
+      if (!isFetchingOwn || target !== "*") {
+        const savedMetadata = loadSavedMetadata();
+        if (!savedMetadata[serverId]) {
+          savedMetadata[serverId] = {};
+        }
+        if (!savedMetadata[serverId][resolvedTarget]) {
+          savedMetadata[serverId][resolvedTarget] = {};
+        }
+        savedMetadata[serverId][resolvedTarget][key] = { value, visibility };
+        saveMetadataToLocalStorage(savedMetadata);
       }
-      if (!savedMetadata[serverId][resolvedTarget]) {
-        savedMetadata[serverId][resolvedTarget] = {};
-      }
-      savedMetadata[serverId][resolvedTarget][key] = { value, visibility };
-      saveMetadataToLocalStorage(savedMetadata);
 
       return { servers: updatedServers, currentUser: updatedCurrentUser };
     });
@@ -3567,8 +3660,30 @@ ircClient.on(
 
 ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
   console.log(
-    `[METADATA] Key not set: server=${serverId}, target=${target}, key=${key}`,
+    `[METADATA_KEYNOTSET] Key not set: server=${serverId}, target=${target}, key=${key}`,
   );
+
+  const state = useStore.getState();
+  const isFetchingOwn = state.metadataFetchInProgress[serverId];
+
+  // Resolve the target - if it's "*", it refers to the current user
+  const resolvedTarget =
+    target === "*"
+      ? ircClient.getNick(serverId) || state.currentUser?.username || target
+      : target;
+
+  // If we're fetching our own metadata and the key is not set, delete it from saved values
+  if (isFetchingOwn && target === "*") {
+    console.log(
+      `[METADATA_KEYNOTSET] Removing key from saved metadata during fetch: ${key}`,
+    );
+    const savedMetadata = loadSavedMetadata();
+    if (savedMetadata[serverId]?.[resolvedTarget]?.[key]) {
+      delete savedMetadata[serverId][resolvedTarget][key];
+      saveMetadataToLocalStorage(savedMetadata);
+    }
+  }
+
   // Handle key not set responses
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
@@ -3576,7 +3691,7 @@ ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
         // Remove metadata for users in channels
         const updatedChannels = server.channels.map((channel) => {
           const updatedUsers = channel.users.map((user) => {
-            if (user.username === target) {
+            if (user.username === resolvedTarget) {
               const metadata = user.metadata || {};
               delete metadata[key];
               return { ...user, metadata };
@@ -3586,12 +3701,16 @@ ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
 
           // Remove metadata for the channel itself if target matches channel name
           const channelMetadata = channel.metadata || {};
-          if (target === channel.name || target.startsWith("#")) {
+          if (
+            resolvedTarget === channel.name ||
+            resolvedTarget.startsWith("#")
+          ) {
             delete channelMetadata[key];
           }
 
           return { ...channel, users: updatedUsers, metadata: channelMetadata };
         });
+        return { ...server, channels: updatedChannels };
       }
       return server;
     });
@@ -3831,7 +3950,16 @@ ircClient.on(
 
     // Parse channel status from flags (e.g., "H@" means here and operator)
     let channelStatus = "";
+    let isAway = false;
+
     if (flags) {
+      // First character indicates here (H) or gone/away (G)
+      if (flags[0] === "G") {
+        isAway = true;
+      } else if (flags[0] === "H") {
+        isAway = false;
+      }
+
       // Extract channel status prefixes from flags
       const statusChars = flags.match(/[~&@%+]/g);
       if (statusChars) {
@@ -3845,6 +3973,7 @@ ircClient.on(
       username: nick,
       avatar: undefined,
       isOnline: true,
+      isAway: isAway,
       isBot: false,
       status: channelStatus, // Set the channel status here
       metadata: {},
@@ -3933,6 +4062,112 @@ ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
       return s;
     });
     return { servers: updatedServers };
+  });
+});
+
+// AWAY event handler for away-notify extension
+ircClient.on("AWAY", ({ serverId, username, awayMessage }) => {
+  console.log(
+    `[AWAY] User ${username} on server ${serverId} away status changed: ${awayMessage ? "away" : "here"}`,
+  );
+
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        // Update user in all channels they're in
+        const updatedChannels = s.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            if (user.username === username) {
+              return {
+                ...user,
+                isAway: !!awayMessage,
+                awayMessage: awayMessage || undefined,
+              };
+            }
+            return user;
+          });
+          return { ...channel, users: updatedUsers };
+        });
+        return { ...s, channels: updatedChannels };
+      }
+      return s;
+    });
+
+    // Update current user if this is us
+    let updatedCurrentUser = state.currentUser;
+    if (state.currentUser?.username === username) {
+      updatedCurrentUser = {
+        ...state.currentUser,
+        isAway: !!awayMessage,
+        awayMessage: awayMessage || undefined,
+      };
+    }
+
+    return { servers: updatedServers, currentUser: updatedCurrentUser };
+  });
+});
+
+// Handle 306 numeric - we are now marked as away
+ircClient.on("RPL_NOWAWAY", ({ serverId, message }) => {
+  console.log(
+    `[RPL_NOWAWAY] We are now marked as away on server ${serverId}: ${message}`,
+  );
+
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        return {
+          ...s,
+          isAway: true,
+          awayMessage: message,
+        };
+      }
+      return s;
+    });
+
+    // Update current user if this is the selected server
+    let updatedCurrentUser = state.currentUser;
+    if (state.ui.selectedServerId === serverId && state.currentUser) {
+      updatedCurrentUser = {
+        ...state.currentUser,
+        isAway: true,
+        awayMessage: message,
+      };
+    }
+
+    return { servers: updatedServers, currentUser: updatedCurrentUser };
+  });
+});
+
+// Handle 305 numeric - we are no longer marked as away
+ircClient.on("RPL_UNAWAY", ({ serverId, message }) => {
+  console.log(
+    `[RPL_UNAWAY] We are no longer marked as away on server ${serverId}: ${message}`,
+  );
+
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        return {
+          ...s,
+          isAway: false,
+          awayMessage: undefined,
+        };
+      }
+      return s;
+    });
+
+    // Update current user if this is the selected server
+    let updatedCurrentUser = state.currentUser;
+    if (state.ui.selectedServerId === serverId && state.currentUser) {
+      updatedCurrentUser = {
+        ...state.currentUser,
+        isAway: false,
+        awayMessage: undefined,
+      };
+    }
+
+    return { servers: updatedServers, currentUser: updatedCurrentUser };
   });
 });
 

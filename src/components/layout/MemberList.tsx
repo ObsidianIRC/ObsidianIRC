@@ -99,6 +99,11 @@ const UserItem: React.FC<{
         ) : (
           user.username.charAt(0).toUpperCase()
         )}
+        {/* Presence indicator - green if here, yellow if away */}
+        <div
+          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-discord-dark-600 ${user.isAway ? "bg-discord-yellow" : "bg-discord-green"}`}
+        />
+        {/* Status metadata indicator (if set via metadata) */}
         {status && (
           <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
             <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
