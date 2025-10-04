@@ -1192,6 +1192,11 @@ const useStore = create<AppState>((set, get) => ({
       );
       saveServersToLocalStorage(updatedServers);
 
+      // Remove server's metadata from localStorage
+      const savedMetadata = loadSavedMetadata();
+      delete savedMetadata[serverId];
+      saveMetadataToLocalStorage(savedMetadata);
+
       // Update state
       const remainingServers = state.servers.filter(
         (server) => server.id !== serverId,
