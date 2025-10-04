@@ -145,11 +145,12 @@ describe("App", () => {
 
       // Verify connection attempt
       expect(ircClient.connect).toHaveBeenCalledWith(
+        "Test Server",
         "irc.test.com",
         443,
         "tester",
         "",
-        "",
+        "tester",
         "c3VwZXIgYXdlc29tZSBwYXNzd29yZCBsbWFvIDEyMyAhPyE/IQ==",
         undefined,
       );
