@@ -5,14 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  FaBell,
-  FaCog,
-  FaServer,
-  FaTimes,
-  FaUpload,
-  FaUser,
-} from "react-icons/fa";
+import { FaBell, FaCog, FaServer, FaTimes, FaUser } from "react-icons/fa";
 import { isValidIgnorePattern } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
 import useStore, { serverSupportsMetadata } from "../../store";
@@ -593,7 +586,18 @@ const UserSettings: React.FC = React.memo(() => {
 
       // Set global settings values
       setEnableNotificationSounds(globalEnableNotificationSounds);
-      setNotificationSound(globalNotificationSound);
+      // Migrate old default (empty string) to notif1
+      const migratedNotificationSound =
+        globalNotificationSound === ""
+          ? "/sounds/notif1.mp3"
+          : globalNotificationSound;
+      setNotificationSound(migratedNotificationSound);
+
+      // Save migrated setting back to store if it was changed
+      if (globalNotificationSound === "") {
+        updateGlobalSettings({ notificationSound: "/sounds/notif1.mp3" });
+      }
+
       setEnableHighlights(globalEnableHighlights);
       setSendTypingNotifications(globalSendTypingNotifications);
       setNickname(globalNickname || currentUser?.username || "");
@@ -611,7 +615,7 @@ const UserSettings: React.FC = React.memo(() => {
         bot: botValue,
         newNickname: nicknameValue,
         enableNotificationSounds: globalEnableNotificationSounds,
-        notificationSound: globalNotificationSound,
+        notificationSound: migratedNotificationSound,
         enableHighlights: globalEnableHighlights,
         sendTypingNotifications: globalSendTypingNotifications,
         nickname: globalNickname || currentUser?.username || "",
@@ -638,6 +642,7 @@ const UserSettings: React.FC = React.memo(() => {
     globalSendTypingNotifications,
     currentUser,
     originalValues,
+    updateGlobalSettings,
   ]); // Only depend on user ID - removed all other dependencies
 
   const handleSaveMetadata = (key: string, value: string) => {
@@ -961,32 +966,48 @@ const UserSettings: React.FC = React.memo(() => {
               Play notification sounds
             </span>
           </label>
-          {enableNotificationSounds && (
-            <button
-              onClick={() => playNotificationSound()}
-              className="px-3 py-1 bg-discord-primary hover:bg-discord-primary-hover text-white rounded text-sm transition-colors"
-            >
-              Test Default Sound
-            </button>
-          )}
         </div>
       </SettingField>
 
       {enableNotificationSounds && (
         <SettingField
           label="Notification Sound"
-          description="Select a custom sound file to play for notifications"
+          description="Choose a sound to play for notifications"
         >
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleSoundFileSelect}
-              className="flex items-center px-3 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-normal rounded focus:outline-none focus:ring-2 focus:ring-discord-primary"
+          <div className="space-y-3">
+            <select
+              value={
+                notificationSound === "/sounds/notif1.mp3"
+                  ? "notif1"
+                  : notificationSound === "/sounds/notif2.mp3"
+                    ? "notif2"
+                    : notificationSound.startsWith("blob:") ||
+                        notificationSound.startsWith("data:")
+                      ? "custom"
+                      : "notif1"
+              }
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "notif1") {
+                  setNotificationSound("/sounds/notif1.mp3");
+                  setNotificationSoundFile(null);
+                } else if (value === "notif2") {
+                  setNotificationSound("/sounds/notif2.mp3");
+                  setNotificationSoundFile(null);
+                } else if (value === "custom") {
+                  handleSoundFileSelect();
+                }
+              }}
+              className="w-full px-3 py-2 bg-discord-input-bg border border-discord-button-secondary-default rounded text-discord-text-normal focus:border-discord-text-link focus:outline-none"
             >
-              <FaUpload className="mr-2" />
-              Choose Sound File
-            </button>
-            {notificationSound && (
-              <>
+              <option value="notif1">Notif 1</option>
+              <option value="notif2">Notif 2</option>
+              <option value="custom">Custom Upload</option>
+            </select>
+
+            {(notificationSound.startsWith("blob:") ||
+              notificationSound.startsWith("data:")) && (
+              <div className="flex items-center space-x-2">
                 <span className="text-discord-text-muted text-sm">
                   Custom sound selected
                 </span>
@@ -998,11 +1019,40 @@ const UserSettings: React.FC = React.memo(() => {
                   }
                   className="px-3 py-1 bg-discord-primary hover:bg-discord-primary-hover text-white rounded text-sm transition-colors"
                 >
-                  Test Custom Sound
+                  Test Sound
                 </button>
-              </>
+              </div>
+            )}
+
+            {notificationSound === "/sounds/notif1.mp3" && (
+              <div className="flex items-center space-x-2">
+                <span className="text-discord-text-muted text-sm">
+                  Notif 1 sound selected
+                </span>
+                <button
+                  onClick={() => playNotificationSound("/sounds/notif1.mp3")}
+                  className="px-3 py-1 bg-discord-primary hover:bg-discord-primary-hover text-white rounded text-sm transition-colors"
+                >
+                  Test Sound
+                </button>
+              </div>
+            )}
+
+            {notificationSound === "/sounds/notif2.mp3" && (
+              <div className="flex items-center space-x-2">
+                <span className="text-discord-text-muted text-sm">
+                  Notif 2 sound selected
+                </span>
+                <button
+                  onClick={() => playNotificationSound("/sounds/notif2.mp3")}
+                  className="px-3 py-1 bg-discord-primary hover:bg-discord-primary-hover text-white rounded text-sm transition-colors"
+                >
+                  Test Sound
+                </button>
+              </div>
             )}
           </div>
+
           <input
             ref={fileInputRef}
             type="file"

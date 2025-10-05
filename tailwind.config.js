@@ -81,6 +81,10 @@ module.exports = {
           "text-link": "#00AFF4",
           "channels-default": "#8E9297",
           "channels-active": "#FFFFFF",
+          // Button colors
+          "button-success-default": "#57F287",
+          "button-success-hover": "#4CAF50",
+          "button-secondary-default": "#4F545C",
         },
       },
       fontFamily: {
