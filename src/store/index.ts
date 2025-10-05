@@ -679,6 +679,14 @@ const useStore = create<AppState>((set, get) => ({
       set((state) => {
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
+            // Check if channel already exists in store
+            const existingChannel = server.channels.find(
+              (c) => c.name === channelName,
+            );
+            if (existingChannel) {
+              // Channel already exists, don't add duplicate
+              return server;
+            }
             return {
               ...server,
               channels: [...server.channels, channel],
@@ -3849,7 +3857,7 @@ ircClient.on("RENAME", ({ serverId, oldName, newName, reason, user }) => {
 
     const renameMessage: Message = {
       id: `rename-${Date.now()}`,
-      content: `${user} renamed from ${oldName} to ${newName}${reason ? ` (${reason})` : ""}`,
+      content: `Channel has been renamed from ${oldName} to ${newName} by ${user}${reason ? ` (${reason})` : ""}`,
       timestamp: new Date(),
       userId: "system",
       channelId: channel.id,
