@@ -1,6 +1,5 @@
 import type React from "react";
 import { FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
-import { mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 
 export const GlobalNotifications: React.FC = () => {
