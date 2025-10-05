@@ -2703,8 +2703,6 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
       savedServer?.saslPassword
     ) {
       preventCapEnd = true;
-    } else {
-    }
   }
 
   // Check if there's pending account registration
