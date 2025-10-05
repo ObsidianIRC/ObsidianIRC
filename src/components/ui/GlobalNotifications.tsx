@@ -77,9 +77,7 @@ export const GlobalNotifications: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {notification.type.toUpperCase()} {notification.command}{" "}
-                    {notification.code}
-                    {notification.target && ` ${notification.target}`}
+                    {notification.message}
                   </div>
                   <button
                     onClick={() => removeGlobalNotification(notification.id)}
@@ -89,13 +87,6 @@ export const GlobalNotifications: React.FC = () => {
                     ×
                   </button>
                 </div>
-                <div
-                  className="text-sm text-gray-700 dark:text-gray-300 mt-1"
-                  // biome-ignore lint/security/noDangerouslySetInnerHtml: IRC formatting is sanitized by mircToHtml
-                  dangerouslySetInnerHTML={{
-                    __html: mircToHtml(notification.message),
-                  }}
-                />
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {formatTime(notification.timestamp)}
                 </div>

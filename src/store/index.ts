@@ -846,6 +846,19 @@ const useStore = create<AppState>((set, get) => ({
         },
       ],
     }));
+
+    // Play error sound for FAIL notifications
+    if (notification.type === "fail") {
+      try {
+        const audio = new Audio("/sounds/error.mp3");
+        audio.volume = 0.3; // Set reasonable volume for notifications
+        audio.play().catch((error) => {
+          console.error("Failed to play error sound:", error);
+        });
+      } catch (error) {
+        console.error("Failed to play error sound:", error);
+      }
+    }
   },
 
   removeGlobalNotification: (notificationId) => {
