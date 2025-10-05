@@ -1,5 +1,12 @@
 import type React from "react";
-import { Children, cloneElement, Fragment, isValidElement } from "react";
+import {
+  Children,
+  cloneElement,
+  Fragment,
+  isValidElement,
+  useState,
+} from "react";
+import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 
 interface EnhancedLinkWrapperProps {
   children: React.ReactNode;
@@ -10,6 +17,37 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
   children,
   onIrcLinkClick,
 }) => {
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+
+  const handleLinkClick = (e: React.MouseEvent, url: string) => {
+    // Handle IRC links
+    if (
+      (url.startsWith("ircs://") || url.startsWith("irc://")) &&
+      onIrcLinkClick
+    ) {
+      e.preventDefault();
+      onIrcLinkClick(url);
+      return;
+    }
+
+    // Handle HTTP/HTTPS links - show warning modal
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      e.preventDefault();
+      setPendingUrl(url);
+    }
+  };
+
+  const handleConfirmOpen = () => {
+    if (pendingUrl) {
+      window.open(pendingUrl, "_blank", "noopener,noreferrer");
+    }
+    setPendingUrl(null);
+  };
+
+  const handleCancelOpen = () => {
+    setPendingUrl(null);
+  };
+
   // Regular expression to detect HTTP and HTTPS links
   const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
   const parseContent = (content: string): React.ReactNode[] => {
@@ -33,16 +71,7 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               className="text-discord-text-link underline hover:text-blue-700"
-              onClick={(e) => {
-                if (
-                  (matches[index].startsWith("ircs://") ||
-                    matches[index].startsWith("irc://")) &&
-                  onIrcLinkClick
-                ) {
-                  e.preventDefault();
-                  onIrcLinkClick(matches[index]);
-                }
-              }}
+              onClick={(e) => handleLinkClick(e, matches[index])}
             >
               {matches[index]}
             </a>
@@ -81,5 +110,15 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
       }) ?? []
     );
   };
-  return <>{processChildren(children)}</>;
+  return (
+    <>
+      <ExternalLinkWarningModal
+        isOpen={!!pendingUrl}
+        url={pendingUrl || ""}
+        onConfirm={handleConfirmOpen}
+        onCancel={handleCancelOpen}
+      />
+      {processChildren(children)}
+    </>
+  );
 };

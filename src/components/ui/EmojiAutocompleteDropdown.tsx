@@ -14,7 +14,7 @@ interface EmojiAutocompleteDropdownProps {
   cursorPosition: number;
   onSelect: (emoji: string) => void;
   onClose: () => void;
-  inputElement?: HTMLInputElement | null;
+  inputElement?: HTMLInputElement | HTMLTextAreaElement | null;
   emojiMatches?: EmojiItem[];
   currentMatchIndex?: number;
   onNavigate?: (emoji: string) => void;

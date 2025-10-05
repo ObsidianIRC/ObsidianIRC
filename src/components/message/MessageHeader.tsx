@@ -10,6 +10,7 @@ interface MessageHeaderProps {
   isClickable?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   isBot?: boolean;
+  isVerified?: boolean;
 }
 
 export const MessageHeader: React.FC<MessageHeaderProps> = ({
@@ -21,6 +22,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
   isClickable = false,
   onClick,
   isBot = false,
+  isVerified = false,
 }) => {
   const username = userId.split("-")[0];
   const isSystem = userId === "system";
@@ -41,6 +43,14 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
       >
         {isSystem ? "System" : displayName || username}
         {isBot && <span className="ml-1 text-xs">🤖</span>}
+        {isVerified && (
+          <span
+            className="ml-1 inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-green-500 rounded-full"
+            title="User is authenticated"
+          >
+            ✓
+          </span>
+        )}
         {displayName && (
           <span className="ml-2 text-xs bg-discord-dark-600 px-1 py-0.5 rounded">
             {username}

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
@@ -30,6 +30,60 @@ describe("App", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    // Reset store state to prevent test interference
+    useStore.setState({
+      servers: [],
+      currentUser: null,
+      isConnecting: false,
+      selectedServerId: null,
+      connectionError: null,
+      messages: {},
+      typingUsers: {},
+      ui: {
+        selectedServerId: null,
+        selectedChannelId: null,
+        selectedPrivateChatId: null,
+        isAddServerModalOpen: false,
+        isSettingsModalOpen: false,
+        isUserProfileModalOpen: false,
+        isDarkMode: true,
+        isMobileMenuOpen: false,
+        isMemberListVisible: true,
+        isChannelListVisible: true,
+        isChannelListModalOpen: false,
+        isChannelRenameModalOpen: false,
+        mobileViewActiveColumn: "serverList",
+        isServerMenuOpen: false,
+        contextMenu: {
+          isOpen: false,
+          x: 0,
+          y: 0,
+          type: "server",
+          itemId: null,
+        },
+        prefillServerDetails: null,
+      },
+      globalNotifications: [],
+      globalSettings: {
+        enableNotifications: true,
+        notificationSound: "pop",
+        enableNotificationSounds: true,
+        enableHighlights: true,
+        sendTypingNotifications: true,
+        showEvents: true,
+        showNickChanges: true,
+        showJoinsParts: true,
+        showQuits: true,
+        customMentions: [],
+        ignoreList: ["HistServ!*@*"],
+        nickname: "",
+        accountName: "",
+        accountPassword: "",
+        enableMultilineInput: true,
+        multilineOnShiftEnter: true,
+        autoFallbackToSingleLine: true,
+      },
+    });
   });
 
   describe("Server Management", () => {
@@ -52,7 +106,17 @@ describe("App", () => {
       const user = userEvent.setup();
 
       // Mock successful connection
-      vi.mocked(ircClient.connect).mockResolvedValueOnce();
+      vi.mocked(ircClient.connect).mockResolvedValueOnce({
+        id: "test-server",
+        name: "Test Server",
+        host: "irc.test.com",
+        port: 443,
+        channels: [],
+        privateChats: [],
+        isConnected: true,
+        users: [],
+        capabilities: [],
+      });
 
       // Open modal and fill form
       await user.click(screen.getByTestId("server-list-options-button"));
@@ -81,11 +145,12 @@ describe("App", () => {
 
       // Verify connection attempt
       expect(ircClient.connect).toHaveBeenCalledWith(
+        "Test Server",
         "irc.test.com",
         443,
         "tester",
         "",
-        "",
+        "tester",
         "c3VwZXIgYXdlc29tZSBwYXNzd29yZCBsbWFvIDEyMyAhPyE/IQ==",
         undefined,
       );
@@ -104,6 +169,11 @@ describe("App", () => {
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
 
+      // Wait for modal to be open
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/ExampleNET/i)).toBeInTheDocument();
+      });
+
       await user.type(
         screen.getByPlaceholderText(/ExampleNET/i),
         "Test Server",
@@ -117,8 +187,10 @@ describe("App", () => {
       // Submit form
       await user.click(screen.getByRole("button", { name: /^connect$/i }));
 
-      // Verify error message
-      expect(screen.getByText("Connection failed")).toBeInTheDocument();
+      // Verify error message appears after async connection failure
+      await waitFor(() => {
+        expect(screen.getByText("Connection failed")).toBeInTheDocument();
+      });
     });
   });
 
@@ -129,7 +201,7 @@ describe("App", () => {
 
       // Setup initial state with a user
       useStore.setState({
-        currentUser: { id: "user1", username: "testuser" },
+        currentUser: { id: "user1", username: "testuser", isOnline: true },
       });
 
       // Open settings

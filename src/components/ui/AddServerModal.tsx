@@ -40,7 +40,13 @@ export const AddServerModal: React.FC = () => {
     e.preventDefault();
     setError("");
 
-    if (!serverName.trim()) {
+    // Default server name to server host if empty
+    const finalServerName = serverName.trim() || serverHost.trim();
+
+    // Default SASL account name to nickname if empty
+    const finalSaslAccountName = saslAccountName.trim() || nickname.trim();
+
+    if (!finalServerName) {
       setError("Server name is required");
       return;
     }
@@ -62,12 +68,13 @@ export const AddServerModal: React.FC = () => {
 
     try {
       await connect(
+        finalServerName,
         serverHost,
         Number.parseInt(serverPort, 10),
         nickname,
         !!saslPassword,
         password,
-        saslAccountName,
+        finalSaslAccountName,
         saslPassword,
         registerAccount,
         registerEmail,

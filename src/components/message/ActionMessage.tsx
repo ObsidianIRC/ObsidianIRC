@@ -52,6 +52,7 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
           userId={message.userId}
           avatarUrl={messageUser?.metadata?.avatar?.value}
           userStatus={messageUser?.metadata?.status?.value}
+          isAway={messageUser?.isAway}
           theme="discord"
           showHeader={true}
           onClick={(e) => {

@@ -56,6 +56,20 @@ npm run tauri build -- --bundles dmg
 npm run tauri build -- --bundles appimage
 ```
 
+**For maximum compatibility:** Build on Ubuntu 20.04 or 22.04 LTS to ensure the binary works on older systems with older glibc versions. Building on newer systems (like Ubuntu 24.04) will create binaries that don't run on older systems.
+
+For distribution packages:
+```sh
+# Build .deb for Debian/Ubuntu
+npm run tauri build -- --bundles deb
+
+# Build .rpm for Fedora/RHEL
+npm run tauri build -- --bundles rpm
+
+# Build AppImage (recommended - works everywhere)
+npm run tauri build -- --bundles appimage
+```
+
 ### WINDOWS
 ```sh
 npm run build -- --bundles nsis

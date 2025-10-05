@@ -11,6 +11,7 @@ vi.mock("../../src/lib/ircClient", () => ({
     sendRaw: vi.fn(),
     sendTyping: vi.fn(),
     on: vi.fn(),
+    getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
     version: "1.0.0",
   },
 }));
@@ -70,6 +71,8 @@ describe("ChatArea Tab Completion Integration", () => {
         isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
+        isChannelListModalOpen: false,
+        isChannelRenameModalOpen: false,
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {

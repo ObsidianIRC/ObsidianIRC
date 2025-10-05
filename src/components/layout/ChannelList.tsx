@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaChevronDown,
   FaChevronLeft,
@@ -13,6 +13,7 @@ import {
   FaVolumeUp,
 } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
 import AddPrivateChatModal from "../ui/AddPrivateChatModal";
@@ -21,16 +22,57 @@ export const ChannelList: React.FC<{
   onToggle: () => void;
 }> = ({ onToggle }: { onToggle: () => void }) => {
   const {
-    servers,
-    ui: { selectedServerId, selectedChannelId, selectedPrivateChatId },
     selectChannel,
     selectPrivateChat,
     joinChannel,
     leaveChannel,
     deletePrivateChat,
     toggleUserProfileModal,
-    currentUser,
+    setMobileViewActiveColumn,
   } = useStore();
+
+  const selectedServerId = useStore((state) => state.ui.selectedServerId);
+  const selectedChannelId = useStore((state) => state.ui.selectedChannelId);
+  const selectedPrivateChatId = useStore(
+    (state) => state.ui.selectedPrivateChatId,
+  );
+
+  // Get the current user for the selected server from the store data (includes metadata)
+  // Use a selector to ensure reactivity when metadata changes
+  const currentUser = useStore((state) => {
+    if (!selectedServerId) return null;
+
+    // Get the current user's username from IRCClient
+    const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
+    if (!ircCurrentUser) return null;
+
+    // First, check if we have a global current user with metadata for this username
+    if (
+      state.currentUser &&
+      state.currentUser.username === ircCurrentUser.username
+    ) {
+      return state.currentUser;
+    }
+
+    // Find the current user in the server's channel data to get metadata
+    const selectedServer = state.servers.find((s) => s.id === selectedServerId);
+    if (!selectedServer) return ircCurrentUser;
+
+    // Look for the user in any channel to get their metadata
+    for (const channel of selectedServer.channels) {
+      const userWithMetadata = channel.users.find(
+        (u) => u.username === ircCurrentUser.username,
+      );
+      if (userWithMetadata) {
+        return userWithMetadata;
+      }
+    }
+
+    // If not found in channels, return the basic IRC user
+    return ircCurrentUser;
+  });
+
+  const servers = useStore((state) => state.servers);
 
   const [isTextChannelsOpen, setIsTextChannelsOpen] = useState(true);
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
@@ -38,10 +80,28 @@ export const ChannelList: React.FC<{
   const [newChannelName, setNewChannelName] = useState("");
   const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
     useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
   );
+
+  // Reset avatar load failed state when user or server changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We want to reset when user/server changes
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [currentUser?.username, selectedServerId]);
+
+  // Get user status based on server connection and away status
+  const userStatus = useMemo(() => {
+    if (!selectedServer || !selectedServer.isConnected) {
+      return "offline";
+    }
+    if (selectedServer.isAway) {
+      return "away";
+    }
+    return "online";
+  }, [selectedServer]);
 
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
@@ -56,11 +116,22 @@ export const ChannelList: React.FC<{
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       handleAddChannel();
     }
   };
 
   const isNarrowView = useMediaQuery();
+
+  const handleCollapseClick = () => {
+    if (isNarrowView) {
+      // On mobile, navigate to chat view
+      setMobileViewActiveColumn("chatView");
+    } else {
+      // On desktop, toggle the channel list
+      onToggle();
+    }
+  };
 
   return (
     <div className="h-full flex flex-col text-discord-channels-default">
@@ -69,14 +140,12 @@ export const ChannelList: React.FC<{
         <h1 className="font-bold text-white truncate">
           {selectedServer?.name || "Home"}
         </h1>
-        {!isNarrowView && (
-          <button
-            onClick={onToggle}
-            className="text-discord-channels-default hover:text-white"
-          >
-            <FaChevronLeft />
-          </button>
-        )}
+        <button
+          onClick={handleCollapseClick}
+          className="text-discord-channels-default hover:text-white"
+        >
+          <FaChevronLeft />
+        </button>
       </div>
 
       {/* Channel list */}
@@ -364,20 +433,13 @@ export const ChannelList: React.FC<{
         <div className="flex items-center gap-2">
           <div className="relative">
             <div className="w-8 h-8 rounded-full bg-discord-dark-100 flex items-center justify-center">
-              {currentUser?.metadata?.avatar?.value ? (
+              {currentUser?.metadata?.avatar?.value && !avatarLoadFailed ? (
                 <img
                   src={currentUser.metadata.avatar.value}
                   alt={currentUser.username}
                   className="w-8 h-8 rounded-full object-cover"
-                  onError={(e) => {
-                    // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    if (parent && currentUser?.username) {
-                      parent.textContent = currentUser.username
-                        .charAt(0)
-                        .toUpperCase();
-                    }
+                  onError={() => {
+                    setAvatarLoadFailed(true);
                   }}
                 />
               ) : (
@@ -387,7 +449,7 @@ export const ChannelList: React.FC<{
               )}
             </div>
             <div
-              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${currentUser?.status === "online" ? "bg-discord-green" : currentUser?.status === "idle" ? "bg-discord-yellow" : currentUser?.status === "dnd" ? "bg-discord-red" : "bg-discord-dark-500"}`}
+              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${userStatus === "online" ? "bg-discord-green" : userStatus === "away" ? "bg-discord-yellow" : "bg-discord-dark-500"}`}
             />
           </div>
           <div>
@@ -395,13 +457,11 @@ export const ChannelList: React.FC<{
               {currentUser?.username || "User"}
             </div>
             <div className="text-xs text-discord-channels-default">
-              {currentUser?.status === "online"
+              {userStatus === "online"
                 ? "Online"
-                : currentUser?.status === "idle"
-                  ? "Idle"
-                  : currentUser?.status === "dnd"
-                    ? "Do Not Disturb"
-                    : "Offline"}
+                : userStatus === "away"
+                  ? selectedServer?.awayMessage || "Away"
+                  : "Offline"}
             </div>
           </div>
         </div>

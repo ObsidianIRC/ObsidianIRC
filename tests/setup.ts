@@ -6,4 +6,4 @@ window.matchMedia = vi.fn(() => ({
   matches: false,
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
-})) as unknown as MediaQueryList;
+})) as unknown as (query: string) => MediaQueryList;

@@ -9,6 +9,7 @@ import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import UserSettings from "./components/ui/UserSettings";
+import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import useStore, { loadSavedServers } from "./store";
 
@@ -38,13 +39,9 @@ const initializeEnvSettings = (
     ? __DEFAULT_IRC_SERVER__.split(":")[2]
     : undefined;
   if (!host || !port) {
-    console.log("Skipping default server connection, missing host or port.");
     return;
   }
   if (!__DEFAULT_IRC_SERVER_NAME__) {
-    console.warn(
-      "Default IRC server name is not set. Using 'Obsidian IRC' as default.",
-    );
   }
   toggleAddServerModal(true, {
     name: __DEFAULT_IRC_SERVER_NAME__ || "Obsidian IRC",
@@ -77,6 +74,10 @@ const App: React.FC = () => {
     joinChannel,
     connectToSavedServers,
   } = useStore();
+
+  // Initialize keyboard resize handling for mobile platforms
+  useKeyboardResize();
+
   // askPermissions();
   useEffect(() => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);

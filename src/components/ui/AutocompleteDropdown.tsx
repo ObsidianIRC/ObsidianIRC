@@ -9,7 +9,7 @@ interface AutocompleteDropdownProps {
   cursorPosition: number;
   onSelect: (username: string) => void;
   onClose: () => void;
-  inputElement?: HTMLInputElement | null;
+  inputElement?: HTMLInputElement | HTMLTextAreaElement | null;
   tabCompletionMatches?: string[];
   currentMatchIndex?: number;
   onNavigate?: (username: string) => void;

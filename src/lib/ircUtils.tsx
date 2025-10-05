@@ -8,7 +8,6 @@ export function parseNamesResponse(namesResponse: string): User[] {
     const regex = /([~&@%+]*)([^\s!]+)!/;
     const match = regex.exec(name);
     if (match) {
-      console.log("match");
       const [_, prefix, username] = match;
       users.push({
         id: username,
@@ -16,7 +15,7 @@ export function parseNamesResponse(namesResponse: string): User[] {
         status: prefix,
         isOnline: true,
       });
-    } else console.log("No match");
+    }
   }
   return users;
 }
@@ -41,6 +40,23 @@ export function parseMessageTags(tags: string): Record<string, string> {
   }
 
   return parsedTags;
+}
+
+/**
+ * Check if a user is verified based on the account tag matching their nickname.
+ * According to IRCv3 account-tag spec, if the account tag matches the sender's nick
+ * (case-insensitively), the user is authenticated to that account.
+ */
+export function isUserVerified(
+  senderNick: string,
+  messageTags?: Record<string, string>,
+): boolean {
+  if (!messageTags?.account) {
+    return false;
+  }
+
+  // Case-insensitive comparison as per the requirement
+  return senderNick.toLowerCase() === messageTags.account.toLowerCase();
 }
 
 export function parseIsupport(tokens: string): Record<string, string> {
