@@ -505,7 +505,7 @@ const useStore = create<AppState>((set, get) => ({
   },
   globalSettings: {
     enableNotifications: false,
-    notificationSound: "",
+    notificationSound: "/sounds/notif1.mp3",
     enableNotificationSounds: true,
     enableHighlights: true,
     sendTypingNotifications: true,
@@ -2398,6 +2398,22 @@ ircClient.on("QUIT", ({ serverId, username, reason, batchTag }) => {
     }
   }
 
+  // Get the current state to check which channels the user was in before removing them
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  const channelsUserWasIn: string[] = [];
+
+  if (server) {
+    server.channels.forEach((channel) => {
+      const userWasInChannel = channel.users.some(
+        (user) => user.username === username,
+      );
+      if (userWasInChannel) {
+        channelsUserWasIn.push(channel.id);
+      }
+    });
+  }
+
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -2417,16 +2433,11 @@ ircClient.on("QUIT", ({ serverId, username, reason, batchTag }) => {
   });
 
   // Add quit message if settings allow
-  const state = useStore.getState();
   if (state.globalSettings.showEvents && state.globalSettings.showQuits) {
-    const server = state.servers.find((s) => s.id === serverId);
     if (server) {
       // Add quit message to all channels where the user was present
       server.channels.forEach((channel) => {
-        const userWasInChannel = channel.users.some(
-          (user) => user.username === username,
-        );
-        if (userWasInChannel) {
+        if (channelsUserWasIn.includes(channel.id)) {
           const quitMessage: Message = {
             id: uuidv4(),
             type: "quit",
