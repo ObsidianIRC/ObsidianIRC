@@ -961,12 +961,21 @@ export class IRCClient {
           users: newUsers,
         });
       } else if (command === "CAP") {
+        console.log(
+          `[CAP] Processing CAP command, parv: ${JSON.stringify(parv)}, trailing: "${trailing}"`,
+        );
+        console.log(`[CAP] Received CAP message: ${parv.join(" ")}`);
+        console.log(`[CAP] Full parv array: ${JSON.stringify(parv)}`);
+        console.log(`[CAP] Trailing parameter: "${trailing}"`);
         let i = 0;
         let caps = "";
         if (parv[i] === "*") {
           i++;
         }
         let subcommand = parv[i++];
+        console.log(
+          `[CAP] Subcommand: '${subcommand}', i after increment: ${i}, parv length: ${parv.length}`,
+        );
         // Handle CAP ACK which has nickname before subcommand
         if (
           subcommand !== "LS" &&
@@ -990,6 +999,8 @@ export class IRCClient {
             if (parv[i]) caps += " ";
           }
         }
+
+        console.log(`[CAP] Final caps string: "${caps}"`);
 
         if (subcommand === "LS") this.onCapLs(serverId, caps, isFinal);
         else if (subcommand === "ACK") {

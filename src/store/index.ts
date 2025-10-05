@@ -1449,6 +1449,10 @@ const useStore = create<AppState>((set, get) => ({
 
   metadataSub: (serverId, keys) => {
     if (serverSupportsMetadata(serverId)) {
+      console.log(
+        `[METADATA_SUB] Subscribing to keys for server ${serverId}:`,
+        keys,
+      );
       ircClient.metadataSub(serverId, keys);
     } else {
     }
@@ -3409,6 +3413,9 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
               } else {
                 delete metadata[key];
               }
+              console.log(
+                `[METADATA] Updated user ${resolvedTarget} in channel ${channel.name} with ${key}=${value}`,
+              );
               return { ...user, metadata };
             }
             return user;
@@ -3604,6 +3611,9 @@ ircClient.on(
           }
         }
         updatedCurrentUser = { ...state.currentUser, metadata };
+        console.log(
+          `[METADATA_KEYVALUE] Updated current user ${resolvedTarget} with ${key}=${value}`,
+        );
       }
 
       // Save metadata to localStorage (unless we're in fetch mode - already saved above)
@@ -3679,6 +3689,10 @@ ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
 });
 
 ircClient.on("METADATA_SUBOK", ({ serverId, keys }) => {
+  console.log(
+    `[METADATA_SUBOK] Successfully subscribed to keys for server ${serverId}:`,
+    keys,
+  );
   // Update subscriptions
   useStore.setState((state) => {
     const currentSubs = state.metadataSubscriptions[serverId] || [];
@@ -3758,10 +3772,17 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
 });
 
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
+  console.log(
+    `[CAP_ACKNOWLEDGED] Server ${serverId} acknowledged capability: ${key} (${capabilities})`,
+  );
   if (capabilities?.startsWith("draft/metadata")) {
     // Check if already subscribed to avoid duplicate subscriptions
     const currentSubs =
       useStore.getState().metadataSubscriptions[serverId] || [];
+    console.log(
+      `[CAP_ACKNOWLEDGED] Current metadata subscriptions for server ${serverId}:`,
+      currentSubs,
+    );
     if (currentSubs.length === 0) {
       // Subscribe to common metadata keys
       const defaultKeys = [
@@ -3774,6 +3795,10 @@ ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
         "display-name",
         "bot", // Subscribe to bot metadata for tooltip information
       ];
+      console.log(
+        "[CAP_ACKNOWLEDGED] Attempting to subscribe to default metadata keys:",
+        defaultKeys,
+      );
       useStore.getState().metadataSub(serverId, defaultKeys);
     }
 
