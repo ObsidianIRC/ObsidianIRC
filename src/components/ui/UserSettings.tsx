@@ -677,33 +677,15 @@ const UserSettings: React.FC = React.memo(() => {
   };
 
   const handleSaveAll = () => {
-    console.log("[USER_SETTINGS] handleSaveAll called");
-    console.log("[USER_SETTINGS] originalValues:", originalValues);
-    console.log("[USER_SETTINGS] current values:", {
-      displayName,
-      color,
-      avatar,
-      status,
-      homepage,
-      bot,
-    });
-    console.log("[USER_SETTINGS] supportsMetadata:", supportsMetadata);
-
     if (!originalValues) {
-      console.log("[USER_SETTINGS] No original values, skipping save");
       return; // Don't save if original values aren't set yet
     }
 
     if (currentServer && currentUser) {
-      console.log(
-        "[USER_SETTINGS] Processing metadata updates for server:",
-        currentServer.id,
-      );
       // Handle profile metadata (only when metadata is supported and values have changed)
       if (supportsMetadata) {
         // Only update display name if it changed
         if (displayName !== originalValues.displayName) {
-          console.log("[USER_SETTINGS] Updating display-name:", displayName);
           try {
             metadataSet(
               currentServer.id,
@@ -728,17 +710,9 @@ const UserSettings: React.FC = React.memo(() => {
           { key: "bot", value: bot, original: originalValues.bot },
         ];
 
-        console.log(
-          "[USER_SETTINGS] Checking metadata updates:",
-          metadataUpdates,
-        );
-
         metadataUpdates.forEach(({ key, value, original }) => {
           // Only update if the value has changed
           if (value !== original) {
-            console.log(
-              `[USER_SETTINGS] Updating ${key}: "${original}" -> "${value}"`,
-            );
             try {
               metadataSet(
                 currentServer.id,
@@ -750,7 +724,6 @@ const UserSettings: React.FC = React.memo(() => {
               console.error(`Failed to set ${key} metadata:`, error);
             }
           } else {
-            console.log(`[USER_SETTINGS] No change for ${key}: "${value}"`);
           }
         });
       }

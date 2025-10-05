@@ -108,6 +108,11 @@ export interface Message {
   quitUsers?: string[];
   server1?: string;
   server2?: string;
+  // Link preview fields
+  linkPreviewUrl?: string;
+  linkPreviewTitle?: string;
+  linkPreviewSnippet?: string;
+  linkPreviewMeta?: string; // URL to preview image/thumbnail
 }
 
 // Alias for backwards compatibility

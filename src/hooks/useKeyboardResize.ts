@@ -24,10 +24,6 @@ export const useKeyboardResize = () => {
         }
       } catch (error) {
         // If platform() fails, continue anyway on mobile devices
-        console.warn(
-          "Failed to detect platform, continuing with keyboard handling:",
-          error,
-        );
       }
     }
 

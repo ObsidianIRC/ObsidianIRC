@@ -31,7 +31,6 @@ export function matchesIgnorePattern(
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(normalizedHostmask);
   } catch (error) {
-    console.warn(`Invalid ignore pattern: ${pattern}`, error);
     return false;
   }
 }

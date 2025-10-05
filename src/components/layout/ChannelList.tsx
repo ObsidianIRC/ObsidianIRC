@@ -22,9 +22,6 @@ export const ChannelList: React.FC<{
   onToggle: () => void;
 }> = ({ onToggle }: { onToggle: () => void }) => {
   const {
-    servers,
-    currentUser: globalCurrentUser,
-    ui: { selectedServerId, selectedChannelId, selectedPrivateChatId },
     selectChannel,
     selectPrivateChat,
     joinChannel,
@@ -34,8 +31,15 @@ export const ChannelList: React.FC<{
     setMobileViewActiveColumn,
   } = useStore();
 
+  const selectedServerId = useStore((state) => state.ui.selectedServerId);
+  const selectedChannelId = useStore((state) => state.ui.selectedChannelId);
+  const selectedPrivateChatId = useStore(
+    (state) => state.ui.selectedPrivateChatId,
+  );
+
   // Get the current user for the selected server from the store data (includes metadata)
-  const currentUser = useMemo(() => {
+  // Use a selector to ensure reactivity when metadata changes
+  const currentUser = useStore((state) => {
     if (!selectedServerId) return null;
 
     // Get the current user's username from IRCClient
@@ -44,14 +48,14 @@ export const ChannelList: React.FC<{
 
     // First, check if we have a global current user with metadata for this username
     if (
-      globalCurrentUser &&
-      globalCurrentUser.username === ircCurrentUser.username
+      state.currentUser &&
+      state.currentUser.username === ircCurrentUser.username
     ) {
-      return globalCurrentUser;
+      return state.currentUser;
     }
 
     // Find the current user in the server's channel data to get metadata
-    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    const selectedServer = state.servers.find((s) => s.id === selectedServerId);
     if (!selectedServer) return ircCurrentUser;
 
     // Look for the user in any channel to get their metadata
@@ -66,7 +70,9 @@ export const ChannelList: React.FC<{
 
     // If not found in channels, return the basic IRC user
     return ircCurrentUser;
-  }, [selectedServerId, servers, globalCurrentUser]);
+  });
+
+  const servers = useStore((state) => state.servers);
 
   const [isTextChannelsOpen, setIsTextChannelsOpen] = useState(true);
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
@@ -110,6 +116,7 @@ export const ChannelList: React.FC<{
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       handleAddChannel();
     }
   };

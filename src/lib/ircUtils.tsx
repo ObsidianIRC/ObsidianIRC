@@ -8,7 +8,6 @@ export function parseNamesResponse(namesResponse: string): User[] {
     const regex = /([~&@%+]*)([^\s!]+)!/;
     const match = regex.exec(name);
     if (match) {
-      console.log("match");
       const [_, prefix, username] = match;
       users.push({
         id: username,
@@ -16,7 +15,7 @@ export function parseNamesResponse(namesResponse: string): User[] {
         status: prefix,
         isOnline: true,
       });
-    } else console.log("No match");
+    }
   }
   return users;
 }

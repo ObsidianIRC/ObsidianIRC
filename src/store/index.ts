@@ -115,11 +115,6 @@ function serverSupportsMetadata(serverId: string): boolean {
     server?.capabilities?.some(
       (cap) => cap === "draft/metadata-2" || cap.startsWith("draft/metadata"),
     ) ?? false;
-  console.log(
-    `[SERVER_CAPS] Server ${serverId} capabilities:`,
-    server?.capabilities,
-  );
-  console.log(`[SERVER_CAPS] Server ${serverId} supports metadata:`, supports);
   return supports;
 }
 
@@ -128,10 +123,6 @@ function serverSupportsMultiline(serverId: string): boolean {
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   const supports = server?.capabilities?.includes("draft/multiline") ?? false;
-  console.log(
-    `[SERVER_CAPS] Server ${serverId} supports draft/multiline:`,
-    supports,
-  );
   return supports;
 }
 
@@ -213,14 +204,9 @@ async function fetchAndMergeOwnMetadata(serverId: string): Promise<void> {
   return new Promise((resolve) => {
     const nickname = ircClient.getNick(serverId);
     if (!nickname) {
-      console.log(`[METADATA_FETCH] No nickname found for server ${serverId}`);
       resolve();
       return;
     }
-
-    console.log(
-      `[METADATA_FETCH] Fetching metadata for ${nickname} on server ${serverId}`,
-    );
 
     // Mark as fetching
     useStore.setState((state) => ({
@@ -247,9 +233,6 @@ async function fetchAndMergeOwnMetadata(serverId: string): Promise<void> {
     // Wait a bit for responses to come in, then resolve
     // The METADATA_KEYVALUE handler will update saved values
     setTimeout(() => {
-      console.log(
-        `[METADATA_FETCH] Metadata fetch completed for server ${serverId}`,
-      );
       useStore.setState((state) => ({
         metadataFetchInProgress: {
           ...state.metadataFetchInProgress,
@@ -1295,7 +1278,6 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   toggleChannelList: (isOpen) => {
-    console.log("Toggling channel list", isOpen);
     set((state) => {
       const openState =
         isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
@@ -1455,9 +1437,6 @@ const useStore = create<AppState>((set, get) => ({
 
   metadataSet: (serverId, target, key, value, visibility) => {
     if (serverSupportsMetadata(serverId)) {
-      console.log(
-        `[METADATA] Setting metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
-      );
       ircClient.metadataSet(serverId, target, key, value, visibility);
     }
   },
@@ -1476,9 +1455,6 @@ const useStore = create<AppState>((set, get) => ({
       );
       ircClient.metadataSub(serverId, keys);
     } else {
-      console.log(
-        `[METADATA_SUB] Server ${serverId} does not support metadata`,
-      );
     }
   },
 
@@ -1519,7 +1495,6 @@ registerAllProtocolHandlers(ircClient, useStore);
 //   "message",
 //   (response: { serverId: string; channelId: string; message: Message }) => {
 //     const { serverId, channelId, message } = response;
-//     console.log(`MSG: ${message}`);
 //     useStore.getState().addMessage(message);
 //   },
 // );
@@ -1564,9 +1539,6 @@ ircClient.on("CHANMSG", (response) => {
     )
   ) {
     // User is ignored, skip processing this message
-    console.log(
-      `[IGNORE] Skipping message from ignored user: ${response.sender}`,
-    );
     return;
   }
 
@@ -1664,7 +1636,6 @@ ircClient.on("CHANMSG", (response) => {
 
 // Handle multiline messages
 ircClient.on("MULTILINE_MESSAGE", (response) => {
-  console.log("[STORE] Received MULTILINE_MESSAGE:", response);
   const { mtags, channelName, sender, message, messageIds, timestamp } =
     response;
 
@@ -1672,9 +1643,6 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
   const globalSettings = useStore.getState().globalSettings;
   if (isUserIgnored(sender, undefined, undefined, globalSettings.ignoreList)) {
     // User is ignored, skip processing this message
-    console.log(
-      `[IGNORE] Skipping multiline message from ignored user: ${sender}`,
-    );
     return;
   }
 
@@ -1712,8 +1680,6 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
         mentioned: [], // Add logic for mentions if needed
         tags: mtags,
       };
-
-      console.log("[STORE] Created multiline message with IDs:", messageIds);
 
       // If message has bot tag, mark user as bot
       if (mtags?.bot !== undefined) {
@@ -1844,9 +1810,6 @@ ircClient.on("USERMSG", (response) => {
   const globalSettings = useStore.getState().globalSettings;
   if (isUserIgnored(sender, undefined, undefined, globalSettings.ignoreList)) {
     // User is ignored, skip processing this message
-    console.log(
-      `[IGNORE] Skipping private message from ignored user: ${sender}`,
-    );
     return;
   }
 
@@ -1983,9 +1946,6 @@ ircClient.on("CHANNNOTICE", (response) => {
     )
   ) {
     // User is ignored, skip processing this notice
-    console.log(
-      `[IGNORE] Skipping channel notice from ignored user: ${response.sender}`,
-    );
     return;
   }
 
@@ -2044,9 +2004,6 @@ ircClient.on("USERNOTICE", (response) => {
     )
   ) {
     // User is ignored, skip processing this notice
-    console.log(
-      `[IGNORE] Skipping user notice from ignored user: ${response.sender}`,
-    );
     return;
   }
 
@@ -2497,18 +2454,12 @@ ircClient.on("QUIT", ({ serverId, username, reason, batchTag }) => {
 });
 
 ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
-  console.log(`Server ready: serverId=${serverId}, serverName=${serverName}`);
-
   // Restore metadata for this server
   restoreServerMetadata(serverId);
 
   // Send saved metadata to the server (after 001 ready)
   // Only if server supports metadata
   if (serverSupportsMetadata(serverId)) {
-    console.log(
-      `[READY] Server ${serverId} supports metadata, setting up subscriptions and checking existing data`,
-    );
-
     // First, subscribe to metadata updates
     const currentSubs =
       useStore.getState().metadataSubscriptions[serverId] || [];
@@ -2523,21 +2474,12 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
         "display-name",
         "bot",
       ];
-      console.log(
-        `[READY] Subscribing to metadata keys for server ${serverId}:`,
-        defaultKeys,
-      );
       useStore.getState().metadataSub(serverId, defaultKeys);
     } else {
-      console.log(
-        `[READY] Already subscribed to metadata keys for server ${serverId}:`,
-        currentSubs,
-      );
     }
 
     // Fetch our own metadata from the server first
     // This will update saved values with what the server has
-    console.log(`[READY] Fetching own metadata from server ${serverId}`);
     await fetchAndMergeOwnMetadata(serverId);
 
     // Now send any metadata we have saved (updated values after merge)
@@ -2546,15 +2488,11 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     const ourNick = ircClient.getNick(serverId);
 
     if (serverMetadata && ourNick) {
-      console.log(`[READY] Sending updated metadata for server ${serverId}`);
       const ourMetadata = serverMetadata[ourNick];
       if (ourMetadata) {
         // Send our own metadata to the server
         Object.entries(ourMetadata).forEach(([key, { value, visibility }]) => {
           if (value !== undefined) {
-            console.log(
-              `[READY] Sending metadata: target=*, key=${key}, value=${value}`,
-            );
             useStore
               .getState()
               .metadataSet(serverId, "*", key, value, visibility);
@@ -2563,7 +2501,6 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
       }
     }
   } else {
-    console.log(`[READY] Server ${serverId} does not support metadata`);
   }
 
   useStore.setState((state) => {
@@ -2591,13 +2528,6 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
           ...userMetadata,
         },
       };
-
-      console.log(
-        `[READY] Set current user for server ${serverId}:`,
-        updatedCurrentUser.username,
-        "with metadata:",
-        updatedCurrentUser.metadata,
-      );
     }
 
     return {
@@ -2610,7 +2540,6 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
   const savedServer = savedServers.find((s) => s.id === serverId);
 
   if (savedServer) {
-    console.log(`Joining saved channels for serverId=${serverId}`);
     for (const channelName of savedServer.channels) {
       if (channelName) {
         useStore.getState().joinChannel(serverId, channelName);
@@ -2626,12 +2555,10 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
       },
     }));
   } else {
-    console.warn(`No saved channels found for serverId=${serverId}`);
   }
 });
 
 ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
-  console.log(`User ${username} left channel ${channelName}`);
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -2687,9 +2614,6 @@ ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
 });
 
 ircClient.on("KICK", ({ username, target, channelName, reason }) => {
-  console.log(
-    `User ${target} was kicked from channel ${channelName} by ${username} for reason: ${reason}`,
-  );
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       const updatedChannels = server.channels.map((channel) => {
@@ -2721,7 +2645,6 @@ ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
 });
 
 ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
-  console.log(param);
   if (param !== "+") return;
 
   let user: string | undefined;
@@ -2752,7 +2675,6 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   for (const cap of caps) {
     const tok = cap.split("=");
     ircClient.capAck(serverId, tok[0], tok[1] ?? null);
-    console.log(`Capability acknowledged: ${cap}`);
   }
 
   // Update server capabilities in store
@@ -2774,9 +2696,18 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   const server = state.servers.find((s) => s.id === serverId);
   let preventCapEnd = false;
 
-  // Check if SASL was requested and acknowledged
+  // Check if SASL was requested and acknowledged, AND we have credentials
   if (caps.some((cap) => cap.startsWith("sasl"))) {
-    preventCapEnd = true;
+    // Only prevent CAP END if we actually have SASL credentials
+    const servers = loadSavedServers();
+    const savedServer = servers.find((s) => s.id === serverId);
+    if (
+      savedServer?.saslEnabled &&
+      savedServer?.saslAccountName &&
+      savedServer?.saslPassword
+    ) {
+      preventCapEnd = true;
+    }
   }
 
   // Check if there's pending account registration
@@ -2785,7 +2716,6 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
     preventCapEnd = true;
     // Check if server supports account registration
     if (server?.capabilities?.includes("draft/account-registration")) {
-      console.log(`Triggering account registration for server ${serverId}`);
       useStore
         .getState()
         .registerAccount(
@@ -2794,11 +2724,9 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
           pendingReg.email,
           pendingReg.password,
         );
-      console.log(pendingReg);
       // Clear the pending registration
       useStore.setState({ pendingRegistration: null });
     } else {
-      console.log(`Server ${serverId} does not support account registration`);
       // Clear the pending registration
       useStore.setState({ pendingRegistration: null });
       // Send CAP END since registration is not possible
@@ -2807,11 +2735,9 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   }
 
   if (!preventCapEnd) {
-    console.log(`Sending CAP END for server ${serverId}`);
     ircClient.sendRaw(serverId, "CAP END");
     ircClient.userOnConnect(serverId);
   } else {
-    console.log(`Preventing CAP END for server ${serverId}`);
   }
 });
 
@@ -2840,7 +2766,6 @@ ircClient.on("LIST_END", ({ serverId }) => {
       [serverId]: false,
     },
   }));
-  console.log(`Channel listing complete for server ${serverId}`);
 });
 
 // CTCPs lol
@@ -3060,6 +2985,78 @@ ircClient.on("TAGMSG", (response) => {
       });
     }
   }
+
+  // Handle link previews
+  if (
+    mtags &&
+    (mtags["obsidianirc/link-preview-title"] ||
+      mtags["obsidianirc/link-preview-snippet"] ||
+      mtags["obsidianirc/link-preview-meta"]) &&
+    mtags["+reply"]
+  ) {
+    const replyMessageId = mtags["+reply"];
+
+    const server = useStore
+      .getState()
+      .servers.find((s) => s.id === response.serverId);
+    if (!server) return;
+
+    let channel: Channel | PrivateChat | undefined;
+    const isChannel = channelName.startsWith("#");
+    if (isChannel) {
+      channel = server.channels.find((c) => c.name === channelName);
+    } else {
+      // Private chat
+      channel = server.privateChats?.find((pc) => pc.username === channelName);
+    }
+
+    if (!channel) return;
+
+    // Find the message to add link preview to
+    const messages = getChannelMessages(server.id, channel.id);
+    const messageIndex = messages.findIndex((m) => m.msgid === replyMessageId);
+    if (messageIndex === -1) return;
+
+    const message = messages[messageIndex];
+
+    // Helper function to unescape IRC tag values
+    const unescapeTagValue = (
+      value: string | undefined,
+    ): string | undefined => {
+      if (!value) return undefined;
+      // IRC tag escaping: \: = ; \s = space \\ = \ \r = CR \n = LF
+      return value
+        .replace(/\\s/g, " ")
+        .replace(/\\:/g, ";")
+        .replace(/\\r/g, "\r")
+        .replace(/\\n/g, "\n")
+        .replace(/\\\\/g, "\\");
+    };
+
+    useStore.setState((state) => {
+      const updatedMessages = [...messages];
+      updatedMessages[messageIndex] = {
+        ...message,
+        linkPreviewTitle: unescapeTagValue(
+          mtags["obsidianirc/link-preview-title"],
+        ),
+        linkPreviewSnippet: unescapeTagValue(
+          mtags["obsidianirc/link-preview-snippet"],
+        ),
+        linkPreviewMeta: unescapeTagValue(
+          mtags["obsidianirc/link-preview-meta"],
+        ),
+      };
+
+      const key = `${server.id}-${channel.id}`;
+      return {
+        messages: {
+          ...state.messages,
+          [key]: updatedMessages,
+        },
+      };
+    });
+  }
 });
 
 ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
@@ -3120,14 +3117,9 @@ ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
 
 // Nick error event handler
 ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
-  console.log(`[NICK_ERROR] ${code} ${error}: ${message}`);
-
   // Handle 433 (nickname already in use) with automatic retry
   if (code === "433" && nick) {
     const newNick = `${nick}_`;
-    console.log(
-      `Nickname '${nick}' already in use, retrying with '${newNick}'`,
-    );
 
     // Attempt to change to the nick with underscore appended
     ircClient.changeNick(serverId, newNick);
@@ -3211,7 +3203,6 @@ ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
 
 // Standard reply event handlers
 ircClient.on("FAIL", ({ serverId, command, code, target, message }) => {
-  console.log(`[FAIL] ${command} ${code} ${target || ""}: ${message}`);
   // Add to global notifications for visibility
   const state = useStore.getState();
   state.addGlobalNotification({
@@ -3225,7 +3216,6 @@ ircClient.on("FAIL", ({ serverId, command, code, target, message }) => {
 });
 
 ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
-  console.log(`[WARN] ${command} ${code} ${target || ""}: ${message}`);
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   if (server) {
@@ -3267,7 +3257,6 @@ ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
 });
 
 ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
-  console.log(`[NOTE] ${command} ${code} ${target || ""}: ${message}`);
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   if (server) {
@@ -3310,7 +3299,6 @@ ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
 
 // Account registration event handlers
 ircClient.on("REGISTER_SUCCESS", ({ serverId, account, message }) => {
-  console.log(`[REGISTER_SUCCESS] Account ${account} registered: ${message}`);
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   if (server) {
@@ -3343,9 +3331,6 @@ ircClient.on("REGISTER_SUCCESS", ({ serverId, account, message }) => {
 ircClient.on(
   "REGISTER_VERIFICATION_REQUIRED",
   ({ serverId, account, message }) => {
-    console.log(
-      `[REGISTER_VERIFICATION_REQUIRED] Account ${account} requires verification: ${message}`,
-    );
     const state = useStore.getState();
     const server = state.servers.find((s) => s.id === serverId);
     if (server) {
@@ -3377,7 +3362,6 @@ ircClient.on(
 );
 
 ircClient.on("VERIFY_SUCCESS", ({ serverId, account, message }) => {
-  console.log(`[VERIFY_SUCCESS] Account ${account} verified: ${message}`);
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   if (server) {
@@ -3409,9 +3393,6 @@ ircClient.on("VERIFY_SUCCESS", ({ serverId, account, message }) => {
 
 // Metadata event handlers
 ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
-  console.log(
-    `[METADATA] Received metadata: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
-  );
   useStore.setState((state) => {
     // Resolve the target - if it's "*", it refers to the current user
     const serverCurrentUser = ircClient.getCurrentUser(serverId);
@@ -3419,13 +3400,6 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
       target === "*"
         ? ircClient.getNick(serverId) || serverCurrentUser?.username || target
         : target;
-
-    console.log(
-      `[METADATA] Resolving target "${target}" to "${resolvedTarget}"`,
-    );
-    console.log(
-      `[METADATA] Looking for user in ${state.servers.find((s) => s.id === serverId)?.channels.length || 0} channels`,
-    );
 
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -3500,9 +3474,6 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
           delete metadata[key];
         }
         updatedCurrentUser = { ...currentUserForServer, metadata };
-        console.log(
-          `[METADATA] Updated current user ${resolvedTarget} on server ${serverId} with ${key}=${value}`,
-        );
       }
       // If there's already a current user but it's for a different server,
       // still update if this is the selected server or if there's no current user
@@ -3517,9 +3488,6 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
           delete metadata[key];
         }
         updatedCurrentUser = { ...state.currentUser, metadata };
-        console.log(
-          `[METADATA] Updated global current user ${resolvedTarget} with ${key}=${value}`,
-        );
       }
     }
 
@@ -3545,10 +3513,6 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
 ircClient.on(
   "METADATA_KEYVALUE",
   ({ serverId, target, key, visibility, value }) => {
-    console.log(
-      `[METADATA_KEYVALUE] Received: server=${serverId}, target=${target}, key=${key}, value=${value}, visibility=${visibility}`,
-    );
-
     const state = useStore.getState();
     const isFetchingOwn = state.metadataFetchInProgress[serverId];
 
@@ -3560,15 +3524,8 @@ ircClient.on(
           ? ircClient.getNick(serverId) || state.currentUser?.username || target
           : target;
 
-      console.log(
-        `[METADATA_KEYVALUE] Resolving target "${target}" to "${resolvedTarget}"`,
-      );
-
       // If we're fetching our own metadata, update saved values
       if (isFetchingOwn && target === "*") {
-        console.log(
-          `[METADATA_KEYVALUE] Updating saved metadata during fetch: ${key}=${value}`,
-        );
         const savedMetadata = loadSavedMetadata();
         if (!savedMetadata[serverId]) {
           savedMetadata[serverId] = {};
@@ -3576,14 +3533,14 @@ ircClient.on(
         if (!savedMetadata[serverId][resolvedTarget]) {
           savedMetadata[serverId][resolvedTarget] = {};
         }
-        // Overwrite saved value with server value
-        savedMetadata[serverId][resolvedTarget][key] = { value, visibility };
-        saveMetadataToLocalStorage(savedMetadata);
+        // Only overwrite saved value with server value if server actually has a value
+        // Empty/null values from server mean "not set", so keep our local value
+        if (value !== null && value !== undefined && value !== "") {
+          savedMetadata[serverId][resolvedTarget][key] = { value, visibility };
+          saveMetadataToLocalStorage(savedMetadata);
+        }
+        // If server has the key but no value, and we have a local value, we'll send ours later
       }
-
-      console.log(
-        `[METADATA_KEYVALUE] Looking for user in ${state.servers.find((s) => s.id === serverId)?.channels.length || 0} channels`,
-      );
 
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
@@ -3593,18 +3550,22 @@ ircClient.on(
               (u) => u.username === resolvedTarget,
             );
             if (userInChannel) {
-              console.log(
-                `[METADATA_KEYVALUE] Found user ${resolvedTarget} in channel ${channel.name}`,
-              );
             }
 
             const updatedUsers = channel.users.map((user) => {
               if (user.username === resolvedTarget) {
                 const metadata = { ...(user.metadata || {}) };
-                metadata[key] = { value, visibility };
-                console.log(
-                  `[METADATA_KEYVALUE] Updated user ${resolvedTarget} in channel ${channel.name} with ${key}=${value}`,
-                );
+                // Only update metadata if value is present (not empty/null)
+                // This prevents server empty responses from clearing local values
+                if (value !== null && value !== undefined && value !== "") {
+                  metadata[key] = { value, visibility };
+                } else {
+                  // If server sends empty/null, remove the key (it's not set on server)
+                  // But only if we're not in fetch mode - during fetch, keep local values
+                  if (!isFetchingOwn || target !== "*") {
+                    delete metadata[key];
+                  }
+                }
                 return { ...user, metadata };
               }
               return user;
@@ -3638,7 +3599,17 @@ ircClient.on(
       let updatedCurrentUser = state.currentUser;
       if (state.currentUser?.username === resolvedTarget) {
         const metadata = { ...(state.currentUser.metadata || {}) };
-        metadata[key] = { value, visibility };
+        // Only update metadata if value is present (not empty/null)
+        // This prevents server empty responses from clearing local values
+        if (value !== null && value !== undefined && value !== "") {
+          metadata[key] = { value, visibility };
+        } else {
+          // If server sends empty/null, remove the key (it's not set on server)
+          // But only if we're not in fetch mode - during fetch, keep local values
+          if (!isFetchingOwn || target !== "*") {
+            delete metadata[key];
+          }
+        }
         updatedCurrentUser = { ...state.currentUser, metadata };
         console.log(
           `[METADATA_KEYVALUE] Updated current user ${resolvedTarget} with ${key}=${value}`,
@@ -3664,10 +3635,6 @@ ircClient.on(
 );
 
 ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
-  console.log(
-    `[METADATA_KEYNOTSET] Key not set: server=${serverId}, target=${target}, key=${key}`,
-  );
-
   const state = useStore.getState();
   const isFetchingOwn = state.metadataFetchInProgress[serverId];
 
@@ -3679,9 +3646,6 @@ ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
 
   // If we're fetching our own metadata and the key is not set, delete it from saved values
   if (isFetchingOwn && target === "*") {
-    console.log(
-      `[METADATA_KEYNOTSET] Removing key from saved metadata during fetch: ${key}`,
-    );
     const savedMetadata = loadSavedMetadata();
     if (savedMetadata[serverId]?.[resolvedTarget]?.[key]) {
       delete savedMetadata[serverId][resolvedTarget][key];
@@ -3860,7 +3824,6 @@ ircClient.on(
 
 // If default server is available, select it
 if (__DEFAULT_IRC_SERVER__) {
-  console.log("Default server found, connecting...");
 }
 
 ircClient.on("RENAME", ({ serverId, oldName, newName, reason, user }) => {
@@ -3997,6 +3960,15 @@ ircClient.on(
       }
     }
 
+    // Load saved metadata for this user from localStorage
+    const savedMetadata = loadSavedMetadata();
+    if (savedMetadata[serverId]?.[nick]) {
+      user.metadata = {
+        ...user.metadata,
+        ...savedMetadata[serverId][nick],
+      };
+    }
+
     // Update the channel's user list with this user
     useStore.setState((state) => {
       const updatedServers = state.servers.map((s) => {
@@ -4072,10 +4044,6 @@ ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
 
 // AWAY event handler for away-notify extension
 ircClient.on("AWAY", ({ serverId, username, awayMessage }) => {
-  console.log(
-    `[AWAY] User ${username} on server ${serverId} away status changed: ${awayMessage ? "away" : "here"}`,
-  );
-
   useStore.setState((state) => {
     const updatedServers = state.servers.map((s) => {
       if (s.id === serverId) {
@@ -4114,10 +4082,6 @@ ircClient.on("AWAY", ({ serverId, username, awayMessage }) => {
 
 // Handle 306 numeric - we are now marked as away
 ircClient.on("RPL_NOWAWAY", ({ serverId, message }) => {
-  console.log(
-    `[RPL_NOWAWAY] We are now marked as away on server ${serverId}: ${message}`,
-  );
-
   useStore.setState((state) => {
     const updatedServers = state.servers.map((s) => {
       if (s.id === serverId) {
@@ -4146,10 +4110,6 @@ ircClient.on("RPL_NOWAWAY", ({ serverId, message }) => {
 
 // Handle 305 numeric - we are no longer marked as away
 ircClient.on("RPL_UNAWAY", ({ serverId, message }) => {
-  console.log(
-    `[RPL_UNAWAY] We are no longer marked as away on server ${serverId}: ${message}`,
-  );
-
   useStore.setState((state) => {
     const updatedServers = state.servers.map((s) => {
       if (s.id === serverId) {
@@ -4178,7 +4138,6 @@ ircClient.on("RPL_UNAWAY", ({ serverId, message }) => {
 
 // Batch event handlers
 ircClient.on("BATCH_START", ({ serverId, batchId, type, parameters }) => {
-  console.log(`[BATCH] Starting batch: ${batchId} of type ${type}`);
   useStore.setState((state) => {
     const serverBatches = state.activeBatches[serverId] || {};
     return {
@@ -4199,18 +4158,13 @@ ircClient.on("BATCH_START", ({ serverId, batchId, type, parameters }) => {
 });
 
 ircClient.on("BATCH_END", ({ serverId, batchId }) => {
-  console.log(`[BATCH] Ending batch: ${batchId}`);
   useStore.setState((state) => {
     const serverBatches = state.activeBatches[serverId];
     if (!serverBatches || !serverBatches[batchId]) {
-      console.warn(`Batch ${batchId} not found for server ${serverId}`);
       return state;
     }
 
     const batch = serverBatches[batchId];
-    console.log(
-      `[BATCH] Processing ${batch.events.length} events for batch ${batchId} of type ${batch.type}`,
-    );
 
     // Process the batch based on its type
     if (batch.type === "netsplit") {
@@ -4220,14 +4174,11 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
     } else if (batch.type === "draft/multiline" || batch.type === "multiline") {
       // Multiline batches are handled by the IRC client directly via MULTILINE_MESSAGE events
       // Don't process individual events here, the IRC client already combined them
-      console.log(`[BATCH] Multiline batch ${batchId} handled by IRC client`);
     } else if (batch.type === "metadata") {
       // Metadata batches are handled by the IRC client directly via individual METADATA events
       // Don't process individual events here, metadata updates are already processed
-      console.log(`[BATCH] Metadata batch ${batchId} handled by IRC client`);
     } else if (batch.type === "chathistory") {
       // Chathistory batch completed - turn off loading state for the channel
-      console.log(`[BATCH] Chathistory batch ${batchId} completed`);
 
       // Try to determine the channel from batch parameters
       // Chathistory batch parameters typically include the channel name
@@ -4237,9 +4188,6 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
           : null;
 
       if (channelName) {
-        console.log(
-          `[CHATHISTORY] History loading completed for ${channelName}`,
-        );
         // Trigger event to turn off loading state
         ircClient.triggerEvent("CHATHISTORY_LOADING", {
           serverId,
@@ -4249,9 +4197,6 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
       }
     } else {
       // For unknown batch types, process events individually
-      console.log(
-        `Unknown batch type ${batch.type}, processing events individually`,
-      );
       batch.events.forEach((event) => {
         // Re-trigger the event without batch context based on its type
         switch (event.type) {
@@ -4291,10 +4236,6 @@ function processBatchedNetsplit(
 
   const quitEvents = batch_info.events;
   const [server1, server2] = batch_info.parameters || ["*.net", "*.split"];
-
-  console.log(
-    `Processing netsplit: ${quitEvents.length} users quit due to split between ${server1} and ${server2}`,
-  );
 
   // Create a single netsplit message
   const netsplitMessage = {
@@ -4367,10 +4308,6 @@ function processBatchedNetjoin(
   const joinEvents = batch_info.events;
   const [server1, server2] = batch_info.parameters || ["*.net", "*.join"];
 
-  console.log(
-    `Processing netjoin: ${joinEvents.length} users joined due to rejoin between ${server1} and ${server2}`,
-  );
-
   // Process each join event normally first
   joinEvents.forEach((event) => {
     // Re-trigger the JOIN event to add users back
@@ -4410,9 +4347,6 @@ function processBatchedNetjoin(
 
 // Handle chathistory loading state
 ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
-  console.log(
-    `[CHATHISTORY] Setting loading state for ${channelName}: ${isLoading}`,
-  );
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {

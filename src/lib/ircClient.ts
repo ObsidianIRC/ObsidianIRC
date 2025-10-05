@@ -275,12 +275,8 @@ export class IRCClient {
       };
       this.servers.set(server.id, server);
       this.sockets.set(server.id, socket);
-      this.saslEnabled.set(server.id, !!_saslAccountName);
-      console.log(
-        `[SASL] SASL enabled for ${server.id}: ${!!_saslAccountName}`,
-      );
-      console.log(`[SASL] SASL account name: ${_saslAccountName}`);
-      console.log(`[SASL] SASL password provided: ${!!_saslPassword}`);
+      // Only enable SASL if we have both account name AND password
+      this.saslEnabled.set(server.id, !!(_saslAccountName && _saslPassword));
 
       // Store SASL credentials if provided
       if (_saslAccountName && _saslPassword) {
@@ -288,13 +284,7 @@ export class IRCClient {
           username: _saslAccountName,
           password: _saslPassword,
         });
-        console.log(
-          `[SASL] Stored SASL credentials for ${server.id}: ${_saslAccountName}`,
-        );
       } else {
-        console.log(
-          `[SASL] No SASL credentials stored for ${server.id} - account: ${_saslAccountName}, password: ${!!_saslPassword}`,
-        );
       }
 
       this.currentUsers.set(server.id, {
@@ -319,7 +309,6 @@ export class IRCClient {
         server.isConnected = true;
 
         socket.onclose = () => {
-          console.log(`Disconnected from server ${host}`);
           this.sockets.delete(server.id);
           server.isConnected = false;
           this.pendingConnections.delete(connectionKey);
@@ -377,7 +366,6 @@ export class IRCClient {
     if (socket && socket.readyState === WebSocket.OPEN) {
       // Log metadata and command-related outgoing messages for debugging
       if (command.startsWith("METADATA") || command.startsWith("/")) {
-        console.log(`[IRC] Sending: ${command}`);
       }
       socket.send(command);
     } else {
@@ -584,7 +572,6 @@ export class IRCClient {
       value !== undefined && value !== ""
         ? `METADATA ${actualTarget} SET ${key} :${value}`
         : `METADATA ${actualTarget} SET ${key}`;
-    console.log(`[IRC] Sending metadata SET command: ${command}`);
     this.sendRaw(serverId, command);
   }
 
@@ -596,7 +583,6 @@ export class IRCClient {
     // Send individual SUB commands for each key to avoid parsing issues
     keys.forEach((key) => {
       const command = `METADATA * SUB ${key}`;
-      console.log(`[IRC] Sending metadata subscription command: ${command}`);
       this.sendRaw(serverId, command);
     });
   }
@@ -655,25 +641,17 @@ export class IRCClient {
 
       // Debug: Log ALL lines that contain CAP to see if CAP ACK is even being processed
       if (line.includes("CAP")) {
-        console.log(`[HANDLE-MSG] Processing line: '${line}'`);
       }
 
       // Debug: Log all incoming IRC messages
-      console.log(`[IRC] ${serverId}: ${line}`);
 
       // Handle message tags first, before splitting on trailing parameter
       let lineAfterTags = line;
       if (line[0] === "@") {
         const spaceIndex = line.indexOf(" ");
         if (spaceIndex !== -1) {
-          console.log(
-            `[MTAGS] Parsing message tags from: '${line.substring(0, spaceIndex)}', original line length: ${line.length}`,
-          );
           mtags = parseMessageTags(line.substring(0, spaceIndex));
           lineAfterTags = line.substring(spaceIndex + 1);
-          console.log(
-            `[MTAGS] After parsing tags, remaining line: '${lineAfterTags}'`,
-          );
         }
       }
 
@@ -698,7 +676,6 @@ export class IRCClient {
         const thisServName = thisServ?.name;
         if (!thisServName) {
           // something has gone horribly wrong
-          console.log("No source, this will break parsing");
           return;
         }
         source = thisServName;
@@ -719,30 +696,14 @@ export class IRCClient {
 
       // Debug: ALWAYS log when line contains @time and CAP
       if (line.includes("@time") && line.includes("CAP")) {
-        console.log(`[DEBUG-ALWAYS] Line: '${line}'`);
-        console.log(`[DEBUG-ALWAYS] Command detected: '${command}'`);
-        console.log(`[DEBUG-ALWAYS] l array: ${JSON.stringify(l)}`);
-        console.log(`[DEBUG-ALWAYS] i when command detected: ${i - 1}`);
-        console.log(`[DEBUG-ALWAYS] mtags: ${JSON.stringify(mtags)}`);
-        console.log(`[DEBUG-ALWAYS] source: '${source}'`);
       }
 
       // Debug: log command and parv for CAP messages
       if (command === "CAP" || line.includes("CAP")) {
-        console.log(
-          `[DEBUG] Command: '${command}', Source: '${source}', Parv: ${JSON.stringify(parv)}, Trailing: '${trailing}'`,
-        );
       }
 
       // Debug: for message tags, show what l array looks like
       if (line.includes("@time") && line.includes("CAP")) {
-        console.log(`[DEBUG-TAGS] Original line: '${line}'`);
-        console.log(`[DEBUG-TAGS] mainPart: '${mainPart}'`);
-        console.log(`[DEBUG-TAGS] trailing: '${trailing}'`);
-        console.log(`[DEBUG-TAGS] l array: ${JSON.stringify(l)}`);
-        console.log(
-          `[DEBUG-TAGS] i when command parsed: ${i - 1}, command: '${command}'`,
-        );
       }
 
       const parc = parv.length;
@@ -750,7 +711,6 @@ export class IRCClient {
       if (command === "PING") {
         const key = parv.join(" ");
         this.sendRaw(serverId, `PONG ${key}`);
-        console.log(`PONG sent to server ${serverId} with key ${key}`);
       } else if (command === "001") {
         const serverName = source;
         const nickname = parv[0]; // Our actual nick as assigned by the server
@@ -769,7 +729,6 @@ export class IRCClient {
 
         this.triggerEvent("ready", { serverId, serverName, nickname });
       } else if (command === "NICK") {
-        console.log("triggered nickchange");
         const oldNick = getNickFromNuh(source);
         let newNick = parv[0];
 
@@ -791,7 +750,6 @@ export class IRCClient {
           }
         }
 
-        console.log(oldNick, newNick, this.nicks);
         this.triggerEvent("NICK", {
           serverId,
           mtags,
@@ -873,12 +831,6 @@ export class IRCClient {
             // Add this message line to the batch
             batch.messages.push(message);
 
-            console.log(
-              `[IRC] Adding message to batch ${batchId}: mtags=`,
-              mtags,
-              `msgid=${mtags?.msgid}`,
-            );
-
             // Store sender from the first message
             if (!batch.sender) {
               batch.sender = sender;
@@ -890,13 +842,7 @@ export class IRCClient {
             }
             if (mtags?.msgid) {
               batch.messageIds.push(mtags.msgid);
-              console.log(
-                `[IRC] Added msgid ${mtags.msgid} to batch ${batchId}`,
-              );
             } else {
-              console.log(
-                `[IRC] No msgid found for message in batch ${batchId}`,
-              );
             }
 
             // Track if this message has the concat flag
@@ -1006,9 +952,7 @@ export class IRCClient {
       } else if (command === "353") {
         const channelName = parv[2];
         const names = parv.slice(3).join(" ").trim().substring(1);
-        console.log(names);
         const newUsers = parseNamesResponse(names); // Parse the user list
-        console.log(newUsers);
 
         // Trigger an event to notify the UI
         this.triggerEvent("NAMES", {
@@ -1026,7 +970,6 @@ export class IRCClient {
         let i = 0;
         let caps = "";
         if (parv[i] === "*") {
-          console.log(`[CAP] Skipping * at position ${i}`);
           i++;
         }
         let subcommand = parv[i++];
@@ -1061,24 +1004,16 @@ export class IRCClient {
 
         if (subcommand === "LS") this.onCapLs(serverId, caps, isFinal);
         else if (subcommand === "ACK") {
-          console.log(`[CAP ACK] Received for ${serverId}: ${caps}`);
           this.onCapAck(serverId, caps);
         } else if (subcommand === "NAK") {
-          console.log(
-            `[CAP NAK] Server rejected capabilities for ${serverId}: ${caps}`,
-          );
           // Server rejected some capabilities, but we should still end CAP negotiation
           this.sendRaw(serverId, "CAP END");
         } else if (subcommand === "NEW") this.onCapNew(serverId, caps);
         else if (subcommand === "DEL") this.onCapDel(serverId, caps);
         else {
-          console.log(
-            `[CAP] Unknown subcommand '${subcommand}' for ${serverId}: ${caps}`,
-          );
         }
       } else if (command === "005") {
         const capabilities = parseIsupport(parv.join(" "));
-        console.log("ISUPPORT capabilities:", capabilities);
         for (const [key, value] of Object.entries(capabilities)) {
           if (key === "NETWORK") {
             const server = this.servers.get(serverId);
@@ -1086,9 +1021,6 @@ export class IRCClient {
               server.name = value;
               this.servers.set(serverId, server);
             }
-            console.log(
-              `Network name set to: ${this.servers.get(serverId)?.name}`,
-            );
           }
           this.triggerEvent("ISUPPORT", { serverId, key, value });
         }
@@ -1100,7 +1032,6 @@ export class IRCClient {
         if (param === "+") {
           const creds = this.saslCredentials.get(serverId);
           if (creds) {
-            console.log(`Sending SASL PLAIN credentials for ${serverId}`);
             this.sendSaslPlain(serverId, creds.username, creds.password);
           }
         }
@@ -1113,9 +1044,6 @@ export class IRCClient {
         if (isStart) {
           const batchType = parv[1];
           const parameters = parv.slice(2);
-          console.log(
-            `[IRC] Starting batch: id=${batchId}, type=${batchType}, params=${parameters.join(" ")}`,
-          );
 
           // Initialize batch tracking for this server if not exists
           if (!this.activeBatches.has(serverId)) {
@@ -1137,8 +1065,6 @@ export class IRCClient {
             parameters,
           });
         } else {
-          console.log(`[IRC] Ending batch: id=${batchId}`);
-
           // Process completed batch
           const serverBatches = this.activeBatches.get(serverId);
           const batch = serverBatches?.get(batchId);
@@ -1155,17 +1081,10 @@ export class IRCClient {
                 : "";
             const sender = batch.sender || "unknown";
 
-            console.log(
-              `[IRC] Processing multiline batch: target=${target}, sender=${sender}, messages=${batch.messages.length}`,
-            );
-
             // Combine messages, handling draft/multiline-concat tags
             let combinedMessage = "";
             batch.messages.forEach((message, index) => {
               const wasConcat = batch.concatFlags?.[index];
-              console.log(
-                `[IRC] Message ${index}: concat=${wasConcat}, content="${message}"`,
-              );
 
               if (index === 0) {
                 combinedMessage = message;
@@ -1173,19 +1092,14 @@ export class IRCClient {
                 // Check if this message was tagged with draft/multiline-concat
                 if (wasConcat) {
                   // Concatenate directly without separator
-                  console.log("[IRC] Concatenating without separator");
                   combinedMessage += message;
                 } else {
                   // Join with newline (normal multiline)
-                  console.log("[IRC] Adding newline separator");
                   combinedMessage += `\n${message}`;
                 }
               }
             });
 
-            console.log(
-              `[IRC] Triggering MULTILINE_MESSAGE for batch ${batchId}, combined message length: ${combinedMessage.length}, batchMsgId: ${batch.batchMsgId}`,
-            );
             this.triggerEvent("MULTILINE_MESSAGE", {
               serverId,
               mtags: batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined, // Use the msgid from the BATCH command
@@ -1221,9 +1135,6 @@ export class IRCClient {
         // For backward compatibility, assume first optional param is visibility if present
         const visibility = optionalParams.length > 0 ? optionalParams[0] : "";
 
-        console.log(
-          `[IRC] Received METADATA: target=${target}, key=${key}, visibility=${visibility}, value=${value}, optionalParams=${optionalParams.join(" ")}`,
-        );
         this.triggerEvent("METADATA", {
           serverId,
           target,
@@ -1285,10 +1196,6 @@ export class IRCClient {
         const keys = parv
           .slice(1)
           .map((key) => (key.startsWith(":") ? key.substring(1) : key));
-        console.log(
-          `[IRC] Received METADATA_SUBOK for target ${target}, keys:`,
-          keys,
-        );
         this.triggerEvent("METADATA_SUBOK", { serverId, keys });
       } else if (command === "771") {
         // RPL_METADATAUNSUBOK
@@ -1347,9 +1254,6 @@ export class IRCClient {
           retryAfter = Number.parseInt(parv[5], 10);
         }
 
-        console.log(
-          `[IRC] Received METADATA FAIL: subcommand=${subcommand}, code=${code}, target=${target}, key=${key}, retryAfter=${retryAfter}, message=${errorMessage}`,
-        );
         this.triggerEvent("METADATA_FAIL", {
           serverId,
           subcommand,
@@ -1436,9 +1340,6 @@ export class IRCClient {
       ) {
         // SASL authentication successful
         const message = parv.slice(2).join(" ");
-        console.log(
-          `SASL authentication successful for ${serverId}: ${message}`,
-        );
         // Finish capability negotiation
         this.sendRaw(serverId, "CAP END");
       } else if (
@@ -1449,7 +1350,6 @@ export class IRCClient {
       ) {
         // SASL authentication failed
         const message = parv.slice(2).join(" ");
-        console.log(`SASL authentication failed for ${serverId}: ${message}`);
         // Still finish capability negotiation even if SASL failed
         this.sendRaw(serverId, "CAP END");
       } else if (command === "432") {
@@ -1626,9 +1526,6 @@ export class IRCClient {
       if (cap === "sasl" && value) {
         const mechanisms = value.split(",");
         this.saslMechanisms.set(serverId, mechanisms);
-        console.log(
-          `Available SASL mechanisms for ${serverId}: ${mechanisms.join(", ")}`,
-        );
       }
     }
 
@@ -1642,7 +1539,6 @@ export class IRCClient {
           (cap !== "sasl" || saslEnabled)
         ) {
           capsToRequest.push(cap);
-          console.log(`Requesting capability: ${cap}`);
         }
       }
 
@@ -1660,9 +1556,6 @@ export class IRCClient {
             // Leave some margin
             // Send current batch
             const reqMessage = `CAP REQ :${currentBatch.join(" ")}`;
-            console.log(
-              `Sending CAP REQ batch ${batchCount + 1} (${reqMessage.length} chars): ${reqMessage}`,
-            );
             this.sendRaw(serverId, reqMessage);
             batchCount++;
             currentBatch = [];
@@ -1676,23 +1569,16 @@ export class IRCClient {
         // Send remaining batch
         if (currentBatch.length > 0) {
           const reqMessage = `CAP REQ :${currentBatch.join(" ")}`;
-          console.log(
-            `Sending CAP REQ batch ${batchCount + 1} (${reqMessage.length} chars): ${reqMessage}`,
-          );
           this.sendRaw(serverId, reqMessage);
           batchCount++;
         }
 
         // Track how many CAP REQ batches we sent
         this.pendingCapReqs.set(serverId, batchCount);
-        console.log(`Sent ${batchCount} CAP REQ batches for ${serverId}`);
 
         // Set a timeout to send CAP END if server doesn't respond
         setTimeout(() => {
           if (this.pendingCapReqs.has(serverId)) {
-            console.log(
-              `[CAP] Timeout waiting for CAP ACK from ${serverId}, sending CAP END`,
-            );
             this.pendingCapReqs.delete(serverId);
             this.sendRaw(serverId, "CAP END");
           }
@@ -1702,9 +1588,6 @@ export class IRCClient {
           this.sendRaw(serverId, "ISUPPORT");
         }
       }
-      console.log(
-        `Server ${serverId} supports capabilities: ${Array.from(accumulated).join(" ")}`,
-      );
       // Clean up
       this.capLsAccumulated.delete(serverId);
     }
@@ -1717,9 +1600,6 @@ export class IRCClient {
       if (cap === "sasl" && value) {
         const mechanisms = value.split(",");
         this.saslMechanisms.set(serverId, mechanisms);
-        console.log(
-          `SASL mechanisms updated for ${serverId}: ${mechanisms.join(", ")}`,
-        );
         // If sasl becomes available, perhaps request it if not already
         // But for now, just log
       }
@@ -1732,14 +1612,11 @@ export class IRCClient {
       const [cap] = c.split("=", 2);
       if (cap === "sasl") {
         this.saslMechanisms.delete(serverId);
-        console.log(`SASL capability removed for ${serverId}`);
       }
     }
   }
 
   onCapAck(serverId: string, cliCaps: string): void {
-    console.log(`[CAP ACK] onCapAck called for ${serverId}: ${cliCaps}`);
-
     // Trigger the original event for compatibility
     this.triggerEvent("CAP ACK", { serverId, cliCaps });
 
@@ -1747,9 +1624,6 @@ export class IRCClient {
     const pendingCount = this.pendingCapReqs.get(serverId) || 0;
     if (pendingCount > 0) {
       const newCount = pendingCount - 1;
-      console.log(
-        `[CAP ACK] ${serverId}: ${pendingCount} -> ${newCount} pending batches`,
-      );
 
       if (newCount === 0) {
         // All CAP REQ batches acknowledged
@@ -1757,16 +1631,10 @@ export class IRCClient {
 
         // Note: SASL authentication is handled by the store's event handlers
         // The store will check capabilities and initiate SASL if needed
-        console.log(
-          `[CAP ACK] All capability batches acknowledged for ${serverId}, SASL handled by store`,
-        );
       } else {
         this.pendingCapReqs.set(serverId, newCount);
       }
     } else {
-      console.log(
-        `[CAP ACK] Warning: Received CAP ACK for ${serverId} but no pending requests`,
-      );
     }
   }
 

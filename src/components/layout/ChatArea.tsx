@@ -81,10 +81,6 @@ const splitLongMessage = (message: string, target = "#channel"): string[] => {
   // Available space for the actual message content
   const maxMessageLength = 512 - protocolOverhead - safetyBuffer;
 
-  console.log(
-    `[MULTILINE] Protocol overhead: ${protocolOverhead}, Max message length: ${maxMessageLength}, Input length: ${message.length}`,
-  );
-
   if (message.length <= maxMessageLength) {
     return [message];
   }
@@ -273,7 +269,6 @@ export const ChatArea: React.FC<{
           const validFormatting = parsedFormatting.filter(
             isValidFormattingType,
           );
-          console.log("Parsed formatting:", validFormatting);
           setSelectedFormatting(validFormatting); // Apply the saved formatting
           setIsFormattingInitialized(true); // Mark formatting as initialized
         }
@@ -297,7 +292,6 @@ export const ChatArea: React.FC<{
   // Save selectedFormatting to local storage whenever it changes
   useEffect(() => {
     if (isFormattingInitialized) {
-      console.log("Saving formatting to localStorage:", selectedFormatting);
       localStorage.setItem(
         "selectedFormatting",
         JSON.stringify(selectedFormatting),
@@ -305,21 +299,44 @@ export const ChatArea: React.FC<{
     }
   }, [selectedFormatting, isFormattingInitialized]);
 
-  // Get selected server and channel/private chat
-  const selectedServer = servers.find((s) => s.id === selectedServerId);
-  const selectedChannel = selectedServer?.channels.find(
-    (c) => c.id === selectedChannelId,
-  );
-  const selectedPrivateChat = selectedServer?.privateChats?.find(
-    (pc) => pc.id === selectedPrivateChatId,
+  // Get selected server and channel/private chat - memoized to prevent re-renders
+  const selectedServer = useMemo(
+    () => servers.find((s) => s.id === selectedServerId),
+    [servers, selectedServerId],
   );
 
-  // Get messages for current channel or private chat
-  const channelKey =
-    selectedServerId && (selectedChannelId || selectedPrivateChatId)
-      ? `${selectedServerId}-${selectedChannelId || selectedPrivateChatId}`
-      : "";
-  const channelMessages = channelKey ? messages[channelKey] || [] : [];
+  const selectedChannel = useMemo(
+    () => selectedServer?.channels.find((c) => c.id === selectedChannelId),
+    [selectedServer, selectedChannelId],
+  );
+
+  const selectedPrivateChat = useMemo(
+    () =>
+      selectedServer?.privateChats?.find(
+        (pc) => pc.id === selectedPrivateChatId,
+      ),
+    [selectedServer, selectedPrivateChatId],
+  );
+
+  // Get messages for current channel or private chat - memoized
+  const channelKey = useMemo(
+    () =>
+      selectedServerId && (selectedChannelId || selectedPrivateChatId)
+        ? `${selectedServerId}-${selectedChannelId || selectedPrivateChatId}`
+        : "",
+    [selectedServerId, selectedChannelId, selectedPrivateChatId],
+  );
+
+  const channelMessages = useMemo(
+    () => (channelKey ? messages[channelKey] || [] : []),
+    [messages, channelKey],
+  );
+
+  // Memoize grouped events to prevent recalculation on every render
+  const eventGroups = useMemo(
+    () => groupConsecutiveEvents(channelMessages),
+    [channelMessages],
+  );
 
   const scrollDown = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -363,12 +380,15 @@ export const ChatArea: React.FC<{
   }, []);
 
   const handleSendMessage = () => {
-    if (messageText.trim() === "") return;
+    // Clean the message text of any trailing newlines that might have been added
+    const cleanedText = messageText.replace(/\n+$/, "");
+
+    if (cleanedText.trim() === "") return;
     scrollDown();
     if (selectedServerId && (selectedChannelId || selectedPrivateChatId)) {
-      if (messageText.startsWith("/")) {
+      if (cleanedText.startsWith("/")) {
         // Handle command
-        const command = messageText.substring(1).trim();
+        const command = cleanedText.substring(1).trim();
         const [commandName, ...args] = command.split(" ");
         if (commandName === "nick") {
           ircClient.sendRaw(selectedServerId, `NICK ${args[0]}`);
@@ -396,7 +416,7 @@ export const ChatArea: React.FC<{
           const message = messageParts.join(" ");
           ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
         } else if (commandName === "me") {
-          const actionMessage = messageText.substring(4).trim();
+          const actionMessage = cleanedText.substring(4).trim();
           ircClient.sendRaw(
             selectedServerId,
             `PRIVMSG ${selectedChannel ? selectedChannel.name : ""} :\u0001ACTION ${actionMessage}\u0001`,
@@ -404,7 +424,6 @@ export const ChatArea: React.FC<{
         } else {
           const fullCommand =
             args.length > 0 ? `${commandName} ${args.join(" ")}` : commandName;
-          console.log(`[IRC] Sending command: ${fullCommand}`);
           ircClient.sendRaw(selectedServerId, fullCommand);
         }
       } else {
@@ -413,7 +432,7 @@ export const ChatArea: React.FC<{
           selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
 
         // Check if message contains newlines or is very long
-        const lines = messageText.split("\n");
+        const lines = cleanedText.split("\n");
         const supportsMultiline = serverSupportsMultiline(selectedServerId);
         const hasMultipleLines = lines.length > 1;
 
@@ -436,7 +455,7 @@ export const ChatArea: React.FC<{
           2;
         const maxMessageLength = 512 - protocolOverhead - 10; // 10 byte safety buffer
         const isSingleLongLine =
-          lines.length === 1 && messageText.length > maxMessageLength;
+          lines.length === 1 && cleanedText.length > maxMessageLength;
 
         if (supportsMultiline && (hasMultipleLines || isSingleLongLine)) {
           // Send as multiline message using BATCH
@@ -488,7 +507,7 @@ export const ChatArea: React.FC<{
             });
           } else {
             // Case 2: Single very long line (split and concat)
-            const formattedText = formatMessageForIrc(messageText, {
+            const formattedText = formatMessageForIrc(cleanedText, {
               color: selectedColor || "inherit",
               formatting: selectedFormatting,
             });
@@ -550,7 +569,7 @@ export const ChatArea: React.FC<{
           }
         } else {
           // Send as regular single message
-          const formattedText = formatMessageForIrc(messageText, {
+          const formattedText = formatMessageForIrc(cleanedText, {
             color: selectedColor || "inherit",
             formatting: selectedFormatting,
           });
@@ -570,7 +589,7 @@ export const ChatArea: React.FC<{
         if (selectedPrivateChat && currentUser) {
           const outgoingMessage = {
             id: uuidv4(),
-            content: messageText,
+            content: cleanedText,
             timestamp: new Date(),
             userId: currentUser.username || currentUser.id,
             channelId: selectedPrivateChat.id,
@@ -593,9 +612,18 @@ export const ChatArea: React.FC<{
         tabCompletion.resetCompletion();
       }
 
-      // Reset textarea height
+      // Reset textarea height to initial single-line state
       if (inputRef.current) {
         inputRef.current.style.height = "auto";
+        // Use setTimeout to ensure the DOM has updated with empty value
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.style.height = "auto";
+            // Calculate the proper height for empty input
+            const scrollHeight = inputRef.current.scrollHeight;
+            inputRef.current.style.height = `${scrollHeight}px`;
+          }
+        }, 0);
       }
 
       // Send typing done notification
@@ -658,8 +686,15 @@ export const ChatArea: React.FC<{
         // Allow the default behavior (add newline)
         return;
       }
-      // Send message
+
+      // Prevent newline from being added before sending message
       e.preventDefault();
+
+      // Force clear any newlines that might have been added to the textarea
+      if (inputRef.current) {
+        inputRef.current.value = messageText.trim();
+      }
+
       handleSendMessage();
       // Send typing done notification
       const storeState = useStore.getState();
@@ -1371,65 +1406,19 @@ export const ChatArea: React.FC<{
             </div>
           ) : (
             // Show messages when not loading
-            (() => {
-              // Group consecutive events before rendering
-              const eventGroups = groupConsecutiveEvents(channelMessages);
-
-              return eventGroups.map((group) => {
-                if (group.type === "eventGroup") {
-                  // Create a stable key from the first and last message IDs in the group
-                  const firstId = group.messages[0]?.id || "";
-                  const lastId =
-                    group.messages[group.messages.length - 1]?.id || "";
-                  const groupKey = `group-${firstId}-${lastId}`;
-
-                  return (
-                    <CollapsedEventMessage
-                      key={groupKey}
-                      eventGroup={group}
-                      users={selectedChannel?.users || []}
-                      onUsernameContextMenu={(
-                        e,
-                        username,
-                        serverId,
-                        avatarElement,
-                      ) =>
-                        handleUsernameClick(
-                          e,
-                          username,
-                          serverId,
-                          avatarElement,
-                        )
-                      }
-                    />
-                  );
-                }
-                // Single message - find its original index for date/header logic
-                const message = group.messages[0];
-                const originalIndex = channelMessages.findIndex(
-                  (m) => m.id === message.id,
-                );
-                const previousMessage = channelMessages[originalIndex - 1];
-                const showHeader =
-                  !previousMessage ||
-                  previousMessage.userId !== message.userId ||
-                  new Date(message.timestamp).getTime() -
-                    new Date(previousMessage.timestamp).getTime() >
-                    5 * 60 * 1000;
+            eventGroups.map((group) => {
+              if (group.type === "eventGroup") {
+                // Create a stable key from the first and last message IDs in the group
+                const firstId = group.messages[0]?.id || "";
+                const lastId =
+                  group.messages[group.messages.length - 1]?.id || "";
+                const groupKey = `group-${firstId}-${lastId}`;
 
                 return (
-                  <MessageItem
-                    key={message.id}
-                    message={message}
-                    showDate={
-                      originalIndex === 0 ||
-                      new Date(message.timestamp).toDateString() !==
-                        new Date(
-                          channelMessages[originalIndex - 1]?.timestamp,
-                        ).toDateString()
-                    }
-                    showHeader={showHeader}
-                    setReplyTo={setLocalReplyTo}
+                  <CollapsedEventMessage
+                    key={groupKey}
+                    eventGroup={group}
+                    users={selectedChannel?.users || []}
                     onUsernameContextMenu={(
                       e,
                       username,
@@ -1438,18 +1427,54 @@ export const ChatArea: React.FC<{
                     ) =>
                       handleUsernameClick(e, username, serverId, avatarElement)
                     }
-                    onIrcLinkClick={handleIrcLinkClick}
-                    onReactClick={handleReactClick}
-                    selectedServerId={selectedServerId}
-                    onReactionUnreact={handleReactionUnreact}
-                    onOpenReactionModal={handleOpenReactionModal}
-                    onDirectReaction={handleDirectReaction}
-                    users={selectedChannel?.users || []}
-                    onRedactMessage={handleRedactMessage}
                   />
                 );
-              });
-            })()
+              }
+              // Single message - find its original index for date/header logic
+              const message = group.messages[0];
+              const originalIndex = channelMessages.findIndex(
+                (m) => m.id === message.id,
+              );
+              const previousMessage = channelMessages[originalIndex - 1];
+              const showHeader =
+                !previousMessage ||
+                previousMessage.userId !== message.userId ||
+                new Date(message.timestamp).getTime() -
+                  new Date(previousMessage.timestamp).getTime() >
+                  5 * 60 * 1000;
+
+              return (
+                <MessageItem
+                  key={message.id}
+                  message={message}
+                  showDate={
+                    originalIndex === 0 ||
+                    new Date(message.timestamp).toDateString() !==
+                      new Date(
+                        channelMessages[originalIndex - 1]?.timestamp,
+                      ).toDateString()
+                  }
+                  showHeader={showHeader}
+                  setReplyTo={setLocalReplyTo}
+                  onUsernameContextMenu={(
+                    e,
+                    username,
+                    serverId,
+                    avatarElement,
+                  ) =>
+                    handleUsernameClick(e, username, serverId, avatarElement)
+                  }
+                  onIrcLinkClick={handleIrcLinkClick}
+                  onReactClick={handleReactClick}
+                  selectedServerId={selectedServerId}
+                  onReactionUnreact={handleReactionUnreact}
+                  onOpenReactionModal={handleOpenReactionModal}
+                  onDirectReaction={handleDirectReaction}
+                  users={selectedChannel?.users || []}
+                  onRedactMessage={handleRedactMessage}
+                />
+              );
+            })
           )}
 
           <div ref={messagesEndRef} />

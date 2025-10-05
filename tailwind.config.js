@@ -84,7 +84,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["Whitney", "Helvetica Neue", "Helvetica", "Arial", "sans-serif"],
+        sans: ["JetBrains Mono", "monospace"],
+        mono: ["JetBrains Mono", "monospace"],
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",

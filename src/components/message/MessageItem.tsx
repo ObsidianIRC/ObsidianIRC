@@ -8,6 +8,7 @@ import {
   ActionMessage,
   DateSeparator,
   EventMessage,
+  LinkPreview,
   MessageActions,
   MessageAvatar,
   MessageHeader,
@@ -245,6 +246,19 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
               <div style={{ whiteSpace: "pre-wrap" }}>{htmlContent}</div>
             </EnhancedLinkWrapper>
+
+            {/* Render link preview if available */}
+            {(message.linkPreviewTitle ||
+              message.linkPreviewSnippet ||
+              message.linkPreviewMeta) && (
+              <LinkPreview
+                title={message.linkPreviewTitle}
+                snippet={message.linkPreviewSnippet}
+                imageUrl={message.linkPreviewMeta}
+                theme={theme}
+                messageContent={message.content}
+              />
+            )}
           </div>
 
           <MessageReactions
