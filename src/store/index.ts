@@ -64,6 +64,13 @@ interface BatchInfo {
   startTime: Date;
 }
 
+interface Attachment {
+  id: string;
+  type: "image";
+  url: string;
+  filename: string;
+}
+
 export const getChannelMessages = (serverId: string, channelId: string) => {
   const state = useStore.getState();
   const key = `${serverId}-${channelId}`;
@@ -267,6 +274,7 @@ interface UIState {
     itemId: string | null;
   };
   prefillServerDetails: ConnectionDetails | null;
+  inputAttachments: Attachment[];
 }
 
 interface GlobalSettings {
@@ -442,6 +450,10 @@ export interface AppState {
   // Ignore list actions
   addToIgnoreList: (pattern: string) => void;
   removeFromIgnoreList: (pattern: string) => void;
+  // Attachment actions
+  addInputAttachment: (attachment: Attachment) => void;
+  removeInputAttachment: (attachmentId: string) => void;
+  clearInputAttachments: () => void;
   // Metadata actions
   metadataGet: (serverId: string, target: string, keys: string[]) => void;
   metadataList: (serverId: string, target: string) => void;
@@ -502,6 +514,7 @@ const useStore = create<AppState>((set, get) => ({
       itemId: null,
     },
     prefillServerDetails: null,
+    inputAttachments: [],
   },
   globalSettings: {
     enableNotifications: false,
@@ -1441,6 +1454,36 @@ const useStore = create<AppState>((set, get) => ({
         globalSettings: newGlobalSettings,
       };
     });
+  },
+
+  // Attachment actions
+  addInputAttachment: (attachment: Attachment) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        inputAttachments: [...state.ui.inputAttachments, attachment],
+      },
+    }));
+  },
+
+  removeInputAttachment: (attachmentId: string) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        inputAttachments: state.ui.inputAttachments.filter(
+          (att) => att.id !== attachmentId,
+        ),
+      },
+    }));
+  },
+
+  clearInputAttachments: () => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        inputAttachments: [],
+      },
+    }));
   },
 
   // Metadata actions

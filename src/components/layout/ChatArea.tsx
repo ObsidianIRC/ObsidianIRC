@@ -161,6 +161,16 @@ export const ChatArea: React.FC<{
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [imagePreview, setImagePreview] = useState<{
+    isOpen: boolean;
+    file: File | null;
+    previewUrl: string | null;
+  }>({
+    isOpen: false,
+    file: null,
+    previewUrl: null,
+  });
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
     x: number;
@@ -378,6 +388,18 @@ export const ChatArea: React.FC<{
     return () =>
       container.removeEventListener("scroll", checkIfScrolledToBottom);
   }, []);
+
+  // Close plus menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showPlusMenu && !(event.target as Element).closest(".plus-menu")) {
+        setShowPlusMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPlusMenu]);
 
   const handleSendMessage = () => {
     // Clean the message text of any trailing newlines that might have been added
@@ -639,6 +661,65 @@ export const ChatArea: React.FC<{
           false,
         );
       }
+    }
+  };
+
+  const handleImageUpload = async (file: File) => {
+    if (!selectedServer?.filehost) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("filehost", selectedServer.filehost);
+
+    try {
+      // Use proxy for development to avoid CORS issues
+      const uploadUrl = "/upload";
+
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.saved_url) {
+        // Send the link directly to the current channel/user
+        const target =
+          selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+
+        if (target) {
+          // Send via IRC
+          ircClient.sendRaw(
+            selectedServerId!,
+            `PRIVMSG ${target} :${data.saved_url}`,
+          );
+
+          // Add to store for immediate display (only for private chats, channels echo back)
+          if (selectedPrivateChat && currentUser) {
+            const outgoingMessage = {
+              id: uuidv4(),
+              content: data.saved_url,
+              timestamp: new Date(),
+              userId: currentUser.username || currentUser.id,
+              channelId: selectedPrivateChat.id,
+              serverId: selectedServerId!,
+              type: "message" as const,
+              reactions: [],
+              replyMessage: null,
+              mentioned: [],
+            };
+
+            const { addMessage } = useStore.getState();
+            addMessage(outgoingMessage);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      // TODO: Show error to user
     }
   };
 
@@ -1503,10 +1584,14 @@ export const ChatArea: React.FC<{
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId || selectedPrivateChatId || ""}
           />
-          <div className="bg-discord-dark-100 rounded-lg flex items-center">
-            <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
+          <div className="bg-discord-dark-100 rounded-lg flex items-center relative">
+            <button
+              className="px-4 text-discord-text-muted hover:text-discord-text-normal"
+              onClick={() => setShowPlusMenu((prev) => !prev)}
+            >
               <FaPlus />
             </button>
+
             {localReplyTo && (
               <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 flex items-center h-8 px-2">
                 <span className="flex-grow text-center">
@@ -1596,6 +1681,47 @@ export const ChatArea: React.FC<{
               <FaAt />
             </button>
           </div>
+
+          {/* Plus menu */}
+          {showPlusMenu && (
+            <div
+              className="plus-menu absolute bg-discord-dark-200 rounded-lg shadow-lg border border-discord-dark-300 min-w-48 z-50"
+              style={{
+                bottom: "calc(100% + 8px)",
+                left: "16px",
+              }}
+            >
+              {selectedServer?.filehost && (
+                <button
+                  className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
+                  onClick={() => {
+                    // Handle image selection for preview
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        // Create preview URL
+                        const previewUrl = URL.createObjectURL(file);
+                        setImagePreview({
+                          isOpen: true,
+                          file,
+                          previewUrl,
+                        });
+                      }
+                    };
+                    input.click();
+                    setShowPlusMenu(false);
+                  }}
+                >
+                  <FaPlus className="mr-2" />
+                  Upload Image
+                </button>
+              )}
+              {/* Add more menu items here if needed */}
+            </div>
+          )}
 
           {isEmojiSelectorOpen &&
             createPortal(
@@ -1727,6 +1853,67 @@ export const ChatArea: React.FC<{
         onClose={handleCloseReactionModal}
         onSelectEmoji={handleReactionSelect}
       />
+
+      {/* Image Preview Dialog */}
+      {imagePreview.isOpen && imagePreview.previewUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-md w-full mx-4">
+            <div className="p-4">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Upload Image
+              </h3>
+              <div className="flex justify-center mb-4">
+                <img
+                  src={imagePreview.previewUrl}
+                  alt="Preview"
+                  className="max-w-full max-h-96 rounded-lg"
+                />
+              </div>
+              <p className="text-sm text-discord-text-muted mb-4">
+                File: {imagePreview.file?.name} (
+                {(imagePreview.file?.size || 0) / 1024} KB)
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-discord-dark-300">
+              <button
+                onClick={() => {
+                  // Clean up preview URL
+                  if (imagePreview.previewUrl) {
+                    URL.revokeObjectURL(imagePreview.previewUrl);
+                  }
+                  setImagePreview({
+                    isOpen: false,
+                    file: null,
+                    previewUrl: null,
+                  });
+                }}
+                className="px-4 py-2 text-discord-text-muted hover:text-white rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (imagePreview.file) {
+                    handleImageUpload(imagePreview.file);
+                  }
+                  // Clean up preview URL
+                  if (imagePreview.previewUrl) {
+                    URL.revokeObjectURL(imagePreview.previewUrl);
+                  }
+                  setImagePreview({
+                    isOpen: false,
+                    file: null,
+                    previewUrl: null,
+                  });
+                }}
+                className="px-4 py-2 bg-discord-accent text-white rounded hover:bg-discord-accent-hover"
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
