@@ -55,7 +55,8 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
         onCancel={handleCancelOpen}
       />
       <div
-        className={`mt-2 rounded-lg overflow-hidden border border-${theme}-dark-400 bg-${theme}-dark-200 max-w-xs ${firstUrl ? `cursor-pointer hover:bg-${theme}-dark-300 transition-colors` : ""}`}
+        className={`mt-2 rounded-lg border border-${theme}-dark-400 bg-${theme}-dark-200 max-w-lg pl-4 pr-12 py-2 bg-black/20 rounded ${firstUrl ? `cursor-pointer hover:bg-${theme}-dark-300 transition-colors` : ""}`}
+        style={{ height: '100px' }}
         onClick={handleClick}
         role={firstUrl ? "button" : undefined}
         tabIndex={firstUrl ? 0 : undefined}
@@ -66,35 +67,37 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
           }
         }}
       >
-        {imageUrl && (
-          <div className="w-full">
-            <img
-              src={imageUrl}
-              alt={title || "Link preview"}
-              className="w-full h-auto max-h-32 object-cover"
-              onError={(e) => {
-                // Hide image if it fails to load
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          </div>
-        )}
-        {(title || snippet) && (
-          <div className="p-3">
-            {title && (
-              <div
-                className={`font-semibold text-${theme}-text mb-1 line-clamp-2`}
-              >
-                {title}
-              </div>
-            )}
-            {snippet && (
-              <div className={`text-sm text-${theme}-text-muted line-clamp-3`}>
-                {snippet}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="flex items-start h-full">
+          {imageUrl && (
+                        <div className="relative inline-block h-full" style={{ verticalAlign: 'top' }}>
+              <img
+                src={imageUrl}
+                alt={title || "Link preview"}
+                className="h-full object-contain rounded-lg"
+                onError={(e) => {
+                  // Hide image if it fails to load
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            </div>
+          )}
+          {(title || snippet) && (
+            <div className="flex-grow pl-[40px] pr-2 pt-2 pb-2 min-w-0">
+              {title && (
+                <div
+                  className={`font-semibold text-${theme}-text mb-1 line-clamp-2 text-xs`}
+                >
+                  {title}
+                </div>
+              )}
+              {snippet && (
+                <div className={`text-xs text-${theme}-text-muted line-clamp-2`}>
+                  {snippet}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

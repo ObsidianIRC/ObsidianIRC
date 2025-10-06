@@ -55,6 +55,7 @@ describe("Nickname retry functionality", () => {
           itemId: null,
         },
         prefillServerDetails: null,
+        inputAttachments: [],
       },
       addGlobalNotification: vi.fn(),
     };
@@ -137,6 +138,7 @@ describe("Nickname retry functionality", () => {
           itemId: null,
         },
         prefillServerDetails: null,
+        inputAttachments: [],
       },
       addGlobalNotification: vi.fn(),
     };

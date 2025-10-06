@@ -83,6 +83,7 @@ describe("ChatArea Tab Completion Integration", () => {
           itemId: null,
         },
         prefillServerDetails: null,
+        inputAttachments: [],
       },
       messages: {},
       typingUsers: {},

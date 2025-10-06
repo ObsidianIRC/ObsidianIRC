@@ -60,5 +60,18 @@ export function registerISupportHandler(
       });
       return;
     }
+
+    if (key === "FILEHOST" || key === "draft/FILEHOST") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server: Server) => {
+          if (server.id === serverId) {
+            return { ...server, filehost: value };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+      return;
+    }
   });
 }

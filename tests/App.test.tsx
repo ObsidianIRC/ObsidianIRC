@@ -62,6 +62,7 @@ describe("App", () => {
           itemId: null,
         },
         prefillServerDetails: null,
+        inputAttachments: [],
       },
       globalNotifications: [],
       globalSettings: {

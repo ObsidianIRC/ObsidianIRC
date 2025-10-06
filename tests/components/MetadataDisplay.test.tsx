@@ -145,6 +145,7 @@ describe("Metadata Display Features", () => {
           itemId: null,
         },
         prefillServerDetails: null,
+        inputAttachments: [],
       },
       messages: {
         "server1-channel1": mockChannel.messages,

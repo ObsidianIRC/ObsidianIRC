@@ -1,4 +1,5 @@
 import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import ircClient from "../../lib/ircClient";
 import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
@@ -17,6 +18,60 @@ import {
   StandardReplyNotification,
   SystemMessage,
 } from "./index";
+
+// Component to render image with fallback to URL if loading fails
+const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Simple in-memory cache for images per session
+  const imageCache = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    // Cache the image in background for future use
+    if (!imageCache.current.has(url)) {
+      fetch(url)
+        .then(response => response.blob())
+        .then(blob => {
+          const objectUrl = URL.createObjectURL(blob);
+          imageCache.current.set(url, objectUrl);
+        })
+        .catch(() => {
+          // Ignore cache errors
+        });
+    }
+  }, [url]);
+
+  if (imageError) {
+    // Fallback to showing expired badge
+    return (
+      <div className="max-w-md">
+        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 border border-red-200">
+            <span>This image has expired</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md">
+      <img
+        src={url}
+        alt="Uploaded image"
+        className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+        onClick={(e) => {
+          e.preventDefault();
+          window.open(url, '_blank');
+        }}
+        onLoad={() => setImageLoaded(true)}
+        onError={() => setImageError(true)}
+        style={{ maxHeight: '150px' }}
+      />
+    </div>
+  );
+};
 
 interface MessageItemProps {
   message: MessageType;
@@ -90,6 +145,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const htmlContent = mircToHtml(message.content);
   const theme = localStorage.getItem("theme") || "discord";
   const username = message.userId.split("-")[0];
+
+  // Check if message is just an image URL from our filehost
+  const isImageUrl = server?.filehost && 
+    message.content.trim() === message.content && 
+    message.content.startsWith(server.filehost) &&
+    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) || 
+     message.content.includes('/upload/')); // fallback for upload URLs
 
   // Handle system messages
   if (isSystem) {
@@ -244,7 +306,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             )}
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              <div style={{ whiteSpace: "pre-wrap" }}>{htmlContent}</div>
+              {isImageUrl ? (
+                <ImageWithFallback url={message.content} />
+              ) : (
+                <div style={{ whiteSpace: "pre-wrap" }}>{htmlContent}</div>
+              )}
             </EnhancedLinkWrapper>
 
             {/* Render link preview if available */}

@@ -28,7 +28,9 @@ export interface Server {
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
   prefix?: string;
   botMode?: string;
+  filehost?: string;
 }
+
 export interface ServerConfig {
   id: string;
   name?: string;
