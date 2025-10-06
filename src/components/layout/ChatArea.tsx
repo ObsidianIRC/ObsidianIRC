@@ -669,6 +669,7 @@ export const ChatArea: React.FC<{
 
     const formData = new FormData();
     formData.append("image", file);
+    formData.append("filehost", selectedServer.filehost);
 
     try {
       // Use proxy for development to avoid CORS issues
