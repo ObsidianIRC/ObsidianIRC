@@ -34,6 +34,12 @@ export interface EventMap {
     target: string;
     reason: string;
   };
+  MODE: EventWithTags & {
+    sender: string;
+    target: string;
+    modestring: string;
+    modeargs: string[];
+  };
   CHANMSG: BaseMessageEvent & {
     channelName: string;
   };
@@ -810,6 +816,19 @@ export class IRCClient {
           channelName,
           target,
           reason,
+        });
+      } else if (command === "MODE") {
+        const sender = getNickFromNuh(source);
+        const target = parv[0];
+        const modestring = parv[1] || "";
+        const modeargs = parv.slice(2);
+        this.triggerEvent("MODE", {
+          serverId,
+          mtags,
+          sender,
+          target,
+          modestring,
+          modeargs,
         });
       } else if (command === "PRIVMSG") {
         const target = parv[0];

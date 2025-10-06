@@ -11,6 +11,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
+  FaGift,
   FaGrinAlt,
   FaHashtag,
   FaList,
@@ -41,6 +42,7 @@ import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
+import GifSelector from "../ui/GifSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import ReactionModal from "../ui/ReactionModal";
@@ -162,6 +164,7 @@ export const ChatArea: React.FC<{
   const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [isGifSelectorOpen, setIsGifSelectorOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<{
     isOpen: boolean;
     file: File | null;
@@ -692,20 +695,22 @@ export const ChatArea: React.FC<{
 
         if (target) {
           // Send via IRC
-          ircClient.sendRaw(
-            selectedServerId!,
-            `PRIVMSG ${target} :${data.saved_url}`,
-          );
+          if (selectedServerId) {
+            ircClient.sendRaw(
+              selectedServerId,
+              `PRIVMSG ${target} :${data.saved_url}`,
+            );
+          }
 
           // Add to store for immediate display (only for private chats, channels echo back)
-          if (selectedPrivateChat && currentUser) {
+          if (selectedPrivateChat && currentUser && selectedServerId) {
             const outgoingMessage = {
               id: uuidv4(),
               content: data.saved_url,
               timestamp: new Date(),
               userId: currentUser.username || currentUser.id,
               channelId: selectedPrivateChat.id,
-              serverId: selectedServerId!,
+              serverId: selectedServerId,
               type: "message" as const,
               reactions: [],
               replyMessage: null,
@@ -720,6 +725,39 @@ export const ChatArea: React.FC<{
     } catch (error) {
       console.error("Image upload failed:", error);
       // TODO: Show error to user
+    }
+  };
+
+  const handleGifSend = (gifUrl: string) => {
+    // Send the GIF URL directly to the current channel/user
+    const target =
+      selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+
+    if (target && selectedServerId) {
+      // Send via IRC
+      ircClient.sendRaw(
+        selectedServerId,
+        `PRIVMSG ${target} :${gifUrl}`,
+      );
+
+      // Add to store for immediate display (only for private chats, channels echo back)
+      if (selectedPrivateChat && currentUser) {
+        const outgoingMessage = {
+          id: uuidv4(),
+          content: gifUrl,
+          timestamp: new Date(),
+          userId: currentUser.username || currentUser.id,
+          channelId: selectedPrivateChat.id,
+          serverId: selectedServerId,
+          type: "message" as const,
+          reactions: [],
+          replyMessage: null,
+          mentioned: [],
+        };
+
+        const { addMessage } = useStore.getState();
+        addMessage(outgoingMessage);
+      }
     }
   };
 
@@ -1719,6 +1757,16 @@ export const ChatArea: React.FC<{
                   Upload Image
                 </button>
               )}
+              <button
+                className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
+                onClick={() => {
+                  setIsGifSelectorOpen(true);
+                  setShowPlusMenu(false);
+                }}
+              >
+                <FaGift className="mr-2" />
+                Send a GIF
+              </button>
               {/* Add more menu items here if needed */}
             </div>
           )}
@@ -1756,6 +1804,16 @@ export const ChatArea: React.FC<{
               </div>,
               document.body,
             )}
+
+          <GifSelector
+            isOpen={isGifSelectorOpen}
+            onClose={() => setIsGifSelectorOpen(false)}
+            onSelectGif={(gifUrl) => {
+              // Send the GIF URL directly to the channel
+              handleGifSend(gifUrl);
+              setIsGifSelectorOpen(false);
+            }}
+          />
 
           {isColorPickerOpen && (
             <ColorPicker

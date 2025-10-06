@@ -23,24 +23,84 @@ import {
 const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
 
   // Simple in-memory cache for images per session
   const imageCache = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
-    // Cache the image in background for future use
-    if (!imageCache.current.has(url)) {
-      fetch(url)
-        .then((response) => response.blob())
-        .then((blob) => {
-          const objectUrl = URL.createObjectURL(blob);
-          imageCache.current.set(url, objectUrl);
-        })
-        .catch(() => {
-          // Ignore cache errors
-        });
-    }
+    const resolveTenorUrl = async (sharingUrl: string) => {
+      try {
+        // Extract ID from Tenor sharing URL: https://tenor.com/view/slug-gif-ID
+        const match = sharingUrl.match(/tenor\.com\/view\/.*-gif-(\d+)/);
+        if (!match) return sharingUrl;
+
+        const gifId = match[1];
+        const apiKey = import.meta.env.VITE_TENOR_API_KEY;
+
+        if (!apiKey) return sharingUrl; // Fallback to original URL if no API key
+
+        // Use Tenor API to get the GIF data
+        const response = await fetch(
+          `https://tenor.googleapis.com/v2/posts?ids=${gifId}&key=${apiKey}`
+        );
+
+        if (!response.ok) return sharingUrl;
+
+        const data = await response.json();
+        if (data.results?.[0]?.media_formats) {
+          // Prefer gif format, fallback to other formats
+          const media = data.results[0].media_formats;
+          return media.gif?.url || media.mediumgif?.url || media.tinygif?.url || sharingUrl;
+        }
+      } catch (error) {
+        console.warn("Failed to resolve Tenor URL:", error);
+      }
+      return sharingUrl;
+    };
+
+    const processUrl = async () => {
+      let finalUrl = url;
+
+      // Check if this is a Tenor sharing URL that needs resolution
+      if (url.match(/tenor\.com\/view\//)) {
+        finalUrl = await resolveTenorUrl(url);
+        setResolvedUrl(finalUrl);
+      } else {
+        setResolvedUrl(url);
+      }
+
+      // Cache the image in background for future use
+      if (!imageCache.current.has(finalUrl)) {
+        fetch(finalUrl)
+          .then((response) => response.blob())
+          .then((blob) => {
+            const objectUrl = URL.createObjectURL(blob);
+            imageCache.current.set(finalUrl, objectUrl);
+          })
+          .catch(() => {
+            // Ignore cache errors
+          });
+      }
+    };
+
+    processUrl();
   }, [url]);
+
+  const displayUrl = resolvedUrl || url;
+
+  if (imageError) {
+    // Fallback to showing expired badge
+    return (
+      <div className="max-w-md">
+        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 border border-red-200">
+            <span>This image has expired</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (imageError) {
     // Fallback to showing expired badge
@@ -58,12 +118,12 @@ const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
   return (
     <div className="max-w-md">
       <img
-        src={url}
-        alt="Uploaded image"
+        src={displayUrl}
+        alt="GIF"
         className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
         onClick={(e) => {
           e.preventDefault();
-          window.open(url, "_blank");
+          window.open(url, "_blank"); // Always open original URL for sharing
         }}
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
@@ -153,6 +213,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     message.content.startsWith(server.filehost) &&
     (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
       message.content.includes("/upload/")); // fallback for upload URLs
+
+  // Check if message is just a GIF URL from GIPHY or Tenor
+  const isGifUrl =
+    message.content.trim() === message.content &&
+    (message.content.match(/media\d*\.giphy\.com\/media\//) ||
+     message.content.includes("media.tenor.com/") ||
+     message.content.includes("tenor.googleapis.com/") ||
+     message.content.match(/tenor\.com\/view\//)) &&
+    (message.content.match(/\.(gif)$/i) ||
+     message.content.includes("/giphy.gif") ||
+     message.content.includes("/tinygif") ||
+     message.content.match(/tenor\.com\/view\//));
 
   // Handle system messages
   if (isSystem) {
@@ -307,7 +379,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             )}
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {isImageUrl ? (
+              {isImageUrl || isGifUrl ? (
                 <ImageWithFallback url={message.content} />
               ) : (
                 <div style={{ whiteSpace: "pre-wrap" }}>{htmlContent}</div>
