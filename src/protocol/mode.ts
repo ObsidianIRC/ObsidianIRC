@@ -13,7 +13,15 @@ export function registerModeHandler(
 
     // Check if target is a channel
     if (target.startsWith("#")) {
-      handleChannelMode(serverId, server, target, sender, modestring, modeargs, useStore);
+      handleChannelMode(
+        serverId,
+        server,
+        target,
+        sender,
+        modestring,
+        modeargs,
+        useStore,
+      );
     } else {
       // User mode - for now, just log
       console.log(`User mode change: ${target} ${modestring}`, modeargs);
@@ -45,7 +53,7 @@ function handleChannelMode(
 
 interface ModeChange {
   mode: string;
-  action: '+' | '-';
+  action: "+" | "-";
   arg?: string;
 }
 
@@ -55,23 +63,29 @@ function parseModestring(modestring: string, modeargs: string[]): ModeChange[] {
 
   for (let i = 0; i < modestring.length; i++) {
     const char = modestring[i];
-    if (char === '+' || char === '-') {
+    if (char === "+" || char === "-") {
       // This is a mode action
       continue;
     }
 
-    const action = i > 0 && (modestring[i-1] === '+' || modestring[i-1] === '-') ? modestring[i-1] : '+';
+    const action =
+      i > 0 && (modestring[i - 1] === "+" || modestring[i - 1] === "-")
+        ? modestring[i - 1]
+        : "+";
     const mode = char;
 
     // Check if this mode requires an argument
     // For now, we'll assume modes like o, v, h, etc. require args
     // This should be configurable based on CHANMODES ISUPPORT token
-    const requiresArg = 'ovhqa'.includes(mode);
+    const requiresArg = "ovhqa".includes(mode);
 
     const change: ModeChange = {
       mode,
-      action: action as '+' | '-',
-      arg: requiresArg && argIndex < modeargs.length ? modeargs[argIndex++] : undefined
+      action: action as "+" | "-",
+      arg:
+        requiresArg && argIndex < modeargs.length
+          ? modeargs[argIndex++]
+          : undefined,
     };
 
     changes.push(change);
@@ -90,8 +104,10 @@ function applyModeChanges(
   const server = state.servers.find((s: Server) => s.id === serverId);
   if (!server || !server.prefix) return;
 
+  const serverPrefix = server.prefix; // Store in variable to satisfy TypeScript
+
   // Parse PREFIX to get mode-to-prefix mapping
-  const prefixMap = parsePrefix(server.prefix);
+  const prefixMap = parsePrefix(serverPrefix);
 
   useStore.setState((state) => {
     const updatedServers = state.servers.map((s: Server) => {
@@ -108,15 +124,19 @@ function applyModeChanges(
               // This mode change affects this user
               const prefix = prefixMap[change.mode];
               if (prefix) {
-                if (change.action === '+') {
+                if (change.action === "+") {
                   // Add prefix if not already present
                   if (!newStatus.includes(prefix)) {
                     // Insert prefix in correct order (highest precedence first)
-                    newStatus = insertPrefixInOrder(newStatus, prefix, server.prefix!);
+                    newStatus = insertPrefixInOrder(
+                      newStatus,
+                      prefix,
+                      serverPrefix,
+                    );
                   }
                 } else {
                   // Remove prefix if present
-                  newStatus = newStatus.replace(prefix, '');
+                  newStatus = newStatus.replace(prefix, "");
                 }
               }
             }
@@ -152,7 +172,11 @@ function parsePrefix(prefix: string): Record<string, string> {
   return map;
 }
 
-function insertPrefixInOrder(currentPrefixes: string, newPrefix: string, prefixString: string): string {
+function insertPrefixInOrder(
+  currentPrefixes: string,
+  newPrefix: string,
+  prefixString: string,
+): string {
   // Parse the prefix string to get the order
   const match = prefixString.match(/^\(([^)]+)\)(.+)$/);
   if (!match) return currentPrefixes + newPrefix;
@@ -164,11 +188,11 @@ function insertPrefixInOrder(currentPrefixes: string, newPrefix: string, prefixS
   if (newPrefixIndex === -1) return currentPrefixes + newPrefix;
 
   // Remove any existing instance of this prefix
-  let result = currentPrefixes.replace(new RegExp(`\\${newPrefix}`, 'g'), '');
+  let result = currentPrefixes.replace(new RegExp(`\\${newPrefix}`, "g"), "");
 
   // Insert at the correct position
   for (let i = 0; i <= result.length; i++) {
-    const charAtI = result[i] || '';
+    const charAtI = result[i] || "";
     const indexAtI = charAtI ? prefixes.indexOf(charAtI) : prefixes.length;
 
     if (newPrefixIndex < indexAtI) {
@@ -189,9 +213,12 @@ function sendModeNotification(
   useStore: typeof AppState,
 ) {
   // Create a system message for the mode change
-  const modeText = changes.map(change =>
-    `${change.action}${change.mode}${change.arg ? ` ${change.arg}` : ''}`
-  ).join(' ');
+  const modeText = changes
+    .map(
+      (change) =>
+        `${change.action}${change.mode}${change.arg ? ` ${change.arg}` : ""}`,
+    )
+    .join(" ");
 
   const message: Message = {
     id: `mode-${Date.now()}-${Math.random()}`,
