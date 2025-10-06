@@ -679,6 +679,14 @@ const useStore = create<AppState>((set, get) => ({
       set((state) => {
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
+            // Check if channel already exists in store
+            const existingChannel = server.channels.find(
+              (c) => c.name === channelName,
+            );
+            if (existingChannel) {
+              // Channel already exists, don't add duplicate
+              return server;
+            }
             return {
               ...server,
               channels: [...server.channels, channel],
@@ -838,6 +846,19 @@ const useStore = create<AppState>((set, get) => ({
         },
       ],
     }));
+
+    // Play error sound for FAIL notifications
+    if (notification.type === "fail") {
+      try {
+        const audio = new Audio("/sounds/error.mp3");
+        audio.volume = 0.3; // Set reasonable volume for notifications
+        audio.play().catch((error) => {
+          console.error("Failed to play error sound:", error);
+        });
+      } catch (error) {
+        console.error("Failed to play error sound:", error);
+      }
+    }
   },
 
   removeGlobalNotification: (notificationId) => {
@@ -3849,7 +3870,7 @@ ircClient.on("RENAME", ({ serverId, oldName, newName, reason, user }) => {
 
     const renameMessage: Message = {
       id: `rename-${Date.now()}`,
-      content: `${user} renamed from ${oldName} to ${newName}${reason ? ` (${reason})` : ""}`,
+      content: `Channel has been renamed from ${oldName} to ${newName} by ${user}${reason ? ` (${reason})` : ""}`,
       timestamp: new Date(),
       userId: "system",
       channelId: channel.id,

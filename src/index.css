@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  font-family: "JetBrains Mono", monospace;
+  font-family: "Roboto Mono", monospace;
   width: 100%;
 }
 

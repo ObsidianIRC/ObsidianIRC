@@ -88,8 +88,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["JetBrains Mono", "monospace"],
-        mono: ["JetBrains Mono", "monospace"],
+        sans: ["Roboto Mono", "monospace"],
+        mono: ["Roboto Mono", "monospace"],
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
