@@ -31,8 +31,8 @@ const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
     // Cache the image in background for future use
     if (!imageCache.current.has(url)) {
       fetch(url)
-        .then(response => response.blob())
-        .then(blob => {
+        .then((response) => response.blob())
+        .then((blob) => {
           const objectUrl = URL.createObjectURL(blob);
           imageCache.current.set(url, objectUrl);
         })
@@ -63,11 +63,11 @@ const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
         className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
         onClick={(e) => {
           e.preventDefault();
-          window.open(url, '_blank');
+          window.open(url, "_blank");
         }}
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
-        style={{ maxHeight: '150px' }}
+        style={{ maxHeight: "150px" }}
       />
     </div>
   );
@@ -147,11 +147,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const username = message.userId.split("-")[0];
 
   // Check if message is just an image URL from our filehost
-  const isImageUrl = server?.filehost && 
-    message.content.trim() === message.content && 
+  const isImageUrl =
+    server?.filehost &&
+    message.content.trim() === message.content &&
     message.content.startsWith(server.filehost) &&
-    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) || 
-     message.content.includes('/upload/')); // fallback for upload URLs
+    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+      message.content.includes("/upload/")); // fallback for upload URLs
 
   // Handle system messages
   if (isSystem) {

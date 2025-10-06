@@ -392,13 +392,13 @@ export const ChatArea: React.FC<{
   // Close plus menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showPlusMenu && !(event.target as Element).closest('.plus-menu')) {
+      if (showPlusMenu && !(event.target as Element).closest(".plus-menu")) {
         setShowPlusMenu(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showPlusMenu]);
 
   const handleSendMessage = () => {
@@ -668,14 +668,14 @@ export const ChatArea: React.FC<{
     if (!selectedServer?.filehost) return;
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append("image", file);
 
     try {
       // Use proxy for development to avoid CORS issues
-      const uploadUrl = '/upload';
-      
+      const uploadUrl = "/upload";
+
       const response = await fetch(uploadUrl, {
-        method: 'POST',
+        method: "POST",
         body: formData,
       });
 
@@ -688,11 +688,14 @@ export const ChatArea: React.FC<{
         // Send the link directly to the current channel/user
         const target =
           selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
-        
+
         if (target) {
           // Send via IRC
-          ircClient.sendRaw(selectedServerId!, `PRIVMSG ${target} :${data.saved_url}`);
-          
+          ircClient.sendRaw(
+            selectedServerId!,
+            `PRIVMSG ${target} :${data.saved_url}`,
+          );
+
           // Add to store for immediate display (only for private chats, channels echo back)
           if (selectedPrivateChat && currentUser) {
             const outgoingMessage = {
@@ -707,14 +710,14 @@ export const ChatArea: React.FC<{
               replyMessage: null,
               mentioned: [],
             };
-            
+
             const { addMessage } = useStore.getState();
             addMessage(outgoingMessage);
           }
         }
       }
     } catch (error) {
-      console.error('Image upload failed:', error);
+      console.error("Image upload failed:", error);
       // TODO: Show error to user
     }
   };
@@ -1581,7 +1584,7 @@ export const ChatArea: React.FC<{
             channelId={selectedChannelId || selectedPrivateChatId || ""}
           />
           <div className="bg-discord-dark-100 rounded-lg flex items-center relative">
-            <button 
+            <button
               className="px-4 text-discord-text-muted hover:text-discord-text-normal"
               onClick={() => setShowPlusMenu((prev) => !prev)}
             >
@@ -1680,18 +1683,21 @@ export const ChatArea: React.FC<{
 
           {/* Plus menu */}
           {showPlusMenu && (
-            <div className="plus-menu absolute bg-discord-dark-200 rounded-lg shadow-lg border border-discord-dark-300 min-w-48 z-50" style={{
-              bottom: 'calc(100% + 8px)',
-              left: '16px'
-            }}>
+            <div
+              className="plus-menu absolute bg-discord-dark-200 rounded-lg shadow-lg border border-discord-dark-300 min-w-48 z-50"
+              style={{
+                bottom: "calc(100% + 8px)",
+                left: "16px",
+              }}
+            >
               {selectedServer?.filehost && (
                 <button
                   className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
                   onClick={() => {
                     // Handle image selection for preview
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
                     input.onchange = (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) {
@@ -1852,7 +1858,9 @@ export const ChatArea: React.FC<{
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-md w-full mx-4">
             <div className="p-4">
-              <h3 className="text-lg font-semibold text-white mb-4">Upload Image</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Upload Image
+              </h3>
               <div className="flex justify-center mb-4">
                 <img
                   src={imagePreview.previewUrl}
@@ -1861,7 +1869,8 @@ export const ChatArea: React.FC<{
                 />
               </div>
               <p className="text-sm text-discord-text-muted mb-4">
-                File: {imagePreview.file?.name} ({(imagePreview.file?.size || 0) / 1024} KB)
+                File: {imagePreview.file?.name} (
+                {(imagePreview.file?.size || 0) / 1024} KB)
               </p>
             </div>
             <div className="flex justify-end gap-2 p-4 border-t border-discord-dark-300">
@@ -1871,7 +1880,11 @@ export const ChatArea: React.FC<{
                   if (imagePreview.previewUrl) {
                     URL.revokeObjectURL(imagePreview.previewUrl);
                   }
-                  setImagePreview({ isOpen: false, file: null, previewUrl: null });
+                  setImagePreview({
+                    isOpen: false,
+                    file: null,
+                    previewUrl: null,
+                  });
                 }}
                 className="px-4 py-2 text-discord-text-muted hover:text-white rounded"
               >
@@ -1886,7 +1899,11 @@ export const ChatArea: React.FC<{
                   if (imagePreview.previewUrl) {
                     URL.revokeObjectURL(imagePreview.previewUrl);
                   }
-                  setImagePreview({ isOpen: false, file: null, previewUrl: null });
+                  setImagePreview({
+                    isOpen: false,
+                    file: null,
+                    previewUrl: null,
+                  });
                 }}
                 className="px-4 py-2 bg-discord-accent text-white rounded hover:bg-discord-accent-hover"
               >

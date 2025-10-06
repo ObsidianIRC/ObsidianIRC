@@ -56,7 +56,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
       />
       <div
         className={`mt-2 rounded-lg border border-${theme}-dark-400 bg-${theme}-dark-200 max-w-lg pl-4 pr-12 py-2 bg-black/20 rounded ${firstUrl ? `cursor-pointer hover:bg-${theme}-dark-300 transition-colors` : ""}`}
-        style={{ height: '100px' }}
+        style={{ height: "100px" }}
         onClick={handleClick}
         role={firstUrl ? "button" : undefined}
         tabIndex={firstUrl ? 0 : undefined}
@@ -69,7 +69,10 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
       >
         <div className="flex items-start h-full">
           {imageUrl && (
-                        <div className="relative inline-block h-full" style={{ verticalAlign: 'top' }}>
+            <div
+              className="relative inline-block h-full"
+              style={{ verticalAlign: "top" }}
+            >
               <img
                 src={imageUrl}
                 alt={title || "Link preview"}
@@ -91,7 +94,9 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
                 </div>
               )}
               {snippet && (
-                <div className={`text-xs text-${theme}-text-muted line-clamp-2`}>
+                <div
+                  className={`text-xs text-${theme}-text-muted line-clamp-2`}
+                >
                   {snippet}
                 </div>
               )}
