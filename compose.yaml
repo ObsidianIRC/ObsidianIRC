@@ -17,7 +17,7 @@ services:
   ircd:
     init: true
     # TODO: Use our unrealircd custom image instead
-    image: ghcr.io/ergochat/ergo
+    image: ghcr.io/ergochat/ergo:master
     container_name: ergo
     ports:
       - '8097:8097'

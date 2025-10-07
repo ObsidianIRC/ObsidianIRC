@@ -32,6 +32,7 @@ import {
   formatMessageForIrc,
   getPreviewStyles,
   isValidFormattingType,
+  stripIrcFormatting,
 } from "../../lib/messageFormatter";
 import useStore, { serverSupportsMultiline } from "../../store";
 import type { Message as MessageType, User } from "../../types";
@@ -162,6 +163,8 @@ export const ChatArea: React.FC<{
   const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [messageHistoryIndex, setMessageHistoryIndex] = useState(-1);
+  const [draftText, setDraftText] = useState("");
   const [imagePreview, setImagePreview] = useState<{
     isOpen: boolean;
     file: File | null;
@@ -348,6 +351,16 @@ export const ChatArea: React.FC<{
     [channelMessages],
   );
 
+  // Memoize user's message history for arrow key navigation
+  const userMessageHistory = useMemo(() => {
+    if (!currentUser?.username) return [];
+    return channelMessages
+      .filter(
+        (msg) => msg.type === "message" && msg.userId === currentUser.username,
+      )
+      .reverse(); // Most recent first
+  }, [channelMessages, currentUser?.username]);
+
   const scrollDown = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     // Force complete scroll after animation
@@ -365,6 +378,14 @@ export const ChatArea: React.FC<{
         messagesContainerRef.current.scrollHeight;
     }
   }, [selectedServerId, selectedChannelId]);
+
+  // Reset message history navigation on channel change
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Reset history only on channel change
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Reset history only on private chat change
+  useEffect(() => {
+    setMessageHistoryIndex(-1);
+    setDraftText("");
+  }, [selectedChannelId, selectedPrivateChatId]);
 
   // Auto scroll to bottom on new messages
   useEffect(() => {
@@ -630,6 +651,8 @@ export const ChatArea: React.FC<{
       setMessageText("");
       setLocalReplyTo(null);
       setShowAutocomplete(false);
+      setMessageHistoryIndex(-1);
+      setDraftText("");
       if (tabCompletion.isActive) {
         tabCompletion.resetCompletion();
       }
@@ -754,6 +777,84 @@ export const ChatArea: React.FC<{
         e.key === " ")
     ) {
       // Let the dropdown handle these keys, don't interfere
+      return;
+    }
+
+    // Handle message history navigation with arrow keys
+    if (e.key === "ArrowUp") {
+      // Only activate if input is empty or already in history mode
+      if (messageText === "" || messageHistoryIndex >= 0) {
+        e.preventDefault();
+
+        if (userMessageHistory.length === 0) return;
+
+        // Save draft text on first entry to history mode
+        if (messageHistoryIndex === -1 && messageText !== "") {
+          setDraftText(messageText);
+        }
+
+        // Navigate to previous message (or stay at oldest)
+        const newIndex = Math.min(
+          messageHistoryIndex + 1,
+          userMessageHistory.length - 1,
+        );
+
+        if (newIndex >= 0 && newIndex < userMessageHistory.length) {
+          setMessageHistoryIndex(newIndex);
+          const cleanContent = stripIrcFormatting(
+            userMessageHistory[newIndex].content,
+          );
+          setMessageText(cleanContent);
+
+          // Move cursor to end of text
+          setTimeout(() => {
+            if (inputRef.current) {
+              const length = cleanContent.length;
+              inputRef.current.setSelectionRange(length, length);
+            }
+          }, 0);
+        }
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      // Only handle if we're in history mode
+      if (messageHistoryIndex >= 0) {
+        e.preventDefault();
+
+        const newIndex = messageHistoryIndex - 1;
+
+        if (newIndex === -1) {
+          // Exit history mode, restore draft or clear
+          setMessageHistoryIndex(-1);
+          setMessageText(draftText);
+          setDraftText("");
+
+          // Move cursor to end
+          setTimeout(() => {
+            if (inputRef.current) {
+              const length = draftText.length;
+              inputRef.current.setSelectionRange(length, length);
+            }
+          }, 0);
+        } else {
+          // Navigate to next message
+          setMessageHistoryIndex(newIndex);
+          const cleanContent = stripIrcFormatting(
+            userMessageHistory[newIndex].content,
+          );
+          setMessageText(cleanContent);
+
+          // Move cursor to end of text
+          setTimeout(() => {
+            if (inputRef.current) {
+              const length = cleanContent.length;
+              inputRef.current.setSelectionRange(length, length);
+            }
+          }, 0);
+        }
+      }
       return;
     }
 
@@ -888,6 +989,12 @@ export const ChatArea: React.FC<{
     setMessageText(newText);
     setCursorPosition(newCursorPosition);
     handleUpdatedText(newText);
+
+    // Exit history mode if user starts typing
+    if (messageHistoryIndex >= 0) {
+      setMessageHistoryIndex(-1);
+      setDraftText("");
+    }
 
     // Auto-resize textarea
     const textarea = e.target;
