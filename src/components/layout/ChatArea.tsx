@@ -266,6 +266,8 @@ export const ChatArea: React.FC<{
     banUserByHostmask,
   } = useStore();
 
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
   // Get the current user for the selected server with metadata from store
   const currentUser = useMemo(() => {
     if (!selectedServerId) return null;
@@ -1897,11 +1899,7 @@ export const ChatArea: React.FC<{
               placeholder={
                 selectedChannel
                   ? `Message #${selectedChannel.name.replace(/^#/, "")}${
-                      globalSettings.enableMultilineInput &&
-                      !(
-                        "__TAURI__" in window &&
-                        ["android", "ios"].includes(platform())
-                      )
+                      globalSettings.enableMultilineInput && !isMobile
                         ? globalSettings.multilineOnShiftEnter
                           ? " (Shift+Enter for new line)"
                           : " (Enter for new line, Shift+Enter to send)"
@@ -1909,11 +1907,7 @@ export const ChatArea: React.FC<{
                     }`
                   : selectedPrivateChat
                     ? `Message @${selectedPrivateChat.username}${
-                        globalSettings.enableMultilineInput &&
-                        !(
-                          "__TAURI__" in window &&
-                          ["android", "ios"].includes(platform())
-                        )
+                        globalSettings.enableMultilineInput && !isMobile
                           ? globalSettings.multilineOnShiftEnter
                             ? " (Shift+Enter for new line)"
                             : " (Enter for new line, Shift+Enter to send)"
