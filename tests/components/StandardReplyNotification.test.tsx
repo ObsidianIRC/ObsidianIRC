@@ -125,16 +125,22 @@ describe("StandardReplyNotification", () => {
   });
 
   test("displays formatted timestamp", () => {
+    const testDate = new Date("2023-01-01T15:30:00Z");
     render(
       <StandardReplyNotification
         {...baseProps}
         type="NOTE"
-        timestamp={new Date("2023-01-01T15:30:00Z")}
+        timestamp={testDate}
       />,
     );
 
-    // Should display time in 12-hour format with 2 digits
-    expect(screen.getByText("03:30 PM")).toBeInTheDocument();
+    // Should display time in 12-hour format with 2 digits (in local timezone)
+    const expectedTime = new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(testDate);
+
+    expect(screen.getByText(expectedTime)).toBeInTheDocument();
   });
 
   test("renders message content through EnhancedLinkWrapper", () => {

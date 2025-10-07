@@ -1,40 +1,25 @@
-import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
-import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
+import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import {
-  FaArrowDown,
-  FaAt,
-  FaBell,
-  FaChevronLeft,
-  FaChevronRight,
-  FaEdit,
-  FaGrinAlt,
-  FaHashtag,
-  FaList,
-  FaPenAlt,
-  FaPlus,
-  FaSearch,
-  FaTimes,
-  FaUserPlus,
-} from "react-icons/fa";
+import { FaPlus } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useMessageHistory } from "../../hooks/useMessageHistory";
+import { useMessageSending } from "../../hooks/useMessageSending";
+import { useReactions } from "../../hooks/useReactions";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
+import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
 import {
   type FormattingType,
-  formatMessageForIrc,
   getPreviewStyles,
   isValidFormattingType,
-  stripIrcFormatting,
 } from "../../lib/messageFormatter";
-import useStore, { serverSupportsMultiline } from "../../store";
+import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
@@ -42,83 +27,18 @@ import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
+import { EmojiPickerModal } from "../ui/EmojiPickerModal";
 import DiscoverGrid from "../ui/HomeScreen";
+import { ImagePreviewModal } from "../ui/ImagePreviewModal";
+import { InputToolbar } from "../ui/InputToolbar";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import ReactionModal from "../ui/ReactionModal";
+import { ReplyBadge } from "../ui/ReplyBadge";
+import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import UserContextMenu from "../ui/UserContextMenu";
+import { ChatHeader } from "./ChatHeader";
 
 const EMPTY_ARRAY: User[] = [];
-let lastTypingTime = 0;
-
-// Helper function to split long messages while respecting IRC protocol limits
-const splitLongMessage = (message: string, target = "#channel"): string[] => {
-  // Calculate IRC protocol overhead for a PRIVMSG (excluding message tags)
-  // Format: :nick!user@host PRIVMSG #target :message\r\n
-  // Message tags don't count toward the 512-byte limit
-
-  // Conservative estimates for variable parts (as per IRC spec recommendations)
-  const maxNickLength = 20;
-  const maxUserLength = 20;
-  const maxHostLength = 63;
-  const targetLength = target.length;
-
-  // Fixed protocol parts (excluding tags)
-  const protocolOverhead =
-    1 + // ':'
-    maxNickLength +
-    1 + // '!'
-    maxUserLength +
-    1 + // '@'
-    maxHostLength +
-    1 + // ' '
-    7 + // 'PRIVMSG'
-    1 + // ' '
-    targetLength +
-    2 + // ' :'
-    2; // '\r\n'
-
-  const safetyBuffer = 10; // Small safety margin
-
-  // Available space for the actual message content
-  const maxMessageLength = 512 - protocolOverhead - safetyBuffer;
-
-  if (message.length <= maxMessageLength) {
-    return [message];
-  }
-
-  const lines: string[] = [];
-  let currentLine = "";
-  const words = message.split(" ");
-
-  for (const word of words) {
-    if (word.length > maxMessageLength) {
-      // If a single word is too long, we have to break it
-      if (currentLine) {
-        lines.push(currentLine.trim());
-        currentLine = "";
-      }
-
-      // Split the long word
-      for (let i = 0; i < word.length; i += maxMessageLength) {
-        lines.push(word.slice(i, i + maxMessageLength));
-      }
-    } else if (`${currentLine} ${word}`.length > maxMessageLength) {
-      // Adding this word would exceed the limit
-      if (currentLine) {
-        lines.push(currentLine.trim());
-      }
-      currentLine = word;
-    } else {
-      currentLine = currentLine ? `${currentLine} ${word}` : word;
-    }
-  }
-
-  if (currentLine) {
-    lines.push(currentLine.trim());
-  }
-
-  return lines.filter((line) => line.length > 0);
-};
 
 export const TypingIndicator: React.FC<{
   serverId: string;
@@ -163,8 +83,6 @@ export const ChatArea: React.FC<{
   const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
-  const [messageHistoryIndex, setMessageHistoryIndex] = useState(-1);
-  const [draftText, setDraftText] = useState("");
   const [imagePreview, setImagePreview] = useState<{
     isOpen: boolean;
     file: File | null;
@@ -186,13 +104,6 @@ export const ChatArea: React.FC<{
     y: 0,
     username: "",
     serverId: "",
-  });
-  const [reactionModal, setReactionModal] = useState<{
-    isOpen: boolean;
-    message: MessageType | null;
-  }>({
-    isOpen: false,
-    message: null,
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -252,6 +163,15 @@ export const ChatArea: React.FC<{
 
   // Emoji completion hook
   const emojiCompletion = useEmojiCompletion();
+
+  // Typing notification hook
+  const typingNotification = useTypingNotification({
+    serverId: selectedServerId,
+    enabled: globalSettings.sendTypingNotifications,
+  });
+
+  // Media query hook
+  const isNarrowView = useMediaQuery();
 
   const handleIrcLinkClick = (rawUrl: string) => {
     const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
@@ -331,6 +251,32 @@ export const ChatArea: React.FC<{
     [selectedServer, selectedPrivateChatId],
   );
 
+  // Message sending hook
+  const { sendMessage } = useMessageSending({
+    selectedServerId,
+    selectedChannelId,
+    selectedPrivateChatId,
+    selectedChannel: selectedChannel ?? null,
+    selectedPrivateChat: selectedPrivateChat ?? null,
+    currentUser,
+    selectedColor,
+    selectedFormatting,
+    localReplyTo,
+  });
+
+  // Reactions hook
+  const {
+    reactionModal,
+    openReactionModal,
+    closeReactionModal,
+    selectReaction,
+    directReaction,
+    unreact,
+  } = useReactions({
+    selectedServerId,
+    currentUser,
+  });
+
   // Get messages for current channel or private chat - memoized
   const channelKey = useMemo(
     () =>
@@ -345,21 +291,19 @@ export const ChatArea: React.FC<{
     [messages, channelKey],
   );
 
+  // Message history hook (must be after channelMessages is defined)
+  const messageHistory = useMessageHistory({
+    messages: channelMessages,
+    currentUsername: currentUser?.username || null,
+    selectedChannelId,
+    selectedPrivateChatId,
+  });
+
   // Memoize grouped events to prevent recalculation on every render
   const eventGroups = useMemo(
     () => groupConsecutiveEvents(channelMessages),
     [channelMessages],
   );
-
-  // Memoize user's message history for arrow key navigation
-  const userMessageHistory = useMemo(() => {
-    if (!currentUser?.username) return [];
-    return channelMessages
-      .filter(
-        (msg) => msg.type === "message" && msg.userId === currentUser.username,
-      )
-      .reverse(); // Most recent first
-  }, [channelMessages, currentUser?.username]);
 
   const scrollDown = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -378,14 +322,6 @@ export const ChatArea: React.FC<{
         messagesContainerRef.current.scrollHeight;
     }
   }, [selectedServerId, selectedChannelId]);
-
-  // Reset message history navigation on channel change
-  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Reset history only on channel change
-  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Reset history only on private chat change
-  useEffect(() => {
-    setMessageHistoryIndex(-1);
-    setDraftText("");
-  }, [selectedChannelId, selectedPrivateChatId]);
 
   // Auto scroll to bottom on new messages
   useEffect(() => {
@@ -423,272 +359,41 @@ export const ChatArea: React.FC<{
   }, [showPlusMenu]);
 
   const handleSendMessage = () => {
-    // Clean the message text of any trailing newlines that might have been added
-    const cleanedText = messageText.replace(/\n+$/, "");
+    if (messageText.trim() === "") return;
 
-    if (cleanedText.trim() === "") return;
     scrollDown();
-    if (selectedServerId && (selectedChannelId || selectedPrivateChatId)) {
-      if (cleanedText.startsWith("/")) {
-        // Handle command
-        const command = cleanedText.substring(1).trim();
-        const [commandName, ...args] = command.split(" ");
-        if (commandName === "nick") {
-          ircClient.sendRaw(selectedServerId, `NICK ${args[0]}`);
-        } else if (commandName === "join") {
-          if (args[0]) {
-            ircClient.joinChannel(selectedServerId, args[0]);
-            ircClient.triggerEvent("JOIN", {
-              serverId: selectedServerId,
-              username: currentUser?.username ? currentUser.username : "",
-              channelName: args[0],
-            });
-          } else {
-            // Handle error: no channel specified
-            console.error("No channel specified for /join command");
-          }
-        } else if (commandName === "part") {
-          ircClient.leaveChannel(selectedServerId, args[0]);
-          ircClient.triggerEvent("PART", {
-            serverId: selectedServerId,
-            username: currentUser?.username ? currentUser.username : "",
-            channelName: args[0],
-          });
-        } else if (commandName === "msg") {
-          const [target, ...messageParts] = args;
-          const message = messageParts.join(" ");
-          ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
-        } else if (commandName === "me") {
-          const actionMessage = cleanedText.substring(4).trim();
-          ircClient.sendRaw(
-            selectedServerId,
-            `PRIVMSG ${selectedChannel ? selectedChannel.name : ""} :\u0001ACTION ${actionMessage}\u0001`,
-          );
-        } else {
-          const fullCommand =
-            args.length > 0 ? `${commandName} ${args.join(" ")}` : commandName;
-          ircClient.sendRaw(selectedServerId, fullCommand);
+    sendMessage(messageText);
+
+    // Cleanup after sending
+    setMessageText("");
+    setLocalReplyTo(null);
+    setShowAutocomplete(false);
+    messageHistory.resetHistory();
+    if (tabCompletion.isActive) {
+      tabCompletion.resetCompletion();
+    }
+
+    // Reset textarea height to initial single-line state
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          const scrollHeight = inputRef.current.scrollHeight;
+          inputRef.current.style.height = `${scrollHeight}px`;
         }
-      } else {
-        // Determine target: channel name or username for private messages
-        const target =
-          selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+      }, 0);
+    }
 
-        // Check if message contains newlines or is very long
-        const lines = cleanedText.split("\n");
-        const supportsMultiline = serverSupportsMultiline(selectedServerId);
-        const hasMultipleLines = lines.length > 1;
-
-        // Calculate the same limit as splitLongMessage for consistency
-        const maxNickLength = 20;
-        const maxUserLength = 20;
-        const maxHostLength = 63;
-        const protocolOverhead =
-          1 +
-          maxNickLength +
-          1 +
-          maxUserLength +
-          1 +
-          maxHostLength +
-          1 +
-          7 +
-          1 +
-          target.length +
-          2 +
-          2;
-        const maxMessageLength = 512 - protocolOverhead - 10; // 10 byte safety buffer
-        const isSingleLongLine =
-          lines.length === 1 && cleanedText.length > maxMessageLength;
-
-        if (supportsMultiline && (hasMultipleLines || isSingleLongLine)) {
-          // Send as multiline message using BATCH
-          const batchId = `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          const replyPrefix = localReplyTo
-            ? `@+draft/reply=${localReplyTo.id};`
-            : "";
-          ircClient.sendRaw(
-            selectedServerId,
-            `${replyPrefix}BATCH +${batchId} draft/multiline ${target}`,
-          );
-
-          if (hasMultipleLines) {
-            // Case 1: Multi-line message (preserve line breaks)
-            lines.forEach((line) => {
-              const formattedLine = formatMessageForIrc(line, {
-                color: selectedColor || "inherit",
-                formatting: selectedFormatting,
-              });
-
-              // Check if this individual line is too long and needs splitting
-              const maxLineLengthForTarget =
-                512 -
-                (1 + 20 + 1 + 20 + 1 + 63 + 1 + 7 + 1 + target.length + 2 + 2) -
-                10;
-              if (formattedLine.length > maxLineLengthForTarget) {
-                const splitLines = splitLongMessage(formattedLine, target);
-                splitLines.forEach((splitLine: string, index: number) => {
-                  if (index === 0) {
-                    // First part goes normally
-                    ircClient.sendRaw(
-                      selectedServerId,
-                      `@batch=${batchId} PRIVMSG ${target} :${splitLine}`,
-                    );
-                  } else {
-                    // Subsequent parts use multiline-concat to join without line break
-                    ircClient.sendRaw(
-                      selectedServerId,
-                      `@batch=${batchId};draft/multiline-concat PRIVMSG ${target} :${splitLine}`,
-                    );
-                  }
-                });
-              } else {
-                ircClient.sendRaw(
-                  selectedServerId,
-                  `@batch=${batchId} PRIVMSG ${target} :${formattedLine}`,
-                );
-              }
-            });
-          } else {
-            // Case 2: Single very long line (split and concat)
-            const formattedText = formatMessageForIrc(cleanedText, {
-              color: selectedColor || "inherit",
-              formatting: selectedFormatting,
-            });
-
-            const splitLines = splitLongMessage(formattedText, target);
-            splitLines.forEach((splitLine: string, index: number) => {
-              if (index === 0) {
-                // First part goes normally
-                ircClient.sendRaw(
-                  selectedServerId,
-                  `@batch=${batchId} PRIVMSG ${target} :${splitLine}`,
-                );
-              } else {
-                // Subsequent parts use multiline-concat to join without separation
-                ircClient.sendRaw(
-                  selectedServerId,
-                  `@batch=${batchId};draft/multiline-concat PRIVMSG ${target} :${splitLine}`,
-                );
-              }
-            });
-          }
-
-          ircClient.sendRaw(selectedServerId, `BATCH -${batchId}`);
-        } else if (hasMultipleLines && !supportsMultiline) {
-          // Handle fallback based on user preference
-          if (globalSettings.autoFallbackToSingleLine) {
-            // Concatenate with spaces and send as single message
-            const combinedText = lines.join(" ");
-            const formattedText = formatMessageForIrc(combinedText, {
-              color: selectedColor || "inherit",
-              formatting: selectedFormatting,
-            });
-
-            // Split if too long
-            const splitLines = splitLongMessage(formattedText, target);
-            splitLines.forEach((line: string) => {
-              ircClient.sendRaw(
-                selectedServerId,
-                `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
-              );
-            });
-          } else {
-            // Send as separate messages
-            lines.forEach((line) => {
-              const formattedLine = formatMessageForIrc(line, {
-                color: selectedColor || "inherit",
-                formatting: selectedFormatting,
-              });
-
-              // Split long lines
-              const splitLines = splitLongMessage(formattedLine, target);
-              splitLines.forEach((splitLine: string) => {
-                ircClient.sendRaw(
-                  selectedServerId,
-                  `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${splitLine}`,
-                );
-              });
-            });
-          }
-        } else {
-          // Send as regular single message
-          const formattedText = formatMessageForIrc(cleanedText, {
-            color: selectedColor || "inherit",
-            formatting: selectedFormatting,
-          });
-
-          // Split if too long
-          const splitLines = splitLongMessage(formattedText, target);
-          splitLines.forEach((line: string) => {
-            ircClient.sendRaw(
-              selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
-            );
-          });
-        }
-
-        // For private messages, manually add our own message to the chat
-        // since the server doesn't echo private messages back to us
-        if (selectedPrivateChat && currentUser) {
-          const outgoingMessage = {
-            id: uuidv4(),
-            content: cleanedText,
-            timestamp: new Date(),
-            userId: currentUser.username || currentUser.id,
-            channelId: selectedPrivateChat.id,
-            serverId: selectedServerId,
-            type: "message" as const,
-            reactions: [],
-            replyMessage: localReplyTo,
-            mentioned: [],
-          };
-
-          // Add the message to the store
-          const { addMessage } = useStore.getState();
-          addMessage(outgoingMessage);
-        }
-      }
-      setMessageText("");
-      setLocalReplyTo(null);
-      setShowAutocomplete(false);
-      setMessageHistoryIndex(-1);
-      setDraftText("");
-      if (tabCompletion.isActive) {
-        tabCompletion.resetCompletion();
-      }
-
-      // Reset textarea height to initial single-line state
-      if (inputRef.current) {
-        inputRef.current.style.height = "auto";
-        // Use setTimeout to ensure the DOM has updated with empty value
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.style.height = "auto";
-            // Calculate the proper height for empty input
-            const scrollHeight = inputRef.current.scrollHeight;
-            inputRef.current.style.height = `${scrollHeight}px`;
-          }
-        }, 0);
-      }
-
-      // Send typing done notification
-      const storeState = useStore.getState();
-      if (
-        storeState.globalSettings.sendTypingNotifications &&
-        (selectedChannel?.name || selectedPrivateChat?.username)
-      ) {
-        const target = selectedChannel?.name ?? selectedPrivateChat?.username;
-        ircClient.sendTyping(
-          selectedServerId as string,
-          target as string,
-          false,
-        );
-      }
+    // Send typing done notification
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+    if (target) {
+      typingNotification.notifyTypingDone(target);
     }
   };
 
   const handleImageUpload = async (file: File) => {
-    if (!selectedServer?.filehost) return;
+    if (!selectedServer?.filehost || !selectedServerId) return;
 
     const formData = new FormData();
     formData.append("image", file);
@@ -716,7 +421,7 @@ export const ChatArea: React.FC<{
         if (target) {
           // Send via IRC
           ircClient.sendRaw(
-            selectedServerId!,
+            selectedServerId,
             `PRIVMSG ${target} :${data.saved_url}`,
           );
 
@@ -728,7 +433,7 @@ export const ChatArea: React.FC<{
               timestamp: new Date(),
               userId: currentUser.username || currentUser.id,
               channelId: selectedPrivateChat.id,
-              serverId: selectedServerId!,
+              serverId: selectedServerId,
               type: "message" as const,
               reactions: [],
               replyMessage: null,
@@ -783,34 +488,22 @@ export const ChatArea: React.FC<{
     // Handle message history navigation with arrow keys
     if (e.key === "ArrowUp") {
       // Only activate if input is empty or already in history mode
-      if (messageText === "" || messageHistoryIndex >= 0) {
+      if (messageText === "" || messageHistory.messageHistoryIndex >= 0) {
         e.preventDefault();
 
-        if (userMessageHistory.length === 0) return;
+        if (messageHistory.userMessageHistory.length === 0) return;
 
-        // Save draft text on first entry to history mode
-        if (messageHistoryIndex === -1 && messageText !== "") {
-          setDraftText(messageText);
-        }
-
-        // Navigate to previous message (or stay at oldest)
-        const newIndex = Math.min(
-          messageHistoryIndex + 1,
-          userMessageHistory.length - 1,
-        );
-
-        if (newIndex >= 0 && newIndex < userMessageHistory.length) {
-          setMessageHistoryIndex(newIndex);
-          const cleanContent = stripIrcFormatting(
-            userMessageHistory[newIndex].content,
-          );
-          setMessageText(cleanContent);
+        const previousMessage = messageHistory.navigateUp(messageText);
+        if (previousMessage !== null) {
+          setMessageText(previousMessage);
 
           // Move cursor to end of text
           setTimeout(() => {
             if (inputRef.current) {
-              const length = cleanContent.length;
-              inputRef.current.setSelectionRange(length, length);
+              inputRef.current.setSelectionRange(
+                previousMessage.length,
+                previousMessage.length,
+              );
             }
           }, 0);
         }
@@ -820,37 +513,20 @@ export const ChatArea: React.FC<{
 
     if (e.key === "ArrowDown") {
       // Only handle if we're in history mode
-      if (messageHistoryIndex >= 0) {
+      if (messageHistory.messageHistoryIndex >= 0) {
         e.preventDefault();
 
-        const newIndex = messageHistoryIndex - 1;
-
-        if (newIndex === -1) {
-          // Exit history mode, restore draft or clear
-          setMessageHistoryIndex(-1);
-          setMessageText(draftText);
-          setDraftText("");
+        const nextMessage = messageHistory.navigateDown();
+        if (nextMessage !== null) {
+          setMessageText(nextMessage);
 
           // Move cursor to end
           setTimeout(() => {
             if (inputRef.current) {
-              const length = draftText.length;
-              inputRef.current.setSelectionRange(length, length);
-            }
-          }, 0);
-        } else {
-          // Navigate to next message
-          setMessageHistoryIndex(newIndex);
-          const cleanContent = stripIrcFormatting(
-            userMessageHistory[newIndex].content,
-          );
-          setMessageText(cleanContent);
-
-          // Move cursor to end of text
-          setTimeout(() => {
-            if (inputRef.current) {
-              const length = cleanContent.length;
-              inputRef.current.setSelectionRange(length, length);
+              inputRef.current.setSelectionRange(
+                nextMessage.length,
+                nextMessage.length,
+              );
             }
           }, 0);
         }
@@ -895,7 +571,6 @@ export const ChatArea: React.FC<{
           );
         }
       }
-      lastTypingTime = 0;
       return;
     }
 
@@ -991,10 +666,7 @@ export const ChatArea: React.FC<{
     handleUpdatedText(newText);
 
     // Exit history mode if user starts typing
-    if (messageHistoryIndex >= 0) {
-      setMessageHistoryIndex(-1);
-      setDraftText("");
-    }
+    messageHistory.exitHistory();
 
     // Auto-resize textarea
     const textarea = e.target;
@@ -1216,45 +888,9 @@ export const ChatArea: React.FC<{
   };
 
   const handleUpdatedText = (text: string) => {
-    // Check if typing notifications are enabled
-    const { globalSettings } = useStore.getState();
-    if (!globalSettings.sendTypingNotifications) return;
-
-    if (text.length > 0 && text[0] !== "/") {
-      const server = useStore
-        .getState()
-        .servers.find((s) => s.id === selectedServerId);
-      if (!server) return;
-
-      // Handle both channels and private chats
-      const channel = server.channels.find((c) => c.id === selectedChannelId);
-      const privateChat = server.privateChats?.find(
-        (pc) => pc.id === selectedPrivateChatId,
-      );
-      const target = channel?.name ?? privateChat?.username;
-
-      if (!target) return;
-
-      const currentTime = Date.now();
-      if (currentTime - lastTypingTime < 5000) return;
-
-      lastTypingTime = currentTime;
-      // Send typing active notification
-      if (target) {
-        ircClient.sendTyping(selectedServerId ?? "", target, true);
-      }
-    } else if (text.length === 0) {
-      // Send typing done notification
-      if (selectedChannel?.name || selectedPrivateChat?.username) {
-        const target = selectedChannel?.name || selectedPrivateChat?.username;
-        ircClient.sendTyping(
-          selectedServerId as string,
-          target as string,
-          false,
-        );
-      }
-      lastTypingTime = 0;
-    }
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+    if (!target) return;
+    typingNotification.notifyTyping(target, text);
   };
 
   const handleUsernameClick = (
@@ -1307,68 +943,7 @@ export const ChatArea: React.FC<{
   };
 
   const handleReactClick = (message: MessageType, buttonElement: Element) => {
-    setReactionModal({
-      isOpen: true,
-      message,
-    });
-  };
-
-  const handleCloseReactionModal = () => {
-    setReactionModal({
-      isOpen: false,
-      message: null,
-    });
-  };
-
-  const handleReactionSelect = (emoji: string) => {
-    if (reactionModal.message?.msgid) {
-      const server = servers.find(
-        (s) => s.id === reactionModal.message?.serverId,
-      );
-      const channel = server?.channels.find(
-        (c) => c.id === reactionModal.message?.channelId,
-      );
-      if (server && channel) {
-        // Check if user has already reacted with this emoji
-        const existingReaction = reactionModal.message.reactions.find(
-          (r) => r.emoji === emoji && r.userId === currentUser?.username,
-        );
-
-        if (existingReaction) {
-          // Send unreact message
-          const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
-          ircClient.sendRaw(server.id, tagMsg);
-        } else {
-          // Send react message
-          const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
-          ircClient.sendRaw(server.id, tagMsg);
-        }
-      }
-    }
-    handleCloseReactionModal();
-  };
-
-  const handleDirectReaction = (emoji: string, message: MessageType) => {
-    if (message.msgid && selectedServerId) {
-      const server = servers.find((s) => s.id === selectedServerId);
-      const channel = server?.channels.find((c) => c.id === message.channelId);
-      if (server && channel) {
-        // Send react message directly
-        const tagMsg = `@+draft/react=${emoji};+draft/reply=${message.msgid} TAGMSG ${channel.name}`;
-        ircClient.sendRaw(server.id, tagMsg);
-      }
-    }
-  };
-
-  const handleReactionUnreact = (emoji: string, message: MessageType) => {
-    if (message.msgid && selectedServerId) {
-      const server = servers.find((s) => s.id === selectedServerId);
-      const channel = server?.channels.find((c) => c.id === message.channelId);
-      if (server && channel) {
-        const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${message.msgid} TAGMSG ${channel.name}`;
-        ircClient.sendRaw(server.id, tagMsg);
-      }
-    }
+    openReactionModal(message);
   };
 
   const handleRedactMessage = (message: MessageType) => {
@@ -1386,16 +961,6 @@ export const ChatArea: React.FC<{
         }
       }
     }
-  };
-
-  const handleOpenReactionModal = (
-    message: MessageType,
-    position: { x: number; y: number },
-  ) => {
-    setReactionModal({
-      isOpen: true,
-      message,
-    });
   };
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
@@ -1433,8 +998,6 @@ export const ChatArea: React.FC<{
     );
   };
 
-  const isNarrowView = useMediaQuery();
-
   // Focus input on channel change
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Only focus when channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Only focus when private chat changes
@@ -1464,113 +1027,16 @@ export const ChatArea: React.FC<{
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
-      <div className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
-        <div className="flex items-center">
-          {!isChanListVisible && (
-            <button
-              onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white mr-4"
-              aria-label="Expand channel list"
-            >
-              {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
-            </button>
-          )}
-          {selectedChannel && (
-            <>
-              <FaHashtag className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">
-                {selectedChannel.name.replace(/^#/, "")}
-              </h2>
-            </>
-          )}
-          {selectedPrivateChat && (
-            <>
-              <FaAt className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">
-                {selectedPrivateChat.username}
-              </h2>
-            </>
-          )}
-          {selectedChannel?.topic && (
-            <>
-              <div className="mx-2 text-discord-text-muted">|</div>
-              <div className="text-discord-text-muted text-sm truncate max-w-xs">
-                {selectedChannel.topic}
-              </div>
-            </>
-          )}
-        </div>
-        {!!selectedServerId && (
-          <div className="flex items-center gap-4 text-discord-text-muted">
-            <button className="hover:text-discord-text-normal">
-              <FaBell />
-            </button>
-            <button className="hover:text-discord-text-normal">
-              <FaPenAlt />
-            </button>
-            <button className="hover:text-discord-text-normal">
-              <FaUserPlus />
-            </button>
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => useStore.getState().toggleChannelListModal(true)}
-              title="List Channels"
-            >
-              <FaList />
-            </button>
-            {selectedChannel &&
-              (() => {
-                const serverCurrentUser = selectedServerId
-                  ? ircClient.getCurrentUser(selectedServerId)
-                  : null;
-                const channelUser = selectedChannel.users.find(
-                  (u) => u.username === serverCurrentUser?.username,
-                );
-                const isOperator =
-                  channelUser?.status?.includes("@") ||
-                  channelUser?.status?.includes("~");
-                return isOperator ? (
-                  <button
-                    className="hover:text-discord-text-normal"
-                    onClick={() =>
-                      useStore.getState().toggleChannelRenameModal(true)
-                    }
-                    title="Rename Channel"
-                  >
-                    <FaEdit />
-                  </button>
-                ) : null;
-              })()}
-            {/* Only show member list toggle for channels, not private chats */}
-            {selectedChannel && (
-              <button
-                className="hover:text-discord-text-normal"
-                onClick={() => toggleMemberList(!isMemberListVisible)}
-                aria-label={
-                  isMemberListVisible
-                    ? "Collapse member list"
-                    : "Expand member list"
-                }
-                data-testid="toggle-member-list"
-              >
-                {isMemberListVisible ? (
-                  <UsersIcon className="w-4 h-4 text-white" />
-                ) : (
-                  <UsersIcon className="w-4 h-4 text-gray" />
-                )}
-              </button>
-            )}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-              />
-              <FaSearch className="absolute right-2 top-1.5 text-xs" />
-            </div>
-          </div>
-        )}
-      </div>
+      <ChatHeader
+        selectedChannel={selectedChannel ?? null}
+        selectedPrivateChat={selectedPrivateChat ?? null}
+        selectedServerId={selectedServerId}
+        isChanListVisible={isChanListVisible}
+        isMemberListVisible={isMemberListVisible}
+        isNarrowView={isNarrowView}
+        onToggleChanList={onToggleChanList}
+        onToggleMemberList={() => toggleMemberList(!isMemberListVisible)}
+      />
 
       {/* Messages area */}
       {selectedServer && !selectedChannel && !selectedPrivateChat && (
@@ -1655,9 +1121,9 @@ export const ChatArea: React.FC<{
                   onIrcLinkClick={handleIrcLinkClick}
                   onReactClick={handleReactClick}
                   selectedServerId={selectedServerId}
-                  onReactionUnreact={handleReactionUnreact}
-                  onOpenReactionModal={handleOpenReactionModal}
-                  onDirectReaction={handleDirectReaction}
+                  onReactionUnreact={unreact}
+                  onOpenReactionModal={openReactionModal}
+                  onDirectReaction={directReaction}
                   users={selectedChannel?.users || []}
                   onRedactMessage={handleRedactMessage}
                 />
@@ -1670,19 +1136,7 @@ export const ChatArea: React.FC<{
       )}
       {!selectedServer && <DiscoverGrid />}
       {/* Scroll to bottom button */}
-      {isScrolledUp && (
-        <div className="relative bottom-10 z-50">
-          <div className="absolute right-4">
-            <button
-              onClick={scrollDown}
-              className="bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full p-2 shadow-lg transition-all"
-              aria-label="Scroll to bottom"
-            >
-              <FaArrowDown className="text-white" />
-            </button>
-          </div>
-        </div>
-      )}
+      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollDown} />
 
       {/* Input area */}
       {(selectedChannel || selectedPrivateChat) && (
@@ -1700,17 +1154,10 @@ export const ChatArea: React.FC<{
             </button>
 
             {localReplyTo && (
-              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 flex items-center h-8 px-2">
-                <span className="flex-grow text-center">
-                  Replying to <strong>{localReplyTo.userId}</strong>
-                </span>
-                <button
-                  className="ml-2 text-xs text-discord-text-muted hover:text-discord-text-normal"
-                  onClick={() => setLocalReplyTo(null)}
-                >
-                  <FaTimes />
-                </button>
-              </div>
+              <ReplyBadge
+                replyTo={localReplyTo}
+                onClose={() => setLocalReplyTo(null)}
+              />
             )}
             <textarea
               ref={inputRef}
@@ -1753,40 +1200,20 @@ export const ChatArea: React.FC<{
               })}
               rows={1}
             />
-            <button
-              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => {
+            <InputToolbar
+              selectedColor={selectedColor}
+              onEmojiClick={() => {
                 setIsEmojiSelectorOpen((prev) => !prev);
                 setIsColorPickerOpen(false);
                 setShowMembersDropdown(false);
               }}
-            >
-              <FaGrinAlt />
-            </button>
-            <button
-              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => {
+              onColorPickerClick={() => {
                 setIsColorPickerOpen((prev) => !prev);
                 setIsEmojiSelectorOpen(false);
                 setShowMembersDropdown(false);
               }}
-            >
-              <div
-                className="w-4 h-4 rounded-full border-2 border-white-700"
-                style={{
-                  backgroundColor:
-                    selectedColor === "inherit"
-                      ? "transparent"
-                      : (selectedColor ?? undefined),
-                }}
-              />
-            </button>
-            <button
-              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={handleAtButtonClick}
-            >
-              <FaAt />
-            </button>
+              onAtClick={handleAtButtonClick}
+            />
           </div>
 
           {/* Plus menu */}
@@ -1830,39 +1257,12 @@ export const ChatArea: React.FC<{
             </div>
           )}
 
-          {isEmojiSelectorOpen &&
-            createPortal(
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                onClick={handleEmojiModalBackdropClick}
-              >
-                <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">
-                  <div className="p-2">
-                    <EmojiPicker
-                      onEmojiClick={handleEmojiSelect}
-                      theme={Theme.DARK}
-                      width="100%"
-                      height={400}
-                      searchPlaceholder="Search emojis..."
-                      previewConfig={{
-                        showPreview: false,
-                      }}
-                      skinTonesDisabled={false}
-                      lazyLoadEmojis={true}
-                    />
-                  </div>
-                  <div className="p-2 border-t border-discord-dark-300">
-                    <button
-                      onClick={() => setIsEmojiSelectorOpen(false)}
-                      className="text-sm text-discord-text-muted hover:text-white w-full text-center py-1"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>,
-              document.body,
-            )}
+          <EmojiPickerModal
+            isOpen={isEmojiSelectorOpen}
+            onEmojiClick={handleEmojiSelect}
+            onClose={() => setIsEmojiSelectorOpen(false)}
+            onBackdropClick={handleEmojiModalBackdropClick}
+          />
 
           {isColorPickerOpen && (
             <ColorPicker
@@ -1957,70 +1357,41 @@ export const ChatArea: React.FC<{
 
       <ReactionModal
         isOpen={reactionModal.isOpen}
-        onClose={handleCloseReactionModal}
-        onSelectEmoji={handleReactionSelect}
+        onClose={closeReactionModal}
+        onSelectEmoji={selectReaction}
       />
 
       {/* Image Preview Dialog */}
-      {imagePreview.isOpen && imagePreview.previewUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-md w-full mx-4">
-            <div className="p-4">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Upload Image
-              </h3>
-              <div className="flex justify-center mb-4">
-                <img
-                  src={imagePreview.previewUrl}
-                  alt="Preview"
-                  className="max-w-full max-h-96 rounded-lg"
-                />
-              </div>
-              <p className="text-sm text-discord-text-muted mb-4">
-                File: {imagePreview.file?.name} (
-                {(imagePreview.file?.size || 0) / 1024} KB)
-              </p>
-            </div>
-            <div className="flex justify-end gap-2 p-4 border-t border-discord-dark-300">
-              <button
-                onClick={() => {
-                  // Clean up preview URL
-                  if (imagePreview.previewUrl) {
-                    URL.revokeObjectURL(imagePreview.previewUrl);
-                  }
-                  setImagePreview({
-                    isOpen: false,
-                    file: null,
-                    previewUrl: null,
-                  });
-                }}
-                className="px-4 py-2 text-discord-text-muted hover:text-white rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (imagePreview.file) {
-                    handleImageUpload(imagePreview.file);
-                  }
-                  // Clean up preview URL
-                  if (imagePreview.previewUrl) {
-                    URL.revokeObjectURL(imagePreview.previewUrl);
-                  }
-                  setImagePreview({
-                    isOpen: false,
-                    file: null,
-                    previewUrl: null,
-                  });
-                }}
-                className="px-4 py-2 bg-discord-accent text-white rounded hover:bg-discord-accent-hover"
-              >
-                Upload
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ImagePreviewModal
+        isOpen={imagePreview.isOpen}
+        file={imagePreview.file}
+        previewUrl={imagePreview.previewUrl}
+        onCancel={() => {
+          // Clean up preview URL
+          if (imagePreview.previewUrl) {
+            URL.revokeObjectURL(imagePreview.previewUrl);
+          }
+          setImagePreview({
+            isOpen: false,
+            file: null,
+            previewUrl: null,
+          });
+        }}
+        onUpload={() => {
+          if (imagePreview.file) {
+            handleImageUpload(imagePreview.file);
+          }
+          // Clean up preview URL
+          if (imagePreview.previewUrl) {
+            URL.revokeObjectURL(imagePreview.previewUrl);
+          }
+          setImagePreview({
+            isOpen: false,
+            file: null,
+            previewUrl: null,
+          });
+        }}
+      />
     </div>
   );
 };
