@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { getColorStyle } from "../../lib/ircUtils";
+import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
@@ -208,19 +209,7 @@ export const MemberList: React.FC = () => {
   // Update currentUser.status from server.users if available, and ensure current user is in channel.users
   useEffect(() => {
     if (selectedServer && currentUser && selectedChannel) {
-      // First, ensure current user is in channel.users
-      const existingInChannel = selectedChannel.users.find(
-        (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
-      );
-      if (!existingInChannel) {
-        console.log("MemberList - adding current user to channel.users");
-        selectedChannel.users.push({
-          ...currentUser,
-          status: currentUser.status || "",
-        });
-      }
-
-      // Then try to sync status from server.users
+      // Try to sync status from server.users
       const userInServer = selectedServer.users.find(
         (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
       );
@@ -310,12 +299,13 @@ export const MemberList: React.FC = () => {
       });
 
       if (channel && currentUser) {
+        const serverCurrentUser = ircClient.getCurrentUser(serverId);
         const userInChannel = channel.users.find(
           (u) =>
-            u.username.toLowerCase() === currentUser.username.toLowerCase(),
+            u.username.toLowerCase() === serverCurrentUser?.username.toLowerCase(),
         );
         console.log("MemberList - user lookup in channel:", {
-          currentUsername: currentUser.username,
+          currentUsername: serverCurrentUser?.username,
           userFound: !!userInChannel,
           userStatus: userInChannel?.status,
           allUsernames: channel.users.map((u) => u.username),
@@ -400,7 +390,7 @@ export const MemberList: React.FC = () => {
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
         currentUserStatus={userContextMenu.userStatusInChannel}
-        currentUsername={currentUser?.username}
+        currentUsername={ircClient.getCurrentUser(userContextMenu.serverId)?.username}
         onOpenModerationModal={(action) => {
           setModerationModal({
             isOpen: true,
