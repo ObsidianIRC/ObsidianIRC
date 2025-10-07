@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { FaBell, FaCog, FaServer, FaTimes, FaUser } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isValidIgnorePattern } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
 import useStore, { serverSupportsMetadata } from "../../store";
@@ -285,6 +286,7 @@ const UserSettings: React.FC = React.memo(() => {
     [currentServer],
   );
   const isHostedChatMode = __HIDE_SERVER_LIST__;
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Category state
   const [activeCategory, setActiveCategory] =
@@ -1339,8 +1341,12 @@ const UserSettings: React.FC = React.memo(() => {
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-4xl h-[80vh] flex overflow-hidden">
         {/* Sidebar */}
         <div className="w-64 bg-discord-dark-300 flex flex-col">
-          <div className="p-4 border-b border-discord-dark-500">
-            <h2 className="text-white text-xl font-bold">User Settings</h2>
+          <div className="p-4 border-b border-discord-dark-500 flex justify-center">
+            {isMobile ? (
+              <FaCog className="text-white text-xl" />
+            ) : (
+              <h2 className="text-white text-xl font-bold">User Settings</h2>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             <nav className="p-2">
@@ -1350,14 +1356,16 @@ const UserSettings: React.FC = React.memo(() => {
                   <button
                     key={category.id}
                     onClick={() => setActiveCategory(category.id)}
-                    className={`w-full flex items-center px-3 py-2 mb-1 rounded text-left transition-colors ${
+                    className={`w-full flex items-center ${isMobile ? "justify-center px-2" : "px-3"} py-2 mb-1 rounded text-left transition-colors ${
                       activeCategory === category.id
                         ? "bg-discord-primary text-white"
                         : "text-discord-text-muted hover:text-white hover:bg-discord-dark-400"
                     }`}
                   >
-                    <Icon className="mr-3 text-sm" />
-                    {category.name}
+                    <Icon
+                      className={`${isMobile ? "text-lg" : "mr-3 text-sm"}`}
+                    />
+                    {!isMobile && category.name}
                   </button>
                 );
               })}
