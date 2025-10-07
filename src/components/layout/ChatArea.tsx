@@ -1301,11 +1301,13 @@ export const ChatArea: React.FC<{
         const userInChannel =
           channel.users.find(
             (u) =>
-              u.username.toLowerCase() === serverCurrentUser?.username.toLowerCase(),
+              u.username.toLowerCase() ===
+              serverCurrentUser?.username.toLowerCase(),
           ) ||
           selectedServer?.users.find(
             (u) =>
-              u.username.toLowerCase() === serverCurrentUser?.username.toLowerCase(),
+              u.username.toLowerCase() ===
+              serverCurrentUser?.username.toLowerCase(),
           );
         userStatusInChannel = userInChannel?.status;
       }
@@ -2145,7 +2147,9 @@ export const ChatArea: React.FC<{
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
         currentUserStatus={userContextMenu.userStatusInChannel}
-        currentUsername={ircClient.getCurrentUser(userContextMenu.serverId)?.username}
+        currentUsername={
+          ircClient.getCurrentUser(userContextMenu.serverId)?.username
+        }
         onOpenModerationModal={(action) => {
           setModerationModal({
             isOpen: true,

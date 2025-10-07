@@ -2,8 +2,8 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { getColorStyle } from "../../lib/ircUtils";
 import ircClient from "../../lib/ircClient";
+import { getColorStyle } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
@@ -302,7 +302,8 @@ export const MemberList: React.FC = () => {
         const serverCurrentUser = ircClient.getCurrentUser(serverId);
         const userInChannel = channel.users.find(
           (u) =>
-            u.username.toLowerCase() === serverCurrentUser?.username.toLowerCase(),
+            u.username.toLowerCase() ===
+            serverCurrentUser?.username.toLowerCase(),
         );
         console.log("MemberList - user lookup in channel:", {
           currentUsername: serverCurrentUser?.username,
@@ -390,7 +391,9 @@ export const MemberList: React.FC = () => {
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
         currentUserStatus={userContextMenu.userStatusInChannel}
-        currentUsername={ircClient.getCurrentUser(userContextMenu.serverId)?.username}
+        currentUsername={
+          ircClient.getCurrentUser(userContextMenu.serverId)?.username
+        }
         onOpenModerationModal={(action) => {
           setModerationModal({
             isOpen: true,
