@@ -1047,7 +1047,7 @@ export const ChatArea: React.FC<{
       {(selectedChannel || selectedPrivateChat) && (
         <div
           ref={messagesContainerRef}
-          className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+          className="flex-grow overflow-y-auto overflow-x-hidden flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
         >
           {selectedChannel?.isLoadingHistory ? (
             // Show loading spinner when channel is loading history

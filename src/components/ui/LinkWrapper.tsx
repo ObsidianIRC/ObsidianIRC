@@ -48,6 +48,17 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
     setPendingUrl(null);
   };
 
+  // Truncate long URLs with middle ellipsis
+  const truncateUrl = (url: string, maxLength = 60): string => {
+    if (url.length <= maxLength) return url;
+
+    const charsToShow = maxLength - 3; // Account for "..."
+    const frontChars = Math.ceil(charsToShow / 2);
+    const backChars = Math.floor(charsToShow / 2);
+
+    return `${url.substring(0, frontChars)}...${url.substring(url.length - backChars)}`;
+  };
+
   // Regular expression to detect HTTP and HTTPS links
   const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
   const parseContent = (content: string): React.ReactNode[] => {
@@ -70,10 +81,11 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
               href={matches[index]}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-discord-text-link underline hover:text-blue-700"
+              className="text-discord-text-link underline hover:text-blue-700 break-all"
               onClick={(e) => handleLinkClick(e, matches[index])}
+              title={matches[index]}
             >
-              {matches[index]}
+              {truncateUrl(matches[index])}
             </a>
           </Fragment>
         );

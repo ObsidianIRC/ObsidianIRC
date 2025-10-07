@@ -310,7 +310,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               {isImageUrl ? (
                 <ImageWithFallback url={message.content} />
               ) : (
-                <div style={{ whiteSpace: "pre-wrap" }}>{htmlContent}</div>
+                <div
+                  className="overflow-hidden"
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "break-word",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {htmlContent}
+                </div>
               )}
             </EnhancedLinkWrapper>
 
