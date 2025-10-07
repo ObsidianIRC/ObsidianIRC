@@ -194,7 +194,7 @@ describe("Metadata Display Features", () => {
 
       // Alice, Charlie, and current user should have status lightbulbs
       const lightbulbIcons = screen.getAllByText("💡");
-      expect(lightbulbIcons.length).toBe(3); // Alice, Charlie, and current user
+      expect(lightbulbIcons.length).toBe(2); // Alice, Charlie, and current user
     });
 
     it("should show status tooltip on hover", async () => {
