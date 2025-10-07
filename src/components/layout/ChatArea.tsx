@@ -1292,15 +1292,7 @@ export const ChatArea: React.FC<{
     // Calculate user's status in the specific channel
     let userStatusInChannel: string | undefined;
     if (channelId && channelId !== "server-notices") {
-      const selectedServer = servers.find((s) => s.id === serverId);
-      const channel = selectedServer?.channels.find((c) => c.id === channelId);
-      if (channel && currentUser) {
-        const userInChannel = channel.users.find(
-          (u) =>
-            u.username.toLowerCase() === currentUser.username.toLowerCase(),
-        );
-        userStatusInChannel = userInChannel?.status;
-      }
+      userStatusInChannel = currentUser?.status;
     }
 
     setUserContextMenu({

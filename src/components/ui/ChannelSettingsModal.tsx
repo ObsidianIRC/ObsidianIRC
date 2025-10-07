@@ -280,13 +280,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const filteredModes = modes.filter((mode) => mode.type === activeTab);
 
   useEffect(() => {
-    if (isOpen && channel) {
-      // Clear current modes and fetch new ones when channel changes
+    if (isOpen && !hasFetchedRef.current) {
+      // Clear current modes and fetch new ones when modal opens
       setModes([]);
-      hasFetchedRef.current = false;
       fetchChannelModes();
+      hasFetchedRef.current = true;
     }
-  }, [isOpen, channel, fetchChannelModes]);
+  }, [isOpen, fetchChannelModes]);
 
   if (!isOpen) return null;
 
