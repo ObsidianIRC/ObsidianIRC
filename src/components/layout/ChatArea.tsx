@@ -1295,13 +1295,15 @@ export const ChatArea: React.FC<{
       const selectedServer = servers.find((s) => s.id === serverId);
       const channel = selectedServer?.channels.find((c) => c.id === channelId);
       if (channel && currentUser) {
-        const userInChannel = channel.users.find(
-          (u) =>
-            u.username.toLowerCase() === currentUser.username.toLowerCase(),
-        ) || selectedServer?.users.find(
-          (u) =>
-            u.username.toLowerCase() === currentUser.username.toLowerCase(),
-        );
+        const userInChannel =
+          channel.users.find(
+            (u) =>
+              u.username.toLowerCase() === currentUser.username.toLowerCase(),
+          ) ||
+          selectedServer?.users.find(
+            (u) =>
+              u.username.toLowerCase() === currentUser.username.toLowerCase(),
+          );
         userStatusInChannel = userInChannel?.status;
       }
     }

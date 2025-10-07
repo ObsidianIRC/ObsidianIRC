@@ -216,7 +216,7 @@ export const MemberList: React.FC = () => {
         console.log("MemberList - adding current user to channel.users");
         selectedChannel.users.push({
           ...currentUser,
-          status: currentUser.status || '',
+          status: currentUser.status || "",
         });
       }
 
@@ -225,7 +225,10 @@ export const MemberList: React.FC = () => {
         (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
       );
       if (userInServer?.status && userInServer.status !== currentUser.status) {
-        console.log("MemberList - updating currentUser.status from server.users:", userInServer.status);
+        console.log(
+          "MemberList - updating currentUser.status from server.users:",
+          userInServer.status,
+        );
         useStore.setState((state) => ({
           ...state,
           currentUser: {
@@ -235,7 +238,8 @@ export const MemberList: React.FC = () => {
         }));
         // Also update in channel.users
         const userInChannel = selectedChannel.users.find(
-          (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+          (u) =>
+            u.username.toLowerCase() === currentUser.username.toLowerCase(),
         );
         if (userInChannel) {
           userInChannel.status = userInServer.status;
@@ -286,49 +290,52 @@ export const MemberList: React.FC = () => {
     console.log("MemberList handleUsernameClick - status check:", {
       serverId,
       channelId,
-      currentUser: currentUser ? { username: currentUser.username, status: currentUser.status } : null
+      currentUser: currentUser
+        ? { username: currentUser.username, status: currentUser.status }
+        : null,
     });
-    
+
     let userStatusInChannel: string | undefined;
     if (channelId && channelId !== "server-notices") {
       const selectedServer = servers.find((s) => s.id === serverId);
       console.log("MemberList - server lookup:", {
         serverId,
         serverFound: !!selectedServer,
-        serverName: selectedServer?.name
+        serverName: selectedServer?.name,
       });
-      
+
       const channel = selectedServer?.channels.find((c) => c.id === channelId);
       console.log("MemberList - channel lookup:", {
         channelId,
         channelFound: !!channel,
         channelName: channel?.name,
-        usersCount: channel?.users?.length
+        usersCount: channel?.users?.length,
       });
-      
+
       if (channel && currentUser) {
         const userInChannel = channel.users.find(
-          (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+          (u) =>
+            u.username.toLowerCase() === currentUser.username.toLowerCase(),
         );
         console.log("MemberList - user lookup in channel:", {
           currentUsername: currentUser.username,
           userFound: !!userInChannel,
           userStatus: userInChannel?.status,
-          allUsernames: channel.users.map(u => u.username)
+          allUsernames: channel.users.map((u) => u.username),
         });
-        
+
         userStatusInChannel = userInChannel?.status;
         console.log("MemberList - final status:", userStatusInChannel);
       } else {
         console.log("MemberList - missing data:", {
           hasChannel: !!channel,
-          hasCurrentUser: !!currentUser
+          hasCurrentUser: !!currentUser,
         });
       }
     } else {
       console.log("MemberList - skipping status check:", {
         channelId,
-        isServerNotices: channelId === "server-notices"
+        isServerNotices: channelId === "server-notices",
       });
     }
 
