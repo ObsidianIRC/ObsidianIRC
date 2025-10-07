@@ -242,6 +242,7 @@ const UserSettings: React.FC = React.memo(() => {
       showNickChanges: globalShowNickChanges,
       showJoinsParts: globalShowJoinsParts,
       showQuits: globalShowQuits,
+      showKicks: globalShowKicks,
       enableMultilineInput: globalEnableMultilineInput,
       multilineOnShiftEnter: globalMultilineOnShiftEnter,
       autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
@@ -1152,6 +1153,18 @@ const UserSettings: React.FC = React.memo(() => {
                     className="mr-3 accent-discord-primary"
                   />
                   <span className="text-discord-text-muted">Quits</span>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={globalShowKicks}
+                    onChange={(e) =>
+                      updateGlobalSettings({ showKicks: e.target.checked })
+                    }
+                    className="mr-3 accent-discord-primary"
+                  />
+                  <span className="text-discord-text-muted">Kicks</span>
                 </label>
               </div>
             </div>

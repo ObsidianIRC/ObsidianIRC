@@ -57,6 +57,11 @@ export interface Channel {
   isRead?: boolean;
   isLoadingHistory?: boolean;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
+  modes?: string;
+  modeArgs?: string[];
+  bans?: Array<{ mask: string; setter: string; timestamp: number }>;
+  invites?: Array<{ mask: string; setter: string; timestamp: number }>;
+  exceptions?: Array<{ mask: string; setter: string; timestamp: number }>;
 }
 
 export interface PrivateChat {
@@ -84,12 +89,14 @@ export interface Message {
     | "join"
     | "part"
     | "quit"
+    | "kick"
     | "nick"
     | "leave"
     | "standard-reply"
     | "notice"
     | "netsplit"
-    | "netjoin";
+    | "netjoin"
+    | "mode";
   content: string;
   timestamp: Date;
   userId: string;
@@ -115,6 +122,8 @@ export interface Message {
   linkPreviewTitle?: string;
   linkPreviewSnippet?: string;
   linkPreviewMeta?: string; // URL to preview image/thumbnail
+  // JSON log data for server notices
+  jsonLogData?: JsonValue;
 }
 
 // Alias for backwards compatibility
@@ -188,3 +197,12 @@ export interface BaseMessageEvent extends EventWithTags {
 export interface BaseUserActionEvent extends BaseIRCEvent {
   username: string;
 }
+
+// JSON value type for handling arbitrary JSON data
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];

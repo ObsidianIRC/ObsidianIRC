@@ -146,6 +146,9 @@ describe("Metadata Display Features", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
       },
       messages: {
         "server1-channel1": mockChannel.messages,

@@ -71,7 +71,9 @@ const GifSelector: React.FC<GifSelectorProps> = ({
       }
 
       if (!apiKey) {
-        console.warn(`No API key set for ${activeProvider}. Please add VITE_${activeProvider.toUpperCase()}_API_KEY to your .env file and restart the application`);
+        console.warn(
+          `No API key set for ${activeProvider}. Please add VITE_${activeProvider.toUpperCase()}_API_KEY to your .env file and restart the application`,
+        );
         throw new Error(`Missing API key for ${activeProvider}`);
       }
 
@@ -79,7 +81,11 @@ const GifSelector: React.FC<GifSelectorProps> = ({
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(`GIF API error (${activeProvider}):`, response.status, data);
+        console.error(
+          `GIF API error (${activeProvider}):`,
+          response.status,
+          data,
+        );
         throw new Error(`API request failed: ${response.status}`);
       }
 

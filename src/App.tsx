@@ -5,6 +5,7 @@ import {
 import type React from "react";
 import { useEffect } from "react";
 import AppLayout from "./components/layout/AppLayout";
+import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
@@ -70,10 +71,39 @@ const App: React.FC = () => {
       isUserProfileModalOpen,
       isChannelListModalOpen,
       isChannelRenameModalOpen,
+      isServerNoticesPopupOpen,
     },
     joinChannel,
     connectToSavedServers,
+    toggleServerNoticesPopup,
+    messages,
   } = useStore();
+
+  // Collect all server notices from all channels
+  const serverNotices = Object.values(messages)
+    .flat()
+    .filter((message) => message.type === "notice" && message.jsonLogData)
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+
+  // Handlers for popup interactions
+  const handleUsernameContextMenu = (
+    e: React.MouseEvent,
+    username: string,
+    serverId: string,
+    channelId: string,
+    avatarElement?: Element | null,
+  ) => {
+    // For now, just prevent default. Could be extended to show user context menu
+    e.preventDefault();
+  };
+
+  const handleIrcLinkClick = (url: string) => {
+    // For now, just log. Could be extended to handle IRC links
+    console.log("IRC link clicked:", url);
+  };
 
   // Initialize keyboard resize handling for mobile platforms
   useKeyboardResize();
@@ -92,6 +122,15 @@ const App: React.FC = () => {
       {isUserProfileModalOpen && <UserSettings />}
       {isChannelListModalOpen && <ChannelListModal />}
       {isChannelRenameModalOpen && <ChannelRenameModal />}
+      {isServerNoticesPopupOpen && (
+        <ServerNoticesPopup
+          messages={serverNotices}
+          onClose={() => toggleServerNoticesPopup(false)}
+          onUsernameContextMenu={handleUsernameContextMenu}
+          onIrcLinkClick={handleIrcLinkClick}
+          joinChannel={joinChannel}
+        />
+      )}
     </div>
   );
 };

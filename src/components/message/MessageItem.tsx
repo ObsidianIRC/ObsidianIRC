@@ -9,6 +9,7 @@ import {
   ActionMessage,
   DateSeparator,
   EventMessage,
+  JsonLogMessage,
   LinkPreview,
   MessageActions,
   MessageAvatar,
@@ -42,7 +43,7 @@ const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
 
         // Use Tenor API to get the GIF data
         const response = await fetch(
-          `https://tenor.googleapis.com/v2/posts?ids=${gifId}&key=${apiKey}`
+          `https://tenor.googleapis.com/v2/posts?ids=${gifId}&key=${apiKey}`,
         );
 
         if (!response.ok) return sharingUrl;
@@ -51,7 +52,12 @@ const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
         if (data.results?.[0]?.media_formats) {
           // Prefer gif format, fallback to other formats
           const media = data.results[0].media_formats;
-          return media.gif?.url || media.mediumgif?.url || media.tinygif?.url || sharingUrl;
+          return (
+            media.gif?.url ||
+            media.mediumgif?.url ||
+            media.tinygif?.url ||
+            sharingUrl
+          );
         }
       } catch (error) {
         console.warn("Failed to resolve Tenor URL:", error);
@@ -142,11 +148,12 @@ interface MessageItemProps {
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => void;
   onIrcLinkClick?: (url: string) => void;
   onReactClick: (message: MessageType, buttonElement: Element) => void;
-  selectedServerId: string | null;
+  joinChannel?: (serverId: string, channelName: string) => void;
   onReactionUnreact: (emoji: string, message: MessageType) => void;
   onOpenReactionModal: (
     message: MessageType,
@@ -165,7 +172,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onUsernameContextMenu,
   onIrcLinkClick,
   onReactClick,
-  selectedServerId,
+  joinChannel,
   onReactionUnreact,
   onOpenReactionModal,
   onDirectReaction,
@@ -218,21 +225,21 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isGifUrl =
     message.content.trim() === message.content &&
     (message.content.match(/media\d*\.giphy\.com\/media\//) ||
-     message.content.includes("media.tenor.com/") ||
-     message.content.includes("tenor.googleapis.com/") ||
-     message.content.match(/tenor\.com\/view\//)) &&
+      message.content.includes("media.tenor.com/") ||
+      message.content.includes("tenor.googleapis.com/") ||
+      message.content.match(/tenor\.com\/view\//)) &&
     (message.content.match(/\.(gif)$/i) ||
-     message.content.includes("/giphy.gif") ||
-     message.content.includes("/tinygif") ||
-     message.content.match(/tenor\.com\/view\//));
+      message.content.includes("/giphy.gif") ||
+      message.content.includes("/tinygif") ||
+      message.content.match(/tenor\.com\/view\//));
 
   // Handle system messages
   if (isSystem) {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
   }
 
-  // Handle event messages (join, part, quit, nick)
-  if (["join", "part", "quit", "nick"].includes(message.type)) {
+  // Handle event messages (join, part, quit, nick, mode, kick)
+  if (["join", "part", "quit", "nick", "mode", "kick"].includes(message.type)) {
     return (
       <>
         {showDate && (
@@ -294,6 +301,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     );
   }
 
+  // Handle JSON log notices
+  if (message.type === "notice" && message.jsonLogData) {
+    return (
+      <JsonLogMessage
+        message={message}
+        showDate={showDate}
+        messageUser={messageUser}
+        onUsernameContextMenu={onUsernameContextMenu}
+        onIrcLinkClick={onIrcLinkClick}
+        joinChannel={joinChannel}
+      />
+    );
+  }
+
   // Handle regular messages
   const handleReactionClick = (emoji: string, currentUserReacted: boolean) => {
     if (currentUserReacted) {
@@ -305,7 +326,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
   const handleAvatarClick = (e: React.MouseEvent) => {
     if (message.userId !== "system") {
-      onUsernameContextMenu(e, username, message.serverId, e.currentTarget);
+      onUsernameContextMenu(
+        e,
+        username,
+        message.serverId,
+        message.channelId,
+        e.currentTarget,
+      );
     }
   };
 
@@ -314,7 +341,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       // Find the avatar element to position menu over it
       const messageElement = e.currentTarget.closest(".flex");
       const avatarElement = messageElement?.querySelector(".mr-4");
-      onUsernameContextMenu(e, username, message.serverId, avatarElement);
+      onUsernameContextMenu(
+        e,
+        username,
+        message.serverId,
+        message.channelId,
+        avatarElement,
+      );
     }
   };
 
@@ -327,6 +360,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         e,
         message.replyMessage.userId.split("-")[0],
         message.serverId,
+        message.channelId,
         avatarElement,
       );
     }

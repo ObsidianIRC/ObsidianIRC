@@ -186,6 +186,39 @@ export interface EventMap {
     channelName: string;
     isLoading: boolean;
   };
+  RPL_BANLIST: {
+    serverId: string;
+    channel: string;
+    mask: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_INVITELIST: {
+    serverId: string;
+    channel: string;
+    mask: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_EXCEPTLIST: {
+    serverId: string;
+    channel: string;
+    mask: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_ENDOFBANLIST: {
+    serverId: string;
+    channel: string;
+  };
+  RPL_ENDOFINVITELIST: {
+    serverId: string;
+    channel: string;
+  };
+  RPL_ENDOFEXCEPTLIST: {
+    serverId: string;
+    channel: string;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -370,6 +403,9 @@ export class IRCClient {
   sendRaw(serverId: string, command: string): void {
     const socket = this.sockets.get(serverId);
     if (socket && socket.readyState === WebSocket.OPEN) {
+      console.log(
+        `IRC Client: Sending command to server ${serverId}: ${command}`,
+      );
       // Log metadata and command-related outgoing messages for debugging
       if (command.startsWith("METADATA") || command.startsWith("/")) {
       }
@@ -645,6 +681,8 @@ export class IRCClient {
       // Skip empty lines
       if (!line) continue;
 
+      console.log(`IRC Client: Received line from server ${serverId}: ${line}`);
+
       // Debug: Log ALL lines that contain CAP to see if CAP ACK is even being processed
       if (line.includes("CAP")) {
       }
@@ -808,7 +846,10 @@ export class IRCClient {
         const target = parv[1];
         parv[0] = "";
         parv[1] = "";
-        const reason = parv.join(" ").trim().substring(1);
+        const reasonText = parv.join(" ").trim();
+        const reason = reasonText.startsWith(":")
+          ? reasonText.substring(1)
+          : reasonText;
         this.triggerEvent("KICK", {
           serverId,
           mtags,
@@ -1488,13 +1529,85 @@ export class IRCClient {
         if (subcommand === "SUCCESS") {
           const account = parv[1];
           const message = parv.slice(2).join(" ").substring(1);
-          this.triggerEvent("VERIFY_SUCCESS", {
-            serverId,
-            mtags,
-            account,
-            message,
-          });
         }
+      } else if (command === "367") {
+        // RPL_BANLIST: <channel> <banmask> <setter> <timestamp>
+        const channel = parv[1];
+        const mask = parv[2];
+        const setter = parv[3];
+        const timestamp = Number.parseInt(parv[4], 10);
+        console.log(
+          `IRC Client: RPL_BANLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
+        );
+        this.triggerEvent("RPL_BANLIST", {
+          serverId,
+          channel,
+          mask,
+          setter,
+          timestamp,
+        });
+      } else if (command === "346") {
+        // RPL_INVITELIST: <channel> <invite mask> <setter> <timestamp>
+        const channel = parv[1];
+        const mask = parv[2];
+        const setter = parv[3];
+        const timestamp = Number.parseInt(parv[4], 10);
+        console.log(
+          `IRC Client: RPL_INVITELIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
+        );
+        this.triggerEvent("RPL_INVITELIST", {
+          serverId,
+          channel,
+          mask,
+          setter,
+          timestamp,
+        });
+      } else if (command === "348") {
+        // RPL_EXCEPTLIST: <channel> <exception mask> <setter> <timestamp>
+        const channel = parv[1];
+        const mask = parv[2];
+        const setter = parv[3];
+        const timestamp = Number.parseInt(parv[4], 10);
+        console.log(
+          `IRC Client: RPL_EXCEPTLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
+        );
+        this.triggerEvent("RPL_EXCEPTLIST", {
+          serverId,
+          channel,
+          mask,
+          setter,
+          timestamp,
+        });
+      } else if (command === "368") {
+        // RPL_ENDOFBANLIST: <channel> :End of channel ban list
+        const channel = parv[1];
+        console.log(
+          `IRC Client: RPL_ENDOFBANLIST parsed - channel: ${channel}`,
+        );
+        this.triggerEvent("RPL_ENDOFBANLIST", {
+          serverId,
+          channel,
+        });
+      } else if (command === "347") {
+        // RPL_ENDOFINVITELIST: <channel> :End of channel invite list
+        const channel = parv[1];
+        console.log(
+          `IRC Client: RPL_ENDOFINVITELIST parsed - channel: ${channel}`,
+        );
+        this.triggerEvent("RPL_ENDOFINVITELIST", {
+          serverId,
+          channel,
+        });
+      } else if (command === "349") {
+        // RPL_ENDOFEXCEPTLIST: <channel> :End of channel exception list
+        const channel = parv[1];
+        console.log(
+          `IRC Client: RPL_ENDOFEXCEPTLIST parsed - channel: ${channel}`,
+        );
+        this.triggerEvent("RPL_ENDOFEXCEPTLIST", {
+          serverId,
+          channel,
+        });
       }
     }
   }
@@ -1530,6 +1643,7 @@ export class IRCClient {
       "batch",
       "draft/multiline",
       "znc.in/playback",
+      "unrealircd.org/json-log",
     ];
 
     let accumulated = this.capLsAccumulated.get(serverId);

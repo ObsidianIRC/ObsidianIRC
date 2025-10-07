@@ -1,7 +1,8 @@
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createIgnorePattern, isUserIgnored } from "../../lib/ignoreUtils";
 import useStore from "../../store";
+import type { ModerationAction } from "./ModerationModal";
 
 interface UserContextMenuProps {
   isOpen: boolean;
@@ -9,12 +10,12 @@ interface UserContextMenuProps {
   y: number;
   username: string;
   serverId: string;
+  channelId: string;
   onClose: () => void;
   onOpenPM: (username: string) => void;
   currentUserStatus?: string;
   currentUsername?: string;
-  onKickUser?: (username: string, reason: string) => void;
-  onBanUser?: (username: string, reason: string) => void;
+  onOpenModerationModal?: (action: ModerationAction) => void;
 }
 
 export const UserContextMenu: React.FC<UserContextMenuProps> = ({
@@ -23,14 +24,15 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   y,
   username,
   serverId,
+  channelId,
   onClose,
   onOpenPM,
   currentUserStatus,
   currentUsername,
-  onKickUser,
-  onBanUser,
+  onOpenModerationModal,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [banSubmenuOpen, setBanSubmenuOpen] = useState(false);
 
   // Get user metadata
   const servers = useStore((state) => state.servers);
@@ -73,19 +75,35 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
     onClose();
   };
 
-  const handleKickUser = () => {
-    const reason = window.prompt("Kick reason:", "Requested by user");
-    if (reason !== null && onKickUser) {
-      onKickUser(username, reason);
+  const handleWarnUser = () => {
+    if (onOpenModerationModal) {
+      onOpenModerationModal("warn");
     }
+    setBanSubmenuOpen(false);
     onClose();
   };
 
-  const handleBanUser = () => {
-    const reason = window.prompt("Ban reason:", "Requested by user");
-    if (reason !== null && onBanUser) {
-      onBanUser(username, reason);
+  const handleKickUser = () => {
+    if (onOpenModerationModal) {
+      onOpenModerationModal("kick");
     }
+    setBanSubmenuOpen(false);
+    onClose();
+  };
+
+  const handleBanUserByNick = () => {
+    if (onOpenModerationModal) {
+      onOpenModerationModal("ban-nick");
+    }
+    setBanSubmenuOpen(false);
+    onClose();
+  };
+
+  const handleBanUserByHostmask = () => {
+    if (onOpenModerationModal) {
+      onOpenModerationModal("ban-hostmask");
+    }
+    setBanSubmenuOpen(false);
     onClose();
   };
 
@@ -158,7 +176,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
-      className="fixed z-[10000] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl min-w-[160px]"
+      className="fixed z-[100000] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl min-w-[160px]"
       style={{
         left: adjustedX,
         top: adjustedY,
@@ -234,6 +252,25 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
         {canModerate && !isOwnUser && (
           <>
             <button
+              onClick={handleWarnUser}
+              className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+              Warn User
+            </button>
+            <button
               onClick={handleKickUser}
               className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
             >
@@ -252,25 +289,58 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
               </svg>
               Kick User
             </button>
-            <button
-              onClick={handleBanUser}
-              className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="relative">
+              <button
+                onClick={() => setBanSubmenuOpen(!banSubmenuOpen)}
+                className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Ban User
-            </button>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Ban User
+                <svg
+                  className={`w-4 h-4 ml-auto transition-transform ${banSubmenuOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              {banSubmenuOpen && (
+                <div className="absolute right-full top-0 mr-1 bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl min-w-[160px] z-[100001]">
+                  <div className="py-1">
+                    <button
+                      onClick={handleBanUserByNick}
+                      className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150"
+                    >
+                      Ban by Nickname
+                    </button>
+                    <button
+                      onClick={handleBanUserByHostmask}
+                      className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150"
+                    >
+                      Ban by Hostmask
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

@@ -421,11 +421,33 @@ export const ChannelList: React.FC<{
                 </div>
               )}
             </div>
+
+            {/* Server */}
+            <div className="mb-2">
+              <div className="px-2 mb-1">
+                <span className="uppercase text-xs font-semibold tracking-wide">
+                  Server
+                </span>
+              </div>
+
+              <div className="ml-2">
+                <div
+                  className={`
+                    px-2 py-1 mb-1 rounded flex items-center cursor-pointer
+                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                  `}
+                  onClick={() => selectChannel("server-notices")}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <FaHashtag className="shrink-0" />
+                    <span className="truncate">Server Notices</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </div>
-
-      {/* User panel */}
       <div
         className="mt-auto h-14 bg-discord-dark-400 px-2 flex items-center cursor-pointer"
         onClick={() => toggleUserProfileModal(true)}

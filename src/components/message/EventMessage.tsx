@@ -12,6 +12,7 @@ interface EventMessageProps {
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => void;
 }
@@ -42,7 +43,13 @@ export const EventMessage: React.FC<EventMessageProps> = ({
 
   const handleAvatarClick = (e: React.MouseEvent) => {
     const username = message.userId.split("-")[0];
-    onUsernameContextMenu(e, username, message.serverId, e.currentTarget);
+    onUsernameContextMenu(
+      e,
+      username,
+      message.serverId,
+      message.channelId,
+      e.currentTarget,
+    );
   };
 
   const handleMouseEnter = () => {
@@ -96,8 +103,8 @@ export const EventMessage: React.FC<EventMessageProps> = ({
           onClick={handleAvatarClick}
         >
           {displayText}
-        </span>
-        <span className="text-sm italic text-discord-text-muted ml-1">
+        </span>{" "}
+        <span className="text-sm italic text-discord-text-muted">
           {message.content}
         </span>
       </div>
@@ -114,6 +121,8 @@ export const EventMessage: React.FC<EventMessageProps> = ({
           {message.type === "part" && "Left the channel"}
           {message.type === "quit" && "Quit the server"}
           {message.type === "nick" && "Changed nickname"}
+          {message.type === "mode" && "Changed channel modes"}
+          {message.type === "kick" && "Was kicked from the channel"}
         </div>
       )}
     </div>

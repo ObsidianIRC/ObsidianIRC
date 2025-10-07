@@ -47,6 +47,9 @@ function handleChannelMode(
   // Apply the mode changes to users
   applyModeChanges(serverId, channel, changes, useStore);
 
+  // Apply ban/exception/invite list changes
+  applyListModeChanges(serverId, channel, sender, changes, useStore);
+
   // Send notification message
   sendModeNotification(serverId, channel, sender, changes, useStore);
 }
@@ -75,9 +78,9 @@ function parseModestring(modestring: string, modeargs: string[]): ModeChange[] {
     const mode = char;
 
     // Check if this mode requires an argument
-    // For now, we'll assume modes like o, v, h, etc. require args
+    // For now, we'll assume modes like o, v, h, q, a, b, e, I require args
     // This should be configurable based on CHANMODES ISUPPORT token
-    const requiresArg = "ovhqa".includes(mode);
+    const requiresArg = "ovhqa bei".includes(mode);
 
     const change: ModeChange = {
       mode,
@@ -155,6 +158,94 @@ function applyModeChanges(
   });
 }
 
+function applyListModeChanges(
+  serverId: string,
+  channel: Channel,
+  sender: string,
+  changes: ModeChange[],
+  useStore: typeof AppState,
+) {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s: Server) => {
+      if (s.id !== serverId) return s;
+
+      const updatedChannels = s.channels.map((c: Channel) => {
+        if (c.name !== channel.name) return c;
+
+        const updatedChannel = { ...c };
+        const now = Math.floor(Date.now() / 1000);
+
+        changes.forEach((change) => {
+          if (change.mode === "b" && change.arg) {
+            // Ban mode - for +b, we add/update the ban; for -b, we remove it
+            const bans = updatedChannel.bans || [];
+            if (change.action === "+") {
+              // Add ban - this replaces any existing ban with the same mask
+              updatedChannel.bans = bans.filter(
+                (ban) => ban.mask !== change.arg,
+              );
+              updatedChannel.bans.push({
+                mask: change.arg,
+                setter: sender,
+                timestamp: now,
+              });
+            } else if (change.action === "-") {
+              // Remove ban
+              updatedChannel.bans = bans.filter(
+                (ban) => ban.mask !== change.arg,
+              );
+            }
+          } else if (change.mode === "e" && change.arg) {
+            // Exception mode
+            const exceptions = updatedChannel.exceptions || [];
+            if (change.action === "+") {
+              // Add exception - this replaces any existing exception with the same mask
+              updatedChannel.exceptions = exceptions.filter(
+                (exception) => exception.mask !== change.arg,
+              );
+              updatedChannel.exceptions.push({
+                mask: change.arg,
+                setter: sender,
+                timestamp: now,
+              });
+            } else if (change.action === "-") {
+              // Remove exception
+              updatedChannel.exceptions = exceptions.filter(
+                (exception) => exception.mask !== change.arg,
+              );
+            }
+          } else if (change.mode === "I" && change.arg) {
+            // Invite mode
+            const invites = updatedChannel.invites || [];
+            if (change.action === "+") {
+              // Add invite - this replaces any existing invite with the same mask
+              updatedChannel.invites = invites.filter(
+                (invite) => invite.mask !== change.arg,
+              );
+              updatedChannel.invites.push({
+                mask: change.arg,
+                setter: sender,
+                timestamp: now,
+              });
+            } else if (change.action === "-") {
+              // Remove invite
+              updatedChannel.invites = invites.filter(
+                (invite) => invite.mask !== change.arg,
+              );
+            }
+          }
+        });
+
+        return updatedChannel;
+      });
+
+      return { ...s, channels: updatedChannels };
+    });
+
+    return { servers: updatedServers };
+  });
+}
+
 function parsePrefix(prefix: string): Record<string, string> {
   // PREFIX=(modes)prefixes
   // Example: PREFIX=(ov)@+
@@ -222,8 +313,8 @@ function sendModeNotification(
 
   const message: Message = {
     id: `mode-${Date.now()}-${Math.random()}`,
-    type: "system",
-    content: `${sender} sets mode: ${modeText}`,
+    type: "mode",
+    content: `sets mode: ${modeText}`,
     timestamp: new Date(),
     userId: sender,
     channelId: channel.id,
@@ -233,20 +324,6 @@ function sendModeNotification(
     mentioned: [],
   };
 
-  // Add the message to the channel
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((s: Server) => {
-      if (s.id !== serverId) return s;
-
-      const updatedChannels = s.channels.map((c: Channel) => {
-        if (c.id !== channel.id) return c;
-
-        return { ...c, messages: [...c.messages, message] };
-      });
-
-      return { ...s, channels: updatedChannels };
-    });
-
-    return { servers: updatedServers };
-  });
+  // Add the message using the store's addMessage function
+  useStore.getState().addMessage(message);
 }

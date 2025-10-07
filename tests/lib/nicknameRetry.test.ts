@@ -56,6 +56,9 @@ describe("Nickname retry functionality", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
       },
       addGlobalNotification: vi.fn(),
     };
@@ -139,6 +142,9 @@ describe("Nickname retry functionality", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
       },
       addGlobalNotification: vi.fn(),
     };

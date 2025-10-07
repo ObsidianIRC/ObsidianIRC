@@ -2,7 +2,7 @@ import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import type * as React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   FaArrowDown,
@@ -11,6 +11,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
+  FaExternalLinkAlt,
   FaGift,
   FaGrinAlt,
   FaHashtag,
@@ -40,11 +41,13 @@ import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
+import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
 import GifSelector from "../ui/GifSelector";
 import DiscoverGrid from "../ui/HomeScreen";
 import LoadingSpinner from "../ui/LoadingSpinner";
+import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
 
@@ -174,18 +177,44 @@ export const ChatArea: React.FC<{
     file: null,
     previewUrl: null,
   });
+  const [isServerNoticesPoppedOut, setIsServerNoticesPoppedOut] =
+    useState(false);
+  const [serverNoticesPopupPosition, setServerNoticesPopupPosition] = useState({
+    x: 16,
+    y: 16,
+  }); // 1rem = 16px
+  const serverNoticesScrollRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScrollServerNotices, setShouldAutoScrollServerNotices] =
+    useState(true);
+
+  const handleServerNoticesScroll = () => {
+    if (serverNoticesScrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        serverNoticesScrollRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+      setShouldAutoScrollServerNotices(isAtBottom);
+    }
+  };
+  const [isDraggingServerNotices, setIsDraggingServerNotices] = useState(false);
+  const [serverNoticesDragStart, setServerNoticesDragStart] = useState({
+    x: 0,
+    y: 0,
+  });
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
     x: number;
     y: number;
     username: string;
     serverId: string;
+    channelId: string;
+    userStatusInChannel?: string;
   }>({
     isOpen: false,
     x: 0,
     y: 0,
     username: "",
     serverId: "",
+    channelId: "",
   });
   const [reactionModal, setReactionModal] = useState<{
     isOpen: boolean;
@@ -194,6 +223,17 @@ export const ChatArea: React.FC<{
     isOpen: false,
     message: null,
   });
+  const [moderationModal, setModerationModal] = useState<{
+    isOpen: boolean;
+    action: ModerationAction;
+    username: string;
+  }>({
+    isOpen: false,
+    action: "warn",
+    username: "",
+  });
+  const [channelSettingsModalOpen, setChannelSettingsModalOpen] =
+    useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -210,6 +250,7 @@ export const ChatArea: React.FC<{
       isAddServerModalOpen,
       isChannelListModalOpen,
       isChannelRenameModalOpen,
+      isServerNoticesPopupOpen,
     },
     toggleMemberList,
     openPrivateChat,
@@ -219,6 +260,10 @@ export const ChatArea: React.FC<{
     toggleAddServerModal,
     redactMessage,
     globalSettings,
+    warnUser,
+    kickUser,
+    banUserByNick,
+    banUserByHostmask,
   } = useStore();
 
   // Get the current user for the selected server with metadata from store
@@ -246,6 +291,41 @@ export const ChatArea: React.FC<{
     // If not found in channels, return the basic IRC user
     return ircCurrentUser;
   }, [selectedServerId, servers]);
+
+  // Auto-scroll server notices popup when new messages arrive
+  useEffect(() => {
+    if (shouldAutoScrollServerNotices && serverNoticesScrollRef.current) {
+      serverNoticesScrollRef.current.scrollTop =
+        serverNoticesScrollRef.current.scrollHeight;
+    }
+  }, [shouldAutoScrollServerNotices]);
+
+  // Scroll to bottom when popup is first opened
+  useEffect(() => {
+    if (isServerNoticesPoppedOut && serverNoticesScrollRef.current) {
+      serverNoticesScrollRef.current.scrollTop =
+        serverNoticesScrollRef.current.scrollHeight;
+      setShouldAutoScrollServerNotices(true); // Enable auto-scroll for future messages
+    }
+  }, [isServerNoticesPoppedOut]);
+
+  // Get current user's status in the selected channel
+  const currentUserStatus = useMemo(() => {
+    if (!selectedServerId || !selectedChannelId) return undefined;
+
+    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    const selectedChannel = selectedServer?.channels.find(
+      (c) => c.id === selectedChannelId,
+    );
+
+    if (!selectedChannel || !currentUser) return undefined;
+
+    const userInChannel = selectedChannel.users.find(
+      (u) => u.username === currentUser.username,
+    );
+
+    return userInChannel?.status;
+  }, [selectedServerId, selectedChannelId, servers, currentUser]);
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
@@ -730,15 +810,11 @@ export const ChatArea: React.FC<{
 
   const handleGifSend = (gifUrl: string) => {
     // Send the GIF URL directly to the current channel/user
-    const target =
-      selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
 
     if (target && selectedServerId) {
       // Send via IRC
-      ircClient.sendRaw(
-        selectedServerId,
-        `PRIVMSG ${target} :${gifUrl}`,
-      );
+      ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${gifUrl}`);
 
       // Add to store for immediate display (only for private chats, channels echo back)
       if (selectedPrivateChat && currentUser) {
@@ -1192,6 +1268,7 @@ export const ChatArea: React.FC<{
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => {
     e.preventDefault();
@@ -1212,12 +1289,28 @@ export const ChatArea: React.FC<{
       y = rect.top - 5; // Position above the avatar with small gap
     }
 
+    // Calculate user's status in the specific channel
+    let userStatusInChannel: string | undefined;
+    if (channelId && channelId !== "server-notices") {
+      const selectedServer = servers.find((s) => s.id === serverId);
+      const channel = selectedServer?.channels.find((c) => c.id === channelId);
+      if (channel && currentUser) {
+        const userInChannel = channel.users.find(
+          (u) =>
+            u.username.toLowerCase() === currentUser.username.toLowerCase(),
+        );
+        userStatusInChannel = userInChannel?.status;
+      }
+    }
+
     setUserContextMenu({
       isOpen: true,
       x,
       y,
       username,
       serverId,
+      channelId,
+      userStatusInChannel,
     });
   };
 
@@ -1228,6 +1321,7 @@ export const ChatArea: React.FC<{
       y: 0,
       username: "",
       serverId: "",
+      channelId: "",
     });
   };
 
@@ -1236,6 +1330,55 @@ export const ChatArea: React.FC<{
       openPrivateChat(selectedServerId, username);
     }
   };
+
+  // Server notices popup drag handlers
+  const handleServerNoticesMouseDown = (e: React.MouseEvent) => {
+    setIsDraggingServerNotices(true);
+    setServerNoticesDragStart({
+      x: e.clientX - serverNoticesPopupPosition.x,
+      y: e.clientY - serverNoticesPopupPosition.y,
+    });
+  };
+
+  const handleServerNoticesMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingServerNotices) return;
+
+      const newX = e.clientX - serverNoticesDragStart.x;
+      const newY = e.clientY - serverNoticesDragStart.y;
+
+      // Constrain to viewport bounds (with some margin)
+      const maxX = window.innerWidth - 620; // 600px width + 20px margin
+      const maxY = window.innerHeight - 520; // 500px height + 20px margin
+
+      setServerNoticesPopupPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY)),
+      });
+    },
+    [isDraggingServerNotices, serverNoticesDragStart],
+  );
+
+  const handleServerNoticesMouseUp = useCallback(() => {
+    setIsDraggingServerNotices(false);
+  }, []);
+
+  // Server notices popup drag effect
+  useEffect(() => {
+    if (isDraggingServerNotices) {
+      document.addEventListener("mousemove", handleServerNoticesMouseMove);
+      document.addEventListener("mouseup", handleServerNoticesMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleServerNoticesMouseMove);
+      document.removeEventListener("mouseup", handleServerNoticesMouseUp);
+    };
+  }, [
+    isDraggingServerNotices,
+    handleServerNoticesMouseMove,
+    handleServerNoticesMouseUp,
+  ]);
 
   const handleReactClick = (message: MessageType, buttonElement: Element) => {
     setReactionModal({
@@ -1249,6 +1392,54 @@ export const ChatArea: React.FC<{
       isOpen: false,
       message: null,
     });
+  };
+
+  const handleCloseModerationModal = () => {
+    setModerationModal({
+      isOpen: false,
+      action: "warn",
+      username: "",
+    });
+  };
+
+  const handleModerationConfirm = (
+    action: ModerationAction,
+    reason: string,
+  ) => {
+    const { username } = moderationModal;
+    switch (action) {
+      case "warn":
+        if (selectedServerId && selectedChannel?.name) {
+          warnUser(selectedServerId, selectedChannel.name, username, reason);
+        }
+        break;
+      case "kick":
+        if (selectedServerId && selectedChannel?.name) {
+          kickUser(selectedServerId, selectedChannel.name, username, reason);
+        }
+        break;
+      case "ban-nick":
+        if (selectedServerId && selectedChannel?.name) {
+          banUserByNick(
+            selectedServerId,
+            selectedChannel.name,
+            username,
+            reason,
+          );
+        }
+        break;
+      case "ban-hostmask":
+        if (selectedServerId && selectedChannel?.name) {
+          banUserByHostmask(
+            selectedServerId,
+            selectedChannel.name,
+            username,
+            reason,
+          );
+        }
+        break;
+    }
+    handleCloseModerationModal();
   };
 
   const handleReactionSelect = (emoji: string) => {
@@ -1422,6 +1613,12 @@ export const ChatArea: React.FC<{
               </h2>
             </>
           )}
+          {selectedChannelId === "server-notices" && (
+            <>
+              <FaList className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">Server Notices</h2>
+            </>
+          )}
           {selectedChannel?.topic && (
             <>
               <div className="mx-2 text-discord-text-muted">|</div>
@@ -1431,14 +1628,20 @@ export const ChatArea: React.FC<{
             </>
           )}
         </div>
-        {!!selectedServerId && (
+        {!!selectedServerId && selectedChannelId !== "server-notices" && (
           <div className="flex items-center gap-4 text-discord-text-muted">
             <button className="hover:text-discord-text-normal">
               <FaBell />
             </button>
-            <button className="hover:text-discord-text-normal">
-              <FaPenAlt />
-            </button>
+            {selectedChannel && (
+              <button
+                className="hover:text-discord-text-normal"
+                onClick={() => setChannelSettingsModalOpen(true)}
+                title="Channel Settings"
+              >
+                <FaPenAlt />
+              </button>
+            )}
             <button className="hover:text-discord-text-normal">
               <FaUserPlus />
             </button>
@@ -1501,15 +1704,37 @@ export const ChatArea: React.FC<{
             </div>
           </div>
         )}
+        {selectedChannelId === "server-notices" && (
+          <div className="flex items-center gap-4 text-discord-text-muted">
+            <button
+              className="hover:text-discord-text-normal"
+              onClick={() =>
+                setIsServerNoticesPoppedOut(!isServerNoticesPoppedOut)
+              }
+              title={
+                isServerNoticesPoppedOut
+                  ? "Pop in server notices"
+                  : "Pop out server notices"
+              }
+            >
+              <FaExternalLinkAlt />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Messages area */}
-      {selectedServer && !selectedChannel && !selectedPrivateChat && (
-        <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
-          <BlankPage /> {/* Render the blank page */}
-        </div>
-      )}
-      {(selectedChannel || selectedPrivateChat) && (
+      {selectedServer &&
+        !selectedChannel &&
+        !selectedPrivateChat &&
+        selectedChannelId !== "server-notices" && (
+          <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
+            <BlankPage /> {/* Render the blank page */}
+          </div>
+        )}
+      {(selectedChannel ||
+        selectedPrivateChat ||
+        selectedChannelId === "server-notices") && (
         <div
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
@@ -1542,9 +1767,16 @@ export const ChatArea: React.FC<{
                       e,
                       username,
                       serverId,
+                      channelId,
                       avatarElement,
                     ) =>
-                      handleUsernameClick(e, username, serverId, avatarElement)
+                      handleUsernameClick(
+                        e,
+                        username,
+                        serverId,
+                        channelId,
+                        avatarElement,
+                      )
                     }
                   />
                 );
@@ -1579,13 +1811,20 @@ export const ChatArea: React.FC<{
                     e,
                     username,
                     serverId,
+                    channelId,
                     avatarElement,
                   ) =>
-                    handleUsernameClick(e, username, serverId, avatarElement)
+                    handleUsernameClick(
+                      e,
+                      username,
+                      serverId,
+                      channelId,
+                      avatarElement,
+                    )
                   }
                   onIrcLinkClick={handleIrcLinkClick}
                   onReactClick={handleReactClick}
-                  selectedServerId={selectedServerId}
+                  joinChannel={joinChannel}
                   onReactionUnreact={handleReactionUnreact}
                   onOpenReactionModal={handleOpenReactionModal}
                   onDirectReaction={handleDirectReaction}
@@ -1902,8 +2141,18 @@ export const ChatArea: React.FC<{
         y={userContextMenu.y}
         username={userContextMenu.username}
         serverId={userContextMenu.serverId}
+        channelId={userContextMenu.channelId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
+        currentUserStatus={userContextMenu.userStatusInChannel}
+        currentUsername={currentUser?.username}
+        onOpenModerationModal={(action) => {
+          setModerationModal({
+            isOpen: true,
+            action,
+            username: userContextMenu.username,
+          });
+        }}
       />
 
       <ReactionModal
@@ -1911,6 +2160,23 @@ export const ChatArea: React.FC<{
         onClose={handleCloseReactionModal}
         onSelectEmoji={handleReactionSelect}
       />
+
+      <ModerationModal
+        isOpen={moderationModal.isOpen}
+        onClose={handleCloseModerationModal}
+        onConfirm={handleModerationConfirm}
+        username={moderationModal.username}
+        action={moderationModal.action}
+      />
+
+      {selectedChannel && (
+        <ChannelSettingsModal
+          isOpen={channelSettingsModalOpen}
+          onClose={() => setChannelSettingsModalOpen(false)}
+          serverId={selectedServerId || ""}
+          channelName={selectedChannel.name}
+        />
+      )}
 
       {/* Image Preview Dialog */}
       {imagePreview.isOpen && imagePreview.previewUrl && (
@@ -1972,6 +2238,97 @@ export const ChatArea: React.FC<{
           </div>
         </div>
       )}
+
+      {/* Popped out server notices window */}
+      {isServerNoticesPoppedOut &&
+        createPortal(
+          <div
+            className="fixed w-[600px] h-[500px] bg-discord-dark-200 border border-discord-dark-400 rounded-lg shadow-xl z-[10002] flex flex-col"
+            style={{
+              left: serverNoticesPopupPosition.x,
+              top: serverNoticesPopupPosition.y,
+            }}
+          >
+            <div
+              className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm bg-discord-dark-400 cursor-move"
+              onMouseDown={handleServerNoticesMouseDown}
+            >
+              <div className="flex items-center">
+                <FaList className="text-discord-text-muted mr-2" />
+                <h2 className="font-bold text-white">Server Notices</h2>
+              </div>
+              <button
+                className="text-discord-text-muted hover:text-discord-text-normal"
+                onClick={() => setIsServerNoticesPoppedOut(false)}
+                title="Close popped out server notices"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div
+              ref={serverNoticesScrollRef}
+              onScroll={handleServerNoticesScroll}
+              className="flex-grow overflow-y-auto p-4 space-y-2"
+            >
+              {(
+                messages[
+                  selectedServerId ? `${selectedServerId}-server-notices` : ""
+                ] || []
+              )
+                .filter((msg: MessageType) => msg.type === "notice")
+                .slice(-50) // Show last 50 messages
+                .map(
+                  (message: MessageType, index: number, arr: MessageType[]) => {
+                    const previousMessage = arr[index - 1];
+                    const showHeader =
+                      !previousMessage ||
+                      previousMessage.userId !== message.userId ||
+                      new Date(message.timestamp).getTime() -
+                        new Date(previousMessage.timestamp).getTime() >
+                        5 * 60 * 1000;
+
+                    return (
+                      <MessageItem
+                        key={message.id}
+                        message={message}
+                        showDate={
+                          index === 0 ||
+                          new Date(message.timestamp).toDateString() !==
+                            new Date(previousMessage?.timestamp).toDateString()
+                        }
+                        showHeader={showHeader}
+                        setReplyTo={setLocalReplyTo}
+                        onUsernameContextMenu={(
+                          e,
+                          username,
+                          serverId,
+                          channelId,
+                          avatarElement,
+                        ) =>
+                          handleUsernameClick(
+                            e,
+                            username,
+                            serverId,
+                            channelId,
+                            avatarElement,
+                          )
+                        }
+                        onIrcLinkClick={handleIrcLinkClick}
+                        onReactClick={handleReactClick}
+                        joinChannel={joinChannel}
+                        onReactionUnreact={handleReactionUnreact}
+                        onOpenReactionModal={handleOpenReactionModal}
+                        onDirectReaction={handleDirectReaction}
+                        users={selectedServer?.users || []}
+                        onRedactMessage={handleRedactMessage}
+                      />
+                    );
+                  },
+                )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

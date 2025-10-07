@@ -63,6 +63,9 @@ describe("App", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
       },
       globalNotifications: [],
       globalSettings: {
@@ -75,6 +78,7 @@ describe("App", () => {
         showNickChanges: true,
         showJoinsParts: true,
         showQuits: true,
+        showKicks: true,
         customMentions: [],
         ignoreList: ["HistServ!*@*"],
         nickname: "",
