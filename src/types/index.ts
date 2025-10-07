@@ -29,6 +29,7 @@ export interface Server {
   prefix?: string;
   botMode?: string;
   filehost?: string;
+  linkSecurity?: number; // Link security level from unrealircd.org/link-security
 }
 
 export interface ServerConfig {
@@ -42,6 +43,7 @@ export interface ServerConfig {
   saslAccountName?: string;
   saslPassword?: string;
   saslEnabled: boolean;
+  skipLinkSecurityWarning?: boolean;
 }
 
 export interface Channel {

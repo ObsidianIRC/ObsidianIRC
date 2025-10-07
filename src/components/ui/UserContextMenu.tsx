@@ -167,17 +167,6 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   const canModerate = getStatusPriority(currentUserStatus) >= 3; // halfop or higher
   const isOwnUser = username === currentUsername;
 
-  console.log("UserContextMenu permission check:", {
-    component: "MemberList", // or ChatArea
-    username,
-    currentUsername,
-    currentUserStatus,
-    statusPriority: getStatusPriority(currentUserStatus),
-    canModerate,
-    isOwnUser,
-    showModerationOptions: canModerate && !isOwnUser,
-  });
-
   if (!isOpen) return null;
 
   // Adjust position to prevent menu from going off-screen and respect height constraints

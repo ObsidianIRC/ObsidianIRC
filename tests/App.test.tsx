@@ -52,6 +52,8 @@ describe("App", () => {
         isChannelListVisible: true,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        isLinkSecurityWarningModalOpen: false,
+        linkSecurityWarningServerId: null,
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {

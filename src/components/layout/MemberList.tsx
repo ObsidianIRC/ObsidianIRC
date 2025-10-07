@@ -249,17 +249,14 @@ export const MemberList: React.FC = () => {
   }, [selectedServer, currentUser, selectedChannel]);
 
   // Sort users by status priority (descending), then alphabetically by username
-  const sortedUsers = selectedChannel?.users
-    .filter((user) => user.username !== currentUser?.username)
-    .slice()
-    .sort((a, b) => {
-      const priorityA = getStatusPriority(a.status);
-      const priorityB = getStatusPriority(b.status);
-      if (priorityA !== priorityB) {
-        return priorityB - priorityA; // Higher priority first
-      }
-      return a.username.localeCompare(b.username);
-    });
+  const sortedUsers = selectedChannel?.users.slice().sort((a, b) => {
+    const priorityA = getStatusPriority(a.status);
+    const priorityB = getStatusPriority(b.status);
+    if (priorityA !== priorityB) {
+      return priorityB - priorityA; // Higher priority first
+    }
+    return a.username.localeCompare(b.username);
+  });
 
   const handleUsernameClick = (
     e: React.MouseEvent,

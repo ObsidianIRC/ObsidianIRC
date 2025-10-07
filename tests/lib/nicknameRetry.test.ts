@@ -45,6 +45,8 @@ describe("Nickname retry functionality", () => {
         isChannelListVisible: true,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        isLinkSecurityWarningModalOpen: false,
+        linkSecurityWarningServerId: null,
         mobileViewActiveColumn: "chatView",
         isServerMenuOpen: false,
         contextMenu: {
@@ -131,6 +133,8 @@ describe("Nickname retry functionality", () => {
         isChannelListVisible: true,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        isLinkSecurityWarningModalOpen: false,
+        linkSecurityWarningServerId: null,
         mobileViewActiveColumn: "chatView",
         isServerMenuOpen: false,
         contextMenu: {

@@ -9,6 +9,7 @@ import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
+import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
@@ -72,6 +73,7 @@ const App: React.FC = () => {
       isChannelListModalOpen,
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
+      isLinkSecurityWarningModalOpen,
     },
     joinChannel,
     connectToSavedServers,
@@ -122,6 +124,7 @@ const App: React.FC = () => {
       {isUserProfileModalOpen && <UserSettings />}
       {isChannelListModalOpen && <ChannelListModal />}
       {isChannelRenameModalOpen && <ChannelRenameModal />}
+      {isLinkSecurityWarningModalOpen && <LinkSecurityWarningModal />}
       {isServerNoticesPopupOpen && (
         <ServerNoticesPopup
           messages={serverNotices}

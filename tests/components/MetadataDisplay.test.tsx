@@ -135,6 +135,8 @@ describe("Metadata Display Features", () => {
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        isLinkSecurityWarningModalOpen: false,
+        linkSecurityWarningServerId: null,
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {
@@ -190,9 +192,9 @@ describe("Metadata Display Features", () => {
     it("should display status lightbulb for users with status", () => {
       render(<MemberList />);
 
-      // Alice and Charlie should have status lightbulbs
+      // Alice, Charlie, and current user should have status lightbulbs
       const lightbulbIcons = screen.getAllByText("💡");
-      expect(lightbulbIcons.length).toBe(2); // Alice and Charlie
+      expect(lightbulbIcons.length).toBe(3); // Alice, Charlie, and current user
     });
 
     it("should show status tooltip on hover", async () => {

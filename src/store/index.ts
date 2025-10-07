@@ -264,6 +264,8 @@ interface UIState {
   isChannelListVisible: boolean;
   isChannelListModalOpen: boolean;
   isChannelRenameModalOpen: boolean;
+  isLinkSecurityWarningModalOpen: boolean;
+  linkSecurityWarningServerId: string | null;
   mobileViewActiveColumn: layoutColumn;
   isServerMenuOpen: boolean;
   contextMenu: {
@@ -458,6 +460,9 @@ export interface AppState {
   toggleChannelList: (isOpen?: boolean) => void;
   toggleChannelListModal: (isOpen?: boolean) => void;
   toggleChannelRenameModal: (isOpen?: boolean) => void;
+  toggleLinkSecurityWarningModal: (isOpen?: boolean) => void;
+  proceedWithLinkSecurityWarning: (rememberChoice?: boolean) => void;
+  cancelLinkSecurityWarning: () => void;
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
@@ -529,6 +534,8 @@ const useStore = create<AppState>((set, get) => ({
     isChannelListVisible: true,
     isChannelListModalOpen: false,
     isChannelRenameModalOpen: false,
+    isLinkSecurityWarningModalOpen: false,
+    linkSecurityWarningServerId: null,
     mobileViewActiveColumn: "serverList", // Default to server list in mobile mode on open
     isServerMenuOpen: false,
     contextMenu: {
@@ -640,11 +647,19 @@ const useStore = create<AppState>((set, get) => ({
       saveServersToLocalStorage(updatedServers);
 
       set((state) => {
-        const alreadyExists = state.servers.some(
+        const existingServerIndex = state.servers.findIndex(
           (s) => s.host === host && s.port === port,
         );
-        if (alreadyExists) {
+        if (existingServerIndex !== -1) {
+          // Update existing server to mark as connected
+          const updatedServers = [...state.servers];
+          updatedServers[existingServerIndex] = {
+            ...updatedServers[existingServerIndex],
+            isConnected: true,
+            id: server.id, // Update with the new server ID from ircClient
+          };
           return {
+            servers: updatedServers,
             isConnecting: false,
           };
         }
@@ -1405,6 +1420,102 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isChannelRenameModalOpen:
           isOpen !== undefined ? isOpen : !state.ui.isChannelRenameModalOpen,
+      },
+    }));
+  },
+
+  toggleLinkSecurityWarningModal: (isOpen?: boolean) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isLinkSecurityWarningModalOpen:
+          isOpen !== undefined
+            ? isOpen
+            : !state.ui.isLinkSecurityWarningModalOpen,
+      },
+    }));
+  },
+
+  proceedWithLinkSecurityWarning: (rememberChoice = false) => {
+    const state = get();
+    if (state.ui.linkSecurityWarningServerId) {
+      const server = state.servers.find(
+        (s) => s.id === state.ui.linkSecurityWarningServerId,
+      );
+      if (server) {
+        // Remember the choice if requested
+        if (rememberChoice) {
+          const savedServers = loadSavedServers();
+          const savedServerIndex = savedServers.findIndex(
+            (s) => s.id === state.ui.linkSecurityWarningServerId,
+          );
+          if (savedServerIndex !== -1) {
+            savedServers[savedServerIndex].skipLinkSecurityWarning = true;
+            saveServersToLocalStorage(savedServers);
+          }
+        }
+
+        // Check if server is still connected
+        if (server.isConnected) {
+          // Server is still connected, resume CAP negotiation
+          ircClient.resumeCapNegotiation(state.ui.linkSecurityWarningServerId);
+        } else {
+          // Server connection was lost, start a new connection
+          const savedServers = loadSavedServers();
+          const savedServer = savedServers.find(
+            (s) => s.id === state.ui.linkSecurityWarningServerId,
+          );
+          if (savedServer) {
+            // Trigger reconnection with saved credentials
+            get()
+              .connect(
+                savedServer.name || savedServer.host,
+                savedServer.host,
+                savedServer.port,
+                savedServer.nickname,
+                savedServer.saslEnabled,
+                savedServer.password,
+                savedServer.saslAccountName,
+                savedServer.saslPassword,
+                undefined, // registerAccount
+                undefined, // registerEmail
+                undefined, // registerPassword
+              )
+              .catch((error) => {
+                console.error(
+                  "Failed to reconnect after link security warning:",
+                  error,
+                );
+              });
+          }
+        }
+      }
+    }
+    // Close the modal
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isLinkSecurityWarningModalOpen: false,
+        linkSecurityWarningServerId: null,
+      },
+    }));
+  },
+
+  cancelLinkSecurityWarning: () => {
+    const state = get();
+    if (state.ui.linkSecurityWarningServerId) {
+      // Cancel CAP negotiation and disconnect
+      const serverId = state.ui.linkSecurityWarningServerId;
+      import("../lib/ircClient").then(({ default: ircClient }) => {
+        ircClient.cancelCapNegotiation(serverId);
+      });
+    }
+    // Close the modal
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isLinkSecurityWarningModalOpen: false,
+        linkSecurityWarningServerId: null,
       },
     }));
   },
@@ -2346,7 +2457,8 @@ ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
-        const existingChannel = server.channels.find(
+        let channels = server.channels;
+        const existingChannel = channels.find(
           (channel) => channel.name === channelName,
         );
 
@@ -2363,12 +2475,10 @@ ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
             users: [],
           };
 
-          return {
-            ...server,
-            channels: [...server.channels, newChannel],
-          };
+          channels = [...channels, newChannel];
         }
-        const updatedChannels = server.channels.map((channel) => {
+
+        const updatedChannels = channels.map((channel) => {
           if (channel.name === channelName) {
             const userAlreadyExists = channel.users.some(
               (user) => user.username === username,
@@ -3148,7 +3258,40 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   if (!preventCapEnd) {
     ircClient.sendRaw(serverId, "CAP END");
     ircClient.userOnConnect(serverId);
+    // Send any pending WHO requests that were deferred during link security pause
+    ircClient.sendPendingWhoRequests(serverId);
   } else {
+  }
+});
+
+ircClient.on("LINK_SECURITY", ({ serverId, level }) => {
+  // Update the server with link security level
+  useStore.setState((state) => ({
+    servers: state.servers.map((server) =>
+      server.id === serverId ? { ...server, linkSecurity: level } : server,
+    ),
+  }));
+
+  // If link security is less than 2, check if user has chosen to skip the warning
+  if (level < 2) {
+    const savedServers = loadSavedServers();
+    const savedServer = savedServers.find((s) => s.id === serverId);
+
+    // If user has chosen to skip this warning, proceed automatically
+    if (savedServer?.skipLinkSecurityWarning) {
+      // Clear the warning flag and send CAP END to continue
+      ircClient.resumeCapNegotiation(serverId);
+      return;
+    }
+
+    // Otherwise, show the warning modal
+    useStore.setState((state) => ({
+      ui: {
+        ...state.ui,
+        linkSecurityWarningServerId: serverId,
+      },
+    }));
+    useStore.getState().toggleLinkSecurityWarningModal(true);
   }
 });
 

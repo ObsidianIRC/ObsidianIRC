@@ -219,6 +219,7 @@ export interface EventMap {
     serverId: string;
     channel: string;
   };
+  LINK_SECURITY: BaseIRCEvent & { level: number };
 }
 
 type EventKey = keyof EventMap;
@@ -236,6 +237,8 @@ export class IRCClient {
     new Map();
   private pendingConnections: Map<string, Promise<Server>> = new Map();
   private pendingCapReqs: Map<string, number> = new Map(); // Track how many CAP REQ batches are pending ACK
+  private linkSecurityWarnings: Map<string, boolean> = new Map(); // Track active link security warnings per server
+  private pendingWhoRequests: Map<string, Set<string>> = new Map(); // Track channels needing WHO requests during link security pauses
   private activeBatches: Map<
     string,
     Map<
@@ -257,6 +260,32 @@ export class IRCClient {
   } = {};
 
   public version = __APP_VERSION__;
+
+  // Capabilities we support
+  private ourCaps = [
+    "multi-prefix",
+    "message-tags",
+    "server-time",
+    "echo-message",
+    "message-tags",
+    "userhost-in-names",
+    "draft/chathistory",
+    "draft/extended-isupport",
+    "sasl",
+    "cap-notify",
+    "draft/channel-rename",
+    "setname",
+    "account-notify",
+    "account-tag",
+    "extended-join",
+    "draft/metadata-2",
+    "draft/message-redaction",
+    "draft/account-registration",
+    "batch",
+    "draft/multiline",
+    "znc.in/playback",
+    "unrealircd.org/json-log",
+  ];
 
   connect(
     name: string,
@@ -423,7 +452,21 @@ export class IRCClient {
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
       this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-      this.sendRaw(serverId, `WHO ${channelName}`);
+
+      // Check if CAP negotiation is paused due to link security warning
+      const isLinkSecurityPaused = this.linkSecurityWarnings.get(serverId);
+      if (isLinkSecurityPaused) {
+        // Defer WHO request until CAP negotiation resumes
+        let pendingChannels = this.pendingWhoRequests.get(serverId);
+        if (!pendingChannels) {
+          pendingChannels = new Set();
+          this.pendingWhoRequests.set(serverId, pendingChannels);
+        }
+        pendingChannels.add(channelName);
+      } else {
+        // Send WHO immediately if CAP negotiation is not paused
+        this.sendRaw(serverId, `WHO ${channelName}`);
+      }
 
       const channel: Channel = {
         id: uuidv4(),
@@ -438,6 +481,21 @@ export class IRCClient {
         isLoadingHistory: true, // Start in loading state
       };
       server.channels.push(channel);
+
+      // Explicitly add our own user to the channel's user list
+      const currentUser = this.currentUsers.get(serverId);
+      if (currentUser) {
+        // Check if user is not already in the channel's user list
+        const userExists = channel.users.some(
+          (u) => u.username === currentUser.username,
+        );
+        if (!userExists) {
+          channel.users.push({
+            ...currentUser,
+            status: "", // No special status initially
+          });
+        }
+      }
 
       // Trigger event to notify store that history loading started
       this.triggerEvent("CHATHISTORY_LOADING", {
@@ -1621,31 +1679,6 @@ export class IRCClient {
   }
 
   onCapLs(serverId: string, cliCaps: string, isFinal: boolean): void {
-    const ourCaps = [
-      "multi-prefix",
-      "message-tags",
-      "server-time",
-      "echo-message",
-      "message-tags",
-      "userhost-in-names",
-      "draft/chathistory",
-      "draft/extended-isupport",
-      "sasl",
-      "cap-notify",
-      "draft/channel-rename",
-      "setname",
-      "account-notify",
-      "account-tag",
-      "extended-join",
-      "draft/metadata-2",
-      "draft/message-redaction",
-      "draft/account-registration",
-      "batch",
-      "draft/multiline",
-      "znc.in/playback",
-      "unrealircd.org/json-log",
-    ];
-
     let accumulated = this.capLsAccumulated.get(serverId);
     if (!accumulated) {
       accumulated = new Set();
@@ -1660,15 +1693,46 @@ export class IRCClient {
         const mechanisms = value.split(",");
         this.saslMechanisms.set(serverId, mechanisms);
       }
+      if (cap === "unrealircd.org/link-security" && value) {
+        const level = Number.parseInt(value, 10);
+        if (!Number.isNaN(level)) {
+          // Update server link security level
+          const server = this.servers.get(serverId);
+          if (server) {
+            server.linkSecurity = level;
+            this.servers.set(serverId, server);
+          }
+
+          // If link security level is insufficient (< 2), pause CAP negotiation
+          if (level < 2) {
+            this.linkSecurityWarnings.set(serverId, true);
+          }
+
+          // Trigger event
+          this.triggerEvent("LINK_SECURITY", { serverId, level });
+        }
+      }
     }
 
     if (isFinal) {
+      // Check if we should proceed with CAP negotiation
+      const server = this.servers.get(serverId);
+      const shouldPauseForLinkSecurity =
+        server && server.linkSecurity !== undefined && server.linkSecurity < 2;
+
+      if (shouldPauseForLinkSecurity) {
+        // Don't send CAP REQ yet, wait for user decision
+        // Keep accumulated capabilities for when user decides to proceed
+        this.linkSecurityWarnings.set(serverId, true);
+        return;
+      }
+
       // Now request the caps we want from the accumulated list
       const capsToRequest: string[] = [];
       const saslEnabled = this.saslEnabled.get(serverId) ?? false;
       for (const cap of accumulated) {
         if (
-          (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
+          (this.ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
           (cap !== "sasl" || saslEnabled)
         ) {
           capsToRequest.push(cap);
@@ -1714,6 +1778,7 @@ export class IRCClient {
           if (this.pendingCapReqs.has(serverId)) {
             this.pendingCapReqs.delete(serverId);
             this.sendRaw(serverId, "CAP END");
+            this.userOnConnect(serverId);
           }
         }, 5000); // 5 second timeout
 
@@ -1819,6 +1884,108 @@ export class IRCClient {
     }
 
     return Array.from(allUsers.values());
+  }
+
+  resumeCapNegotiation(serverId: string): void {
+    // Check if connection is still available
+    if (!this.sockets.has(serverId)) {
+      console.warn(
+        `Cannot resume CAP negotiation for ${serverId}: connection not found`,
+      );
+      return;
+    }
+
+    // Clear the link security warning
+    this.linkSecurityWarnings.delete(serverId);
+
+    // Check if we have accumulated capabilities that haven't been requested yet
+    const accumulated = this.capLsAccumulated.get(serverId);
+    if (accumulated && accumulated.size > 0) {
+      // Send CAP REQ for accumulated capabilities
+      const capsToRequest: string[] = [];
+      const saslEnabled = this.saslEnabled.get(serverId) ?? false;
+      for (const cap of accumulated) {
+        if (
+          (this.ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
+          (cap !== "sasl" || saslEnabled)
+        ) {
+          capsToRequest.push(cap);
+        }
+      }
+
+      if (capsToRequest.length > 0) {
+        // Send capabilities in batches to avoid IRC line length limits (512 bytes)
+        let currentBatch: string[] = [];
+        const baseLength = "CAP REQ :".length + 2; // +2 for \r\n
+        let currentLength = baseLength;
+        let batchCount = 0;
+
+        for (const cap of capsToRequest) {
+          const capLength = cap.length + (currentBatch.length > 0 ? 1 : 0); // +1 for space if not first
+
+          if (currentLength + capLength > 500 && currentBatch.length > 0) {
+            // Leave some margin
+            // Send current batch
+            const reqMessage = `CAP REQ :${currentBatch.join(" ")}`;
+            this.sendRaw(serverId, reqMessage);
+            batchCount++;
+            currentBatch = [];
+            currentLength = baseLength;
+          }
+
+          currentBatch.push(cap);
+          currentLength += capLength;
+        }
+
+        // Send remaining batch
+        if (currentBatch.length > 0) {
+          const reqMessage = `CAP REQ :${currentBatch.join(" ")}`;
+          this.sendRaw(serverId, reqMessage);
+          batchCount++;
+        }
+
+        // Track how many CAP REQ batches we sent
+        this.pendingCapReqs.set(serverId, batchCount);
+
+        // Set a timeout to send CAP END if server doesn't respond
+        setTimeout(() => {
+          if (this.pendingCapReqs.has(serverId)) {
+            this.pendingCapReqs.delete(serverId);
+            this.sendRaw(serverId, "CAP END");
+            this.userOnConnect(serverId);
+          }
+        }, 5000); // 5 second timeout
+
+        if (capsToRequest.includes("draft/extended-isupport")) {
+          this.sendRaw(serverId, "ISUPPORT");
+        }
+      }
+
+      // Clean up accumulated capabilities
+      this.capLsAccumulated.delete(serverId);
+    } else {
+      // No accumulated capabilities, just send CAP END
+      this.sendRaw(serverId, "CAP END");
+      this.userOnConnect(serverId);
+    }
+  }
+
+  cancelCapNegotiation(serverId: string): void {
+    // Clear the link security warning and disconnect
+    this.linkSecurityWarnings.delete(serverId);
+    this.disconnect(serverId);
+  }
+
+  sendPendingWhoRequests(serverId: string): void {
+    const pendingChannels = this.pendingWhoRequests.get(serverId);
+    if (pendingChannels && pendingChannels.size > 0) {
+      // Send WHO requests for all channels that were joined during the pause
+      for (const channelName of pendingChannels) {
+        this.sendRaw(serverId, `WHO ${channelName}`);
+      }
+      // Clear the pending requests
+      this.pendingWhoRequests.delete(serverId);
+    }
   }
 }
 
