@@ -32,7 +32,11 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onOpenModerationModal,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [banSubmenuOpen, setBanSubmenuOpen] = useState(false);
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+
+  const toggleAccordion = (accordionName: string) => {
+    setOpenAccordion(openAccordion === accordionName ? null : accordionName);
+  };
 
   // Get user metadata
   const servers = useStore((state) => state.servers);
@@ -79,7 +83,6 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
     if (onOpenModerationModal) {
       onOpenModerationModal("warn");
     }
-    setBanSubmenuOpen(false);
     onClose();
   };
 
@@ -87,7 +90,6 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
     if (onOpenModerationModal) {
       onOpenModerationModal("kick");
     }
-    setBanSubmenuOpen(false);
     onClose();
   };
 
@@ -95,7 +97,6 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
     if (onOpenModerationModal) {
       onOpenModerationModal("ban-nick");
     }
-    setBanSubmenuOpen(false);
     onClose();
   };
 
@@ -103,7 +104,6 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
     if (onOpenModerationModal) {
       onOpenModerationModal("ban-hostmask");
     }
-    setBanSubmenuOpen(false);
     onClose();
   };
 
@@ -167,19 +167,33 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   const canModerate = getStatusPriority(currentUserStatus) >= 3; // halfop or higher
   const isOwnUser = username === currentUsername;
 
+  console.log("UserContextMenu permission check:", {
+    component: "MemberList", // or ChatArea
+    username,
+    currentUsername,
+    currentUserStatus,
+    statusPriority: getStatusPriority(currentUserStatus),
+    canModerate,
+    isOwnUser,
+    showModerationOptions: canModerate && !isOwnUser
+  });
+
   if (!isOpen) return null;
 
-  // Adjust position to prevent menu from going off-screen
+  // Adjust position to prevent menu from going off-screen and respect height constraints
+  const maxHeight = 400;
+  const menuHeight = Math.min(maxHeight, window.innerHeight - 20); // Leave 20px margin from bottom
   const adjustedX = Math.min(x, window.innerWidth - 200);
-  const adjustedY = Math.min(y, window.innerHeight - 100);
+  const adjustedY = Math.min(y, window.innerHeight - menuHeight - 10); // Leave 10px margin from bottom
 
   return (
     <div
       ref={menuRef}
-      className="fixed z-[100000] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl min-w-[160px]"
+      className="fixed z-[100000] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl w-[200px] max-h-[400px] overflow-y-auto"
       style={{
         left: adjustedX,
         top: adjustedY,
+        maxHeight: `${menuHeight}px`,
       }}
     >
       <div className="py-1">
@@ -199,9 +213,10 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
         <button
           onClick={handleOpenPM}
           className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
+          title="Send Message"
         >
           <svg
-            className="w-4 h-4"
+            className="w-4 h-4 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -213,7 +228,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
               d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
             />
           </svg>
-          Send Message
+          <span className="truncate" title="Send Message">Send Message</span>
         </button>
         {!isOwnUser && (
           <button
@@ -225,7 +240,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
             }`}
           >
             <svg
-              className="w-4 h-4"
+              className="w-4 h-4 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -246,7 +261,9 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                 />
               )}
             </svg>
-            {isIgnored ? "Unignore User" : "Ignore User"}
+            <span className="truncate" title={isIgnored ? "Unignore User" : "Ignore User"}>
+              {isIgnored ? "Unignore User" : "Ignore User"}
+            </span>
           </button>
         )}
         {canModerate && !isOwnUser && (
@@ -256,7 +273,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
               className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
             >
               <svg
-                className="w-4 h-4"
+                className="w-4 h-4 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -268,14 +285,14 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
                 />
               </svg>
-              Warn User
+              <span className="truncate" title="Warn User">Warn User</span>
             </button>
             <button
               onClick={handleKickUser}
               className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
             >
               <svg
-                className="w-4 h-4"
+                className="w-4 h-4 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -287,15 +304,15 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                   d="M13 7l5 5m0 0l-5 5m5-5H6"
                 />
               </svg>
-              Kick User
+              <span className="truncate" title="Kick User">Kick User</span>
             </button>
-            <div className="relative">
+            <div className="border-t border-discord-dark-500 mt-1 pt-1">
               <button
-                onClick={() => setBanSubmenuOpen(!banSubmenuOpen)}
+                onClick={() => toggleAccordion('bans')}
                 className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-4 h-4 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -307,9 +324,9 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                     d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Ban User
+                <span className="truncate" title="Ban User">Ban User</span>
                 <svg
-                  className={`w-4 h-4 ml-auto transition-transform ${banSubmenuOpen ? "rotate-180" : ""}`}
+                  className={`w-4 h-4 ml-auto flex-shrink-0 transition-transform duration-200 ${openAccordion === 'bans' ? "rotate-180" : ""}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -318,26 +335,26 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
+                    d="M19 9l-7 7-7-7"
                   />
                 </svg>
               </button>
-              {banSubmenuOpen && (
-                <div className="absolute right-full top-0 mr-1 bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl min-w-[160px] z-[100001]">
-                  <div className="py-1">
-                    <button
-                      onClick={handleBanUserByNick}
-                      className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150"
-                    >
-                      Ban by Nickname
-                    </button>
-                    <button
-                      onClick={handleBanUserByHostmask}
-                      className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150"
-                    >
-                      Ban by Hostmask
-                    </button>
-                  </div>
+              {openAccordion === 'bans' && (
+                <div className="ml-4 space-y-1 animate-in slide-in-from-top-1 duration-200">
+                  <button
+                    onClick={handleBanUserByNick}
+                    className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 text-sm truncate"
+                    title="Ban by Nickname"
+                  >
+                    Ban by Nickname
+                  </button>
+                  <button
+                    onClick={handleBanUserByHostmask}
+                    className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 text-sm truncate"
+                    title="Ban by Hostmask"
+                  >
+                    Ban by Hostmask
+                  </button>
                 </div>
               )}
             </div>

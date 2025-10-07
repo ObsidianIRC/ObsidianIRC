@@ -205,15 +205,57 @@ export const MemberList: React.FC = () => {
     (channel) => channel.id === selectedChannelId,
   );
 
-  // Sort users by status priority (descending), then alphabetically by username
-  const sortedUsers = selectedChannel?.users.slice().sort((a, b) => {
-    const priorityA = getStatusPriority(a.status);
-    const priorityB = getStatusPriority(b.status);
-    if (priorityA !== priorityB) {
-      return priorityB - priorityA; // Higher priority first
+  // Update currentUser.status from server.users if available, and ensure current user is in channel.users
+  useEffect(() => {
+    if (selectedServer && currentUser && selectedChannel) {
+      // First, ensure current user is in channel.users
+      const existingInChannel = selectedChannel.users.find(
+        (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+      );
+      if (!existingInChannel) {
+        console.log("MemberList - adding current user to channel.users");
+        selectedChannel.users.push({
+          ...currentUser,
+          status: currentUser.status || '',
+        });
+      }
+
+      // Then try to sync status from server.users
+      const userInServer = selectedServer.users.find(
+        (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+      );
+      if (userInServer?.status && userInServer.status !== currentUser.status) {
+        console.log("MemberList - updating currentUser.status from server.users:", userInServer.status);
+        useStore.setState((state) => ({
+          ...state,
+          currentUser: {
+            ...currentUser,
+            status: userInServer.status,
+          },
+        }));
+        // Also update in channel.users
+        const userInChannel = selectedChannel.users.find(
+          (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+        );
+        if (userInChannel) {
+          userInChannel.status = userInServer.status;
+        }
+      }
     }
-    return a.username.localeCompare(b.username);
-  });
+  }, [selectedServer, currentUser, selectedChannel]);
+
+  // Sort users by status priority (descending), then alphabetically by username
+  const sortedUsers = selectedChannel?.users
+    .filter((user) => user.username !== currentUser?.username)
+    .slice()
+    .sort((a, b) => {
+      const priorityA = getStatusPriority(a.status);
+      const priorityB = getStatusPriority(b.status);
+      if (priorityA !== priorityB) {
+        return priorityB - priorityA; // Higher priority first
+      }
+      return a.username.localeCompare(b.username);
+    });
 
   const handleUsernameClick = (
     e: React.MouseEvent,
@@ -241,9 +283,53 @@ export const MemberList: React.FC = () => {
     }
 
     // Calculate user's status in the specific channel
+    console.log("MemberList handleUsernameClick - status check:", {
+      serverId,
+      channelId,
+      currentUser: currentUser ? { username: currentUser.username, status: currentUser.status } : null
+    });
+    
     let userStatusInChannel: string | undefined;
     if (channelId && channelId !== "server-notices") {
-      userStatusInChannel = currentUser?.status;
+      const selectedServer = servers.find((s) => s.id === serverId);
+      console.log("MemberList - server lookup:", {
+        serverId,
+        serverFound: !!selectedServer,
+        serverName: selectedServer?.name
+      });
+      
+      const channel = selectedServer?.channels.find((c) => c.id === channelId);
+      console.log("MemberList - channel lookup:", {
+        channelId,
+        channelFound: !!channel,
+        channelName: channel?.name,
+        usersCount: channel?.users?.length
+      });
+      
+      if (channel && currentUser) {
+        const userInChannel = channel.users.find(
+          (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+        );
+        console.log("MemberList - user lookup in channel:", {
+          currentUsername: currentUser.username,
+          userFound: !!userInChannel,
+          userStatus: userInChannel?.status,
+          allUsernames: channel.users.map(u => u.username)
+        });
+        
+        userStatusInChannel = userInChannel?.status;
+        console.log("MemberList - final status:", userStatusInChannel);
+      } else {
+        console.log("MemberList - missing data:", {
+          hasChannel: !!channel,
+          hasCurrentUser: !!currentUser
+        });
+      }
+    } else {
+      console.log("MemberList - skipping status check:", {
+        channelId,
+        isServerNotices: channelId === "server-notices"
+      });
     }
 
     setUserContextMenu({
