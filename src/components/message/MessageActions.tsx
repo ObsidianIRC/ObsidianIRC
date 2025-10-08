@@ -28,12 +28,14 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           <FaTimes />
         </button>
       )}
-      <button
-        className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-        onClick={onReplyClick}
-      >
-        <FaReply />
-      </button>
+      {message.msgid && (
+        <button
+          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
+          onClick={onReplyClick}
+        >
+          <FaReply />
+        </button>
+      )}
       {message.msgid && (
         <button
           className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"

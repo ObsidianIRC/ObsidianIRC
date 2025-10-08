@@ -568,7 +568,7 @@ export const ChatArea: React.FC<{
           // Send as multiline message using BATCH
           const batchId = `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           const replyPrefix = localReplyTo
-            ? `@+draft/reply=${localReplyTo.id};`
+            ? `@+draft/reply=${localReplyTo.msgid};`
             : "";
           ircClient.sendRaw(
             selectedServerId,
@@ -653,7 +653,7 @@ export const ChatArea: React.FC<{
             splitLines.forEach((line: string) => {
               ircClient.sendRaw(
                 selectedServerId,
-                `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+                `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
               );
             });
           } else {
@@ -669,7 +669,7 @@ export const ChatArea: React.FC<{
               splitLines.forEach((splitLine: string) => {
                 ircClient.sendRaw(
                   selectedServerId,
-                  `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${splitLine}`,
+                  `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${splitLine}`,
                 );
               });
             });
@@ -686,7 +686,7 @@ export const ChatArea: React.FC<{
           splitLines.forEach((line: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
             );
           });
         }
