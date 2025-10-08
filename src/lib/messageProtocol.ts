@@ -12,35 +12,10 @@ export const splitLongMessage = (
   message: string,
   target = "#channel",
 ): string[] => {
-  // Calculate IRC protocol overhead for a PRIVMSG (excluding message tags)
-  // Format: :nick!user@host PRIVMSG #target :message\r\n
-  // Message tags don't count toward the 512-byte limit
-
-  // Conservative estimates for variable parts (as per IRC spec recommendations)
-  const maxNickLength = 20;
-  const maxUserLength = 20;
-  const maxHostLength = 63;
-  const targetLength = target.length;
-
-  // Fixed protocol parts (excluding tags)
-  const protocolOverhead =
-    1 + // ':'
-    maxNickLength +
-    1 + // '!'
-    maxUserLength +
-    1 + // '@'
-    maxHostLength +
-    1 + // ' '
-    7 + // 'PRIVMSG'
-    1 + // ' '
-    targetLength +
-    2 + // ' :'
-    2; // '\r\n'
-
-  const safetyBuffer = 10; // Small safety margin
+  const protocolOverhead = calculateProtocolOverhead(target);
 
   // Available space for the actual message content
-  const maxMessageLength = 512 - protocolOverhead - safetyBuffer;
+  const maxMessageLength = 512 - protocolOverhead;
 
   if (message.length <= maxMessageLength) {
     return [message];
