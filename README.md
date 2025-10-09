@@ -7,6 +7,8 @@
  
 *Important:* Only websockets are supported
 
+![ObsidianIRC Screenshot](screenshots/screenshot1.png)
+
 This IRC client and its related software are designed to be:
 - Modern and innovative
 - Comfortable for people switching from other messaging software
@@ -64,7 +66,7 @@ ObsidianIRC is a modern IRC client with extensive [IRCv3](https://ircv3.net/) su
 - Mobile-responsive design
 - Dark theme optimized for readability
 
-![ObsidianIRC Screenshot](screenshots/screenshot1.png)
+### Installation
 
 For now, all you need to do to get this running is the following:
 ```
