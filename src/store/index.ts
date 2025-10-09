@@ -33,6 +33,8 @@ interface JoinBatchEvent {
     serverId: string;
     username: string;
     channelName: string;
+    account?: string; // From extended-join
+    realname?: string; // From extended-join
   };
 }
 
@@ -2361,7 +2363,7 @@ ircClient.on("USERNOTICE", (response) => {
   }
 });
 
-ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
+ircClient.on("JOIN", ({ serverId, username, channelName, batchTag, account, realname }) => {
   // If this event is part of a batch, store it for later processing
   if (batchTag) {
     const state = useStore.getState();
@@ -2369,7 +2371,7 @@ ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
     if (batch) {
       batch.events.push({
         type: "JOIN",
-        data: { serverId, username, channelName },
+        data: { serverId, username, channelName, account, realname },
       });
       return;
     }
@@ -2421,6 +2423,7 @@ ircClient.on("JOIN", ({ serverId, username, channelName, batchTag }) => {
                     username,
                     isOnline: true,
                     status: "",
+                    account, // Store account from extended-join if available
                     metadata: userMetadata,
                   },
                 ],
@@ -4451,6 +4454,7 @@ ircClient.on(
     const user: User = {
       id: nick,
       username: nick,
+      hostname: host, // Store the hostname from WHO reply
       avatar: undefined,
       isOnline: true,
       isAway: isAway,
@@ -4612,6 +4616,54 @@ ircClient.on("AWAY", ({ serverId, username, awayMessage }) => {
         ...state.currentUser,
         isAway: !!awayMessage,
         awayMessage: awayMessage || undefined,
+      };
+    }
+
+    return { servers: updatedServers, currentUser: updatedCurrentUser };
+  });
+});
+
+// Handle CHGHOST - update user hostname when it changes
+ircClient.on("CHGHOST", ({ serverId, username, newUser, newHost }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        // Update user in all channels they're in
+        const updatedChannels = s.channels.map((channel) => {
+          const updatedUsers = channel.users.map((user) => {
+            if (user.username === username) {
+              return {
+                ...user,
+                hostname: newHost,
+              };
+            }
+            return user;
+          });
+          return { ...channel, users: updatedUsers };
+        });
+
+        // Update user in server-level users list if present
+        const updatedServerUsers = s.users.map((user) => {
+          if (user.username === username) {
+            return {
+              ...user,
+              hostname: newHost,
+            };
+          }
+          return user;
+        });
+
+        return { ...s, channels: updatedChannels, users: updatedServerUsers };
+      }
+      return s;
+    });
+
+    // Update current user if this is us
+    let updatedCurrentUser = state.currentUser;
+    if (state.currentUser?.username === username) {
+      updatedCurrentUser = {
+        ...state.currentUser,
+        hostname: newHost,
       };
     }
 

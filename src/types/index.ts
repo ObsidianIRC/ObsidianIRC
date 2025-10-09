@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   username: string;
+  hostname?: string; // User's hostname from WHO or CHGHOST
   avatar?: string;
   displayName?: string;
   account?: string;

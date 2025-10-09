@@ -23,7 +23,12 @@ export interface EventMap {
     newNick: string;
   };
   QUIT: BaseUserActionEvent & { reason: string; batchTag?: string };
-  JOIN: BaseUserActionEvent & { channelName: string; batchTag?: string };
+  JOIN: BaseUserActionEvent & {
+    channelName: string;
+    batchTag?: string;
+    account?: string; // From extended-join
+    realname?: string; // From extended-join
+  };
   PART: BaseUserActionEvent & {
     channelName: string;
     reason?: string;
@@ -165,6 +170,12 @@ export interface EventMap {
     serverId: string;
     username: string;
     awayMessage?: string;
+  };
+  CHGHOST: {
+    serverId: string;
+    username: string;
+    newUser: string;
+    newHost: string;
   };
   RPL_NOWAWAY: {
     serverId: string;
@@ -848,14 +859,42 @@ export class IRCClient {
           username,
           awayMessage,
         });
+      } else if (command === "CHGHOST") {
+        // CHGHOST command for chghost extension
+        // Format: :nick!old_user@old_host CHGHOST new_user new_host
+        const username = getNickFromNuh(source);
+        const newUser = parv[0];
+        const newHost = parv[1];
+        this.triggerEvent("CHGHOST", {
+          serverId,
+          username,
+          newUser,
+          newHost,
+        });
       } else if (command === "JOIN") {
         const username = getNickFromNuh(source);
         const channelName = parv[0][0] === ":" ? parv[0].substring(1) : parv[0];
+        
+        // Extended-join format: JOIN #channel account :realname
+        // Standard join format: JOIN #channel
+        let account: string | undefined;
+        let realname: string | undefined;
+        
+        if (parv.length >= 2) {
+          // Extended-join is enabled
+          account = parv[1] === "*" ? undefined : parv[1]; // * means no account
+          if (parv.length >= 3) {
+            realname = parv.slice(2).join(" ");
+          }
+        }
+        
         this.triggerEvent("JOIN", {
           serverId,
           username,
           channelName,
           batchTag: mtags?.batch,
+          account,
+          realname,
         });
       } else if (command === "PART") {
         const username = getNickFromNuh(source);
