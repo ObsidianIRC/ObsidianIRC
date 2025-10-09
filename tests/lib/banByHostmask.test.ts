@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import useStore from "../../src/store";
 
 // Mock the ircClient module
@@ -24,7 +24,6 @@ vi.mock("../../src/lib/ircClient", () => {
 });
 
 // Import after mocking
-// biome-ignore lint/style/useImportType: needed for mock
 import { ircClient } from "../../src/lib/ircClient";
 
 describe("Ban by hostmask functionality", () => {
@@ -74,7 +73,9 @@ describe("Ban by hostmask functionality", () => {
     });
 
     // Call banUserByHostmask
-    useStore.getState().banUserByHostmask("server1", "#test", "testuser", "spam");
+    useStore
+      .getState()
+      .banUserByHostmask("server1", "#test", "testuser", "spam");
 
     // Verify the correct IRC commands were sent
     expect(ircClient.sendRaw).toHaveBeenCalledWith(
