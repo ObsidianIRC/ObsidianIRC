@@ -112,6 +112,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     isParsingRef.current = false;
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: parseChannelModes is memoized with empty deps
   const fetchChannelModes = useCallback(async () => {
     console.log(
       `fetchChannelModes called for channel ${channelName} on server ${serverId}`,
@@ -147,9 +148,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       console.error("Failed to fetch channel modes:", error);
       setLoading(false);
     }
-  }, [serverId, channelName, clearLists, parseChannelModes]);
+  }, [serverId, channelName, clearLists]);
 
   // Update local modes when channel data changes (e.g., from dynamic MODE commands)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: parseChannelModes is memoized with empty deps
   useEffect(() => {
     if (channel && hasFetchedRef.current) {
       console.log(
@@ -161,7 +163,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       );
       parseChannelModes(channel);
     }
-  }, [channel, channelName, parseChannelModes]);
+  }, [channel?.bans, channel?.exceptions, channel?.invites, channelName]);
 
   const addMode = async (type: "b" | "e" | "I", mask: string) => {
     setIsAdding(true);
