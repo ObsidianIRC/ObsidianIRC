@@ -366,11 +366,38 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     }
   };
 
+  const handleScrollToReply = () => {
+    if (!message.replyMessage?.id) return;
+
+    const targetElement = document.querySelector(
+      `[data-message-id="${message.replyMessage.id}"]`,
+    );
+
+    if (targetElement) {
+      // Scroll to the message
+      targetElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      // Add flash animation
+      targetElement.classList.add("message-flash");
+
+      // Remove the class after animation completes
+      setTimeout(() => {
+        targetElement.classList.remove("message-flash");
+      }, 2000);
+    }
+  };
+
   const isClickable =
     message.userId !== "system" && ircCurrentUser?.username !== username;
 
   return (
-    <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
+    <div
+      data-message-id={message.id}
+      className={`px-4 py-1 hover:bg-${theme}-message-hover group relative transition-colors duration-300`}
+    >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
       )}
@@ -409,6 +436,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 theme={theme}
                 onUsernameClick={handleReplyUsernameClick}
                 onIrcLinkClick={onIrcLinkClick}
+                onReplyClick={handleScrollToReply}
               />
             )}
 

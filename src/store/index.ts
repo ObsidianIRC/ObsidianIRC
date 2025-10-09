@@ -890,10 +890,7 @@ const useStore = create<AppState>((set, get) => ({
       server.users.find((u) => u.username === username);
 
     const hostname = user?.hostname || "*";
-    ircClient.sendRaw(
-      serverId,
-      `MODE ${channelName} +b *!*@${hostname}`,
-    );
+    ircClient.sendRaw(serverId, `MODE ${channelName} +b *!*@${hostname}`);
     ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
   },
 
