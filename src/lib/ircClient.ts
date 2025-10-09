@@ -874,12 +874,12 @@ export class IRCClient {
       } else if (command === "JOIN") {
         const username = getNickFromNuh(source);
         const channelName = parv[0][0] === ":" ? parv[0].substring(1) : parv[0];
-        
+
         // Extended-join format: JOIN #channel account :realname
         // Standard join format: JOIN #channel
         let account: string | undefined;
         let realname: string | undefined;
-        
+
         if (parv.length >= 2) {
           // Extended-join is enabled
           account = parv[1] === "*" ? undefined : parv[1]; // * means no account
@@ -887,7 +887,7 @@ export class IRCClient {
             realname = parv.slice(2).join(" ");
           }
         }
-        
+
         this.triggerEvent("JOIN", {
           serverId,
           username,

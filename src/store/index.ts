@@ -878,10 +878,21 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   banUserByHostmask: (serverId, channelName, username, reason) => {
-    // Ban by full hostmask
+    // Ban by hostmask - look up the user's hostname from the channel or server user list
+    const state = get();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return;
+
+    const channel = server.channels.find((c) => c.name === channelName);
+    // Try to find the user in the channel's user list first, then fall back to server user list
+    const user =
+      channel?.users.find((u) => u.username === username) ||
+      server.users.find((u) => u.username === username);
+
+    const hostname = user?.hostname || "*";
     ircClient.sendRaw(
       serverId,
-      `MODE ${channelName} +b *!*@${username.split("!")[1] || "*"}`,
+      `MODE ${channelName} +b *!*@${hostname}`,
     );
     ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
   },
@@ -2363,132 +2374,140 @@ ircClient.on("USERNOTICE", (response) => {
   }
 });
 
-ircClient.on("JOIN", ({ serverId, username, channelName, batchTag, account, realname }) => {
-  // If this event is part of a batch, store it for later processing
-  if (batchTag) {
-    const state = useStore.getState();
-    const batch = state.activeBatches[serverId]?.[batchTag];
-    if (batch) {
-      batch.events.push({
-        type: "JOIN",
-        data: { serverId, username, channelName, account, realname },
-      });
-      return;
-    }
-  }
-
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((server) => {
-      if (server.id === serverId) {
-        const existingChannel = server.channels.find(
-          (channel) => channel.name === channelName,
-        );
-
-        if (!existingChannel) {
-          const newChannel: Channel = {
-            id: uuidv4(),
-            name: channelName,
-            topic: "",
-            isPrivate: false,
-            serverId,
-            unreadCount: 0,
-            isMentioned: false,
-            messages: [],
-            users: [],
-          };
-
-          return {
-            ...server,
-            channels: [...server.channels, newChannel],
-          };
-        }
-        const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
-            const userAlreadyExists = channel.users.some(
-              (user) => user.username === username,
-            );
-            if (!userAlreadyExists) {
-              // Check if this is the current user and copy their metadata
-              const ircCurrentUser = ircClient.getCurrentUser(serverId);
-              const isCurrentUser = ircCurrentUser?.username === username;
-              const userMetadata =
-                isCurrentUser && ircCurrentUser ? ircCurrentUser.metadata : {};
-
-              return {
-                ...channel,
-                users: [
-                  ...channel.users,
-                  {
-                    id: uuidv4(), // Again, give them a unique ID
-                    username,
-                    isOnline: true,
-                    status: "",
-                    account, // Store account from extended-join if available
-                    metadata: userMetadata,
-                  },
-                ],
-              };
-            }
-          }
-          return channel;
+ircClient.on(
+  "JOIN",
+  ({ serverId, username, channelName, batchTag, account, realname }) => {
+    // If this event is part of a batch, store it for later processing
+    if (batchTag) {
+      const state = useStore.getState();
+      const batch = state.activeBatches[serverId]?.[batchTag];
+      if (batch) {
+        batch.events.push({
+          type: "JOIN",
+          data: { serverId, username, channelName, account, realname },
         });
+        return;
+      }
+    }
 
-        return { ...server, channels: updatedChannels };
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          const existingChannel = server.channels.find(
+            (channel) => channel.name === channelName,
+          );
+
+          if (!existingChannel) {
+            const newChannel: Channel = {
+              id: uuidv4(),
+              name: channelName,
+              topic: "",
+              isPrivate: false,
+              serverId,
+              unreadCount: 0,
+              isMentioned: false,
+              messages: [],
+              users: [],
+            };
+
+            return {
+              ...server,
+              channels: [...server.channels, newChannel],
+            };
+          }
+          const updatedChannels = server.channels.map((channel) => {
+            if (channel.name === channelName) {
+              const userAlreadyExists = channel.users.some(
+                (user) => user.username === username,
+              );
+              if (!userAlreadyExists) {
+                // Check if this is the current user and copy their metadata
+                const ircCurrentUser = ircClient.getCurrentUser(serverId);
+                const isCurrentUser = ircCurrentUser?.username === username;
+                const userMetadata =
+                  isCurrentUser && ircCurrentUser
+                    ? ircCurrentUser.metadata
+                    : {};
+
+                return {
+                  ...channel,
+                  users: [
+                    ...channel.users,
+                    {
+                      id: uuidv4(), // Again, give them a unique ID
+                      username,
+                      isOnline: true,
+                      status: "",
+                      account, // Store account from extended-join if available
+                      metadata: userMetadata,
+                    },
+                  ],
+                };
+              }
+            }
+            return channel;
+          });
+
+          return { ...server, channels: updatedChannels };
+        }
+
+        return server;
+      });
+
+      // Request metadata for the joining user to get their current metadata
+      // This is needed for users who join after we're already in the channel
+      if (serverSupportsMetadata(serverId)) {
+        setTimeout(() => {
+          useStore.getState().metadataList(serverId, username);
+        }, 100);
       }
 
-      return server;
+      return { servers: updatedServers };
     });
 
-    // Request metadata for the joining user to get their current metadata
-    // This is needed for users who join after we're already in the channel
-    if (serverSupportsMetadata(serverId)) {
-      setTimeout(() => {
-        useStore.getState().metadataList(serverId, username);
-      }, 100);
+    // If we joined a channel, request channel information
+    const ourNick = ircClient.getNick(serverId);
+    if (username === ourNick) {
+      // Request topic and user list
+      ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
+      ircClient.sendRaw(serverId, `WHO ${channelName}`);
     }
 
-    return { servers: updatedServers };
-  });
+    // Add join message if settings allow
+    const state = useStore.getState();
+    if (
+      state.globalSettings.showEvents &&
+      state.globalSettings.showJoinsParts
+    ) {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (server) {
+        const channel = server.channels.find((c) => c.name === channelName);
+        if (channel) {
+          const joinMessage: Message = {
+            id: uuidv4(),
+            type: "join",
+            content: `joined ${channelName}`,
+            timestamp: new Date(),
+            userId: username,
+            channelId: channel.id,
+            serverId: serverId,
+            reactions: [],
+            replyMessage: null,
+            mentioned: [],
+          };
 
-  // If we joined a channel, request channel information
-  const ourNick = ircClient.getNick(serverId);
-  if (username === ourNick) {
-    // Request topic and user list
-    ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
-    ircClient.sendRaw(serverId, `WHO ${channelName}`);
-  }
-
-  // Add join message if settings allow
-  const state = useStore.getState();
-  if (state.globalSettings.showEvents && state.globalSettings.showJoinsParts) {
-    const server = state.servers.find((s) => s.id === serverId);
-    if (server) {
-      const channel = server.channels.find((c) => c.name === channelName);
-      if (channel) {
-        const joinMessage: Message = {
-          id: uuidv4(),
-          type: "join",
-          content: `joined ${channelName}`,
-          timestamp: new Date(),
-          userId: username,
-          channelId: channel.id,
-          serverId: serverId,
-          reactions: [],
-          replyMessage: null,
-          mentioned: [],
-        };
-
-        const key = `${serverId}-${channel.id}`;
-        useStore.setState((state) => ({
-          messages: {
-            ...state.messages,
-            [key]: [...(state.messages[key] || []), joinMessage],
-          },
-        }));
+          const key = `${serverId}-${channel.id}`;
+          useStore.setState((state) => ({
+            messages: {
+              ...state.messages,
+              [key]: [...(state.messages[key] || []), joinMessage],
+            },
+          }));
+        }
       }
     }
-  }
-});
+  },
+);
 
 // Handle user changing their nickname
 ircClient.on("NICK", ({ serverId, oldNick, newNick }) => {
