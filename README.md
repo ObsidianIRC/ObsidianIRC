@@ -41,7 +41,14 @@ ObsidianIRC is a modern IRC client with extensive [IRCv3](https://ircv3.net/) su
 
 #### UnrealIRCd Extensions
 - **JSON Server Logs** (`unrealircd.org/json-log`) - Professional, expandable server logs in JSON format containing comprehensive information for debugging and monitoring
-- **Link Security** (`unrealircd.org/link-security`) - Informational capability that alerts users about potential security issues with URLs and links
+- **Link Security** (`unrealircd.org/link-security`) - Informational capability that monitors and reports the encrypted topology of the IRC network's server-to-server links, warning users when server interconnections lack proper SSL/TLS encryption or certificate validation
+
+#### ObsidianIRC Custom Extensions
+- **Link Previews** (`obsidianirc/link-preview-*`) - Custom message tags for rich link previews including:
+  - `obsidianirc/link-preview-title` - Title of the linked content
+  - `obsidianirc/link-preview-snippet` - Description or excerpt from the linked page
+  - `obsidianirc/link-preview-meta` - URL to preview image or thumbnail
+  - Automatically displays rich embeds for shared URLs with metadata
 
 #### User Interface Features
 - Multi-server support with easy server switching
