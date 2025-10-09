@@ -13,7 +13,7 @@ This IRC client and its related software are designed to be:
 - Easy to implement
 - Easy to expand
 
-![](https://i.ibb.co/Gvbx4wpN/Screenshot-2025-05-01-at-06-27-04.png)
+![ObsidianIRC Screenshot](screenshots/screenshot1.png)
 
 For now, all you need to do to get this running is the following:
 ```
