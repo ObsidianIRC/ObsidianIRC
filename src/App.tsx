@@ -73,7 +73,7 @@ const App: React.FC = () => {
       isChannelListModalOpen,
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
-      isLinkSecurityWarningModalOpen,
+      linkSecurityWarnings,
     },
     joinChannel,
     connectToSavedServers,
@@ -124,7 +124,7 @@ const App: React.FC = () => {
       {isUserProfileModalOpen && <UserSettings />}
       {isChannelListModalOpen && <ChannelListModal />}
       {isChannelRenameModalOpen && <ChannelRenameModal />}
-      {isLinkSecurityWarningModalOpen && <LinkSecurityWarningModal />}
+      <LinkSecurityWarningModal />
       {isServerNoticesPopupOpen && (
         <ServerNoticesPopup
           messages={serverNotices}

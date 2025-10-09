@@ -44,6 +44,7 @@ export interface ServerConfig {
   saslPassword?: string;
   saslEnabled: boolean;
   skipLinkSecurityWarning?: boolean;
+  skipLocalhostWarning?: boolean;
 }
 
 export interface Channel {

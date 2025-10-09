@@ -73,8 +73,7 @@ describe("ChatArea Tab Completion Integration", () => {
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
-        isLinkSecurityWarningModalOpen: false,
-        linkSecurityWarningServerId: null,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {

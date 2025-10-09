@@ -73,19 +73,5 @@ export function registerISupportHandler(
       });
       return;
     }
-
-    if (key === "LINKSECURITY") {
-      const linkSecurity = parseInt(value) || 0;
-      useStore.setState((state) => {
-        const updatedServers = state.servers.map((server: Server) => {
-          if (server.id === serverId) {
-            return { ...server, linkSecurity };
-          }
-          return server;
-        });
-        return { servers: updatedServers };
-      });
-      return;
-    }
   });
 }

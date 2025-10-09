@@ -122,13 +122,17 @@ const ModerationModal: React.FC<ModerationModalProps> = ({
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded"
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded"
+                className={`flex-1 text-white py-2 rounded font-medium ${
+                  action === "warn"
+                    ? "bg-discord-primary hover:bg-opacity-80"
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
               >
                 {getActionTitle(action)}
               </button>

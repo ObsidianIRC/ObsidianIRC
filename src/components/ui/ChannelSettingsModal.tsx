@@ -280,13 +280,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const filteredModes = modes.filter((mode) => mode.type === activeTab);
 
   useEffect(() => {
-    if (isOpen && !hasFetchedRef.current) {
-      // Clear current modes and fetch new ones when modal opens
+    if (isOpen && channel) {
+      // Clear current modes and fetch new ones when channel changes
       setModes([]);
+      hasFetchedRef.current = false;
       fetchChannelModes();
-      hasFetchedRef.current = true;
     }
-  }, [isOpen, fetchChannelModes]);
+  }, [isOpen, channel, fetchChannelModes]);
 
   if (!isOpen) return null;
 
@@ -354,7 +354,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           <button
             onClick={() => newMask.trim() && addMode(activeTab, newMask.trim())}
             disabled={!newMask.trim() || isAdding}
-            className="px-3 py-2 bg-discord-blue hover:bg-discord-blue-hover text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isAdding ? (
               <FaSpinner className="animate-spin" size={14} />

@@ -278,9 +278,8 @@ interface UIState {
   };
   prefillServerDetails: ConnectionDetails | null;
   inputAttachments: Attachment[];
-  // Link security warning modal state
-  isLinkSecurityWarningModalOpen: boolean;
-  linkSecurityWarningServerId: string | null;
+  // Link security warning modal state - array to support multiple concurrent warnings
+  linkSecurityWarnings: Array<{ serverId: string; timestamp: number }>;
   // Server notices popup state
   isServerNoticesPopupOpen: boolean;
   serverNoticesPopupMinimized: boolean;
@@ -547,8 +546,7 @@ const useStore = create<AppState>((set, get) => ({
     prefillServerDetails: null,
     inputAttachments: [],
     // Link security warning modal state
-    isLinkSecurityWarningModalOpen: false,
-    linkSecurityWarningServerId: null,
+    linkSecurityWarnings: [],
     // Server notices popup state
     isServerNoticesPopupOpen: false,
     serverNoticesPopupMinimized: false,
@@ -645,6 +643,9 @@ const useStore = create<AppState>((set, get) => ({
         channels: channelsToJoin,
         saslAccountName,
         saslPassword,
+        // Preserve warning preferences
+        skipLocalhostWarning: savedServer?.skipLocalhostWarning,
+        skipLinkSecurityWarning: savedServer?.skipLinkSecurityWarning,
       });
       saveServersToLocalStorage(updatedServers);
 
@@ -662,6 +663,28 @@ const useStore = create<AppState>((set, get) => ({
           isConnecting: false,
         };
       });
+
+      // Check for localhost connection warning (unencrypted ws://)
+      const isLocalhost = host === "localhost" || host === "127.0.0.1";
+      if (isLocalhost) {
+        const savedServers = loadSavedServers();
+        const serverConfig = savedServers.find(
+          (s) => s.host === host && s.port === port,
+        );
+
+        // Only show warning if not already skipped
+        if (!serverConfig?.skipLocalhostWarning) {
+          set((state) => ({
+            ui: {
+              ...state.ui,
+              linkSecurityWarnings: [
+                ...state.ui.linkSecurityWarnings,
+                { serverId: server.id, timestamp: Date.now() },
+              ],
+            },
+          }));
+        }
+      }
 
       // Join saved channels - now handled in the ready event handler
       // for (const channelName of channelsToJoin) {
@@ -2784,29 +2807,6 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     }));
   } else {
   }
-
-  // Check link security and show warning if needed
-  const state = useStore.getState();
-  const server = state.servers.find((s) => s.id === serverId);
-  // Check for insecure connection (either LINKSECURITY < 2 or localhost connection)
-  const isInsecureConnection = (server && server.linkSecurity !== undefined && server.linkSecurity < 2) ||
-                               (server && (server.host === 'localhost' || server.host === '127.0.0.1'));
-
-  if (isInsecureConnection) {
-    // Check if user has already skipped this warning
-    const savedServers = loadSavedServers();
-    const savedServer = savedServers.find((s) => s.id === serverId);
-    if (!savedServer?.skipLinkSecurityWarning) {
-      // Show the warning modal
-      useStore.setState((state) => ({
-        ui: {
-          ...state.ui,
-          isLinkSecurityWarningModalOpen: true,
-          linkSecurityWarningServerId: serverId,
-        },
-      }));
-    }
-  }
 });
 
 ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
@@ -3113,11 +3113,75 @@ ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
   ircClient.userOnConnect(serverId);
 });
 
+// Handle CAP LS to get informational capabilities like unrealircd.org/link-security
+ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
+  // Parse link-security from CAP LS (informational capability)
+  if (cliCaps.includes("unrealircd.org/link-security=")) {
+    const match = cliCaps.match(/unrealircd\.org\/link-security=(\d+)/);
+    if (match) {
+      const linkSecurityValue = Number.parseInt(match[1], 10) || 0;
+
+      // Update server with link security value
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server) => {
+          if (server.id === serverId) {
+            return {
+              ...server,
+              linkSecurity: linkSecurityValue,
+            };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+
+      // Check for insecure connection and show warning modal
+      const currentState = useStore.getState();
+      const currentServer = currentState.servers.find((s) => s.id === serverId);
+      const isLocalhost =
+        currentServer &&
+        (currentServer.host === "localhost" ||
+          currentServer.host === "127.0.0.1");
+      const hasLowLinkSecurity = linkSecurityValue < 2;
+
+      // Check if we should show warning based on individual skip preferences
+      const savedServers = loadSavedServers();
+      const serverConfig = currentServer
+        ? savedServers.find(
+            (s) =>
+              s.host === currentServer.host && s.port === currentServer.port,
+          )
+        : undefined;
+
+      const shouldWarnLocalhost =
+        isLocalhost && !serverConfig?.skipLocalhostWarning;
+      const shouldWarnLinkSecurity =
+        hasLowLinkSecurity && !serverConfig?.skipLinkSecurityWarning;
+
+      if (shouldWarnLocalhost || shouldWarnLinkSecurity) {
+        useStore.setState((state) => ({
+          ui: {
+            ...state.ui,
+            linkSecurityWarnings: [
+              ...state.ui.linkSecurityWarnings,
+              { serverId, timestamp: Date.now() },
+            ],
+          },
+        }));
+      }
+    }
+  }
+});
+
 ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   const caps = cliCaps.split(" ");
+
   for (const cap of caps) {
     const tok = cap.split("=");
-    ircClient.capAck(serverId, tok[0], tok[1] ?? null);
+    const capName = tok[0];
+    const capValue = tok[1];
+
+    ircClient.capAck(serverId, capName, capValue ?? null);
   }
 
   // Update server capabilities in store
@@ -3134,7 +3198,7 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
     return { servers: updatedServers };
   });
 
-  // Check if we should prevent CAP END (for SASL or account registration)
+  // Check if we should prevent CAP END (for SASL, account registration, or link security warning)
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
   let preventCapEnd = false;
@@ -3175,6 +3239,11 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
       // Send CAP END since registration is not possible
       preventCapEnd = false;
     }
+  }
+
+  // Check if link security warning modal is showing - prevent CAP END until user responds
+  if (state.ui.linkSecurityWarnings.some((w) => w.serverId === serverId)) {
+    preventCapEnd = true;
   }
 
   if (!preventCapEnd) {
