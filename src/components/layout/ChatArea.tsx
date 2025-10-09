@@ -11,7 +11,6 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
-  FaExternalLinkAlt,
   FaGift,
   FaGrinAlt,
   FaHashtag,
@@ -1716,6 +1715,7 @@ export const ChatArea: React.FC<{
         )}
         {selectedChannelId === "server-notices" && (
           <div className="flex items-center gap-4 text-discord-text-muted">
+            {/* TODO: Re-enable pop out button for server notices
             <button
               className="hover:text-discord-text-normal"
               onClick={() =>
@@ -1729,6 +1729,7 @@ export const ChatArea: React.FC<{
             >
               <FaExternalLinkAlt />
             </button>
+            */}
           </div>
         )}
       </div>
