@@ -112,7 +112,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     isParsingRef.current = false;
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: parseChannelModes is memoized with empty deps
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clearLists and parseChannelModes are stable
   const fetchChannelModes = useCallback(async () => {
     console.log(
       `fetchChannelModes called for channel ${channelName} on server ${serverId}`,
@@ -148,22 +148,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       console.error("Failed to fetch channel modes:", error);
       setLoading(false);
     }
-  }, [serverId, channelName, clearLists]);
-
-  // Update local modes when channel data changes (e.g., from dynamic MODE commands)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: parseChannelModes is memoized with empty deps
-  useEffect(() => {
-    if (channel && hasFetchedRef.current) {
-      console.log(
-        "Channel data changed, updating modes for channel:",
-        channelName,
-        channel.bans?.length,
-        channel.exceptions?.length,
-        channel.invites?.length,
-      );
-      parseChannelModes(channel);
-    }
-  }, [channel?.bans, channel?.exceptions, channel?.invites, channelName]);
+  }, [serverId, channelName]);
 
   const addMode = async (type: "b" | "e" | "I", mask: string) => {
     setIsAdding(true);
@@ -281,6 +266,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
   const filteredModes = modes.filter((mode) => mode.type === activeTab);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Using channelName instead of channel to avoid infinite loop from object reference changes
   useEffect(() => {
     if (isOpen && channel) {
       // Clear current modes and fetch new ones when channel changes
@@ -288,7 +274,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       hasFetchedRef.current = false;
       fetchChannelModes();
     }
-  }, [isOpen, channel, fetchChannelModes]);
+  }, [isOpen, channelName, fetchChannelModes]);
 
   if (!isOpen) return null;
 
