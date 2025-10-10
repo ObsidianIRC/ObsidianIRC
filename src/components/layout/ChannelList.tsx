@@ -85,7 +85,9 @@ export const ChannelList: React.FC<{
     useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
-  const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(null);
+  const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(
+    null,
+  );
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
@@ -114,33 +116,33 @@ export const ChannelList: React.FC<{
   // Sort channels by saved order, falling back to join order
   const sortedChannels = useMemo(() => {
     if (!selectedServer || !selectedServerId) return [];
-    
+
     const savedOrder = channelOrder[selectedServerId];
     const channels = selectedServer.channels;
-    
+
     if (!savedOrder || savedOrder.length === 0) {
       // No saved order, return channels in join order
       return channels;
     }
-    
+
     // Sort channels by saved order (which now contains channel names)
     const sorted = [...channels].sort((a, b) => {
       const indexA = savedOrder.indexOf(a.name);
       const indexB = savedOrder.indexOf(b.name);
-      
+
       // If both channels are in the saved order, sort by index
       if (indexA !== -1 && indexB !== -1) {
         return indexA - indexB;
       }
-      
+
       // If only one channel is in the saved order, it comes first
       if (indexA !== -1) return -1;
       if (indexB !== -1) return 1;
-      
+
       // If neither channel is in the saved order, maintain original order
       return 0;
     });
-    
+
     return sorted;
   }, [selectedServer, selectedServerId, channelOrder]);
 
@@ -181,8 +183,12 @@ export const ChannelList: React.FC<{
 
   const handleDrop = (e: React.DragEvent, targetChannelId: string) => {
     e.preventDefault();
-    
-    if (!draggedChannelId || !selectedServerId || draggedChannelId === targetChannelId) {
+
+    if (
+      !draggedChannelId ||
+      !selectedServerId ||
+      draggedChannelId === targetChannelId
+    ) {
       setDraggedChannelId(null);
       setDragOverChannelId(null);
       return;
@@ -190,8 +196,12 @@ export const ChannelList: React.FC<{
 
     // Get the current order of non-private channels
     const nonPrivateChannels = sortedChannels.filter((c) => !c.isPrivate);
-    const draggedIndex = nonPrivateChannels.findIndex((c) => c.id === draggedChannelId);
-    const targetIndex = nonPrivateChannels.findIndex((c) => c.id === targetChannelId);
+    const draggedIndex = nonPrivateChannels.findIndex(
+      (c) => c.id === draggedChannelId,
+    );
+    const targetIndex = nonPrivateChannels.findIndex(
+      (c) => c.id === targetChannelId,
+    );
 
     if (draggedIndex === -1 || targetIndex === -1) {
       setDraggedChannelId(null);

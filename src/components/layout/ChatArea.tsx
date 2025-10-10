@@ -365,11 +365,11 @@ export const ChatArea: React.FC<{
   const handleToggleNotificationVolume = async () => {
     const currentVolume = globalSettings.notificationVolume;
     const newVolume = currentVolume > 0 ? 0 : 0.4; // Toggle between 0 (muted) and 0.4 (40%)
-    
+
     useStore.getState().updateGlobalSettings({
       notificationVolume: newVolume,
     });
-    
+
     // Play test sound when enabling (not when disabling)
     if (newVolume > 0) {
       try {

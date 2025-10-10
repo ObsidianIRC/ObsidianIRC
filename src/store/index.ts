@@ -906,7 +906,7 @@ const useStore = create<AppState>((set, get) => ({
             [serverId]: [...currentOrder, channel.name],
           };
           saveChannelOrder(newChannelOrder);
-          
+
           // Update the selected channel if the server matches the current selection
           const isCurrentServer = state.ui.selectedServerId === serverId;
 
@@ -972,8 +972,8 @@ const useStore = create<AppState>((set, get) => ({
         [serverId]: currentOrder.filter((name) => name !== channelName),
       };
       saveChannelOrder(newChannelOrder);
-      
-      return { 
+
+      return {
         servers: updatedServers,
         channelOrder: newChannelOrder,
       };
@@ -1267,7 +1267,7 @@ const useStore = create<AppState>((set, get) => ({
         const savedServer = savedServers.find(
           (s) => s.host === server.host && s.port === server.port,
         );
-        
+
         if (savedServer) {
           // Convert channel IDs to channel names in the correct order
           const channelNames = channelIds
@@ -1276,24 +1276,24 @@ const useStore = create<AppState>((set, get) => ({
               return channel?.name;
             })
             .filter((name): name is string => name !== undefined);
-          
+
           savedServer.channels = channelNames;
           saveServersToLocalStorage(savedServers);
-          
+
           // Store channel names in channelOrder state (not IDs)
           const newChannelOrder = {
             ...state.channelOrder,
             [serverId]: channelNames,
           };
-          
+
           saveChannelOrder(newChannelOrder);
-          
+
           return {
             channelOrder: newChannelOrder,
           };
         }
       }
-      
+
       // Fallback if server not found
       return {};
     });
@@ -3239,17 +3239,17 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
   if (savedServer) {
     // Get the saved channel order for this server
     const savedChannelOrder = useStore.getState().channelOrder[serverId];
-    
+
     // If we have a saved order, use it to determine join sequence
     let channelsToJoin: string[] = savedServer.channels;
-    
+
     if (savedChannelOrder && savedChannelOrder.length > 0) {
       // Map channel IDs to channel names using the saved order
       // Note: savedChannelOrder has IDs, but we need names for joining
       // We'll join in the order from savedServer.channels which should already be ordered
       channelsToJoin = savedServer.channels;
     }
-    
+
     for (const channelName of channelsToJoin) {
       if (channelName) {
         useStore.getState().joinChannel(serverId, channelName);

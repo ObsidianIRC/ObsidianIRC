@@ -9,7 +9,10 @@ export const playNotificationSound = async (globalSettings: {
   notificationVolume: number;
 }) => {
   // Check if notification sounds are enabled and volume is not muted
-  if (!globalSettings.enableNotificationSounds || globalSettings.notificationVolume === 0) {
+  if (
+    !globalSettings.enableNotificationSounds ||
+    globalSettings.notificationVolume === 0
+  ) {
     return;
   }
 
@@ -73,7 +76,10 @@ export const shouldPlayNotificationSound = (
   },
 ): boolean => {
   // Don't play sound if notification sounds are disabled or volume is muted
-  if (!globalSettings.enableNotificationSounds || globalSettings.notificationVolume === 0) {
+  if (
+    !globalSettings.enableNotificationSounds ||
+    globalSettings.notificationVolume === 0
+  ) {
     return false;
   }
 

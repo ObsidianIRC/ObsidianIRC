@@ -1,5 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { FaEdit, FaPlus, FaSpinner, FaTimes, FaTrash } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import { hasOpPermission } from "../../lib/ircUtils";
@@ -342,7 +343,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-2xl p-6 max-h-[80vh] overflow-hidden flex flex-col">
         <div className="flex justify-between items-center mb-4">
@@ -645,7 +646,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
