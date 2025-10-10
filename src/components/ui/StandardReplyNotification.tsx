@@ -45,13 +45,13 @@ export const StandardReplyNotification: React.FC<
   const getBackgroundColor = () => {
     switch (type) {
       case "FAIL":
-        return "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800";
+        return "bg-red-100 dark:bg-red-950/50 border-red-300 dark:border-red-700";
       case "WARN":
-        return "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800";
+        return "bg-yellow-100 dark:bg-yellow-950/50 border-yellow-300 dark:border-yellow-700";
       case "NOTE":
-        return "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800";
+        return "bg-blue-100 dark:bg-blue-950/50 border-blue-300 dark:border-blue-700";
       default:
-        return "bg-gray-50 dark:bg-gray-950/20 border-gray-200 dark:border-gray-800";
+        return "bg-gray-100 dark:bg-gray-950/50 border-gray-300 dark:border-gray-700";
     }
   };
 

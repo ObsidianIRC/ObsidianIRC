@@ -23,7 +23,12 @@ export interface EventMap {
     newNick: string;
   };
   QUIT: BaseUserActionEvent & { reason: string; batchTag?: string };
-  JOIN: BaseUserActionEvent & { channelName: string; batchTag?: string };
+  JOIN: BaseUserActionEvent & {
+    channelName: string;
+    batchTag?: string;
+    account?: string; // From extended-join
+    realname?: string; // From extended-join
+  };
   PART: BaseUserActionEvent & {
     channelName: string;
     reason?: string;
@@ -34,10 +39,18 @@ export interface EventMap {
     target: string;
     reason: string;
   };
+  MODE: EventWithTags & {
+    sender: string;
+    target: string;
+    modestring: string;
+    modeargs: string[];
+  };
   CHANMSG: BaseMessageEvent & {
     channelName: string;
   };
-  USERMSG: BaseMessageEvent;
+  USERMSG: BaseMessageEvent & {
+    target: string; // The recipient of the PRIVMSG (for whispers)
+  };
   CHANNNOTICE: BaseMessageEvent & {
     channelName: string;
   };
@@ -101,6 +114,11 @@ export interface EventMap {
     user: string;
   };
   SETNAME: { serverId: string; user: string; realname: string };
+  INVITE: EventWithTags & {
+    inviter: string;
+    target: string;
+    channel: string;
+  };
   FAIL: EventWithTags & {
     command: string;
     code: string;
@@ -160,6 +178,12 @@ export interface EventMap {
     username: string;
     awayMessage?: string;
   };
+  CHGHOST: {
+    serverId: string;
+    username: string;
+    newUser: string;
+    newHost: string;
+  };
   RPL_NOWAWAY: {
     serverId: string;
     message: string;
@@ -179,6 +203,103 @@ export interface EventMap {
     serverId: string;
     channelName: string;
     isLoading: boolean;
+  };
+  RPL_BANLIST: {
+    serverId: string;
+    channel: string;
+    mask: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_INVITELIST: {
+    serverId: string;
+    channel: string;
+    mask: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_EXCEPTLIST: {
+    serverId: string;
+    channel: string;
+    mask: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_ENDOFBANLIST: {
+    serverId: string;
+    channel: string;
+  };
+  RPL_ENDOFINVITELIST: {
+    serverId: string;
+    channel: string;
+  };
+  RPL_ENDOFEXCEPTLIST: {
+    serverId: string;
+    channel: string;
+  };
+  TOPIC: {
+    serverId: string;
+    channelName: string;
+    topic: string;
+    sender: string;
+  };
+  RPL_TOPIC: {
+    serverId: string;
+    channelName: string;
+    topic: string;
+  };
+  RPL_TOPICWHOTIME: {
+    serverId: string;
+    channelName: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_NOTOPIC: {
+    serverId: string;
+    channelName: string;
+  };
+  WHOIS_USER: {
+    serverId: string;
+    nick: string;
+    username: string;
+    host: string;
+    realname: string;
+  };
+  WHOIS_SERVER: {
+    serverId: string;
+    nick: string;
+    server: string;
+    serverInfo: string;
+  };
+  WHOIS_IDLE: {
+    serverId: string;
+    nick: string;
+    idle: number;
+    signon: number;
+  };
+  WHOIS_CHANNELS: {
+    serverId: string;
+    nick: string;
+    channels: string;
+  };
+  WHOIS_SPECIAL: {
+    serverId: string;
+    nick: string;
+    message: string;
+  };
+  WHOIS_ACCOUNT: {
+    serverId: string;
+    nick: string;
+    account: string;
+  };
+  WHOIS_SECURE: {
+    serverId: string;
+    nick: string;
+    message: string;
+  };
+  WHOIS_END: {
+    serverId: string;
+    nick: string;
   };
 }
 
@@ -212,6 +333,36 @@ export class IRCClient {
       }
     >
   > = new Map(); // Track active batches per server
+
+  private ourCaps: string[] = [
+    "multi-prefix",
+    "message-tags",
+    "server-time",
+    "echo-message",
+    "userhost-in-names",
+    "draft/chathistory",
+    "draft/extended-isupport",
+    "sasl",
+    "cap-notify",
+    "draft/channel-rename",
+    "setname",
+    "account-notify",
+    "account-tag",
+    "extended-join",
+    "away-notify",
+    "chghost",
+    "draft/metadata-2",
+    "draft/message-redaction",
+    "draft/account-registration",
+    "batch",
+    "draft/multiline",
+    "draft/typing",
+    "draft/channel-context",
+    "znc.in/playback",
+    "unrealircd.org/json-log",
+    "invite-notify",
+    // Note: unrealircd.org/link-security is informational only, don't request it
+  ];
 
   private eventCallbacks: {
     [K in EventKey]?: EventCallback<K>[];
@@ -364,6 +515,9 @@ export class IRCClient {
   sendRaw(serverId: string, command: string): void {
     const socket = this.sockets.get(serverId);
     if (socket && socket.readyState === WebSocket.OPEN) {
+      console.log(
+        `IRC Client: Sending command to server ${serverId}: ${command}`,
+      );
       // Log metadata and command-related outgoing messages for debugging
       if (command.startsWith("METADATA") || command.startsWith("/")) {
       }
@@ -435,6 +589,38 @@ export class IRCClient {
       // Send as regular single message
       this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
     }
+  }
+
+  sendWhisper(
+    serverId: string,
+    targetUser: string,
+    channelName: string,
+    content: string,
+  ): void {
+    // Send a whisper with the draft/channel-context tag
+    // Format: @+draft/channel-context=#channel PRIVMSG targetUser :message
+    this.sendRaw(
+      serverId,
+      `@+draft/channel-context=${channelName} PRIVMSG ${targetUser} :${content}`,
+    );
+  }
+
+  setTopic(serverId: string, channelName: string, topic: string): void {
+    // Send TOPIC command to set the channel topic
+    // Format: TOPIC #channel :New topic text
+    this.sendRaw(serverId, `TOPIC ${channelName} :${topic}`);
+  }
+
+  getTopic(serverId: string, channelName: string): void {
+    // Send TOPIC command without parameters to get current topic
+    // Format: TOPIC #channel
+    this.sendRaw(serverId, `TOPIC ${channelName}`);
+  }
+
+  whois(serverId: string, nickname: string): void {
+    // Send WHOIS command to get user information
+    // Format: WHOIS nickname
+    this.sendRaw(serverId, `WHOIS ${nickname}`);
   }
 
   sendMultilineMessage(
@@ -639,6 +825,8 @@ export class IRCClient {
       // Skip empty lines
       if (!line) continue;
 
+      console.log(`IRC Client: Received line from server ${serverId}: ${line}`);
+
       // Debug: Log ALL lines that contain CAP to see if CAP ACK is even being processed
       if (line.includes("CAP")) {
       }
@@ -776,14 +964,42 @@ export class IRCClient {
           username,
           awayMessage,
         });
+      } else if (command === "CHGHOST") {
+        // CHGHOST command for chghost extension
+        // Format: :nick!old_user@old_host CHGHOST new_user new_host
+        const username = getNickFromNuh(source);
+        const newUser = parv[0];
+        const newHost = parv[1];
+        this.triggerEvent("CHGHOST", {
+          serverId,
+          username,
+          newUser,
+          newHost,
+        });
       } else if (command === "JOIN") {
         const username = getNickFromNuh(source);
         const channelName = parv[0][0] === ":" ? parv[0].substring(1) : parv[0];
+
+        // Extended-join format: JOIN #channel account :realname
+        // Standard join format: JOIN #channel
+        let account: string | undefined;
+        let realname: string | undefined;
+
+        if (parv.length >= 2) {
+          // Extended-join is enabled
+          account = parv[1] === "*" ? undefined : parv[1]; // * means no account
+          if (parv.length >= 3) {
+            realname = parv.slice(2).join(" ");
+          }
+        }
+
         this.triggerEvent("JOIN", {
           serverId,
           username,
           channelName,
           batchTag: mtags?.batch,
+          account,
+          realname,
         });
       } else if (command === "PART") {
         const username = getNickFromNuh(source);
@@ -802,7 +1018,10 @@ export class IRCClient {
         const target = parv[1];
         parv[0] = "";
         parv[1] = "";
-        const reason = parv.join(" ").trim().substring(1);
+        const reasonText = parv.join(" ").trim();
+        const reason = reasonText.startsWith(":")
+          ? reasonText.substring(1)
+          : reasonText;
         this.triggerEvent("KICK", {
           serverId,
           mtags,
@@ -810,6 +1029,32 @@ export class IRCClient {
           channelName,
           target,
           reason,
+        });
+      } else if (command === "MODE") {
+        const sender = getNickFromNuh(source);
+        const target = parv[0];
+        const modestring = parv[1] || "";
+        const modeargs = parv.slice(2);
+        this.triggerEvent("MODE", {
+          serverId,
+          mtags,
+          sender,
+          target,
+          modestring,
+          modeargs,
+        });
+      } else if (command === "INVITE") {
+        // Handle invite-notify capability
+        // Format: :<inviter> INVITE <target> <channel>
+        const inviter = getNickFromNuh(source);
+        const target = parv[0];
+        const channel = parv[1];
+        this.triggerEvent("INVITE", {
+          serverId,
+          mtags,
+          inviter,
+          target,
+          channel,
         });
       } else if (command === "PRIVMSG") {
         const target = parv[0];
@@ -872,6 +1117,7 @@ export class IRCClient {
             serverId,
             mtags,
             sender,
+            target, // The recipient of the PRIVMSG
             message,
             timestamp: getTimestampFromTags(mtags),
           });
@@ -1469,13 +1715,204 @@ export class IRCClient {
         if (subcommand === "SUCCESS") {
           const account = parv[1];
           const message = parv.slice(2).join(" ").substring(1);
-          this.triggerEvent("VERIFY_SUCCESS", {
-            serverId,
-            mtags,
-            account,
-            message,
-          });
         }
+      } else if (command === "367") {
+        // RPL_BANLIST: <channel> <banmask> <setter> <timestamp>
+        const channel = parv[1];
+        const mask = parv[2];
+        const setter = parv[3];
+        const timestamp = Number.parseInt(parv[4], 10);
+        console.log(
+          `IRC Client: RPL_BANLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
+        );
+        this.triggerEvent("RPL_BANLIST", {
+          serverId,
+          channel,
+          mask,
+          setter,
+          timestamp,
+        });
+      } else if (command === "346") {
+        // RPL_INVITELIST: <channel> <invite mask> <setter> <timestamp>
+        const channel = parv[1];
+        const mask = parv[2];
+        const setter = parv[3];
+        const timestamp = Number.parseInt(parv[4], 10);
+        console.log(
+          `IRC Client: RPL_INVITELIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
+        );
+        this.triggerEvent("RPL_INVITELIST", {
+          serverId,
+          channel,
+          mask,
+          setter,
+          timestamp,
+        });
+      } else if (command === "348") {
+        // RPL_EXCEPTLIST: <channel> <exception mask> <setter> <timestamp>
+        const channel = parv[1];
+        const mask = parv[2];
+        const setter = parv[3];
+        const timestamp = Number.parseInt(parv[4], 10);
+        console.log(
+          `IRC Client: RPL_EXCEPTLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
+        );
+        this.triggerEvent("RPL_EXCEPTLIST", {
+          serverId,
+          channel,
+          mask,
+          setter,
+          timestamp,
+        });
+      } else if (command === "368") {
+        // RPL_ENDOFBANLIST: <channel> :End of channel ban list
+        const channel = parv[1];
+        console.log(
+          `IRC Client: RPL_ENDOFBANLIST parsed - channel: ${channel}`,
+        );
+        this.triggerEvent("RPL_ENDOFBANLIST", {
+          serverId,
+          channel,
+        });
+      } else if (command === "347") {
+        // RPL_ENDOFINVITELIST: <channel> :End of channel invite list
+        const channel = parv[1];
+        console.log(
+          `IRC Client: RPL_ENDOFINVITELIST parsed - channel: ${channel}`,
+        );
+        this.triggerEvent("RPL_ENDOFINVITELIST", {
+          serverId,
+          channel,
+        });
+      } else if (command === "349") {
+        // RPL_ENDOFEXCEPTLIST: <channel> :End of channel exception list
+        const channel = parv[1];
+        console.log(
+          `IRC Client: RPL_ENDOFEXCEPTLIST parsed - channel: ${channel}`,
+        );
+        this.triggerEvent("RPL_ENDOFEXCEPTLIST", {
+          serverId,
+          channel,
+        });
+      } else if (command === "TOPIC") {
+        // TOPIC #channel :New topic text
+        const channelName = parv[0];
+        const topic = parv.slice(1).join(" ");
+        const sender = getNickFromNuh(source);
+        this.triggerEvent("TOPIC", {
+          serverId,
+          channelName,
+          topic,
+          sender,
+        });
+      } else if (command === "332") {
+        // RPL_TOPIC: <client> <channel> :<topic>
+        const channelName = parv[1];
+        const topic = parv.slice(2).join(" ");
+        this.triggerEvent("RPL_TOPIC", {
+          serverId,
+          channelName,
+          topic,
+        });
+      } else if (command === "333") {
+        // RPL_TOPICWHOTIME: <client> <channel> <setter> <timestamp>
+        const channelName = parv[1];
+        const setter = parv[2];
+        const timestamp = Number.parseInt(parv[3], 10);
+        this.triggerEvent("RPL_TOPICWHOTIME", {
+          serverId,
+          channelName,
+          setter,
+          timestamp,
+        });
+      } else if (command === "331") {
+        // RPL_NOTOPIC: <client> <channel> :No topic is set
+        const channelName = parv[1];
+        this.triggerEvent("RPL_NOTOPIC", {
+          serverId,
+          channelName,
+        });
+      } else if (command === "311") {
+        // RPL_WHOISUSER: <client> <nick> <username> <host> * :<realname>
+        const nick = parv[1];
+        const username = parv[2];
+        const host = parv[3];
+        const realname = parv.slice(5).join(" ");
+        this.triggerEvent("WHOIS_USER", {
+          serverId,
+          nick,
+          username,
+          host,
+          realname,
+        });
+      } else if (command === "312") {
+        // RPL_WHOISSERVER: <client> <nick> <server> :<server info>
+        const nick = parv[1];
+        const server = parv[2];
+        const serverInfo = parv.slice(3).join(" ");
+        this.triggerEvent("WHOIS_SERVER", {
+          serverId,
+          nick,
+          server,
+          serverInfo,
+        });
+      } else if (command === "317") {
+        // RPL_WHOISIDLE: <client> <nick> <idle> <signon> :seconds idle, signon time
+        const nick = parv[1];
+        const idle = Number.parseInt(parv[2], 10);
+        const signon = Number.parseInt(parv[3], 10);
+        this.triggerEvent("WHOIS_IDLE", {
+          serverId,
+          nick,
+          idle,
+          signon,
+        });
+      } else if (command === "318") {
+        // RPL_ENDOFWHOIS: <client> <nick> :End of /WHOIS list.
+        const nick = parv[1];
+        this.triggerEvent("WHOIS_END", {
+          serverId,
+          nick,
+        });
+      } else if (command === "319") {
+        // RPL_WHOISCHANNELS: <client> <nick> :<channels>
+        const nick = parv[1];
+        const channels = parv.slice(2).join(" ");
+        this.triggerEvent("WHOIS_CHANNELS", {
+          serverId,
+          nick,
+          channels,
+        });
+      } else if (command === "320" || command === "378" || command === "379") {
+        // RPL_WHOISSPECIAL: Various special WHOIS lines
+        // 320: security groups, reputation, etc.
+        // 378: connecting from
+        // 379: using modes
+        const nick = parv[1];
+        const message = parv.slice(2).join(" ");
+        this.triggerEvent("WHOIS_SPECIAL", {
+          serverId,
+          nick,
+          message,
+        });
+      } else if (command === "330") {
+        // RPL_WHOISACCOUNT: <client> <nick> <account> :is logged in as
+        const nick = parv[1];
+        const account = parv[2];
+        this.triggerEvent("WHOIS_ACCOUNT", {
+          serverId,
+          nick,
+          account,
+        });
+      } else if (command === "671") {
+        // RPL_WHOISSECURE: <client> <nick> :is using a secure connection
+        const nick = parv[1];
+        const message = parv.slice(2).join(" ");
+        this.triggerEvent("WHOIS_SECURE", {
+          serverId,
+          nick,
+          message,
+        });
       }
     }
   }
@@ -1489,30 +1926,6 @@ export class IRCClient {
   }
 
   onCapLs(serverId: string, cliCaps: string, isFinal: boolean): void {
-    const ourCaps = [
-      "multi-prefix",
-      "message-tags",
-      "server-time",
-      "echo-message",
-      "message-tags",
-      "userhost-in-names",
-      "draft/chathistory",
-      "draft/extended-isupport",
-      "sasl",
-      "cap-notify",
-      "draft/channel-rename",
-      "setname",
-      "account-notify",
-      "account-tag",
-      "extended-join",
-      "draft/metadata-2",
-      "draft/message-redaction",
-      "draft/account-registration",
-      "batch",
-      "draft/multiline",
-      "znc.in/playback",
-    ];
-
     let accumulated = this.capLsAccumulated.get(serverId);
     if (!accumulated) {
       accumulated = new Set();
@@ -1527,6 +1940,15 @@ export class IRCClient {
         const mechanisms = value.split(",");
         this.saslMechanisms.set(serverId, mechanisms);
       }
+      // Handle informational unrealircd.org/link-security capability
+      if (cap === "unrealircd.org/link-security" && value) {
+        const linkSecurityValue = Number.parseInt(value, 10) || 0;
+        // Trigger event with the link security value so the store can handle it
+        this.triggerEvent("CAP LS", {
+          serverId,
+          cliCaps: `unrealircd.org/link-security=${linkSecurityValue}`,
+        });
+      }
     }
 
     if (isFinal) {
@@ -1535,7 +1957,7 @@ export class IRCClient {
       const saslEnabled = this.saslEnabled.get(serverId) ?? false;
       for (const cap of accumulated) {
         if (
-          (ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
+          (this.ourCaps.includes(cap) || cap.startsWith("draft/metadata")) &&
           (cap !== "sasl" || saslEnabled)
         ) {
           capsToRequest.push(cap);
@@ -1581,6 +2003,7 @@ export class IRCClient {
           if (this.pendingCapReqs.has(serverId)) {
             this.pendingCapReqs.delete(serverId);
             this.sendRaw(serverId, "CAP END");
+            this.userOnConnect(serverId);
           }
         }, 5000); // 5 second timeout
 

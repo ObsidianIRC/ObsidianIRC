@@ -2,15 +2,17 @@ import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import type * as React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   FaArrowDown,
   FaAt,
   FaBell,
+  FaBellSlash,
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
+  FaGift,
   FaGrinAlt,
   FaHashtag,
   FaList,
@@ -28,6 +30,11 @@ import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
 import {
+  getChannelAvatarUrl,
+  getChannelDisplayName,
+  hasOpPermission,
+} from "../../lib/ircUtils";
+import {
   type FormattingType,
   formatMessageForIrc,
   getPreviewStyles,
@@ -39,12 +46,17 @@ import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
+import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
+import GifSelector from "../ui/GifSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+import InviteUserModal from "../ui/InviteUserModal";
 import LoadingSpinner from "../ui/LoadingSpinner";
+import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
+import UserProfileModal from "../ui/UserProfileModal";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -162,6 +174,7 @@ export const ChatArea: React.FC<{
   const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [isGifSelectorOpen, setIsGifSelectorOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<{
     isOpen: boolean;
     file: File | null;
@@ -171,18 +184,44 @@ export const ChatArea: React.FC<{
     file: null,
     previewUrl: null,
   });
+  const [isServerNoticesPoppedOut, setIsServerNoticesPoppedOut] =
+    useState(false);
+  const [serverNoticesPopupPosition, setServerNoticesPopupPosition] = useState({
+    x: 16,
+    y: 16,
+  }); // 1rem = 16px
+  const serverNoticesScrollRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScrollServerNotices, setShouldAutoScrollServerNotices] =
+    useState(true);
+
+  const handleServerNoticesScroll = () => {
+    if (serverNoticesScrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        serverNoticesScrollRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+      setShouldAutoScrollServerNotices(isAtBottom);
+    }
+  };
+  const [isDraggingServerNotices, setIsDraggingServerNotices] = useState(false);
+  const [serverNoticesDragStart, setServerNoticesDragStart] = useState({
+    x: 0,
+    y: 0,
+  });
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
     x: number;
     y: number;
     username: string;
     serverId: string;
+    channelId: string;
+    userStatusInChannel?: string;
   }>({
     isOpen: false,
     x: 0,
     y: 0,
     username: "",
     serverId: "",
+    channelId: "",
   });
   const [reactionModal, setReactionModal] = useState<{
     isOpen: boolean;
@@ -191,6 +230,24 @@ export const ChatArea: React.FC<{
     isOpen: false,
     message: null,
   });
+  const [moderationModal, setModerationModal] = useState<{
+    isOpen: boolean;
+    action: ModerationAction;
+    username: string;
+  }>({
+    isOpen: false,
+    action: "warn",
+    username: "",
+  });
+  const [channelSettingsModalOpen, setChannelSettingsModalOpen] =
+    useState(false);
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [inviteUserModalOpen, setInviteUserModalOpen] = useState(false);
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
+  const [isEditingTopic, setIsEditingTopic] = useState(false);
+  const [editedTopic, setEditedTopic] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleMessageCount, setVisibleMessageCount] = useState(100);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -207,6 +264,7 @@ export const ChatArea: React.FC<{
       isAddServerModalOpen,
       isChannelListModalOpen,
       isChannelRenameModalOpen,
+      isServerNoticesPopupOpen,
     },
     toggleMemberList,
     openPrivateChat,
@@ -216,7 +274,13 @@ export const ChatArea: React.FC<{
     toggleAddServerModal,
     redactMessage,
     globalSettings,
+    warnUser,
+    kickUser,
+    banUserByNick,
+    banUserByHostmask,
   } = useStore();
+
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Get the current user for the selected server with metadata from store
   const currentUser = useMemo(() => {
@@ -244,6 +308,41 @@ export const ChatArea: React.FC<{
     return ircCurrentUser;
   }, [selectedServerId, servers]);
 
+  // Auto-scroll server notices popup when new messages arrive
+  useEffect(() => {
+    if (shouldAutoScrollServerNotices && serverNoticesScrollRef.current) {
+      serverNoticesScrollRef.current.scrollTop =
+        serverNoticesScrollRef.current.scrollHeight;
+    }
+  }, [shouldAutoScrollServerNotices]);
+
+  // Scroll to bottom when popup is first opened
+  useEffect(() => {
+    if (isServerNoticesPoppedOut && serverNoticesScrollRef.current) {
+      serverNoticesScrollRef.current.scrollTop =
+        serverNoticesScrollRef.current.scrollHeight;
+      setShouldAutoScrollServerNotices(true); // Enable auto-scroll for future messages
+    }
+  }, [isServerNoticesPoppedOut]);
+
+  // Get current user's status in the selected channel
+  const currentUserStatus = useMemo(() => {
+    if (!selectedServerId || !selectedChannelId) return undefined;
+
+    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    const selectedChannel = selectedServer?.channels.find(
+      (c) => c.id === selectedChannelId,
+    );
+
+    if (!selectedChannel || !currentUser) return undefined;
+
+    const userInChannel = selectedChannel.users.find(
+      (u) => u.username === currentUser.username,
+    );
+
+    return userInChannel?.status;
+  }, [selectedServerId, selectedChannelId, servers, currentUser]);
+
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
@@ -260,6 +359,30 @@ export const ChatArea: React.FC<{
       port: parsed.port.toString(),
       nickname: parsed.nick || "user",
     });
+  };
+
+  // Toggle notification sound volume
+  const handleToggleNotificationVolume = async () => {
+    const currentVolume = globalSettings.notificationVolume;
+    const newVolume = currentVolume > 0 ? 0 : 0.4; // Toggle between 0 (muted) and 0.4 (40%)
+
+    useStore.getState().updateGlobalSettings({
+      notificationVolume: newVolume,
+    });
+
+    // Play test sound when enabling (not when disabling)
+    if (newVolume > 0) {
+      try {
+        const audio = new Audio();
+        audio.volume = newVolume;
+        audio.src = "/sounds/notif2.mp3";
+        // Wait for the audio to be loaded before playing
+        audio.load();
+        await audio.play();
+      } catch (error) {
+        console.error("Failed to play notification sound:", error);
+      }
+    }
   };
 
   // Load saved settings from local storage on mount
@@ -342,10 +465,35 @@ export const ChatArea: React.FC<{
     [messages, channelKey],
   );
 
+  // Filter messages based on search query
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return channelMessages;
+    }
+    const query = searchQuery.toLowerCase();
+    return channelMessages.filter(
+      (msg) =>
+        msg.content.toLowerCase().includes(query) ||
+        msg.userId.toLowerCase().includes(query),
+    );
+  }, [channelMessages, searchQuery]);
+
+  // Virtualize messages - only show the last N messages unless searching
+  const displayedMessages = useMemo(() => {
+    if (searchQuery.trim()) {
+      // Show all filtered results when searching
+      return filteredMessages;
+    }
+    // Show only the last visibleMessageCount messages
+    return filteredMessages.slice(-visibleMessageCount);
+  }, [filteredMessages, visibleMessageCount, searchQuery]);
+
+  const hasMoreMessages = filteredMessages.length > displayedMessages.length;
+
   // Memoize grouped events to prevent recalculation on every render
   const eventGroups = useMemo(
-    () => groupConsecutiveEvents(channelMessages),
-    [channelMessages],
+    () => groupConsecutiveEvents(displayedMessages),
+    [displayedMessages],
   );
 
   const scrollDown = () => {
@@ -364,13 +512,17 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
+    // Reset visible message count and search when changing channels
+    setVisibleMessageCount(100);
+    setSearchQuery("");
   }, [selectedServerId, selectedChannelId]);
 
   // Auto scroll to bottom on new messages
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
   useEffect(() => {
     if (isScrolledUp) return;
     scrollDown();
-  });
+  }, [displayedMessages]);
 
   // Check if scrolled away from bottom
   useEffect(() => {
@@ -437,6 +589,25 @@ export const ChatArea: React.FC<{
           const [target, ...messageParts] = args;
           const message = messageParts.join(" ");
           ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
+        } else if (commandName === "whisper") {
+          // /whisper <username> <message>
+          // Sends a private message visible only to the user but in the current channel context
+          if (!selectedChannel) {
+            console.error("Whispers can only be sent in channels");
+            return;
+          }
+          const [targetUser, ...messageParts] = args;
+          if (!targetUser || messageParts.length === 0) {
+            console.error("Usage: /whisper <username> <message>");
+            return;
+          }
+          const message = messageParts.join(" ");
+          ircClient.sendWhisper(
+            selectedServerId,
+            targetUser,
+            selectedChannel.name,
+            message,
+          );
         } else if (commandName === "me") {
           const actionMessage = cleanedText.substring(4).trim();
           ircClient.sendRaw(
@@ -483,7 +654,7 @@ export const ChatArea: React.FC<{
           // Send as multiline message using BATCH
           const batchId = `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           const replyPrefix = localReplyTo
-            ? `@+draft/reply=${localReplyTo.id};`
+            ? `@+draft/reply=${localReplyTo.msgid};`
             : "";
           ircClient.sendRaw(
             selectedServerId,
@@ -568,7 +739,7 @@ export const ChatArea: React.FC<{
             splitLines.forEach((line: string) => {
               ircClient.sendRaw(
                 selectedServerId,
-                `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+                `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
               );
             });
           } else {
@@ -584,7 +755,7 @@ export const ChatArea: React.FC<{
               splitLines.forEach((splitLine: string) => {
                 ircClient.sendRaw(
                   selectedServerId,
-                  `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${splitLine}`,
+                  `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${splitLine}`,
                 );
               });
             });
@@ -601,7 +772,7 @@ export const ChatArea: React.FC<{
           splitLines.forEach((line: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
             );
           });
         }
@@ -692,20 +863,22 @@ export const ChatArea: React.FC<{
 
         if (target) {
           // Send via IRC
-          ircClient.sendRaw(
-            selectedServerId!,
-            `PRIVMSG ${target} :${data.saved_url}`,
-          );
+          if (selectedServerId) {
+            ircClient.sendRaw(
+              selectedServerId,
+              `PRIVMSG ${target} :${data.saved_url}`,
+            );
+          }
 
           // Add to store for immediate display (only for private chats, channels echo back)
-          if (selectedPrivateChat && currentUser) {
+          if (selectedPrivateChat && currentUser && selectedServerId) {
             const outgoingMessage = {
               id: uuidv4(),
               content: data.saved_url,
               timestamp: new Date(),
               userId: currentUser.username || currentUser.id,
               channelId: selectedPrivateChat.id,
-              serverId: selectedServerId!,
+              serverId: selectedServerId,
               type: "message" as const,
               reactions: [],
               replyMessage: null,
@@ -720,6 +893,35 @@ export const ChatArea: React.FC<{
     } catch (error) {
       console.error("Image upload failed:", error);
       // TODO: Show error to user
+    }
+  };
+
+  const handleGifSend = (gifUrl: string) => {
+    // Send the GIF URL directly to the current channel/user
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+
+    if (target && selectedServerId) {
+      // Send via IRC
+      ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${gifUrl}`);
+
+      // Add to store for immediate display (only for private chats, channels echo back)
+      if (selectedPrivateChat && currentUser) {
+        const outgoingMessage = {
+          id: uuidv4(),
+          content: gifUrl,
+          timestamp: new Date(),
+          userId: currentUser.username || currentUser.id,
+          channelId: selectedPrivateChat.id,
+          serverId: selectedServerId,
+          type: "message" as const,
+          reactions: [],
+          replyMessage: null,
+          mentioned: [],
+        };
+
+        const { addMessage } = useStore.getState();
+        addMessage(outgoingMessage);
+      }
     }
   };
 
@@ -1154,6 +1356,7 @@ export const ChatArea: React.FC<{
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => {
     e.preventDefault();
@@ -1174,12 +1377,36 @@ export const ChatArea: React.FC<{
       y = rect.top - 5; // Position above the avatar with small gap
     }
 
+    // Calculate user's status in the specific channel
+    let userStatusInChannel: string | undefined;
+    if (channelId && channelId !== "server-notices") {
+      const selectedServer = servers.find((s) => s.id === serverId);
+      const channel = selectedServer?.channels.find((c) => c.id === channelId);
+      if (channel && currentUser) {
+        const serverCurrentUser = ircClient.getCurrentUser(serverId);
+        const userInChannel =
+          channel.users.find(
+            (u) =>
+              u.username.toLowerCase() ===
+              serverCurrentUser?.username.toLowerCase(),
+          ) ||
+          selectedServer?.users.find(
+            (u) =>
+              u.username.toLowerCase() ===
+              serverCurrentUser?.username.toLowerCase(),
+          );
+        userStatusInChannel = userInChannel?.status;
+      }
+    }
+
     setUserContextMenu({
       isOpen: true,
       x,
       y,
       username,
       serverId,
+      channelId,
+      userStatusInChannel,
     });
   };
 
@@ -1190,6 +1417,7 @@ export const ChatArea: React.FC<{
       y: 0,
       username: "",
       serverId: "",
+      channelId: "",
     });
   };
 
@@ -1198,6 +1426,60 @@ export const ChatArea: React.FC<{
       openPrivateChat(selectedServerId, username);
     }
   };
+
+  const handleOpenProfile = (username: string) => {
+    setSelectedProfileUsername(username);
+    setUserProfileModalOpen(true);
+  };
+
+  // Server notices popup drag handlers
+  const handleServerNoticesMouseDown = (e: React.MouseEvent) => {
+    setIsDraggingServerNotices(true);
+    setServerNoticesDragStart({
+      x: e.clientX - serverNoticesPopupPosition.x,
+      y: e.clientY - serverNoticesPopupPosition.y,
+    });
+  };
+
+  const handleServerNoticesMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingServerNotices) return;
+
+      const newX = e.clientX - serverNoticesDragStart.x;
+      const newY = e.clientY - serverNoticesDragStart.y;
+
+      // Constrain to viewport bounds (with some margin)
+      const maxX = window.innerWidth - 620; // 600px width + 20px margin
+      const maxY = window.innerHeight - 520; // 500px height + 20px margin
+
+      setServerNoticesPopupPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY)),
+      });
+    },
+    [isDraggingServerNotices, serverNoticesDragStart],
+  );
+
+  const handleServerNoticesMouseUp = useCallback(() => {
+    setIsDraggingServerNotices(false);
+  }, []);
+
+  // Server notices popup drag effect
+  useEffect(() => {
+    if (isDraggingServerNotices) {
+      document.addEventListener("mousemove", handleServerNoticesMouseMove);
+      document.addEventListener("mouseup", handleServerNoticesMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleServerNoticesMouseMove);
+      document.removeEventListener("mouseup", handleServerNoticesMouseUp);
+    };
+  }, [
+    isDraggingServerNotices,
+    handleServerNoticesMouseMove,
+    handleServerNoticesMouseUp,
+  ]);
 
   const handleReactClick = (message: MessageType, buttonElement: Element) => {
     setReactionModal({
@@ -1211,6 +1493,54 @@ export const ChatArea: React.FC<{
       isOpen: false,
       message: null,
     });
+  };
+
+  const handleCloseModerationModal = () => {
+    setModerationModal({
+      isOpen: false,
+      action: "warn",
+      username: "",
+    });
+  };
+
+  const handleModerationConfirm = (
+    action: ModerationAction,
+    reason: string,
+  ) => {
+    const { username } = moderationModal;
+    switch (action) {
+      case "warn":
+        if (selectedServerId && selectedChannel?.name) {
+          warnUser(selectedServerId, selectedChannel.name, username, reason);
+        }
+        break;
+      case "kick":
+        if (selectedServerId && selectedChannel?.name) {
+          kickUser(selectedServerId, selectedChannel.name, username, reason);
+        }
+        break;
+      case "ban-nick":
+        if (selectedServerId && selectedChannel?.name) {
+          banUserByNick(
+            selectedServerId,
+            selectedChannel.name,
+            username,
+            reason,
+          );
+        }
+        break;
+      case "ban-hostmask":
+        if (selectedServerId && selectedChannel?.name) {
+          banUserByHostmask(
+            selectedServerId,
+            selectedChannel.name,
+            username,
+            reason,
+          );
+        }
+        break;
+    }
+    handleCloseModerationModal();
   };
 
   const handleReactionSelect = (emoji: string) => {
@@ -1357,24 +1687,134 @@ export const ChatArea: React.FC<{
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
-      <div className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
-        <div className="flex items-center">
+      <div className="min-h-[56px] px-4 border-b border-discord-dark-400 flex flex-wrap items-start md:items-center justify-between shadow-sm py-2 md:py-0 md:h-12 gap-y-2">
+        <div className="flex items-center flex-1 min-w-0 w-full md:w-auto">
           {!isChanListVisible && (
             <button
               onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white mr-4"
+              className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
               aria-label="Expand channel list"
             >
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
           )}
           {selectedChannel && (
-            <>
-              <FaHashtag className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">
-                {selectedChannel.name.replace(/^#/, "")}
-              </h2>
-            </>
+            <div className="flex flex-col min-w-0 flex-1 md:flex-row md:items-center">
+              <div className="flex items-center min-w-0 flex-shrink-0">
+                {getChannelAvatarUrl(selectedChannel.metadata, 50) ? (
+                  <img
+                    src={getChannelAvatarUrl(selectedChannel.metadata, 50)}
+                    alt={selectedChannel.name}
+                    className="w-12 h-12 rounded-full object-cover mr-2 flex-shrink-0"
+                    onError={(e) => {
+                      // Fallback to # icon on error
+                      e.currentTarget.style.display = "none";
+                      const parent = e.currentTarget.parentElement;
+                      const fallbackIcon = parent?.querySelector(
+                        ".fallback-hash-icon",
+                      );
+                      if (fallbackIcon) {
+                        (fallbackIcon as HTMLElement).style.display =
+                          "inline-block";
+                      }
+                    }}
+                  />
+                ) : null}
+                <FaHashtag
+                  className="text-discord-text-muted mr-2 fallback-hash-icon flex-shrink-0 text-3xl"
+                  style={{
+                    display: getChannelAvatarUrl(selectedChannel.metadata, 50)
+                      ? "none"
+                      : "inline-block",
+                  }}
+                />
+                <h2 className="font-bold text-white mr-4 truncate">
+                  {getChannelDisplayName(
+                    selectedChannel.name,
+                    selectedChannel.metadata,
+                  )}
+                </h2>
+              </div>
+              <div className="md:mx-2 md:text-discord-text-muted hidden md:block">
+                |
+              </div>
+              {isEditingTopic ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (selectedServerId && selectedChannel) {
+                      ircClient.setTopic(
+                        selectedServerId,
+                        selectedChannel.name,
+                        editedTopic,
+                      );
+                      setIsEditingTopic(false);
+                    }
+                  }}
+                  className="flex items-center gap-2 flex-1 max-w-md mt-1 md:mt-0"
+                >
+                  <input
+                    type="text"
+                    value={editedTopic}
+                    onChange={(e) => setEditedTopic(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setIsEditingTopic(false);
+                      }
+                    }}
+                    autoFocus
+                    className="flex-1 px-2 py-1 bg-discord-dark-300 text-white text-sm rounded"
+                    placeholder="Enter topic..."
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1 bg-discord-primary hover:bg-opacity-80 text-white text-sm rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingTopic(false)}
+                    className="px-3 py-1 bg-discord-dark-400 hover:bg-discord-dark-500 text-white text-sm rounded"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (selectedChannel) {
+                      const currentUserInChannel = selectedChannel.users.find(
+                        (u) => u.username === currentUser?.username,
+                      );
+                      if (hasOpPermission(currentUserInChannel?.status)) {
+                        setEditedTopic(selectedChannel.topic || "");
+                        setIsEditingTopic(true);
+                      }
+                    }
+                  }}
+                  className="text-discord-text-muted text-xs md:text-sm hover:text-white truncate min-w-0 md:max-w-md mt-0.5 mb-1 md:mt-0 md:mb-0"
+                  title={
+                    selectedChannel.topic
+                      ? `Topic: ${selectedChannel.topic}${
+                          selectedChannel.users.find(
+                            (u) => u.username === currentUser?.username,
+                          ) &&
+                          hasOpPermission(
+                            selectedChannel.users.find(
+                              (u) => u.username === currentUser?.username,
+                            )?.status,
+                          )
+                            ? " (Click to edit)"
+                            : ""
+                        }`
+                      : "No topic set"
+                  }
+                >
+                  {selectedChannel.topic || "No topic"}
+                </button>
+              )}
+            </div>
           )}
           {selectedPrivateChat && (
             <>
@@ -1384,26 +1824,48 @@ export const ChatArea: React.FC<{
               </h2>
             </>
           )}
-          {selectedChannel?.topic && (
+          {selectedChannelId === "server-notices" && (
             <>
-              <div className="mx-2 text-discord-text-muted">|</div>
-              <div className="text-discord-text-muted text-sm truncate max-w-xs">
-                {selectedChannel.topic}
-              </div>
+              <FaList className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">Server Notices</h2>
             </>
           )}
         </div>
-        {!!selectedServerId && (
-          <div className="flex items-center gap-4 text-discord-text-muted">
-            <button className="hover:text-discord-text-normal">
-              <FaBell />
+        {!!selectedServerId && selectedChannelId !== "server-notices" && (
+          <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
+            <button
+              className="hover:text-discord-text-normal"
+              onClick={handleToggleNotificationVolume}
+              title={
+                globalSettings.notificationVolume > 0
+                  ? "Mute notifications"
+                  : "Enable notifications"
+              }
+            >
+              {globalSettings.notificationVolume > 0 ? (
+                <FaBell />
+              ) : (
+                <FaBellSlash />
+              )}
             </button>
-            <button className="hover:text-discord-text-normal">
-              <FaPenAlt />
-            </button>
-            <button className="hover:text-discord-text-normal">
-              <FaUserPlus />
-            </button>
+            {selectedChannel && (
+              <button
+                className="hover:text-discord-text-normal"
+                onClick={() => setChannelSettingsModalOpen(true)}
+                title="Channel Settings"
+              >
+                <FaPenAlt />
+              </button>
+            )}
+            {selectedChannel && (
+              <button
+                className="hover:text-discord-text-normal"
+                onClick={() => setInviteUserModalOpen(true)}
+                title="Invite User"
+              >
+                <FaUserPlus />
+              </button>
+            )}
             <button
               className="hover:text-discord-text-normal"
               onClick={() => useStore.getState().toggleChannelListModal(true)}
@@ -1457,21 +1919,47 @@ export const ChatArea: React.FC<{
               <input
                 type="text"
                 placeholder="Search"
-                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-20 md:w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
               />
               <FaSearch className="absolute right-2 top-1.5 text-xs" />
             </div>
           </div>
         )}
+        {selectedChannelId === "server-notices" && (
+          <div className="flex items-center gap-4 text-discord-text-muted">
+            {/* TODO: Re-enable pop out button for server notices
+            <button
+              className="hover:text-discord-text-normal"
+              onClick={() =>
+                setIsServerNoticesPoppedOut(!isServerNoticesPoppedOut)
+              }
+              title={
+                isServerNoticesPoppedOut
+                  ? "Pop in server notices"
+                  : "Pop out server notices"
+              }
+            >
+              <FaExternalLinkAlt />
+            </button>
+            */}
+          </div>
+        )}
       </div>
 
       {/* Messages area */}
-      {selectedServer && !selectedChannel && !selectedPrivateChat && (
-        <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
-          <BlankPage /> {/* Render the blank page */}
-        </div>
-      )}
-      {(selectedChannel || selectedPrivateChat) && (
+      {selectedServer &&
+        !selectedChannel &&
+        !selectedPrivateChat &&
+        selectedChannelId !== "server-notices" && (
+          <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
+            <BlankPage /> {/* Render the blank page */}
+          </div>
+        )}
+      {(selectedChannel ||
+        selectedPrivateChat ||
+        selectedChannelId === "server-notices") && (
         <div
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
@@ -1487,75 +1975,111 @@ export const ChatArea: React.FC<{
             </div>
           ) : (
             // Show messages when not loading
-            eventGroups.map((group) => {
-              if (group.type === "eventGroup") {
-                // Create a stable key from the first and last message IDs in the group
-                const firstId = group.messages[0]?.id || "";
-                const lastId =
-                  group.messages[group.messages.length - 1]?.id || "";
-                const groupKey = `group-${firstId}-${lastId}`;
+            <>
+              {/* View older messages button */}
+              {hasMoreMessages && !searchQuery && (
+                <div className="flex justify-center py-4">
+                  <button
+                    onClick={() => setVisibleMessageCount((prev) => prev + 100)}
+                    className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
+                  >
+                    View older messages (
+                    {filteredMessages.length - displayedMessages.length} hidden)
+                  </button>
+                </div>
+              )}
+              {/* Search results indicator */}
+              {searchQuery && (
+                <div className="flex justify-center py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
+                  Found {filteredMessages.length} message
+                  {filteredMessages.length === 1 ? "" : "s"} matching "
+                  {searchQuery}"
+                </div>
+              )}
+              {eventGroups.map((group) => {
+                if (group.type === "eventGroup") {
+                  // Create a stable key from the first and last message IDs in the group
+                  const firstId = group.messages[0]?.id || "";
+                  const lastId =
+                    group.messages[group.messages.length - 1]?.id || "";
+                  const groupKey = `group-${firstId}-${lastId}`;
+
+                  return (
+                    <CollapsedEventMessage
+                      key={groupKey}
+                      eventGroup={group}
+                      users={selectedChannel?.users || []}
+                      onUsernameContextMenu={(
+                        e,
+                        username,
+                        serverId,
+                        channelId,
+                        avatarElement,
+                      ) =>
+                        handleUsernameClick(
+                          e,
+                          username,
+                          serverId,
+                          channelId,
+                          avatarElement,
+                        )
+                      }
+                    />
+                  );
+                }
+                // Single message - find its original index for date/header logic
+                const message = group.messages[0];
+                const originalIndex = channelMessages.findIndex(
+                  (m) => m.id === message.id,
+                );
+                const previousMessage = channelMessages[originalIndex - 1];
+                const showHeader =
+                  !previousMessage ||
+                  previousMessage.userId !== message.userId ||
+                  new Date(message.timestamp).getTime() -
+                    new Date(previousMessage.timestamp).getTime() >
+                    5 * 60 * 1000;
 
                 return (
-                  <CollapsedEventMessage
-                    key={groupKey}
-                    eventGroup={group}
-                    users={selectedChannel?.users || []}
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    showDate={
+                      originalIndex === 0 ||
+                      new Date(message.timestamp).toDateString() !==
+                        new Date(
+                          channelMessages[originalIndex - 1]?.timestamp,
+                        ).toDateString()
+                    }
+                    showHeader={showHeader}
+                    setReplyTo={setLocalReplyTo}
                     onUsernameContextMenu={(
                       e,
                       username,
                       serverId,
+                      channelId,
                       avatarElement,
                     ) =>
-                      handleUsernameClick(e, username, serverId, avatarElement)
+                      handleUsernameClick(
+                        e,
+                        username,
+                        serverId,
+                        channelId,
+                        avatarElement,
+                      )
                     }
+                    onIrcLinkClick={handleIrcLinkClick}
+                    onReactClick={handleReactClick}
+                    joinChannel={joinChannel}
+                    onReactionUnreact={handleReactionUnreact}
+                    onOpenReactionModal={handleOpenReactionModal}
+                    onDirectReaction={handleDirectReaction}
+                    users={selectedChannel?.users || []}
+                    onRedactMessage={handleRedactMessage}
                   />
                 );
-              }
-              // Single message - find its original index for date/header logic
-              const message = group.messages[0];
-              const originalIndex = channelMessages.findIndex(
-                (m) => m.id === message.id,
-              );
-              const previousMessage = channelMessages[originalIndex - 1];
-              const showHeader =
-                !previousMessage ||
-                previousMessage.userId !== message.userId ||
-                new Date(message.timestamp).getTime() -
-                  new Date(previousMessage.timestamp).getTime() >
-                  5 * 60 * 1000;
-
-              return (
-                <MessageItem
-                  key={message.id}
-                  message={message}
-                  showDate={
-                    originalIndex === 0 ||
-                    new Date(message.timestamp).toDateString() !==
-                      new Date(
-                        channelMessages[originalIndex - 1]?.timestamp,
-                      ).toDateString()
-                  }
-                  showHeader={showHeader}
-                  setReplyTo={setLocalReplyTo}
-                  onUsernameContextMenu={(
-                    e,
-                    username,
-                    serverId,
-                    avatarElement,
-                  ) =>
-                    handleUsernameClick(e, username, serverId, avatarElement)
-                  }
-                  onIrcLinkClick={handleIrcLinkClick}
-                  onReactClick={handleReactClick}
-                  selectedServerId={selectedServerId}
-                  onReactionUnreact={handleReactionUnreact}
-                  onOpenReactionModal={handleOpenReactionModal}
-                  onDirectReaction={handleDirectReaction}
-                  users={selectedChannel?.users || []}
-                  onRedactMessage={handleRedactMessage}
-                />
-              );
-            })
+              })}
+            </>
           )}
 
           <div ref={messagesEndRef} />
@@ -1615,11 +2139,7 @@ export const ChatArea: React.FC<{
               placeholder={
                 selectedChannel
                   ? `Message #${selectedChannel.name.replace(/^#/, "")}${
-                      globalSettings.enableMultilineInput &&
-                      !(
-                        "__TAURI__" in window &&
-                        ["android", "ios"].includes(platform())
-                      )
+                      globalSettings.enableMultilineInput && !isMobile
                         ? globalSettings.multilineOnShiftEnter
                           ? " (Shift+Enter for new line)"
                           : " (Enter for new line, Shift+Enter to send)"
@@ -1627,11 +2147,7 @@ export const ChatArea: React.FC<{
                     }`
                   : selectedPrivateChat
                     ? `Message @${selectedPrivateChat.username}${
-                        globalSettings.enableMultilineInput &&
-                        !(
-                          "__TAURI__" in window &&
-                          ["android", "ios"].includes(platform())
-                        )
+                        globalSettings.enableMultilineInput && !isMobile
                           ? globalSettings.multilineOnShiftEnter
                             ? " (Shift+Enter for new line)"
                             : " (Enter for new line, Shift+Enter to send)"
@@ -1719,6 +2235,16 @@ export const ChatArea: React.FC<{
                   Upload Image
                 </button>
               )}
+              <button
+                className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
+                onClick={() => {
+                  setIsGifSelectorOpen(true);
+                  setShowPlusMenu(false);
+                }}
+              >
+                <FaGift className="mr-2" />
+                Send a GIF
+              </button>
               {/* Add more menu items here if needed */}
             </div>
           )}
@@ -1756,6 +2282,16 @@ export const ChatArea: React.FC<{
               </div>,
               document.body,
             )}
+
+          <GifSelector
+            isOpen={isGifSelectorOpen}
+            onClose={() => setIsGifSelectorOpen(false)}
+            onSelectGif={(gifUrl) => {
+              // Send the GIF URL directly to the channel
+              handleGifSend(gifUrl);
+              setIsGifSelectorOpen(false);
+            }}
+          />
 
           {isColorPickerOpen && (
             <ColorPicker
@@ -1844,8 +2380,21 @@ export const ChatArea: React.FC<{
         y={userContextMenu.y}
         username={userContextMenu.username}
         serverId={userContextMenu.serverId}
+        channelId={userContextMenu.channelId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
+        onOpenProfile={handleOpenProfile}
+        currentUserStatus={userContextMenu.userStatusInChannel}
+        currentUsername={
+          ircClient.getCurrentUser(userContextMenu.serverId)?.username
+        }
+        onOpenModerationModal={(action) => {
+          setModerationModal({
+            isOpen: true,
+            action,
+            username: userContextMenu.username,
+          });
+        }}
       />
 
       <ReactionModal
@@ -1853,6 +2402,41 @@ export const ChatArea: React.FC<{
         onClose={handleCloseReactionModal}
         onSelectEmoji={handleReactionSelect}
       />
+
+      <ModerationModal
+        isOpen={moderationModal.isOpen}
+        onClose={handleCloseModerationModal}
+        onConfirm={handleModerationConfirm}
+        username={moderationModal.username}
+        action={moderationModal.action}
+      />
+
+      {selectedChannel && (
+        <ChannelSettingsModal
+          isOpen={channelSettingsModalOpen}
+          onClose={() => setChannelSettingsModalOpen(false)}
+          serverId={selectedServerId || ""}
+          channelName={selectedChannel.name}
+        />
+      )}
+
+      {selectedChannel && selectedServerId && (
+        <InviteUserModal
+          isOpen={inviteUserModalOpen}
+          onClose={() => setInviteUserModalOpen(false)}
+          serverId={selectedServerId}
+          channelName={selectedChannel.name}
+        />
+      )}
+
+      {selectedServerId && (
+        <UserProfileModal
+          isOpen={userProfileModalOpen}
+          onClose={() => setUserProfileModalOpen(false)}
+          serverId={selectedServerId}
+          username={selectedProfileUsername}
+        />
+      )}
 
       {/* Image Preview Dialog */}
       {imagePreview.isOpen && imagePreview.previewUrl && (
@@ -1914,6 +2498,97 @@ export const ChatArea: React.FC<{
           </div>
         </div>
       )}
+
+      {/* Popped out server notices window */}
+      {isServerNoticesPoppedOut &&
+        createPortal(
+          <div
+            className="fixed w-[600px] h-[500px] bg-discord-dark-200 border border-discord-dark-400 rounded-lg shadow-xl z-[10002] flex flex-col"
+            style={{
+              left: serverNoticesPopupPosition.x,
+              top: serverNoticesPopupPosition.y,
+            }}
+          >
+            <div
+              className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm bg-discord-dark-400 cursor-move"
+              onMouseDown={handleServerNoticesMouseDown}
+            >
+              <div className="flex items-center">
+                <FaList className="text-discord-text-muted mr-2" />
+                <h2 className="font-bold text-white">Server Notices</h2>
+              </div>
+              <button
+                className="text-discord-text-muted hover:text-discord-text-normal"
+                onClick={() => setIsServerNoticesPoppedOut(false)}
+                title="Close popped out server notices"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div
+              ref={serverNoticesScrollRef}
+              onScroll={handleServerNoticesScroll}
+              className="flex-grow overflow-y-auto p-4 space-y-2"
+            >
+              {(
+                messages[
+                  selectedServerId ? `${selectedServerId}-server-notices` : ""
+                ] || []
+              )
+                .filter((msg: MessageType) => msg.type === "notice")
+                .slice(-50) // Show last 50 messages
+                .map(
+                  (message: MessageType, index: number, arr: MessageType[]) => {
+                    const previousMessage = arr[index - 1];
+                    const showHeader =
+                      !previousMessage ||
+                      previousMessage.userId !== message.userId ||
+                      new Date(message.timestamp).getTime() -
+                        new Date(previousMessage.timestamp).getTime() >
+                        5 * 60 * 1000;
+
+                    return (
+                      <MessageItem
+                        key={message.id}
+                        message={message}
+                        showDate={
+                          index === 0 ||
+                          new Date(message.timestamp).toDateString() !==
+                            new Date(previousMessage?.timestamp).toDateString()
+                        }
+                        showHeader={showHeader}
+                        setReplyTo={setLocalReplyTo}
+                        onUsernameContextMenu={(
+                          e,
+                          username,
+                          serverId,
+                          channelId,
+                          avatarElement,
+                        ) =>
+                          handleUsernameClick(
+                            e,
+                            username,
+                            serverId,
+                            channelId,
+                            avatarElement,
+                          )
+                        }
+                        onIrcLinkClick={handleIrcLinkClick}
+                        onReactClick={handleReactClick}
+                        joinChannel={joinChannel}
+                        onReactionUnreact={handleReactionUnreact}
+                        onOpenReactionModal={handleOpenReactionModal}
+                        onDirectReaction={handleDirectReaction}
+                        users={selectedServer?.users || []}
+                        onRedactMessage={handleRedactMessage}
+                      />
+                    );
+                  },
+                )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

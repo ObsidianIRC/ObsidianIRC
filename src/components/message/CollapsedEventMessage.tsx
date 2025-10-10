@@ -15,6 +15,7 @@ interface CollapsedEventMessageProps {
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => void;
 }
@@ -27,6 +28,7 @@ export const CollapsedEventMessage: React.FC<CollapsedEventMessageProps> = ({
   const [showTooltip, setShowTooltip] = useState(false);
   const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const serverId = eventGroup.messages[0]?.serverId || "";
+  const channelId = eventGroup.messages[0]?.channelId || "";
   const ircCurrentUser = ircClient.getCurrentUser(serverId);
 
   if (eventGroup.type !== "eventGroup" || !eventGroup.usernames) {
@@ -64,7 +66,13 @@ export const CollapsedEventMessage: React.FC<CollapsedEventMessageProps> = ({
           {uniqueUsernames.slice(0, 3).map((username, index) => {
             const user = users.find((u) => u.username === username);
             const handleAvatarClick = (e: React.MouseEvent) => {
-              onUsernameContextMenu(e, username, serverId, e.currentTarget);
+              onUsernameContextMenu(
+                e,
+                username,
+                serverId,
+                channelId,
+                e.currentTarget,
+              );
             };
 
             return (

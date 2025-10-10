@@ -12,6 +12,7 @@ vi.mock("../../src/lib/ircClient", () => ({
     sendTyping: vi.fn(),
     on: vi.fn(),
     getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
+    getNick: vi.fn(() => "tester"),
     version: "1.0.0",
   },
 }));
@@ -135,6 +136,7 @@ describe("Metadata Display Features", () => {
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {
@@ -146,6 +148,10 @@ describe("Metadata Display Features", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       messages: {
         "server1-channel1": mockChannel.messages,
@@ -187,9 +193,9 @@ describe("Metadata Display Features", () => {
     it("should display status lightbulb for users with status", () => {
       render(<MemberList />);
 
-      // Alice and Charlie should have status lightbulbs
+      // Alice, Charlie, and current user should have status lightbulbs
       const lightbulbIcons = screen.getAllByText("💡");
-      expect(lightbulbIcons.length).toBe(2); // Alice and Charlie
+      expect(lightbulbIcons.length).toBe(2); // Alice, Charlie, and current user
     });
 
     it("should show status tooltip on hover", async () => {

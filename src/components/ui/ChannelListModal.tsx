@@ -1,6 +1,8 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FaTimes } from "react-icons/fa";
+import ircClient from "../../lib/ircClient";
+import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
 import useStore from "../../store";
 
 const ChannelListModal: React.FC = () => {
@@ -8,6 +10,7 @@ const ChannelListModal: React.FC = () => {
     servers,
     ui: { selectedServerId },
     channelList,
+    channelMetadataCache,
     listChannels,
     toggleChannelListModal,
     joinChannel,
@@ -17,10 +20,15 @@ const ChannelListModal: React.FC = () => {
   const rawChannels = selectedServerId
     ? channelList[selectedServerId] || []
     : [];
+  const metadataCache = selectedServerId
+    ? channelMetadataCache[selectedServerId] || {}
+    : {};
 
   const [isLoading, setIsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<"alpha" | "users">("alpha");
   const [filter, setFilter] = useState("");
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const channelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const filteredChannels = rawChannels
     .filter((channel) =>
@@ -32,6 +40,97 @@ const ChannelListModal: React.FC = () => {
       }
       return b.userCount - a.userCount;
     });
+
+  // Fetch metadata for visible channels
+  const fetchMetadataForChannels = useCallback(
+    (channelNames: string[]) => {
+      if (!selectedServerId || channelNames.length === 0) return;
+
+      // Use the store function to fetch metadata
+      // This function is defined in the store
+      const state = useStore.getState();
+      const now = Date.now();
+      const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+      const channelsToFetch = channelNames.filter((channelName) => {
+        const cached = metadataCache[channelName];
+        const queue = state.channelMetadataFetchQueue[selectedServerId];
+        const alreadyQueued = queue?.has(channelName);
+        const isCacheValid = cached && now - cached.fetchedAt < CACHE_TTL;
+        return !isCacheValid && !alreadyQueued;
+      });
+
+      if (channelsToFetch.length === 0) return;
+
+      // Add to queue
+      const queue =
+        state.channelMetadataFetchQueue[selectedServerId] || new Set();
+      const newQueue = new Set(queue);
+      for (const ch of channelsToFetch) {
+        newQueue.add(ch);
+      }
+
+      useStore.setState((state) => ({
+        channelMetadataFetchQueue: {
+          ...state.channelMetadataFetchQueue,
+          [selectedServerId]: newQueue,
+        },
+      }));
+
+      // Fetch metadata for each channel
+      channelsToFetch.forEach((channelName) => {
+        ircClient.metadataGet(selectedServerId, channelName, [
+          "avatar",
+          "display-name",
+        ]);
+      });
+    },
+    [selectedServerId, metadataCache],
+  );
+
+  // Setup IntersectionObserver
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const visibleChannels = entries
+          .filter((entry) => entry.isIntersecting)
+          .map((entry) => entry.target.getAttribute("data-channel"))
+          .filter((ch): ch is string => ch !== null);
+
+        if (visibleChannels.length > 0) {
+          fetchMetadataForChannels(visibleChannels);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "100px", // Start loading slightly before they come into view
+        threshold: 0.1,
+      },
+    );
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [fetchMetadataForChannels]);
+
+  // Observe channel elements
+  useEffect(() => {
+    if (!observerRef.current) return;
+
+    channelRefs.current.forEach((element) => {
+      observerRef.current?.observe(element);
+    });
+
+    return () => {
+      if (observerRef.current) {
+        channelRefs.current.forEach((element) => {
+          observerRef.current?.unobserve(element);
+        });
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedServerId) {
@@ -50,6 +149,17 @@ const ChannelListModal: React.FC = () => {
     if (selectedServerId) {
       joinChannel(selectedServerId, channelName);
       toggleChannelListModal(false); // Optionally close modal after joining
+    }
+  };
+
+  const setChannelRef = (
+    channelName: string,
+    element: HTMLDivElement | null,
+  ) => {
+    if (element) {
+      channelRefs.current.set(channelName, element);
+    } else {
+      channelRefs.current.delete(channelName);
     }
   };
 
@@ -92,25 +202,77 @@ const ChannelListModal: React.FC = () => {
           {filteredChannels.length === 0 && !isLoading && (
             <p className="text-gray-400">No channels found.</p>
           )}
-          {filteredChannels.map((channel) => (
-            <div
-              key={channel.channel}
-              className="bg-discord-dark-300 p-3 rounded flex justify-between items-center cursor-pointer hover:bg-discord-dark-400"
-              onClick={() => handleJoinChannel(channel.channel)}
-            >
-              <div>
-                <span className="text-white font-medium">
-                  {channel.channel}
+          {filteredChannels.map((channel) => {
+            const metadata = metadataCache[channel.channel];
+            const avatarUrl = metadata?.avatar
+              ? getChannelAvatarUrl(
+                  { avatar: { value: metadata.avatar, visibility: "public" } },
+                  32,
+                )
+              : null;
+            const displayName = metadata?.displayName;
+            const hasMetadata = !!(avatarUrl || displayName);
+
+            return (
+              <div
+                key={channel.channel}
+                ref={(el) => setChannelRef(channel.channel, el)}
+                data-channel={channel.channel}
+                className="bg-discord-dark-300 p-3 rounded flex justify-between items-center cursor-pointer hover:bg-discord-dark-400"
+                onClick={() => handleJoinChannel(channel.channel)}
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  {/* Channel icon */}
+                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={channel.channel}
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => {
+                          // Fallback to # icon if image fails to load
+                          e.currentTarget.style.display = "none";
+                          const fallback = e.currentTarget
+                            .nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = "block";
+                        }}
+                      />
+                    ) : null}
+                    <span
+                      className="text-gray-400 text-xl font-bold"
+                      style={{ display: avatarUrl ? "none" : "block" }}
+                    >
+                      #
+                    </span>
+                  </div>
+
+                  {/* Channel name and topic */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-white font-medium">
+                        {displayName ||
+                          getChannelDisplayName(channel.channel, {})}
+                      </span>
+                      {hasMetadata &&
+                        displayName &&
+                        displayName !== channel.channel.substring(1) && (
+                          <span className="text-xs bg-discord-dark-400 text-gray-300 px-2 py-0.5 rounded">
+                            {channel.channel}
+                          </span>
+                        )}
+                    </div>
+                    <p className="text-gray-400 text-sm">
+                      {channel.topic || "No topic"}
+                    </p>
+                  </div>
+                </div>
+
+                <span className="text-gray-400 text-sm flex-shrink-0 ml-2">
+                  {channel.userCount} users
                 </span>
-                <p className="text-gray-400 text-sm">
-                  {channel.topic || "No topic"}
-                </p>
               </div>
-              <span className="text-gray-400 text-sm">
-                {channel.userCount} users
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

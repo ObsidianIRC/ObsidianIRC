@@ -45,6 +45,7 @@ describe("Nickname retry functionality", () => {
         isChannelListVisible: true,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "chatView",
         isServerMenuOpen: false,
         contextMenu: {
@@ -56,6 +57,10 @@ describe("Nickname retry functionality", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       addGlobalNotification: vi.fn(),
     };
@@ -128,6 +133,7 @@ describe("Nickname retry functionality", () => {
         isChannelListVisible: true,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "chatView",
         isServerMenuOpen: false,
         contextMenu: {
@@ -139,6 +145,10 @@ describe("Nickname retry functionality", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       addGlobalNotification: vi.fn(),
     };

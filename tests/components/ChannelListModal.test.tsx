@@ -25,6 +25,9 @@ vi.mock("../../src/store", () => ({
         { channel: "#channel3", userCount: 5, topic: "Topic 3" },
       ],
     },
+    channelMetadataCache: {
+      server1: {},
+    },
     listingInProgress: {
       server1: false,
     },
@@ -44,9 +47,9 @@ describe("ChannelListModal", () => {
     render(<ChannelListModal />);
 
     expect(screen.getByText("Channel List - Test Server")).toBeInTheDocument();
-    expect(screen.getByText("#channel1")).toBeInTheDocument();
-    expect(screen.getByText("#channel2")).toBeInTheDocument();
-    expect(screen.getByText("#channel3")).toBeInTheDocument();
+    expect(screen.getByText("channel1")).toBeInTheDocument();
+    expect(screen.getByText("channel2")).toBeInTheDocument();
+    expect(screen.getByText("channel3")).toBeInTheDocument();
   });
 
   test("displays channel information correctly", () => {
@@ -66,9 +69,9 @@ describe("ChannelListModal", () => {
     const searchInput = screen.getByPlaceholderText("Filter channels...");
     fireEvent.change(searchInput, { target: { value: "channel1" } });
 
-    expect(screen.getByText("#channel1")).toBeInTheDocument();
-    expect(screen.queryByText("#channel2")).not.toBeInTheDocument();
-    expect(screen.queryByText("#channel3")).not.toBeInTheDocument();
+    expect(screen.getByText("channel1")).toBeInTheDocument();
+    expect(screen.queryByText("channel2")).not.toBeInTheDocument();
+    expect(screen.queryByText("channel3")).not.toBeInTheDocument();
   });
 
   test("sorts channels by user count", () => {
@@ -77,18 +80,18 @@ describe("ChannelListModal", () => {
     const sortSelect = screen.getByRole("combobox");
     fireEvent.change(sortSelect, { target: { value: "users" } });
 
-    // After sorting by users descending, #channel2 (20 users) should come first
-    const channelElements = screen.getAllByText(/^#channel/);
+    // After sorting by users descending, channel2 (20 users) should come first
+    const channelElements = screen.getAllByText(/^channel/);
     expect(channelElements).toHaveLength(3);
-    expect(channelElements[0]).toHaveTextContent("#channel2"); // 20 users
-    expect(channelElements[1]).toHaveTextContent("#channel1"); // 10 users
-    expect(channelElements[2]).toHaveTextContent("#channel3"); // 5 users
+    expect(channelElements[0]).toHaveTextContent("channel2"); // 20 users
+    expect(channelElements[1]).toHaveTextContent("channel1"); // 10 users
+    expect(channelElements[2]).toHaveTextContent("channel3"); // 5 users
   });
 
   test("joins channel when clicked", () => {
     render(<ChannelListModal />);
 
-    const channelDiv = screen.getByText("#channel1").closest("div");
+    const channelDiv = screen.getByText("channel1").closest("div");
     if (channelDiv) {
       fireEvent.click(channelDiv);
     }
@@ -100,7 +103,7 @@ describe("ChannelListModal", () => {
     render(<ChannelListModal />);
 
     // Should show channels by default
-    expect(screen.getByText("#channel1")).toBeInTheDocument();
+    expect(screen.getByText("channel1")).toBeInTheDocument();
   });
 
   test("closes modal when close button is clicked", () => {
@@ -116,7 +119,7 @@ describe("ChannelListModal", () => {
     render(<ChannelListModal />);
 
     // Should show channels by default
-    expect(screen.getByText("#channel1")).toBeInTheDocument();
+    expect(screen.getByText("channel1")).toBeInTheDocument();
   });
 
   test("shows filtered empty state", () => {

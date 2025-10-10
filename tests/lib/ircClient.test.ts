@@ -206,6 +206,124 @@ describe("IRCClient", () => {
         timestamp: expect.any(Date),
       });
     });
+
+    test("should parse MODE messages", async () => {
+      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+      );
+
+      mockSocket.simulateOpen();
+      const server = await connectionPromise;
+
+      // Set up event listener for MODE
+      let receivedMode: unknown;
+      const modePromise = new Promise<void>((resolve) => {
+        client.on("MODE", (mode) => {
+          receivedMode = mode;
+          resolve();
+        });
+      });
+
+      // Simulate receiving a MODE message for channel
+      mockSocket.simulateMessage(
+        ":ircuser!user@host MODE #testchannel +o nickname\r\n",
+      );
+
+      await modePromise;
+
+      expect(receivedMode).toEqual({
+        serverId: server.id,
+        mtags: undefined,
+        sender: "ircuser",
+        target: "#testchannel",
+        modestring: "+o",
+        modeargs: ["nickname"],
+      });
+    });
+
+    test("should parse MODE messages with multiple modes", async () => {
+      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+      );
+
+      mockSocket.simulateOpen();
+      const server = await connectionPromise;
+
+      // Set up event listener for MODE
+      let receivedMode: unknown;
+      const modePromise = new Promise<void>((resolve) => {
+        client.on("MODE", (mode) => {
+          receivedMode = mode;
+          resolve();
+        });
+      });
+
+      // Simulate receiving a MODE message with multiple modes
+      mockSocket.simulateMessage(
+        ":ircuser!user@host MODE #testchannel +ov-v nickname1 nickname2 nickname3\r\n",
+      );
+
+      await modePromise;
+
+      expect(receivedMode).toEqual({
+        serverId: server.id,
+        mtags: undefined,
+        sender: "ircuser",
+        target: "#testchannel",
+        modestring: "+ov-v",
+        modeargs: ["nickname1", "nickname2", "nickname3"],
+      });
+    });
+
+    test("should parse MODE messages for users", async () => {
+      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+      );
+
+      mockSocket.simulateOpen();
+      const server = await connectionPromise;
+
+      // Set up event listener for MODE
+      let receivedMode: unknown;
+      const modePromise = new Promise<void>((resolve) => {
+        client.on("MODE", (mode) => {
+          receivedMode = mode;
+          resolve();
+        });
+      });
+
+      // Simulate receiving a MODE message for user
+      mockSocket.simulateMessage(":testuser!user@host MODE testuser +i\r\n");
+
+      await modePromise;
+
+      expect(receivedMode).toEqual({
+        serverId: server.id,
+        mtags: undefined,
+        sender: "testuser",
+        target: "testuser",
+        modestring: "+i",
+        modeargs: [],
+      });
+    });
   });
 
   describe("channel operations", () => {
