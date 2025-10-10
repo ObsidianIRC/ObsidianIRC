@@ -12,6 +12,7 @@ vi.mock("../../src/store", () => {
       setState: mockSetState,
       getState: mockGetState,
     }),
+    serverSupportsMetadata: vi.fn(() => true),
   };
 });
 
@@ -26,6 +27,12 @@ const mockGetState = vi.mocked(useStore.getState);
 vi.mock("../../src/lib/ircClient", () => ({
   default: {
     sendRaw: vi.fn(),
+    getCurrentUser: vi.fn(() => ({
+      id: "test-user",
+      username: "tester",
+      modes: ["o"], // Make test user an operator
+    })),
+    getNick: vi.fn(() => "tester"),
   },
 }));
 
@@ -45,6 +52,15 @@ describe("ChannelSettingsModal", () => {
             ],
             exceptions: [],
             invites: [],
+            users: [
+              {
+                id: "test-user",
+                username: "tester",
+                modes: ["o"],
+                isOnline: true,
+              },
+              { id: "user2", username: "alice", modes: [], isOnline: true },
+            ],
           },
         ],
       },
@@ -65,6 +81,7 @@ describe("ChannelSettingsModal", () => {
     globalSettings: {
       enableNotifications: true,
       notificationSound: "default",
+      notificationVolume: 0.8,
     },
     ui: {
       selectedServerId: null,
@@ -252,6 +269,14 @@ describe("ChannelSettingsModal", () => {
                 bans: [],
                 exceptions: [],
                 invites: [],
+                users: [
+                  {
+                    id: "test-user",
+                    username: "tester",
+                    modes: ["o"],
+                    isOnline: true,
+                  },
+                ],
               },
             ],
           },

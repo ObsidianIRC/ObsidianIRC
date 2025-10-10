@@ -12,6 +12,7 @@ vi.mock("../../src/lib/ircClient", () => ({
     sendTyping: vi.fn(),
     on: vi.fn(),
     getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
+    getNick: vi.fn(() => "tester"),
     version: "1.0.0",
   },
 }));

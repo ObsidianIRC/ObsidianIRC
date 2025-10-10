@@ -73,6 +73,7 @@ describe("App", () => {
       globalSettings: {
         enableNotifications: true,
         notificationSound: "pop",
+        notificationVolume: 0.8,
         enableNotificationSounds: true,
         enableHighlights: true,
         sendTypingNotifications: true,

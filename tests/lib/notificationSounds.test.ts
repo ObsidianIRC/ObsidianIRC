@@ -68,6 +68,7 @@ describe("notificationSounds", () => {
     it("should not play sound if notification sounds are disabled", async () => {
       const globalSettings = {
         enableNotificationSounds: false,
+        notificationVolume: 0,
         notificationSound: "",
       };
 
@@ -80,6 +81,7 @@ describe("notificationSounds", () => {
     it("should play default beep sound when no custom sound is set", async () => {
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         notificationSound: "",
       };
 
@@ -94,6 +96,7 @@ describe("notificationSounds", () => {
       const globalSettings = {
         enableNotificationSounds: true,
         notificationSound: "custom-sound-url",
+        notificationVolume: 0.3,
       };
 
       await playNotificationSound(globalSettings);
@@ -106,6 +109,7 @@ describe("notificationSounds", () => {
     it("should handle audio playback errors gracefully", async () => {
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         notificationSound: "invalid-url",
       };
 
@@ -135,6 +139,7 @@ describe("notificationSounds", () => {
       };
       const globalSettings = {
         enableNotificationSounds: false,
+        notificationVolume: 0,
         enableHighlights: true,
         customMentions: [],
       };
@@ -155,6 +160,7 @@ describe("notificationSounds", () => {
       };
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         enableHighlights: true,
         customMentions: [],
       };
@@ -175,6 +181,7 @@ describe("notificationSounds", () => {
       };
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         enableHighlights: true,
         customMentions: [],
       };
@@ -195,6 +202,7 @@ describe("notificationSounds", () => {
       };
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         enableHighlights: true,
         customMentions: [],
       };
@@ -215,6 +223,7 @@ describe("notificationSounds", () => {
       };
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         enableHighlights: false,
         customMentions: [],
       };
@@ -235,6 +244,7 @@ describe("notificationSounds", () => {
       };
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         enableHighlights: true,
         customMentions: [],
       };
@@ -255,6 +265,7 @@ describe("notificationSounds", () => {
       };
       const globalSettings = {
         enableNotificationSounds: true,
+        notificationVolume: 0.8,
         enableHighlights: true,
         customMentions: [],
       };

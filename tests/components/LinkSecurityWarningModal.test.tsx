@@ -124,6 +124,7 @@ describe("LinkSecurityWarningModal", () => {
       globalSettings: {
         enableNotifications: true,
         notificationSound: "default",
+        notificationVolume: 0.8,
         skipLinkSecurityWarnings: false,
         skipLocalhostWarnings: false,
       },

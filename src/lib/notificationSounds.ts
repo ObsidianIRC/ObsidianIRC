@@ -6,9 +6,10 @@
 export const playNotificationSound = async (globalSettings: {
   enableNotificationSounds: boolean;
   notificationSound: string;
+  notificationVolume: number;
 }) => {
-  // Check if notification sounds are enabled
-  if (!globalSettings.enableNotificationSounds) {
+  // Check if notification sounds are enabled and volume is not muted
+  if (!globalSettings.enableNotificationSounds || globalSettings.notificationVolume === 0) {
     return;
   }
 
@@ -34,13 +35,15 @@ export const playNotificationSound = async (globalSettings: {
       oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
       oscillator.type = "sine";
 
+      // Apply the volume setting to the gain
+      const volumeMultiplier = globalSettings.notificationVolume;
       gainNode.gain.setValueAtTime(0, audioContext.currentTime);
       gainNode.gain.linearRampToValueAtTime(
-        0.1,
+        0.1 * volumeMultiplier,
         audioContext.currentTime + 0.01,
       );
       gainNode.gain.exponentialRampToValueAtTime(
-        0.01,
+        0.01 * volumeMultiplier,
         audioContext.currentTime + 0.5,
       );
 
@@ -50,7 +53,7 @@ export const playNotificationSound = async (globalSettings: {
     }
 
     const audio = new Audio(audioSrc);
-    audio.volume = 0.3; // Set reasonable volume for notifications
+    audio.volume = globalSettings.notificationVolume; // Use the volume setting
     await audio.play();
   } catch (error) {
     console.error("Failed to play notification sound:", error);
@@ -65,11 +68,12 @@ export const shouldPlayNotificationSound = (
   globalSettings: {
     enableHighlights: boolean;
     enableNotificationSounds: boolean;
+    notificationVolume: number;
     customMentions: string[];
   },
 ): boolean => {
-  // Don't play sound if notification sounds are disabled
-  if (!globalSettings.enableNotificationSounds) {
+  // Don't play sound if notification sounds are disabled or volume is muted
+  if (!globalSettings.enableNotificationSounds || globalSettings.notificationVolume === 0) {
     return false;
   }
 

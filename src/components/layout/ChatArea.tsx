@@ -8,6 +8,7 @@ import {
   FaArrowDown,
   FaAt,
   FaBell,
+  FaBellSlash,
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
@@ -358,6 +359,30 @@ export const ChatArea: React.FC<{
       port: parsed.port.toString(),
       nickname: parsed.nick || "user",
     });
+  };
+
+  // Toggle notification sound volume
+  const handleToggleNotificationVolume = async () => {
+    const currentVolume = globalSettings.notificationVolume;
+    const newVolume = currentVolume > 0 ? 0 : 0.4; // Toggle between 0 (muted) and 0.4 (40%)
+    
+    useStore.getState().updateGlobalSettings({
+      notificationVolume: newVolume,
+    });
+    
+    // Play test sound when enabling (not when disabling)
+    if (newVolume > 0) {
+      try {
+        const audio = new Audio();
+        audio.volume = newVolume;
+        audio.src = "/sounds/notif2.mp3";
+        // Wait for the audio to be loaded before playing
+        audio.load();
+        await audio.play();
+      } catch (error) {
+        console.error("Failed to play notification sound:", error);
+      }
+    }
   };
 
   // Load saved settings from local storage on mount
@@ -1676,11 +1701,11 @@ export const ChatArea: React.FC<{
           {selectedChannel && (
             <div className="flex flex-col min-w-0 flex-1 md:flex-row md:items-center">
               <div className="flex items-center min-w-0 flex-shrink-0">
-                {getChannelAvatarUrl(selectedChannel.metadata, 20) ? (
+                {getChannelAvatarUrl(selectedChannel.metadata, 50) ? (
                   <img
-                    src={getChannelAvatarUrl(selectedChannel.metadata, 20)}
+                    src={getChannelAvatarUrl(selectedChannel.metadata, 50)}
                     alt={selectedChannel.name}
-                    className="w-5 h-5 rounded-full object-cover mr-2 flex-shrink-0"
+                    className="w-12 h-12 rounded-full object-cover mr-2 flex-shrink-0"
                     onError={(e) => {
                       // Fallback to # icon on error
                       e.currentTarget.style.display = "none";
@@ -1696,9 +1721,9 @@ export const ChatArea: React.FC<{
                   />
                 ) : null}
                 <FaHashtag
-                  className="text-discord-text-muted mr-2 fallback-hash-icon flex-shrink-0"
+                  className="text-discord-text-muted mr-2 fallback-hash-icon flex-shrink-0 text-3xl"
                   style={{
-                    display: getChannelAvatarUrl(selectedChannel.metadata, 20)
+                    display: getChannelAvatarUrl(selectedChannel.metadata, 50)
                       ? "none"
                       : "inline-block",
                   }}
@@ -1808,8 +1833,20 @@ export const ChatArea: React.FC<{
         </div>
         {!!selectedServerId && selectedChannelId !== "server-notices" && (
           <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
-            <button className="hover:text-discord-text-normal">
-              <FaBell />
+            <button
+              className="hover:text-discord-text-normal"
+              onClick={handleToggleNotificationVolume}
+              title={
+                globalSettings.notificationVolume > 0
+                  ? "Mute notifications"
+                  : "Enable notifications"
+              }
+            >
+              {globalSettings.notificationVolume > 0 ? (
+                <FaBell />
+              ) : (
+                <FaBellSlash />
+              )}
             </button>
             {selectedChannel && (
               <button

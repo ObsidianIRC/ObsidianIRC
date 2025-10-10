@@ -25,12 +25,16 @@ import type {
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 const LOCAL_STORAGE_SETTINGS_KEY = "globalSettings";
+const LOCAL_STORAGE_CHANNEL_ORDER_KEY = "channelOrder";
 
 // Type for saved metadata structure: serverId -> target -> key -> metadata
 type SavedMetadata = Record<
   string,
   Record<string, Record<string, { value: string; visibility: string }>>
 >;
+
+// Type for channel order: serverId -> array of channel names in order
+type ChannelOrderMap = Record<string, string[]>;
 
 // Types for batch event processing
 interface JoinBatchEvent {
@@ -120,6 +124,21 @@ function loadSavedGlobalSettings(): Partial<GlobalSettings> {
 // Save global settings to localStorage
 function saveGlobalSettingsToLocalStorage(settings: GlobalSettings) {
   localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+// Load channel order from localStorage
+function loadChannelOrder(): ChannelOrderMap {
+  return JSON.parse(
+    localStorage.getItem(LOCAL_STORAGE_CHANNEL_ORDER_KEY) || "{}",
+  );
+}
+
+// Save channel order to localStorage
+function saveChannelOrder(channelOrder: ChannelOrderMap) {
+  localStorage.setItem(
+    LOCAL_STORAGE_CHANNEL_ORDER_KEY,
+    JSON.stringify(channelOrder),
+  );
 }
 
 // Check if a server supports metadata
@@ -359,6 +378,7 @@ export interface GlobalSettings {
   enableNotifications: boolean;
   notificationSound: string;
   enableNotificationSounds: boolean;
+  notificationVolume: number; // 0-1, where 0 is muted
   enableHighlights: boolean;
   sendTypingNotifications: boolean;
   // Event visibility settings
@@ -442,6 +462,8 @@ export interface AppState {
     email: string;
     password: string;
   } | null;
+  // Channel order persistence
+  channelOrder: ChannelOrderMap; // serverId -> ordered array of channel names
   // UI state
   ui: UIState;
   globalSettings: GlobalSettings;
@@ -532,6 +554,7 @@ export interface AppState {
   openPrivateChat: (serverId: string, username: string) => void;
   deletePrivateChat: (serverId: string, privateChatId: string) => void;
   markChannelAsRead: (serverId: string, channelId: string) => void;
+  reorderChannels: (serverId: string, channelIds: string[]) => void;
   connectToSavedServers: () => void; // New action to load servers from localStorage
   deleteServer: (serverId: string) => void; // New action to delete a server
   capAck: (serverId: string, key: string, capabilities: string) => void; // Handle CAP ACK
@@ -608,6 +631,7 @@ const useStore = create<AppState>((set, get) => ({
   metadataFetchInProgress: {},
   whoisData: {},
   pendingRegistration: null,
+  channelOrder: loadChannelOrder(),
   selectedServerId: null,
 
   // UI state
@@ -647,6 +671,7 @@ const useStore = create<AppState>((set, get) => ({
     enableNotifications: false,
     notificationSound: "/sounds/notif1.mp3",
     enableNotificationSounds: true,
+    notificationVolume: 0.4, // 40% volume by default
     enableHighlights: true,
     sendTypingNotifications: true,
     // Event visibility settings (enabled by default)
@@ -873,6 +898,30 @@ const useStore = create<AppState>((set, get) => ({
           saveServersToLocalStorage(savedServers);
         }
 
+        // Update channelOrder state to include the new channel
+        const currentOrder = state.channelOrder[serverId] || [];
+        if (!currentOrder.includes(channel.name)) {
+          const newChannelOrder = {
+            ...state.channelOrder,
+            [serverId]: [...currentOrder, channel.name],
+          };
+          saveChannelOrder(newChannelOrder);
+          
+          // Update the selected channel if the server matches the current selection
+          const isCurrentServer = state.ui.selectedServerId === serverId;
+
+          return {
+            servers: updatedServers,
+            channelOrder: newChannelOrder,
+            ui: {
+              ...state.ui,
+              selectedChannelId: isCurrentServer
+                ? channel.id
+                : state.ui.selectedChannelId,
+            },
+          };
+        }
+
         // Update the selected channel if the server matches the current selection
         const isCurrentServer = state.ui.selectedServerId === serverId;
 
@@ -916,7 +965,18 @@ const useStore = create<AppState>((set, get) => ({
         saveServersToLocalStorage(savedServers);
       }
 
-      return { servers: updatedServers };
+      // Update channelOrder to remove the channel
+      const currentOrder = state.channelOrder[serverId] || [];
+      const newChannelOrder = {
+        ...state.channelOrder,
+        [serverId]: currentOrder.filter((name) => name !== channelName),
+      };
+      saveChannelOrder(newChannelOrder);
+      
+      return { 
+        servers: updatedServers,
+        channelOrder: newChannelOrder,
+      };
     });
   },
 
@@ -1195,6 +1255,47 @@ const useStore = create<AppState>((set, get) => ({
       return {
         servers: updatedServers,
       };
+    });
+  },
+
+  reorderChannels: (serverId, channelIds) => {
+    set((state) => {
+      // Also update the savedServer.channels array to match the new order
+      const server = state.servers.find((s) => s.id === serverId);
+      if (server) {
+        const savedServers = loadSavedServers();
+        const savedServer = savedServers.find(
+          (s) => s.host === server.host && s.port === server.port,
+        );
+        
+        if (savedServer) {
+          // Convert channel IDs to channel names in the correct order
+          const channelNames = channelIds
+            .map((id) => {
+              const channel = server.channels.find((c) => c.id === id);
+              return channel?.name;
+            })
+            .filter((name): name is string => name !== undefined);
+          
+          savedServer.channels = channelNames;
+          saveServersToLocalStorage(savedServers);
+          
+          // Store channel names in channelOrder state (not IDs)
+          const newChannelOrder = {
+            ...state.channelOrder,
+            [serverId]: channelNames,
+          };
+          
+          saveChannelOrder(newChannelOrder);
+          
+          return {
+            channelOrder: newChannelOrder,
+          };
+        }
+      }
+      
+      // Fallback if server not found
+      return {};
     });
   },
 
@@ -3136,7 +3237,20 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
   const savedServer = savedServers.find((s) => s.id === serverId);
 
   if (savedServer) {
-    for (const channelName of savedServer.channels) {
+    // Get the saved channel order for this server
+    const savedChannelOrder = useStore.getState().channelOrder[serverId];
+    
+    // If we have a saved order, use it to determine join sequence
+    let channelsToJoin: string[] = savedServer.channels;
+    
+    if (savedChannelOrder && savedChannelOrder.length > 0) {
+      // Map channel IDs to channel names using the saved order
+      // Note: savedChannelOrder has IDs, but we need names for joining
+      // We'll join in the order from savedServer.channels which should already be ordered
+      channelsToJoin = savedServer.channels;
+    }
+    
+    for (const channelName of channelsToJoin) {
       if (channelName) {
         useStore.getState().joinChannel(serverId, channelName);
       }

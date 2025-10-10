@@ -31,6 +31,7 @@ export const ChannelList: React.FC<{
     deletePrivateChat,
     toggleUserProfileModal,
     setMobileViewActiveColumn,
+    reorderChannels,
   } = useStore();
 
   const selectedServerId = useStore((state) => state.ui.selectedServerId);
@@ -83,6 +84,8 @@ export const ChannelList: React.FC<{
   const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
     useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
+  const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(null);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
@@ -105,6 +108,42 @@ export const ChannelList: React.FC<{
     return "online";
   }, [selectedServer]);
 
+  // Get channel order from store
+  const channelOrder = useStore((state) => state.channelOrder);
+
+  // Sort channels by saved order, falling back to join order
+  const sortedChannels = useMemo(() => {
+    if (!selectedServer || !selectedServerId) return [];
+    
+    const savedOrder = channelOrder[selectedServerId];
+    const channels = selectedServer.channels;
+    
+    if (!savedOrder || savedOrder.length === 0) {
+      // No saved order, return channels in join order
+      return channels;
+    }
+    
+    // Sort channels by saved order (which now contains channel names)
+    const sorted = [...channels].sort((a, b) => {
+      const indexA = savedOrder.indexOf(a.name);
+      const indexB = savedOrder.indexOf(b.name);
+      
+      // If both channels are in the saved order, sort by index
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+      
+      // If only one channel is in the saved order, it comes first
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      
+      // If neither channel is in the saved order, maintain original order
+      return 0;
+    });
+    
+    return sorted;
+  }, [selectedServer, selectedServerId, channelOrder]);
+
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
       const channelName = newChannelName.trim().startsWith("#")
@@ -121,6 +160,61 @@ export const ChannelList: React.FC<{
       e.preventDefault();
       handleAddChannel();
     }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, channelId: string) => {
+    setDraggedChannelId(channelId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", e.currentTarget.innerHTML);
+  };
+
+  const handleDragOver = (e: React.DragEvent, channelId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverChannelId(channelId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverChannelId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetChannelId: string) => {
+    e.preventDefault();
+    
+    if (!draggedChannelId || !selectedServerId || draggedChannelId === targetChannelId) {
+      setDraggedChannelId(null);
+      setDragOverChannelId(null);
+      return;
+    }
+
+    // Get the current order of non-private channels
+    const nonPrivateChannels = sortedChannels.filter((c) => !c.isPrivate);
+    const draggedIndex = nonPrivateChannels.findIndex((c) => c.id === draggedChannelId);
+    const targetIndex = nonPrivateChannels.findIndex((c) => c.id === targetChannelId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedChannelId(null);
+      setDragOverChannelId(null);
+      return;
+    }
+
+    // Reorder the channels
+    const reordered = [...nonPrivateChannels];
+    const [removed] = reordered.splice(draggedIndex, 1);
+    reordered.splice(targetIndex, 0, removed);
+
+    // Update the store with the new order
+    const newOrder = reordered.map((c) => c.id);
+    reorderChannels(selectedServerId, newOrder);
+
+    setDraggedChannelId(null);
+    setDragOverChannelId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedChannelId(null);
+    setDragOverChannelId(null);
   };
 
   const isNarrowView = useMediaQuery();
@@ -234,7 +328,7 @@ export const ChannelList: React.FC<{
 
               {isTextChannelsOpen && (
                 <div className="ml-2">
-                  {selectedServer.channels
+                  {sortedChannels
                     .filter(
                       (channel, index, self) =>
                         index === self.findIndex((c) => c.id === channel.id), // Ensure unique channels by ID
@@ -257,18 +351,37 @@ export const ChannelList: React.FC<{
                         ]}
                       >
                         <div
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, channel.id)}
+                          onDragOver={(e) => handleDragOver(e, channel.id)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, channel.id)}
+                          onDragEnd={handleDragEnd}
                           className={`
                           px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
-                          ${selectedChannelId === channel.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                          transition-all duration-200 ease-in-out
+                          ${selectedChannelId === channel.id ? "bg-discord-dark-400 text-white -ml-2" : "hover:bg-discord-dark-100 hover:text-discord-channels-active ml-0"}
+                          ${draggedChannelId === channel.id ? "opacity-50" : ""}
+                          ${dragOverChannelId === channel.id && draggedChannelId !== channel.id ? "border-t-2 border-discord-blurple" : ""}
                         `}
                           onClick={() => selectChannel(channel.id)}
                         >
                           <div className="flex items-center gap-2 truncate">
-                            {getChannelAvatarUrl(channel.metadata, 16) ? (
+                            {getChannelAvatarUrl(
+                              channel.metadata,
+                              selectedChannelId === channel.id ? 32 : 16,
+                            ) ? (
                               <img
-                                src={getChannelAvatarUrl(channel.metadata, 16)}
+                                src={getChannelAvatarUrl(
+                                  channel.metadata,
+                                  selectedChannelId === channel.id ? 32 : 16,
+                                )}
                                 alt={channel.name}
-                                className="w-4 h-4 rounded-full object-cover shrink-0"
+                                className={`rounded-full object-cover shrink-0 ${
+                                  selectedChannelId === channel.id
+                                    ? "w-8 h-8"
+                                    : "w-4 h-4"
+                                }`}
                                 onError={(e) => {
                                   // Fallback to # icon on error
                                   e.currentTarget.style.display = "none";
@@ -285,11 +398,15 @@ export const ChannelList: React.FC<{
                               />
                             ) : null}
                             <FaHashtag
-                              className="shrink-0 fallback-hash-icon"
+                              className={`shrink-0 fallback-hash-icon ${
+                                selectedChannelId === channel.id
+                                  ? "text-2xl"
+                                  : ""
+                              }`}
                               style={{
                                 display: getChannelAvatarUrl(
                                   channel.metadata,
-                                  16,
+                                  selectedChannelId === channel.id ? 32 : 16,
                                 )
                                   ? "none"
                                   : "inline-block",
@@ -442,12 +559,19 @@ export const ChannelList: React.FC<{
                       <div
                         className={`
                           px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
-                          ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                          transition-all duration-200 ease-in-out
+                          ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white -ml-2" : "hover:bg-discord-dark-100 hover:text-discord-channels-active ml-0"}
                         `}
                         onClick={() => selectPrivateChat(privateChat.id)}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <FaUser className="shrink-0" />
+                          <FaUser
+                            className={`shrink-0 ${
+                              selectedPrivateChatId === privateChat.id
+                                ? "text-2xl"
+                                : ""
+                            }`}
+                          />
                           <span className="truncate">
                             {privateChat.username}
                           </span>
@@ -500,12 +624,17 @@ export const ChannelList: React.FC<{
                 <div
                   className={`
                     px-2 py-1 mb-1 rounded flex items-center cursor-pointer
-                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                    transition-all duration-200 ease-in-out
+                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white -ml-2" : "hover:bg-discord-dark-100 hover:text-discord-channels-active ml-0"}
                   `}
                   onClick={() => selectChannel("server-notices")}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <FaHashtag className="shrink-0" />
+                    <FaHashtag
+                      className={`shrink-0 ${
+                        selectedChannelId === "server-notices" ? "text-2xl" : ""
+                      }`}
+                    />
                     <span className="truncate">Server Notices</span>
                   </div>
                 </div>
