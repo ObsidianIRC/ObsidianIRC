@@ -12,6 +12,7 @@ vi.mock("../../src/lib/ircClient", () => ({
     sendTyping: vi.fn(),
     on: vi.fn(),
     getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
+    getNick: vi.fn(() => "tester"),
     version: "1.0.0",
   },
 }));
@@ -73,6 +74,7 @@ describe("ChatArea Tab Completion Integration", () => {
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {
@@ -84,6 +86,10 @@ describe("ChatArea Tab Completion Integration", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       messages: {},
       typingUsers: {},

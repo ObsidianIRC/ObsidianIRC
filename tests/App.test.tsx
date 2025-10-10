@@ -52,6 +52,7 @@ describe("App", () => {
         isChannelListVisible: true,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {
@@ -63,11 +64,16 @@ describe("App", () => {
         },
         prefillServerDetails: null,
         inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       globalNotifications: [],
       globalSettings: {
         enableNotifications: true,
         notificationSound: "pop",
+        notificationVolume: 0.8,
         enableNotificationSounds: true,
         enableHighlights: true,
         sendTypingNotifications: true,
@@ -75,6 +81,7 @@ describe("App", () => {
         showNickChanges: true,
         showJoinsParts: true,
         showQuits: true,
+        showKicks: true,
         customMentions: [],
         ignoreList: ["HistServ!*@*"],
         nickname: "",

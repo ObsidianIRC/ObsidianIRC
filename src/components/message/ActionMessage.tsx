@@ -10,6 +10,7 @@ interface ActionMessageProps {
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => void;
 }
@@ -60,6 +61,7 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
               e,
               username,
               message.serverId,
+              message.channelId,
               e.currentTarget,
             );
           }}

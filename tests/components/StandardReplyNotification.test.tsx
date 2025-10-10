@@ -46,11 +46,11 @@ describe("StandardReplyNotification", () => {
     ).toBeInTheDocument();
 
     // Check FAIL-specific styling (red colors) - find the main container by class
-    const mainContainer = document.querySelector(".bg-red-50");
-    expect(mainContainer).toHaveClass("bg-red-50", "border-red-200");
+    const mainContainer = document.querySelector(".bg-red-100");
+    expect(mainContainer).toHaveClass("bg-red-100", "border-red-300");
     expect(mainContainer).toHaveClass(
-      "dark:bg-red-950/20",
-      "dark:border-red-800",
+      "dark:bg-red-950/50",
+      "dark:border-red-700",
     );
 
     // Check that the red icon is present (FaTimesCircle)
@@ -74,11 +74,11 @@ describe("StandardReplyNotification", () => {
     ).toBeInTheDocument();
 
     // Check WARN-specific styling (yellow colors)
-    const mainContainer = document.querySelector(".bg-yellow-50");
-    expect(mainContainer).toHaveClass("bg-yellow-50", "border-yellow-200");
+    const mainContainer = document.querySelector(".bg-yellow-100");
+    expect(mainContainer).toHaveClass("bg-yellow-100", "border-yellow-300");
     expect(mainContainer).toHaveClass(
-      "dark:bg-yellow-950/20",
-      "dark:border-yellow-800",
+      "dark:bg-yellow-950/50",
+      "dark:border-yellow-700",
     );
   });
 
@@ -96,11 +96,11 @@ describe("StandardReplyNotification", () => {
     ).toBeInTheDocument();
 
     // Check NOTE-specific styling (blue colors)
-    const mainContainer = document.querySelector(".bg-blue-50");
-    expect(mainContainer).toHaveClass("bg-blue-50", "border-blue-200");
+    const mainContainer = document.querySelector(".bg-blue-100");
+    expect(mainContainer).toHaveClass("bg-blue-100", "border-blue-300");
     expect(mainContainer).toHaveClass(
-      "dark:bg-blue-950/20",
-      "dark:border-blue-800",
+      "dark:bg-blue-950/50",
+      "dark:border-blue-700",
     );
   });
 

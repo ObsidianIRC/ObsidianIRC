@@ -5,10 +5,12 @@ import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
+import { InviteMessage } from "./InviteMessage";
 import {
   ActionMessage,
   DateSeparator,
   EventMessage,
+  JsonLogMessage,
   LinkPreview,
   MessageActions,
   MessageAvatar,
@@ -17,30 +19,96 @@ import {
   MessageReply,
   StandardReplyNotification,
   SystemMessage,
+  WhisperMessage,
 } from "./index";
 
 // Component to render image with fallback to URL if loading fails
 const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
 
   // Simple in-memory cache for images per session
   const imageCache = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
-    // Cache the image in background for future use
-    if (!imageCache.current.has(url)) {
-      fetch(url)
-        .then((response) => response.blob())
-        .then((blob) => {
-          const objectUrl = URL.createObjectURL(blob);
-          imageCache.current.set(url, objectUrl);
-        })
-        .catch(() => {
-          // Ignore cache errors
-        });
-    }
+    const resolveTenorUrl = async (sharingUrl: string) => {
+      try {
+        // Extract ID from Tenor sharing URL: https://tenor.com/view/slug-gif-ID
+        const match = sharingUrl.match(/tenor\.com\/view\/.*-gif-(\d+)/);
+        if (!match) return sharingUrl;
+
+        const gifId = match[1];
+        const apiKey = import.meta.env.VITE_TENOR_API_KEY;
+
+        if (!apiKey) return sharingUrl; // Fallback to original URL if no API key
+
+        // Use Tenor API to get the GIF data
+        const response = await fetch(
+          `https://tenor.googleapis.com/v2/posts?ids=${gifId}&key=${apiKey}`,
+        );
+
+        if (!response.ok) return sharingUrl;
+
+        const data = await response.json();
+        if (data.results?.[0]?.media_formats) {
+          // Prefer gif format, fallback to other formats
+          const media = data.results[0].media_formats;
+          return (
+            media.gif?.url ||
+            media.mediumgif?.url ||
+            media.tinygif?.url ||
+            sharingUrl
+          );
+        }
+      } catch (error) {
+        console.warn("Failed to resolve Tenor URL:", error);
+      }
+      return sharingUrl;
+    };
+
+    const processUrl = async () => {
+      let finalUrl = url;
+
+      // Check if this is a Tenor sharing URL that needs resolution
+      if (url.match(/tenor\.com\/view\//)) {
+        finalUrl = await resolveTenorUrl(url);
+        setResolvedUrl(finalUrl);
+      } else {
+        setResolvedUrl(url);
+      }
+
+      // Cache the image in background for future use
+      if (!imageCache.current.has(finalUrl)) {
+        fetch(finalUrl)
+          .then((response) => response.blob())
+          .then((blob) => {
+            const objectUrl = URL.createObjectURL(blob);
+            imageCache.current.set(finalUrl, objectUrl);
+          })
+          .catch(() => {
+            // Ignore cache errors
+          });
+      }
+    };
+
+    processUrl();
   }, [url]);
+
+  const displayUrl = resolvedUrl || url;
+
+  if (imageError) {
+    // Fallback to showing expired badge
+    return (
+      <div className="max-w-md">
+        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 border border-red-200">
+            <span>This image has expired</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (imageError) {
     // Fallback to showing expired badge
@@ -58,12 +126,12 @@ const ImageWithFallback: React.FC<{ url: string }> = ({ url }) => {
   return (
     <div className="max-w-md">
       <img
-        src={url}
-        alt="Uploaded image"
+        src={displayUrl}
+        alt="GIF"
         className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
         onClick={(e) => {
           e.preventDefault();
-          window.open(url, "_blank");
+          window.open(url, "_blank"); // Always open original URL for sharing
         }}
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
@@ -82,11 +150,12 @@ interface MessageItemProps {
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => void;
   onIrcLinkClick?: (url: string) => void;
   onReactClick: (message: MessageType, buttonElement: Element) => void;
-  selectedServerId: string | null;
+  joinChannel?: (serverId: string, channelName: string) => void;
   onReactionUnreact: (emoji: string, message: MessageType) => void;
   onOpenReactionModal: (
     message: MessageType,
@@ -105,7 +174,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onUsernameContextMenu,
   onIrcLinkClick,
   onReactClick,
-  selectedServerId,
+  joinChannel,
   onReactionUnreact,
   onOpenReactionModal,
   onDirectReaction,
@@ -154,13 +223,55 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
       message.content.includes("/upload/")); // fallback for upload URLs
 
+  // Check if message is just a GIF URL from GIPHY or Tenor
+  const isGifUrl =
+    message.content.trim() === message.content &&
+    (message.content.match(/media\d*\.giphy\.com\/media\//) ||
+      message.content.includes("media.tenor.com/") ||
+      message.content.includes("tenor.googleapis.com/") ||
+      message.content.match(/tenor\.com\/view\//)) &&
+    (message.content.match(/\.(gif)$/i) ||
+      message.content.includes("/giphy.gif") ||
+      message.content.includes("/tinygif") ||
+      message.content.match(/tenor\.com\/view\//));
+
   // Handle system messages
   if (isSystem) {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
   }
 
-  // Handle event messages (join, part, quit, nick)
-  if (["join", "part", "quit", "nick"].includes(message.type)) {
+  // Handle whisper messages (messages with draft/channel-context tag)
+  // Note: Client tags use + prefix
+  if (
+    message.tags?.["draft/channel-context"] ||
+    message.tags?.["+draft/channel-context"]
+  ) {
+    return (
+      <>
+        {showDate && (
+          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+        )}
+        <WhisperMessage
+          message={message}
+          showDate={showDate}
+          showHeader={showHeader}
+          messageUser={messageUser}
+          setReplyTo={setReplyTo}
+          onUsernameContextMenu={onUsernameContextMenu}
+          onIrcLinkClick={onIrcLinkClick}
+          onReactClick={onReactClick}
+          onReactionUnreact={onReactionUnreact}
+          onDirectReaction={onDirectReaction}
+          onRedactMessage={onRedactMessage}
+          canRedact={canRedact}
+          ircCurrentUser={ircCurrentUser || undefined}
+        />
+      </>
+    );
+  }
+
+  // Handle event messages (join, part, quit, nick, mode, kick)
+  if (["join", "part", "quit", "nick", "mode", "kick"].includes(message.type)) {
     return (
       <>
         {showDate && (
@@ -172,6 +283,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           users={users}
           showDate={showDate}
           onUsernameContextMenu={onUsernameContextMenu}
+        />
+      </>
+    );
+  }
+
+  // Handle invite messages
+  if (message.type === "invite") {
+    return (
+      <>
+        {showDate && (
+          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+        )}
+        <InviteMessage
+          message={message}
+          messageUser={messageUser}
+          onUsernameContextMenu={onUsernameContextMenu}
+          joinChannel={joinChannel}
         />
       </>
     );
@@ -222,6 +350,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     );
   }
 
+  // Handle JSON log notices
+  if (message.type === "notice" && message.jsonLogData) {
+    return (
+      <JsonLogMessage
+        message={message}
+        showDate={showDate}
+        messageUser={messageUser}
+        onUsernameContextMenu={onUsernameContextMenu}
+        onIrcLinkClick={onIrcLinkClick}
+        joinChannel={joinChannel}
+      />
+    );
+  }
+
   // Handle regular messages
   const handleReactionClick = (emoji: string, currentUserReacted: boolean) => {
     if (currentUserReacted) {
@@ -233,7 +375,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
   const handleAvatarClick = (e: React.MouseEvent) => {
     if (message.userId !== "system") {
-      onUsernameContextMenu(e, username, message.serverId, e.currentTarget);
+      onUsernameContextMenu(
+        e,
+        username,
+        message.serverId,
+        message.channelId,
+        e.currentTarget,
+      );
     }
   };
 
@@ -242,7 +390,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       // Find the avatar element to position menu over it
       const messageElement = e.currentTarget.closest(".flex");
       const avatarElement = messageElement?.querySelector(".mr-4");
-      onUsernameContextMenu(e, username, message.serverId, avatarElement);
+      onUsernameContextMenu(
+        e,
+        username,
+        message.serverId,
+        message.channelId,
+        avatarElement,
+      );
     }
   };
 
@@ -255,8 +409,33 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         e,
         message.replyMessage.userId.split("-")[0],
         message.serverId,
+        message.channelId,
         avatarElement,
       );
+    }
+  };
+
+  const handleScrollToReply = () => {
+    if (!message.replyMessage?.id) return;
+
+    const targetElement = document.querySelector(
+      `[data-message-id="${message.replyMessage.id}"]`,
+    );
+
+    if (targetElement) {
+      // Scroll to the message
+      targetElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      // Add flash animation
+      targetElement.classList.add("message-flash");
+
+      // Remove the class after animation completes
+      setTimeout(() => {
+        targetElement.classList.remove("message-flash");
+      }, 2000);
     }
   };
 
@@ -264,7 +443,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     message.userId !== "system" && ircCurrentUser?.username !== username;
 
   return (
-    <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
+    <div
+      data-message-id={message.id}
+      className={`px-4 py-1 hover:bg-${theme}-message-hover group relative transition-colors duration-300`}
+    >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
       )}
@@ -303,11 +485,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 theme={theme}
                 onUsernameClick={handleReplyUsernameClick}
                 onIrcLinkClick={onIrcLinkClick}
+                onReplyClick={handleScrollToReply}
               />
             )}
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {isImageUrl ? (
+              {isImageUrl || isGifUrl ? (
                 <ImageWithFallback url={message.content} />
               ) : (
                 <div

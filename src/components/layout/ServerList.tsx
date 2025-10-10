@@ -78,12 +78,6 @@ export const ServerList: React.FC = () => {
             >
               Add Server
             </button>
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
-              onClick={() => setIsOptionsOpen(false)}
-            >
-              Option 2
-            </button>
           </div>
         )}
       </div>
@@ -93,53 +87,65 @@ export const ServerList: React.FC = () => {
         className="flex flex-col space-y-2 w-full items-center"
         data-testid="server-list"
       >
-        {servers.map((server) => (
-          <div
-            key={server.id}
-            className={`
+        {servers.map((server) => {
+          // Check if server has any mentions in channels or private chats
+          const hasMentions =
+            server.channels.some((ch) => ch.isMentioned) ||
+            server.privateChats?.some((pc) => pc.isMentioned);
+          const isServerActive = selectedServerId === server.id;
+
+          return (
+            <div
+              key={server.id}
+              className={`
               w-12 h-12 rounded-lg flex items-center justify-center
               transition-all duration-200 cursor-pointer group relative
               ${selectedServerId === server.id ? "bg-discord-primary" : "bg-discord-dark-400 hover:bg-discord-primary"}
             `}
-            onClick={() => selectServer(server.id)}
-          >
-            <div
-              className={`
+              onClick={() => selectServer(server.id)}
+            >
+              <div
+                className={`
               absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200
               ${selectedServerId === server.id ? "h-10" : "h-0 group-hover:h-5"}
             `}
-            />
-            {server.icon ? (
-              <img
-                src={server.icon}
-                alt={server.name}
-                className="w-9 h-9 rounded-full"
               />
-            ) : (
-              <div className="text-xl font-semibold text-white">
-                {getServerInitial(server.name)}
-              </div>
-            )}
-            {selectedServerId === server.id && (
-              <div className="absolute -bottom-1 -right-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
-                <button
-                  className="w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteServer(server.id);
-                  }}
-                  title="Disconnect"
-                >
-                  <FaTrash />
-                </button>
-              </div>
-            )}
+              {server.icon ? (
+                <img
+                  src={server.icon}
+                  alt={server.name}
+                  className="w-9 h-9 rounded-full"
+                />
+              ) : (
+                <div className="text-xl font-semibold text-white">
+                  {getServerInitial(server.name)}
+                </div>
+              )}
+              {/* Mention badge in top-right corner */}
+              {hasMentions && !isServerActive && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-discord-dark-600" />
+              )}
+              {selectedServerId === server.id && (
+                <div className="absolute -bottom-1 -right-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
+                  <button
+                    className="w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteServer(server.id);
+                    }}
+                    title="Disconnect"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              )}
 
-            <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
-              {server.name}
+              <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
+                {server.name}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

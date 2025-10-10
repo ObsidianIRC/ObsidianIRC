@@ -3,11 +3,14 @@ import {
   requestPermission,
 } from "@tauri-apps/plugin-notification";
 import type React from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "./components/layout/AppLayout";
+import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
+import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
+import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
@@ -70,10 +73,61 @@ const App: React.FC = () => {
       isUserProfileModalOpen,
       isChannelListModalOpen,
       isChannelRenameModalOpen,
+      isServerNoticesPopupOpen,
+      linkSecurityWarnings,
+      profileViewRequest,
     },
     joinChannel,
     connectToSavedServers,
+    toggleServerNoticesPopup,
+    clearProfileViewRequest,
+    messages,
   } = useStore();
+
+  // Local state for User Profile modal
+  const [userProfileModalState, setUserProfileModalState] = useState<{
+    isOpen: boolean;
+    serverId: string;
+    username: string;
+  } | null>(null);
+
+  // Watch for profile view requests
+  useEffect(() => {
+    if (profileViewRequest) {
+      setUserProfileModalState({
+        isOpen: true,
+        serverId: profileViewRequest.serverId,
+        username: profileViewRequest.username,
+      });
+      clearProfileViewRequest();
+    }
+  }, [profileViewRequest, clearProfileViewRequest]);
+
+  // Collect all server notices from all channels
+  const serverNotices = Object.values(messages)
+    .flat()
+    .filter((message) => message.type === "notice" && message.jsonLogData)
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+
+  // Handlers for popup interactions
+  const handleUsernameContextMenu = (
+    e: React.MouseEvent,
+    username: string,
+    serverId: string,
+    channelId: string,
+    avatarElement?: Element | null,
+  ) => {
+    // For now, just prevent default. Could be extended to show user context menu
+    e.preventDefault();
+  };
+
+  const handleIrcLinkClick = (url: string) => {
+    // For now, just log. Could be extended to handle IRC links
+    console.log("IRC link clicked:", url);
+  };
 
   // Initialize keyboard resize handling for mobile platforms
   useKeyboardResize();
@@ -92,6 +146,24 @@ const App: React.FC = () => {
       {isUserProfileModalOpen && <UserSettings />}
       {isChannelListModalOpen && <ChannelListModal />}
       {isChannelRenameModalOpen && <ChannelRenameModal />}
+      <LinkSecurityWarningModal />
+      {userProfileModalState?.isOpen && (
+        <UserProfileModal
+          isOpen={userProfileModalState.isOpen}
+          onClose={() => setUserProfileModalState(null)}
+          serverId={userProfileModalState.serverId}
+          username={userProfileModalState.username}
+        />
+      )}
+      {isServerNoticesPopupOpen && (
+        <ServerNoticesPopup
+          messages={serverNotices}
+          onClose={() => toggleServerNoticesPopup(false)}
+          onUsernameContextMenu={handleUsernameContextMenu}
+          onIrcLinkClick={handleIrcLinkClick}
+          joinChannel={joinChannel}
+        />
+      )}
     </div>
   );
 };

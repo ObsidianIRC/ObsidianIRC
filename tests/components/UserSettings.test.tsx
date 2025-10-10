@@ -49,6 +49,7 @@ vi.mock("../../src/store", () => ({
     globalSettings: {
       enableNotificationSounds: true,
       notificationSound: "/sounds/notif1.mp3",
+      notificationVolume: 0.8,
       enableHighlights: true,
       sendTypingNotifications: true,
       nickname: "",

@@ -81,7 +81,7 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center gap-2"
+            className="px-4 py-2 rounded font-medium bg-discord-primary hover:bg-opacity-80 text-white transition-colors flex items-center gap-2"
           >
             <FaExternalLinkAlt className="text-sm" />
             Open Link

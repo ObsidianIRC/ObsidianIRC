@@ -316,3 +316,55 @@ export function getColorStyle(colorValue?: string): React.CSSProperties {
   // Default fallback
   return {};
 }
+
+/**
+ * Get the display name for a channel, using metadata display-name if available
+ * or falling back to the channel name with # prefix removed.
+ */
+export function getChannelDisplayName(
+  channelName: string,
+  metadata?: Record<string, { value: string | undefined; visibility: string }>,
+): string {
+  const displayName = metadata?.["display-name"]?.value;
+  if (displayName) {
+    return displayName;
+  }
+  // Remove the # prefix if present
+  return channelName.replace(/^#/, "");
+}
+
+/**
+ * Get the avatar URL for a channel from metadata, with optional size substitution
+ */
+export function getChannelAvatarUrl(
+  metadata?: Record<string, { value: string | undefined; visibility: string }>,
+  size?: number,
+): string | undefined {
+  const avatarUrl = metadata?.avatar?.value;
+  if (!avatarUrl) {
+    return undefined;
+  }
+
+  // If size is provided and URL contains {size} placeholder, substitute it
+  if (size && avatarUrl.includes("{size}")) {
+    return avatarUrl.replace("{size}", size.toString());
+  }
+
+  return avatarUrl;
+}
+
+/**
+ * Check if a user has operator (or higher) permissions in a channel
+ * Operator status is indicated by @ or higher (~, &, etc.) in the user's status string
+ */
+export function hasOpPermission(userStatus?: string): boolean {
+  if (!userStatus) return false;
+
+  // Check for op (@), admin (&), or owner (~) status
+  // These are higher permissions than halfop (%) or voice (+)
+  return (
+    userStatus.includes("@") ||
+    userStatus.includes("&") ||
+    userStatus.includes("~")
+  );
+}

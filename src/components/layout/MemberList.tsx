@@ -2,10 +2,13 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import ircClient from "../../lib/ircClient";
 import { getColorStyle } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
+import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import UserContextMenu from "../ui/UserContextMenu";
+import UserProfileModal from "../ui/UserProfileModal";
 
 const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   let bgColor = "bg-discord-dark-500"; // Default/offline
@@ -51,14 +54,16 @@ const getStatusPriority = (status?: string): number => {
 const UserItem: React.FC<{
   user: User;
   serverId: string;
+  channelId: string;
   currentUser: User | null;
   onContextMenu: (
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => void;
-}> = ({ user, serverId, currentUser, onContextMenu }) => {
+}> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   // Display metadata like website or status
@@ -83,7 +88,7 @@ const UserItem: React.FC<{
       }`}
       onClick={(e) => {
         const avatarElement = e.currentTarget.querySelector(".w-10.h-10");
-        onContextMenu(e, user.username, serverId, avatarElement);
+        onContextMenu(e, user.username, serverId, channelId, avatarElement);
       }}
     >
       <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold relative">
@@ -162,8 +167,10 @@ export const MemberList: React.FC = () => {
     currentUser,
     toggleMemberList,
     openPrivateChat,
+    warnUser,
     kickUser,
-    banUser,
+    banUserByNick,
+    banUserByHostmask,
   } = useStore();
 
   const [userContextMenu, setUserContextMenu] = useState<{
@@ -172,26 +179,67 @@ export const MemberList: React.FC = () => {
     y: number;
     username: string;
     serverId: string;
+    channelId: string;
+    userStatusInChannel?: string;
   }>({
     isOpen: false,
     x: 0,
     y: 0,
     username: "",
     serverId: "",
+    channelId: "",
   });
+  const [moderationModal, setModerationModal] = useState<{
+    isOpen: boolean;
+    action: ModerationAction;
+    username: string;
+  }>({
+    isOpen: false,
+    action: "warn",
+    username: "",
+  });
+
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
   );
+
   const selectedChannel = selectedServer?.channels.find(
     (channel) => channel.id === selectedChannelId,
   );
 
-  // Get current user's status in the channel
-  const currentUserInChannel = selectedChannel?.users.find(
-    (user) => user.username === currentUser?.username,
-  );
-  const currentUserStatus = currentUserInChannel?.status;
+  // Update currentUser.status from server.users if available, and ensure current user is in channel.users
+  useEffect(() => {
+    if (selectedServer && currentUser && selectedChannel) {
+      // Try to sync status from server.users
+      const userInServer = selectedServer.users.find(
+        (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+      );
+      if (userInServer?.status && userInServer.status !== currentUser.status) {
+        console.log(
+          "MemberList - updating currentUser.status from server.users:",
+          userInServer.status,
+        );
+        useStore.setState((state) => ({
+          ...state,
+          currentUser: {
+            ...currentUser,
+            status: userInServer.status,
+          },
+        }));
+        // Also update in channel.users
+        const userInChannel = selectedChannel.users.find(
+          (u) =>
+            u.username.toLowerCase() === currentUser.username.toLowerCase(),
+        );
+        if (userInChannel) {
+          userInChannel.status = userInServer.status;
+        }
+      }
+    }
+  }, [selectedServer, currentUser, selectedChannel]);
 
   // Sort users by status priority (descending), then alphabetically by username
   const sortedUsers = selectedChannel?.users.slice().sort((a, b) => {
@@ -207,6 +255,7 @@ export const MemberList: React.FC = () => {
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => {
     e.preventDefault();
@@ -227,12 +276,69 @@ export const MemberList: React.FC = () => {
       y = rect.top - 5; // Position above the avatar with small gap
     }
 
+    // Calculate user's status in the specific channel
+    console.log("MemberList handleUsernameClick - status check:", {
+      serverId,
+      channelId,
+      currentUser: currentUser
+        ? { username: currentUser.username, status: currentUser.status }
+        : null,
+    });
+
+    let userStatusInChannel: string | undefined;
+    if (channelId && channelId !== "server-notices") {
+      const selectedServer = servers.find((s) => s.id === serverId);
+      console.log("MemberList - server lookup:", {
+        serverId,
+        serverFound: !!selectedServer,
+        serverName: selectedServer?.name,
+      });
+
+      const channel = selectedServer?.channels.find((c) => c.id === channelId);
+      console.log("MemberList - channel lookup:", {
+        channelId,
+        channelFound: !!channel,
+        channelName: channel?.name,
+        usersCount: channel?.users?.length,
+      });
+
+      if (channel && currentUser) {
+        const serverCurrentUser = ircClient.getCurrentUser(serverId);
+        const userInChannel = channel.users.find(
+          (u) =>
+            u.username.toLowerCase() ===
+            serverCurrentUser?.username.toLowerCase(),
+        );
+        console.log("MemberList - user lookup in channel:", {
+          currentUsername: serverCurrentUser?.username,
+          userFound: !!userInChannel,
+          userStatus: userInChannel?.status,
+          allUsernames: channel.users.map((u) => u.username),
+        });
+
+        userStatusInChannel = userInChannel?.status;
+        console.log("MemberList - final status:", userStatusInChannel);
+      } else {
+        console.log("MemberList - missing data:", {
+          hasChannel: !!channel,
+          hasCurrentUser: !!currentUser,
+        });
+      }
+    } else {
+      console.log("MemberList - skipping status check:", {
+        channelId,
+        isServerNotices: channelId === "server-notices",
+      });
+    }
+
     setUserContextMenu({
       isOpen: true,
       x,
       y,
       username,
       serverId,
+      channelId,
+      userStatusInChannel,
     });
   };
 
@@ -243,6 +349,8 @@ export const MemberList: React.FC = () => {
       y: 0,
       username: "",
       serverId: "",
+      channelId: "",
+      userStatusInChannel: undefined,
     });
   };
 
@@ -250,6 +358,11 @@ export const MemberList: React.FC = () => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
     }
+  };
+
+  const handleOpenProfile = (username: string) => {
+    setSelectedProfileUsername(username);
+    setUserProfileModalOpen(true);
   };
 
   const isMobileView = useMediaQuery();
@@ -271,6 +384,7 @@ export const MemberList: React.FC = () => {
           key={user.id}
           user={user}
           serverId={selectedServerId || ""}
+          channelId={selectedChannelId || ""}
           currentUser={currentUser}
           onContextMenu={handleUsernameClick}
         />
@@ -282,21 +396,86 @@ export const MemberList: React.FC = () => {
         y={userContextMenu.y}
         username={userContextMenu.username}
         serverId={userContextMenu.serverId}
+        channelId={userContextMenu.channelId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
-        currentUserStatus={currentUserStatus}
-        currentUsername={currentUser?.username}
-        onKickUser={(username, reason) => {
-          if (selectedServerId && selectedChannel?.name) {
-            kickUser(selectedServerId, selectedChannel.name, username, reason);
-          }
-        }}
-        onBanUser={(username, reason) => {
-          if (selectedServerId && selectedChannel?.name) {
-            banUser(selectedServerId, selectedChannel.name, username, reason);
-          }
+        onOpenProfile={handleOpenProfile}
+        currentUserStatus={userContextMenu.userStatusInChannel}
+        currentUsername={
+          ircClient.getCurrentUser(userContextMenu.serverId)?.username
+        }
+        onOpenModerationModal={(action) => {
+          setModerationModal({
+            isOpen: true,
+            action,
+            username: userContextMenu.username,
+          });
         }}
       />
+
+      <ModerationModal
+        isOpen={moderationModal.isOpen}
+        onClose={() =>
+          setModerationModal({ isOpen: false, action: "warn", username: "" })
+        }
+        onConfirm={(action, reason) => {
+          const { username } = moderationModal;
+          switch (action) {
+            case "warn":
+              if (selectedServerId && selectedChannel?.name) {
+                warnUser(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+            case "kick":
+              if (selectedServerId && selectedChannel?.name) {
+                kickUser(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+            case "ban-nick":
+              if (selectedServerId && selectedChannel?.name) {
+                banUserByNick(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+            case "ban-hostmask":
+              if (selectedServerId && selectedChannel?.name) {
+                banUserByHostmask(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+          }
+          setModerationModal({ isOpen: false, action: "warn", username: "" });
+        }}
+        username={moderationModal.username}
+        action={moderationModal.action}
+      />
+
+      {selectedServerId && (
+        <UserProfileModal
+          isOpen={userProfileModalOpen}
+          onClose={() => setUserProfileModalOpen(false)}
+          serverId={selectedServerId}
+          username={selectedProfileUsername}
+        />
+      )}
     </div>
   );
 };
