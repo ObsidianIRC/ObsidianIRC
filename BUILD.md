@@ -56,7 +56,40 @@ npm run tauri build -- --bundles dmg
 npm run tauri build -- --bundles appimage
 ```
 
-**For maximum compatibility:** Build on Ubuntu 20.04 or 22.04 LTS to ensure the binary works on older systems with older glibc versions. Building on newer systems (like Ubuntu 24.04) will create binaries that don't run on older systems.
+## ⚠️ IMPORTANT: Linux Build Compatibility
+
+**For maximum compatibility:** Build on Ubuntu 20.04 or 22.04 LTS to ensure the binary works on older systems with older glibc versions. 
+
+### Why This Matters
+- **Ubuntu 24.04** uses glibc 2.39
+- **Ubuntu 22.04** uses glibc 2.35 (recommended for releases)
+- **Ubuntu 20.04** uses glibc 2.31 (maximum compatibility)
+
+Building on Ubuntu 24.04 will create binaries that **fail to run** on Ubuntu 22.04, Debian 12, and other systems with glibc < 2.38 with errors like:
+```
+ObsidianIRC: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.39' not found
+```
+
+### Recommended Build Approach
+
+1. **Use GitHub Actions (Automatic)**: Our CI/CD automatically builds on Ubuntu 22.04 for compatibility
+2. **Use Docker** (see below) with Ubuntu 22.04 base
+3. **Use a VM** running Ubuntu 22.04
+
+### Building in Docker for Compatibility
+```sh
+docker run --rm -v $(pwd):/workspace -w /workspace \
+  ubuntu:22.04 bash -c "
+    apt-get update && 
+    apt-get install -y curl build-essential libwebkit2gtk-4.1-dev \
+      libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+      patchelf libfuse2 file nodejs npm && 
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && 
+    source \$HOME/.cargo/env && 
+    npm install && 
+    npm run tauri build -- --bundles appimage
+  "
+```
 
 For distribution packages:
 ```sh
