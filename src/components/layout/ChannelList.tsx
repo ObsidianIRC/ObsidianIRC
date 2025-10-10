@@ -272,21 +272,33 @@ export const ChannelList: React.FC<{
                                   // Fallback to # icon on error
                                   e.currentTarget.style.display = "none";
                                   const parent = e.currentTarget.parentElement;
-                                  const fallbackIcon = parent?.querySelector('.fallback-hash-icon');
+                                  const fallbackIcon = parent?.querySelector(
+                                    ".fallback-hash-icon",
+                                  );
                                   if (fallbackIcon) {
-                                    (fallbackIcon as HTMLElement).style.display = "inline-block";
+                                    (
+                                      fallbackIcon as HTMLElement
+                                    ).style.display = "inline-block";
                                   }
                                 }}
                               />
                             ) : null}
-                            <FaHashtag 
-                              className="shrink-0 fallback-hash-icon" 
-                              style={{ 
-                                display: getChannelAvatarUrl(channel.metadata, 16) ? "none" : "inline-block" 
+                            <FaHashtag
+                              className="shrink-0 fallback-hash-icon"
+                              style={{
+                                display: getChannelAvatarUrl(
+                                  channel.metadata,
+                                  16,
+                                )
+                                  ? "none"
+                                  : "inline-block",
                               }}
                             />
                             <span className="truncate">
-                              {getChannelDisplayName(channel.name, channel.metadata)}
+                              {getChannelDisplayName(
+                                channel.name,
+                                channel.metadata,
+                              )}
                             </span>
                           </div>
                           {/* Trash Button */}

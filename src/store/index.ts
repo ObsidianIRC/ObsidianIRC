@@ -256,6 +256,66 @@ async function fetchAndMergeOwnMetadata(serverId: string): Promise<void> {
   });
 }
 
+// Fetch channel metadata for the channel list modal
+// Uses caching to avoid refetching and rate limiting
+function fetchChannelMetadata(serverId: string, channelNames: string[]) {
+  const state = useStore.getState();
+  const now = Date.now();
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+  // Initialize cache and queue if needed
+  if (!state.channelMetadataCache[serverId]) {
+    useStore.setState((state) => ({
+      channelMetadataCache: {
+        ...state.channelMetadataCache,
+        [serverId]: {},
+      },
+    }));
+  }
+  if (!state.channelMetadataFetchQueue[serverId]) {
+    useStore.setState((state) => ({
+      channelMetadataFetchQueue: {
+        ...state.channelMetadataFetchQueue,
+        [serverId]: new Set(),
+      },
+    }));
+  }
+
+  const cache = state.channelMetadataCache[serverId] || {};
+  const queue = state.channelMetadataFetchQueue[serverId] || new Set();
+
+  // Filter out channels that are already cached or being fetched
+  const channelsToFetch = channelNames.filter((channelName) => {
+    const cached = cache[channelName];
+    const alreadyQueued = queue.has(channelName);
+    const isCacheValid = cached && now - cached.fetchedAt < CACHE_TTL;
+    return !isCacheValid && !alreadyQueued;
+  });
+
+  if (channelsToFetch.length === 0) {
+    return;
+  }
+
+  // Add to queue
+  const newQueue = new Set(queue);
+  for (const ch of channelsToFetch) {
+    newQueue.add(ch);
+  }
+  useStore.setState((state) => ({
+    channelMetadataFetchQueue: {
+      ...state.channelMetadataFetchQueue,
+      [serverId]: newQueue,
+    },
+  }));
+
+  // Fetch metadata for each channel
+  // Note: We request metadata even if we're not in the channel
+  // This may not work on all servers - depends on server permissions
+  channelsToFetch.forEach((channelName) => {
+    ircClient.metadataGet(serverId, channelName, ["avatar", "display-name"]);
+  });
+}
+
 interface UIState {
   selectedServerId: string | null;
   selectedChannelId: string | null;
@@ -336,6 +396,19 @@ export interface AppState {
     { channel: string; userCount: number; topic: string }[]
   >; // serverId -> channels
   listingInProgress: Record<string, boolean>; // serverId -> is listing
+  // Channel metadata cache for /LIST
+  channelMetadataCache: Record<
+    string,
+    Record<
+      string,
+      {
+        avatar?: string;
+        displayName?: string;
+        fetchedAt: number; // timestamp
+      }
+    >
+  >; // serverId -> channelName -> metadata
+  channelMetadataFetchQueue: Record<string, Set<string>>; // serverId -> Set of channel names being fetched
   // Metadata state
   metadataSubscriptions: Record<string, string[]>; // serverId -> keys
   metadataBatches: Record<
@@ -515,6 +588,8 @@ const useStore = create<AppState>((set, get) => ({
   globalNotifications: [],
   channelList: {},
   listingInProgress: {},
+  channelMetadataCache: {},
+  channelMetadataFetchQueue: {},
   metadataSubscriptions: {},
   metadataBatches: {},
   activeBatches: {},
@@ -1989,7 +2064,90 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
 
 // Handle private messages (USERMSG)
 ircClient.on("USERMSG", (response) => {
-  const { mtags, sender, message, timestamp } = response;
+  const { mtags, sender, target, message, timestamp } = response;
+
+  console.log("[USERMSG] Received:", {
+    sender,
+    target,
+    message,
+    channelContext: mtags?.["+draft/channel-context"],
+  });
+
+  // Find the server
+  const server = useStore
+    .getState()
+    .servers.find((s) => s.id === response.serverId);
+
+  if (server) {
+    // Check if this is a whisper (has draft/channel-context tag)
+    // Note: Client tags use + prefix, so check both with and without
+    const channelContext = mtags?.["+draft/channel-context"];
+
+    if (channelContext) {
+      console.log("[WHISPER] Detected channel-context tag:", channelContext);
+      console.log(
+        "[WHISPER] Available channels:",
+        server.channels.map((c) => c.name),
+      );
+
+      // This is a whisper - route it to the channel specified in the tag
+      // Use case-insensitive matching
+      const channel = server.channels.find(
+        (c) => c.name.toLowerCase() === channelContext.toLowerCase(),
+      );
+
+      console.log(
+        "[WHISPER] Found channel:",
+        channel ? channel.name : "NOT FOUND",
+      );
+
+      if (channel) {
+        const replyId = mtags?.["+draft/reply"]
+          ? mtags["+draft/reply"].trim()
+          : null;
+
+        const replyMessage = replyId
+          ? findChannelMessageById(server.id, channel.id, replyId) || null
+          : null;
+
+        const newMessage = {
+          id: uuidv4(),
+          msgid: mtags?.msgid,
+          content: message,
+          timestamp,
+          userId: sender,
+          channelId: channel.id,
+          serverId: server.id,
+          type: "message" as const,
+          reactions: [],
+          replyMessage: replyMessage,
+          mentioned: [],
+          tags: mtags, // This includes the draft/channel-context tag
+          whisperTarget: target, // Store the recipient for display
+        };
+
+        useStore.getState().addMessage(newMessage);
+
+        // Play notification sound if appropriate (only if it's not from ourselves)
+        const currentUser = ircClient.getCurrentUser(response.serverId);
+        if (currentUser?.username !== sender) {
+          const state = useStore.getState();
+          const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+          if (
+            shouldPlayNotificationSound(
+              newMessage,
+              serverCurrentUser,
+              state.globalSettings,
+            )
+          ) {
+            playNotificationSound(state.globalSettings);
+          }
+        }
+
+        return; // Early return - don't create a private chat
+      }
+    }
+  }
 
   // Don't create private chats with ourselves when the server echoes back our own messages
   const currentUser = ircClient.getCurrentUser(response.serverId);
@@ -2003,11 +2161,6 @@ ircClient.on("USERMSG", (response) => {
     // User is ignored, skip processing this message
     return;
   }
-
-  // Find the server
-  const server = useStore
-    .getState()
-    .servers.find((s) => s.id === response.serverId);
 
   if (server) {
     // Find or create private chat
@@ -2468,11 +2621,14 @@ ircClient.on(
       // Request topic and user list
       ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
       ircClient.sendRaw(serverId, `WHO ${channelName}`);
-      
+
       // Request channel metadata if server supports it
       if (serverSupportsMetadata(serverId)) {
         setTimeout(() => {
-          ircClient.metadataGet(serverId, channelName, ["avatar", "display-name"]);
+          ircClient.metadataGet(serverId, channelName, [
+            "avatar",
+            "display-name",
+          ]);
         }, 100);
       }
     }
@@ -3961,10 +4117,7 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
 
           // Update metadata for the channel itself if target matches channel name
           const channelMetadata = { ...(channel.metadata || {}) };
-          if (
-            resolvedTarget === channel.name ||
-            resolvedTarget.startsWith("#")
-          ) {
+          if (resolvedTarget === channel.name) {
             if (value) {
               channelMetadata[key] = { value, visibility };
             } else {
@@ -4043,6 +4196,51 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
       delete savedMetadata[serverId][resolvedTarget][key];
     }
     saveMetadataToLocalStorage(savedMetadata);
+
+    // Update channel metadata cache if this is for a channel
+    if (resolvedTarget.startsWith("#")) {
+      const cache = state.channelMetadataCache[serverId] || {};
+      const channelCache = cache[resolvedTarget] || { fetchedAt: Date.now() };
+
+      if (key === "avatar") {
+        channelCache.avatar = value || undefined;
+      } else if (key === "display-name") {
+        channelCache.displayName = value || undefined;
+      }
+
+      channelCache.fetchedAt = Date.now();
+
+      const updatedCache = {
+        ...state.channelMetadataCache,
+        [serverId]: {
+          ...cache,
+          [resolvedTarget]: channelCache,
+        },
+      };
+
+      // Remove from fetch queue
+      const queue = state.channelMetadataFetchQueue[serverId];
+      if (queue) {
+        const newQueue = new Set(queue);
+        newQueue.delete(resolvedTarget);
+
+        return {
+          servers: updatedServers,
+          currentUser: updatedCurrentUser,
+          channelMetadataCache: updatedCache,
+          channelMetadataFetchQueue: {
+            ...state.channelMetadataFetchQueue,
+            [serverId]: newQueue,
+          },
+        };
+      }
+
+      return {
+        servers: updatedServers,
+        currentUser: updatedCurrentUser,
+        channelMetadataCache: updatedCache,
+      };
+    }
 
     return { servers: updatedServers, currentUser: updatedCurrentUser };
   });
@@ -4168,6 +4366,51 @@ ircClient.on(
         }
         savedMetadata[serverId][resolvedTarget][key] = { value, visibility };
         saveMetadataToLocalStorage(savedMetadata);
+      }
+
+      // Update channel metadata cache if this is for a channel
+      if (resolvedTarget.startsWith("#")) {
+        const cache = state.channelMetadataCache[serverId] || {};
+        const channelCache = cache[resolvedTarget] || { fetchedAt: Date.now() };
+
+        if (key === "avatar" && value) {
+          channelCache.avatar = value;
+        } else if (key === "display-name" && value) {
+          channelCache.displayName = value;
+        }
+
+        channelCache.fetchedAt = Date.now();
+
+        const updatedCache = {
+          ...state.channelMetadataCache,
+          [serverId]: {
+            ...cache,
+            [resolvedTarget]: channelCache,
+          },
+        };
+
+        // Remove from fetch queue
+        const queue = state.channelMetadataFetchQueue[serverId];
+        if (queue) {
+          const newQueue = new Set(queue);
+          newQueue.delete(resolvedTarget);
+
+          return {
+            servers: updatedServers,
+            currentUser: updatedCurrentUser,
+            channelMetadataCache: updatedCache,
+            channelMetadataFetchQueue: {
+              ...state.channelMetadataFetchQueue,
+              [serverId]: newQueue,
+            },
+          };
+        }
+
+        return {
+          servers: updatedServers,
+          currentUser: updatedCurrentUser,
+          channelMetadataCache: updatedCache,
+        };
       }
 
       return { servers: updatedServers, currentUser: updatedCurrentUser };

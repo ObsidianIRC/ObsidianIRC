@@ -34,7 +34,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const [editValue, setEditValue] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [removingMasks, setRemovingMasks] = useState(new Set<string>());
-  
+
   // Metadata state
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelDisplayName, setChannelDisplayName] = useState("");
@@ -48,11 +48,11 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const { metadataSet } = useStore();
   const server = servers.find((s) => s.id === serverId);
   const channel = server?.channels.find((c) => c.name === channelName);
-  
+
   // Get current user's status in this channel
   const currentUser = ircClient.getCurrentUser(serverId);
   const currentUserInChannel = channel?.users.find(
-    (u) => u.username === currentUser?.username
+    (u) => u.username === currentUser?.username,
   );
   const userHasOpPermission = hasOpPermission(currentUserInChannel?.status);
   const supportsMetadata = serverSupportsMetadata(serverId);
@@ -291,7 +291,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       fetchChannelModes();
     }
   }, [isOpen, channelName, fetchChannelModes]);
-  
+
   // Load channel metadata when modal opens
   useEffect(() => {
     if (isOpen && channel) {
@@ -379,7 +379,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                 className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
               />
               <button
-                onClick={() => newMask.trim() && addMode(activeTab, newMask.trim())}
+                onClick={() =>
+                  newMask.trim() && addMode(activeTab, newMask.trim())
+                }
                 disabled={!newMask.trim() || isAdding}
                 className="px-3 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -391,111 +393,113 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               </button>
             </div>
 
-        {/* Mode list */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="text-center text-discord-text-muted py-8">
-              Loading channel modes...
-            </div>
-          ) : filteredModes.length === 0 ? (
-            <div className="text-center text-discord-text-muted py-8">
-              No{" "}
-              {activeTab === "b"
-                ? "bans"
-                : activeTab === "e"
-                  ? "ban exceptions"
-                  : "invitations"}{" "}
-              found
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredModes.map((mode, index) => (
-                <div
-                  key={`${mode.type}-${mode.mask}-${index}`}
-                  className="flex items-center justify-between p-3 bg-discord-dark-300 rounded"
-                >
-                  <div className="flex-1 min-w-0">
-                    {editingMask === mode.mask ? (
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="w-full p-1 bg-discord-dark-400 text-white rounded text-sm"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            saveEdit(mode.mask, editValue);
-                          } else if (e.key === "Escape") {
-                            cancelEditing();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="text-white text-sm break-all">
-                        {mode.mask}
-                        <div className="text-discord-text-muted text-xs mt-1">
-                          {mode.setter && `set by ${mode.setter}`}
-                          {mode.setter && mode.timestamp && " • "}
-                          {mode.timestamp &&
-                            new Date(mode.timestamp * 1000).toLocaleString()}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 ml-2">
-                    {editingMask === mode.mask ? (
-                      <>
-                        <button
-                          onClick={() => saveEdit(mode.mask, editValue)}
-                          className="text-green-400 hover:text-green-300"
-                          title="Save"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          onClick={cancelEditing}
-                          className="text-red-400 hover:text-red-300"
-                          title="Cancel"
-                        >
-                          ✕
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => startEditing(mode.mask)}
-                          className="text-discord-text-muted hover:text-white"
-                          title="Edit"
-                        >
-                          <FaEdit size={14} />
-                        </button>
-                        <button
-                          onClick={() => removeMode(mode.type, mode.mask)}
-                          className="text-red-400 hover:text-red-300"
-                          title="Remove"
-                          disabled={removingMasks.has(mode.mask)}
-                        >
-                          {removingMasks.has(mode.mask) ? (
-                            <FaSpinner className="animate-spin" size={14} />
-                          ) : (
-                            <FaTrash size={14} />
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </div>
+            {/* Mode list */}
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="text-center text-discord-text-muted py-8">
+                  Loading channel modes...
                 </div>
-              ))}
+              ) : filteredModes.length === 0 ? (
+                <div className="text-center text-discord-text-muted py-8">
+                  No{" "}
+                  {activeTab === "b"
+                    ? "bans"
+                    : activeTab === "e"
+                      ? "ban exceptions"
+                      : "invitations"}{" "}
+                  found
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredModes.map((mode, index) => (
+                    <div
+                      key={`${mode.type}-${mode.mask}-${index}`}
+                      className="flex items-center justify-between p-3 bg-discord-dark-300 rounded"
+                    >
+                      <div className="flex-1 min-w-0">
+                        {editingMask === mode.mask ? (
+                          <input
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-full p-1 bg-discord-dark-400 text-white rounded text-sm"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                saveEdit(mode.mask, editValue);
+                              } else if (e.key === "Escape") {
+                                cancelEditing();
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="text-white text-sm break-all">
+                            {mode.mask}
+                            <div className="text-discord-text-muted text-xs mt-1">
+                              {mode.setter && `set by ${mode.setter}`}
+                              {mode.setter && mode.timestamp && " • "}
+                              {mode.timestamp &&
+                                new Date(
+                                  mode.timestamp * 1000,
+                                ).toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        {editingMask === mode.mask ? (
+                          <>
+                            <button
+                              onClick={() => saveEdit(mode.mask, editValue)}
+                              className="text-green-400 hover:text-green-300"
+                              title="Save"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="text-red-400 hover:text-red-300"
+                              title="Cancel"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => startEditing(mode.mask)}
+                              className="text-discord-text-muted hover:text-white"
+                              title="Edit"
+                            >
+                              <FaEdit size={14} />
+                            </button>
+                            <button
+                              onClick={() => removeMode(mode.type, mode.mask)}
+                              className="text-red-400 hover:text-red-300"
+                              title="Remove"
+                              disabled={removingMasks.has(mode.mask)}
+                            >
+                              {removingMasks.has(mode.mask) ? (
+                                <FaSpinner className="animate-spin" size={14} />
+                              ) : (
+                                <FaTrash size={14} />
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="mt-4 pt-4 border-t border-discord-dark-400">
-          <div className="text-xs text-discord-text-muted">
-            Use wildcards: * matches any sequence, ? matches any single
-            character. Examples: nick!*@*, *!*@host.com, *!*user@*
-          </div>
-        </div>
+            <div className="mt-4 pt-4 border-t border-discord-dark-400">
+              <div className="text-xs text-discord-text-muted">
+                Use wildcards: * matches any sequence, ? matches any single
+                character. Examples: nick!*@*, *!*@host.com, *!*user@*
+              </div>
+            </div>
           </>
         ) : (
           <>
@@ -507,8 +511,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   Channel Avatar URL
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  URL with optional &#123;size&#125; substitution for dynamic sizing.
-                  Example: https://example.com/avatar/&#123;size&#125;/channel.jpg
+                  URL with optional &#123;size&#125; substitution for dynamic
+                  sizing. Example:
+                  https://example.com/avatar/&#123;size&#125;/channel.jpg
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -526,7 +531,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                           serverId,
                           channelName,
                           "avatar",
-                          channelAvatar || undefined
+                          channelAvatar || undefined,
                         );
                       } finally {
                         setIsUpdatingAvatar(false);
@@ -544,7 +549,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                 </div>
                 {channelAvatar && (
                   <div className="mt-2">
-                    <p className="text-xs text-discord-text-muted mb-1">Preview:</p>
+                    <p className="text-xs text-discord-text-muted mb-1">
+                      Preview:
+                    </p>
                     <img
                       src={channelAvatar.replace("{size}", "64")}
                       alt="Channel avatar preview"
@@ -563,8 +570,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   Channel Display Name
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  Alternative name for display in the UI. May contain spaces, emoji, and special characters.
-                  The real channel name ({channelName}) will still be used for IRC commands.
+                  Alternative name for display in the UI. May contain spaces,
+                  emoji, and special characters. The real channel name (
+                  {channelName}) will still be used for IRC commands.
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -582,7 +590,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                           serverId,
                           channelName,
                           "display-name",
-                          channelDisplayName || undefined
+                          channelDisplayName || undefined,
                         );
                       } finally {
                         setIsUpdatingDisplayName(false);
@@ -602,8 +610,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
               <div className="pt-4 border-t border-discord-dark-400">
                 <p className="text-xs text-discord-text-muted">
-                  Note: Channel metadata requires operator (@) or higher permissions to modify.
-                  Changes will be visible to all users who support the METADATA specification.
+                  Note: Channel metadata requires operator (@) or higher
+                  permissions to modify. Changes will be visible to all users
+                  who support the METADATA specification.
                 </p>
               </div>
             </div>

@@ -110,6 +110,8 @@ export interface Message {
   replyMessage: Message | null;
   mentioned: string[];
   tags?: Record<string, string>;
+  // Whisper fields (for draft/channel-context)
+  whisperTarget?: string; // The recipient of a whisper
   // Standard reply fields
   standardReplyType?: "FAIL" | "WARN" | "NOTE";
   standardReplyCommand?: string;

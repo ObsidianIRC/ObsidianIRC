@@ -48,7 +48,9 @@ export interface EventMap {
   CHANMSG: BaseMessageEvent & {
     channelName: string;
   };
-  USERMSG: BaseMessageEvent;
+  USERMSG: BaseMessageEvent & {
+    target: string; // The recipient of the PRIVMSG (for whispers)
+  };
   CHANNNOTICE: BaseMessageEvent & {
     channelName: string;
   };
@@ -286,6 +288,7 @@ export class IRCClient {
     "batch",
     "draft/multiline",
     "draft/typing",
+    "draft/channel-context",
     "znc.in/playback",
     "unrealircd.org/json-log",
     // Note: unrealircd.org/link-security is informational only, don't request it
@@ -516,6 +519,20 @@ export class IRCClient {
       // Send as regular single message
       this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
     }
+  }
+
+  sendWhisper(
+    serverId: string,
+    targetUser: string,
+    channelName: string,
+    content: string,
+  ): void {
+    // Send a whisper with the draft/channel-context tag
+    // Format: @+draft/channel-context=#channel PRIVMSG targetUser :message
+    this.sendRaw(
+      serverId,
+      `@+draft/channel-context=${channelName} PRIVMSG ${targetUser} :${content}`,
+    );
   }
 
   sendMultilineMessage(
@@ -999,6 +1016,7 @@ export class IRCClient {
             serverId,
             mtags,
             sender,
+            target, // The recipient of the PRIVMSG
             message,
             timestamp: getTimestampFromTags(mtags),
           });

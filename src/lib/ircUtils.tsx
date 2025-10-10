@@ -344,12 +344,12 @@ export function getChannelAvatarUrl(
   if (!avatarUrl) {
     return undefined;
   }
-  
+
   // If size is provided and URL contains {size} placeholder, substitute it
   if (size && avatarUrl.includes("{size}")) {
     return avatarUrl.replace("{size}", size.toString());
   }
-  
+
   return avatarUrl;
 }
 
@@ -359,8 +359,12 @@ export function getChannelAvatarUrl(
  */
 export function hasOpPermission(userStatus?: string): boolean {
   if (!userStatus) return false;
-  
+
   // Check for op (@), admin (&), or owner (~) status
   // These are higher permissions than halfop (%) or voice (+)
-  return userStatus.includes("@") || userStatus.includes("&") || userStatus.includes("~");
+  return (
+    userStatus.includes("@") ||
+    userStatus.includes("&") ||
+    userStatus.includes("~")
+  );
 }

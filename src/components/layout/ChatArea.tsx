@@ -522,6 +522,25 @@ export const ChatArea: React.FC<{
           const [target, ...messageParts] = args;
           const message = messageParts.join(" ");
           ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
+        } else if (commandName === "whisper") {
+          // /whisper <username> <message>
+          // Sends a private message visible only to the user but in the current channel context
+          if (!selectedChannel) {
+            console.error("Whispers can only be sent in channels");
+            return;
+          }
+          const [targetUser, ...messageParts] = args;
+          if (!targetUser || messageParts.length === 0) {
+            console.error("Usage: /whisper <username> <message>");
+            return;
+          }
+          const message = messageParts.join(" ");
+          ircClient.sendWhisper(
+            selectedServerId,
+            targetUser,
+            selectedChannel.name,
+            message,
+          );
         } else if (commandName === "me") {
           const actionMessage = cleanedText.substring(4).trim();
           ircClient.sendRaw(
@@ -1618,21 +1637,29 @@ export const ChatArea: React.FC<{
                     // Fallback to # icon on error
                     e.currentTarget.style.display = "none";
                     const parent = e.currentTarget.parentElement;
-                    const fallbackIcon = parent?.querySelector('.fallback-hash-icon');
+                    const fallbackIcon = parent?.querySelector(
+                      ".fallback-hash-icon",
+                    );
                     if (fallbackIcon) {
-                      (fallbackIcon as HTMLElement).style.display = "inline-block";
+                      (fallbackIcon as HTMLElement).style.display =
+                        "inline-block";
                     }
                   }}
                 />
               ) : null}
-              <FaHashtag 
-                className="text-discord-text-muted mr-2 fallback-hash-icon" 
-                style={{ 
-                  display: getChannelAvatarUrl(selectedChannel.metadata, 20) ? "none" : "inline-block" 
+              <FaHashtag
+                className="text-discord-text-muted mr-2 fallback-hash-icon"
+                style={{
+                  display: getChannelAvatarUrl(selectedChannel.metadata, 20)
+                    ? "none"
+                    : "inline-block",
                 }}
               />
               <h2 className="font-bold text-white mr-4">
-                {getChannelDisplayName(selectedChannel.name, selectedChannel.metadata)}
+                {getChannelDisplayName(
+                  selectedChannel.name,
+                  selectedChannel.metadata,
+                )}
               </h2>
             </>
           )}

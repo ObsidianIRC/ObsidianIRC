@@ -18,6 +18,7 @@ import {
   MessageReply,
   StandardReplyNotification,
   SystemMessage,
+  WhisperMessage,
 } from "./index";
 
 // Component to render image with fallback to URL if loading fails
@@ -236,6 +237,36 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   // Handle system messages
   if (isSystem) {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
+  }
+
+  // Handle whisper messages (messages with draft/channel-context tag)
+  // Note: Client tags use + prefix
+  if (
+    message.tags?.["draft/channel-context"] ||
+    message.tags?.["+draft/channel-context"]
+  ) {
+    return (
+      <>
+        {showDate && (
+          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+        )}
+        <WhisperMessage
+          message={message}
+          showDate={showDate}
+          showHeader={showHeader}
+          messageUser={messageUser}
+          setReplyTo={setReplyTo}
+          onUsernameContextMenu={onUsernameContextMenu}
+          onIrcLinkClick={onIrcLinkClick}
+          onReactClick={onReactClick}
+          onReactionUnreact={onReactionUnreact}
+          onDirectReaction={onDirectReaction}
+          onRedactMessage={onRedactMessage}
+          canRedact={canRedact}
+          ircCurrentUser={ircCurrentUser || undefined}
+        />
+      </>
+    );
   }
 
   // Handle event messages (join, part, quit, nick, mode, kick)
