@@ -78,12 +78,6 @@ export const ServerList: React.FC = () => {
             >
               Add Server
             </button>
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
-              onClick={() => setIsOptionsOpen(false)}
-            >
-              Option 2
-            </button>
           </div>
         )}
       </div>

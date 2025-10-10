@@ -458,10 +458,11 @@ export const ChatArea: React.FC<{
   }, [selectedServerId, selectedChannelId]);
 
   // Auto scroll to bottom on new messages
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
   useEffect(() => {
     if (isScrolledUp) return;
     scrollDown();
-  });
+  }, [channelMessages]);
 
   // Check if scrolled away from bottom
   useEffect(() => {
