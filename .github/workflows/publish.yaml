@@ -71,7 +71,6 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
-          save-if: false  # Disable saving cache to avoid potential corruption
 
       - name: install frontend dependencies
         run: npm install
