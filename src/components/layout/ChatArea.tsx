@@ -54,6 +54,7 @@ import LoadingSpinner from "../ui/LoadingSpinner";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import UserContextMenu from "../ui/UserContextMenu";
+import UserProfileModal from "../ui/UserProfileModal";
 
 const EMPTY_ARRAY: User[] = [];
 let lastTypingTime = 0;
@@ -238,8 +239,12 @@ export const ChatArea: React.FC<{
   });
   const [channelSettingsModalOpen, setChannelSettingsModalOpen] =
     useState(false);
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editedTopic, setEditedTopic] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleMessageCount, setVisibleMessageCount] = useState(100);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -433,10 +438,35 @@ export const ChatArea: React.FC<{
     [messages, channelKey],
   );
 
+  // Filter messages based on search query
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return channelMessages;
+    }
+    const query = searchQuery.toLowerCase();
+    return channelMessages.filter(
+      (msg) =>
+        msg.content.toLowerCase().includes(query) ||
+        msg.userId.toLowerCase().includes(query),
+    );
+  }, [channelMessages, searchQuery]);
+
+  // Virtualize messages - only show the last N messages unless searching
+  const displayedMessages = useMemo(() => {
+    if (searchQuery.trim()) {
+      // Show all filtered results when searching
+      return filteredMessages;
+    }
+    // Show only the last visibleMessageCount messages
+    return filteredMessages.slice(-visibleMessageCount);
+  }, [filteredMessages, visibleMessageCount, searchQuery]);
+
+  const hasMoreMessages = filteredMessages.length > displayedMessages.length;
+
   // Memoize grouped events to prevent recalculation on every render
   const eventGroups = useMemo(
-    () => groupConsecutiveEvents(channelMessages),
-    [channelMessages],
+    () => groupConsecutiveEvents(displayedMessages),
+    [displayedMessages],
   );
 
   const scrollDown = () => {
@@ -455,6 +485,9 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
+    // Reset visible message count and search when changing channels
+    setVisibleMessageCount(100);
+    setSearchQuery("");
   }, [selectedServerId, selectedChannelId]);
 
   // Auto scroll to bottom on new messages
@@ -462,7 +495,7 @@ export const ChatArea: React.FC<{
   useEffect(() => {
     if (isScrolledUp) return;
     scrollDown();
-  }, [channelMessages]);
+  }, [displayedMessages]);
 
   // Check if scrolled away from bottom
   useEffect(() => {
@@ -1367,6 +1400,11 @@ export const ChatArea: React.FC<{
     }
   };
 
+  const handleOpenProfile = (username: string) => {
+    setSelectedProfileUsername(username);
+    setUserProfileModalOpen(true);
+  };
+
   // Server notices popup drag handlers
   const handleServerNoticesMouseDown = (e: React.MouseEvent) => {
     setIsDraggingServerNotices(true);
@@ -1622,71 +1660,57 @@ export const ChatArea: React.FC<{
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
-      <div className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
-        <div className="flex items-center">
+      <div className="min-h-[56px] px-4 border-b border-discord-dark-400 flex flex-wrap items-start md:items-center justify-between shadow-sm py-2 md:py-0 md:h-12 gap-y-2">
+        <div className="flex items-center flex-1 min-w-0 w-full md:w-auto">
           {!isChanListVisible && (
             <button
               onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white mr-4"
+              className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
               aria-label="Expand channel list"
             >
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
           )}
           {selectedChannel && (
-            <>
-              {getChannelAvatarUrl(selectedChannel.metadata, 20) ? (
-                <img
-                  src={getChannelAvatarUrl(selectedChannel.metadata, 20)}
-                  alt={selectedChannel.name}
-                  className="w-5 h-5 rounded-full object-cover mr-2"
-                  onError={(e) => {
-                    // Fallback to # icon on error
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    const fallbackIcon = parent?.querySelector(
-                      ".fallback-hash-icon",
-                    );
-                    if (fallbackIcon) {
-                      (fallbackIcon as HTMLElement).style.display =
-                        "inline-block";
-                    }
+            <div className="flex flex-col min-w-0 flex-1 md:flex-row md:items-center">
+              <div className="flex items-center min-w-0 flex-shrink-0">
+                {getChannelAvatarUrl(selectedChannel.metadata, 20) ? (
+                  <img
+                    src={getChannelAvatarUrl(selectedChannel.metadata, 20)}
+                    alt={selectedChannel.name}
+                    className="w-5 h-5 rounded-full object-cover mr-2 flex-shrink-0"
+                    onError={(e) => {
+                      // Fallback to # icon on error
+                      e.currentTarget.style.display = "none";
+                      const parent = e.currentTarget.parentElement;
+                      const fallbackIcon = parent?.querySelector(
+                        ".fallback-hash-icon",
+                      );
+                      if (fallbackIcon) {
+                        (fallbackIcon as HTMLElement).style.display =
+                          "inline-block";
+                      }
+                    }}
+                  />
+                ) : null}
+                <FaHashtag
+                  className="text-discord-text-muted mr-2 fallback-hash-icon flex-shrink-0"
+                  style={{
+                    display: getChannelAvatarUrl(selectedChannel.metadata, 20)
+                      ? "none"
+                      : "inline-block",
                   }}
                 />
-              ) : null}
-              <FaHashtag
-                className="text-discord-text-muted mr-2 fallback-hash-icon"
-                style={{
-                  display: getChannelAvatarUrl(selectedChannel.metadata, 20)
-                    ? "none"
-                    : "inline-block",
-                }}
-              />
-              <h2 className="font-bold text-white mr-4">
-                {getChannelDisplayName(
-                  selectedChannel.name,
-                  selectedChannel.metadata,
-                )}
-              </h2>
-            </>
-          )}
-          {selectedPrivateChat && (
-            <>
-              <FaAt className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">
-                {selectedPrivateChat.username}
-              </h2>
-            </>
-          )}
-          {selectedChannelId === "server-notices" && (
-            <>
-              <FaList className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">Server Notices</h2>
-            </>
-          )}
-          {selectedChannel && (
-            <>
-              <div className="mx-2 text-discord-text-muted">|</div>
+                <h2 className="font-bold text-white mr-4 truncate">
+                  {getChannelDisplayName(
+                    selectedChannel.name,
+                    selectedChannel.metadata,
+                  )}
+                </h2>
+              </div>
+              <div className="md:mx-2 md:text-discord-text-muted hidden md:block">
+                |
+              </div>
               {isEditingTopic ? (
                 <form
                   onSubmit={(e) => {
@@ -1700,7 +1724,7 @@ export const ChatArea: React.FC<{
                       setIsEditingTopic(false);
                     }
                   }}
-                  className="flex items-center gap-2 flex-1 max-w-md"
+                  className="flex items-center gap-2 flex-1 max-w-md mt-1 md:mt-0"
                 >
                   <input
                     type="text"
@@ -1742,7 +1766,7 @@ export const ChatArea: React.FC<{
                       }
                     }
                   }}
-                  className="text-discord-text-muted text-sm hover:text-white truncate max-w-md"
+                  className="text-discord-text-muted text-xs md:text-sm hover:text-white truncate min-w-0 md:max-w-md mt-0.5 mb-1 md:mt-0 md:mb-0"
                   title={
                     selectedChannel.topic
                       ? `Topic: ${selectedChannel.topic}${
@@ -1763,11 +1787,25 @@ export const ChatArea: React.FC<{
                   {selectedChannel.topic || "No topic"}
                 </button>
               )}
+            </div>
+          )}
+          {selectedPrivateChat && (
+            <>
+              <FaAt className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">
+                {selectedPrivateChat.username}
+              </h2>
+            </>
+          )}
+          {selectedChannelId === "server-notices" && (
+            <>
+              <FaList className="text-discord-text-muted mr-2" />
+              <h2 className="font-bold text-white mr-4">Server Notices</h2>
             </>
           )}
         </div>
         {!!selectedServerId && selectedChannelId !== "server-notices" && (
-          <div className="flex items-center gap-4 text-discord-text-muted">
+          <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
             <button className="hover:text-discord-text-normal">
               <FaBell />
             </button>
@@ -1836,7 +1874,9 @@ export const ChatArea: React.FC<{
               <input
                 type="text"
                 placeholder="Search"
-                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-20 md:w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
               />
               <FaSearch className="absolute right-2 top-1.5 text-xs" />
             </div>
@@ -1890,19 +1930,84 @@ export const ChatArea: React.FC<{
             </div>
           ) : (
             // Show messages when not loading
-            eventGroups.map((group) => {
-              if (group.type === "eventGroup") {
-                // Create a stable key from the first and last message IDs in the group
-                const firstId = group.messages[0]?.id || "";
-                const lastId =
-                  group.messages[group.messages.length - 1]?.id || "";
-                const groupKey = `group-${firstId}-${lastId}`;
+            <>
+              {/* View older messages button */}
+              {hasMoreMessages && !searchQuery && (
+                <div className="flex justify-center py-4">
+                  <button
+                    onClick={() => setVisibleMessageCount((prev) => prev + 100)}
+                    className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
+                  >
+                    View older messages (
+                    {filteredMessages.length - displayedMessages.length} hidden)
+                  </button>
+                </div>
+              )}
+              {/* Search results indicator */}
+              {searchQuery && (
+                <div className="flex justify-center py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
+                  Found {filteredMessages.length} message
+                  {filteredMessages.length === 1 ? "" : "s"} matching "
+                  {searchQuery}"
+                </div>
+              )}
+              {eventGroups.map((group) => {
+                if (group.type === "eventGroup") {
+                  // Create a stable key from the first and last message IDs in the group
+                  const firstId = group.messages[0]?.id || "";
+                  const lastId =
+                    group.messages[group.messages.length - 1]?.id || "";
+                  const groupKey = `group-${firstId}-${lastId}`;
+
+                  return (
+                    <CollapsedEventMessage
+                      key={groupKey}
+                      eventGroup={group}
+                      users={selectedChannel?.users || []}
+                      onUsernameContextMenu={(
+                        e,
+                        username,
+                        serverId,
+                        channelId,
+                        avatarElement,
+                      ) =>
+                        handleUsernameClick(
+                          e,
+                          username,
+                          serverId,
+                          channelId,
+                          avatarElement,
+                        )
+                      }
+                    />
+                  );
+                }
+                // Single message - find its original index for date/header logic
+                const message = group.messages[0];
+                const originalIndex = channelMessages.findIndex(
+                  (m) => m.id === message.id,
+                );
+                const previousMessage = channelMessages[originalIndex - 1];
+                const showHeader =
+                  !previousMessage ||
+                  previousMessage.userId !== message.userId ||
+                  new Date(message.timestamp).getTime() -
+                    new Date(previousMessage.timestamp).getTime() >
+                    5 * 60 * 1000;
 
                 return (
-                  <CollapsedEventMessage
-                    key={groupKey}
-                    eventGroup={group}
-                    users={selectedChannel?.users || []}
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    showDate={
+                      originalIndex === 0 ||
+                      new Date(message.timestamp).toDateString() !==
+                        new Date(
+                          channelMessages[originalIndex - 1]?.timestamp,
+                        ).toDateString()
+                    }
+                    showHeader={showHeader}
+                    setReplyTo={setLocalReplyTo}
                     onUsernameContextMenu={(
                       e,
                       username,
@@ -1918,61 +2023,18 @@ export const ChatArea: React.FC<{
                         avatarElement,
                       )
                     }
+                    onIrcLinkClick={handleIrcLinkClick}
+                    onReactClick={handleReactClick}
+                    joinChannel={joinChannel}
+                    onReactionUnreact={handleReactionUnreact}
+                    onOpenReactionModal={handleOpenReactionModal}
+                    onDirectReaction={handleDirectReaction}
+                    users={selectedChannel?.users || []}
+                    onRedactMessage={handleRedactMessage}
                   />
                 );
-              }
-              // Single message - find its original index for date/header logic
-              const message = group.messages[0];
-              const originalIndex = channelMessages.findIndex(
-                (m) => m.id === message.id,
-              );
-              const previousMessage = channelMessages[originalIndex - 1];
-              const showHeader =
-                !previousMessage ||
-                previousMessage.userId !== message.userId ||
-                new Date(message.timestamp).getTime() -
-                  new Date(previousMessage.timestamp).getTime() >
-                  5 * 60 * 1000;
-
-              return (
-                <MessageItem
-                  key={message.id}
-                  message={message}
-                  showDate={
-                    originalIndex === 0 ||
-                    new Date(message.timestamp).toDateString() !==
-                      new Date(
-                        channelMessages[originalIndex - 1]?.timestamp,
-                      ).toDateString()
-                  }
-                  showHeader={showHeader}
-                  setReplyTo={setLocalReplyTo}
-                  onUsernameContextMenu={(
-                    e,
-                    username,
-                    serverId,
-                    channelId,
-                    avatarElement,
-                  ) =>
-                    handleUsernameClick(
-                      e,
-                      username,
-                      serverId,
-                      channelId,
-                      avatarElement,
-                    )
-                  }
-                  onIrcLinkClick={handleIrcLinkClick}
-                  onReactClick={handleReactClick}
-                  joinChannel={joinChannel}
-                  onReactionUnreact={handleReactionUnreact}
-                  onOpenReactionModal={handleOpenReactionModal}
-                  onDirectReaction={handleDirectReaction}
-                  users={selectedChannel?.users || []}
-                  onRedactMessage={handleRedactMessage}
-                />
-              );
-            })
+              })}
+            </>
           )}
 
           <div ref={messagesEndRef} />
@@ -2276,6 +2338,7 @@ export const ChatArea: React.FC<{
         channelId={userContextMenu.channelId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
+        onOpenProfile={handleOpenProfile}
         currentUserStatus={userContextMenu.userStatusInChannel}
         currentUsername={
           ircClient.getCurrentUser(userContextMenu.serverId)?.username
@@ -2309,6 +2372,15 @@ export const ChatArea: React.FC<{
           onClose={() => setChannelSettingsModalOpen(false)}
           serverId={selectedServerId || ""}
           channelName={selectedChannel.name}
+        />
+      )}
+
+      {selectedServerId && (
+        <UserProfileModal
+          isOpen={userProfileModalOpen}
+          onClose={() => setUserProfileModalOpen(false)}
+          serverId={selectedServerId}
+          username={selectedProfileUsername}
         />
       )}
 

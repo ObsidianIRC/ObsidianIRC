@@ -13,6 +13,7 @@ interface UserContextMenuProps {
   channelId: string;
   onClose: () => void;
   onOpenPM: (username: string) => void;
+  onOpenProfile?: (username: string) => void;
   currentUserStatus?: string;
   currentUsername?: string;
   onOpenModerationModal?: (action: ModerationAction) => void;
@@ -27,6 +28,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   channelId,
   onClose,
   onOpenPM,
+  onOpenProfile,
   currentUserStatus,
   currentUsername,
   onOpenModerationModal,
@@ -76,6 +78,13 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
 
   const handleOpenPM = () => {
     onOpenPM(username);
+    onClose();
+  };
+
+  const handleOpenProfile = () => {
+    if (onOpenProfile) {
+      onOpenProfile(username);
+    }
     onClose();
   };
 
@@ -219,6 +228,28 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
           </svg>
           <span className="truncate" title="Send Message">
             Send Message
+          </span>
+        </button>
+        <button
+          onClick={handleOpenProfile}
+          className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
+          title="View Profile"
+        >
+          <svg
+            className="w-4 h-4 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+          <span className="truncate" title="View Profile">
+            View Profile
           </span>
         </button>
         {!isOwnUser && (

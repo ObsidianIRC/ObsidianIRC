@@ -150,6 +150,7 @@ describe("Metadata Display Features", () => {
         // Server notices popup state
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       messages: {
         "server1-channel1": mockChannel.messages,

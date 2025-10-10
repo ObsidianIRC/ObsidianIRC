@@ -50,6 +50,7 @@ describe("MODE Protocol Handler", () => {
         // Server notices popup state
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
     });
     vi.clearAllMocks();

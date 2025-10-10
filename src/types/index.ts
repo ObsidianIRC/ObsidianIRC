@@ -212,3 +212,20 @@ export type JsonValue =
   | null
   | { [key: string]: JsonValue }
   | JsonValue[];
+
+export interface WhoisData {
+  nick: string;
+  username?: string;
+  host?: string;
+  realname?: string;
+  server?: string;
+  serverInfo?: string;
+  idle?: number;
+  signon?: number;
+  channels?: string;
+  account?: string;
+  specialMessages: string[]; // For 320, 378, 379 responses
+  secureConnection?: string;
+  timestamp: number; // When this data was fetched
+  isComplete?: boolean; // Whether we've received WHOIS_END (318)
+}

@@ -10,6 +10,7 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isValidIgnorePattern } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
 import useStore, { serverSupportsMetadata } from "../../store";
+import UserProfileModal from "./UserProfileModal";
 
 type SettingsCategory = "profile" | "notifications" | "preferences" | "account";
 
@@ -223,6 +224,7 @@ const IgnoreList: React.FC<{
 const UserSettings: React.FC = React.memo(() => {
   const {
     toggleUserProfileModal,
+    setProfileViewRequest,
     servers,
     ui,
     metadataSet,
@@ -291,6 +293,10 @@ const UserSettings: React.FC = React.memo(() => {
   // Category state
   const [activeCategory, setActiveCategory] =
     useState<SettingsCategory>("profile");
+
+  // User Profile Modal state
+  const [viewProfileModalOpen, setViewProfileModalOpen] = useState(false);
+  const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
   // Profile metadata state
   const [avatar, setAvatar] = useState("");
@@ -798,6 +804,27 @@ const UserSettings: React.FC = React.memo(() => {
       key={`profile-${currentUser?.id}-${originalValues ? "loaded" : "loading"}`}
       className="space-y-6"
     >
+      {/* View Profile Button */}
+      {currentUser && currentServer && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => {
+              if (hasUnsavedChanges) {
+                setShowUnsavedChangesModal(true);
+              } else {
+                // Close User Settings and request to open User Profile
+                setProfileViewRequest(currentServer.id, currentUser.username);
+                toggleUserProfileModal(false);
+              }
+            }}
+            className="px-4 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20 flex items-center gap-2"
+          >
+            <FaUser size={14} />
+            View Profile
+          </button>
+        </div>
+      )}
+
       <SettingField
         label="Username"
         description="Your unique identifier on this server"
@@ -1412,6 +1439,75 @@ const UserSettings: React.FC = React.memo(() => {
           </div>
         </div>
       </div>
+      {/* User Profile Modal */}
+      {viewProfileModalOpen && currentUser && currentServer && (
+        <UserProfileModal
+          isOpen={viewProfileModalOpen}
+          onClose={() => setViewProfileModalOpen(false)}
+          serverId={currentServer.id}
+          username={currentUser.username}
+        />
+      )}
+
+      {/* Unsaved Changes Warning Modal */}
+      {showUnsavedChangesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-discord-dark-300 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-white text-xl font-semibold mb-4">
+                Unsaved Changes
+              </h3>
+              <p className="text-discord-text-normal mb-6">
+                You have unsaved changes. Would you like to save them before
+                viewing your profile?
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowUnsavedChangesModal(false);
+                  }}
+                  className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentUser && currentServer) {
+                      setShowUnsavedChangesModal(false);
+                      // Close User Settings and request to open User Profile
+                      setProfileViewRequest(
+                        currentServer.id,
+                        currentUser.username,
+                      );
+                      toggleUserProfileModal(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-black text-white rounded font-medium hover:bg-gray-900 transition-colors"
+                >
+                  No
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentUser && currentServer) {
+                      handleSaveAll();
+                      setShowUnsavedChangesModal(false);
+                      // Close User Settings and request to open User Profile
+                      setProfileViewRequest(
+                        currentServer.id,
+                        currentUser.username,
+                      );
+                      toggleUserProfileModal(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-[#5865F2] text-white rounded font-medium hover:bg-[#4752C4] transition-colors"
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

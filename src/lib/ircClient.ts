@@ -253,6 +253,49 @@ export interface EventMap {
     serverId: string;
     channelName: string;
   };
+  WHOIS_USER: {
+    serverId: string;
+    nick: string;
+    username: string;
+    host: string;
+    realname: string;
+  };
+  WHOIS_SERVER: {
+    serverId: string;
+    nick: string;
+    server: string;
+    serverInfo: string;
+  };
+  WHOIS_IDLE: {
+    serverId: string;
+    nick: string;
+    idle: number;
+    signon: number;
+  };
+  WHOIS_CHANNELS: {
+    serverId: string;
+    nick: string;
+    channels: string;
+  };
+  WHOIS_SPECIAL: {
+    serverId: string;
+    nick: string;
+    message: string;
+  };
+  WHOIS_ACCOUNT: {
+    serverId: string;
+    nick: string;
+    account: string;
+  };
+  WHOIS_SECURE: {
+    serverId: string;
+    nick: string;
+    message: string;
+  };
+  WHOIS_END: {
+    serverId: string;
+    nick: string;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -566,6 +609,12 @@ export class IRCClient {
     // Send TOPIC command without parameters to get current topic
     // Format: TOPIC #channel
     this.sendRaw(serverId, `TOPIC ${channelName}`);
+  }
+
+  whois(serverId: string, nickname: string): void {
+    // Send WHOIS command to get user information
+    // Format: WHOIS nickname
+    this.sendRaw(serverId, `WHOIS ${nickname}`);
   }
 
   sendMultilineMessage(
@@ -1763,6 +1812,87 @@ export class IRCClient {
         this.triggerEvent("RPL_NOTOPIC", {
           serverId,
           channelName,
+        });
+      } else if (command === "311") {
+        // RPL_WHOISUSER: <client> <nick> <username> <host> * :<realname>
+        const nick = parv[1];
+        const username = parv[2];
+        const host = parv[3];
+        const realname = parv.slice(5).join(" ");
+        this.triggerEvent("WHOIS_USER", {
+          serverId,
+          nick,
+          username,
+          host,
+          realname,
+        });
+      } else if (command === "312") {
+        // RPL_WHOISSERVER: <client> <nick> <server> :<server info>
+        const nick = parv[1];
+        const server = parv[2];
+        const serverInfo = parv.slice(3).join(" ");
+        this.triggerEvent("WHOIS_SERVER", {
+          serverId,
+          nick,
+          server,
+          serverInfo,
+        });
+      } else if (command === "317") {
+        // RPL_WHOISIDLE: <client> <nick> <idle> <signon> :seconds idle, signon time
+        const nick = parv[1];
+        const idle = Number.parseInt(parv[2], 10);
+        const signon = Number.parseInt(parv[3], 10);
+        this.triggerEvent("WHOIS_IDLE", {
+          serverId,
+          nick,
+          idle,
+          signon,
+        });
+      } else if (command === "318") {
+        // RPL_ENDOFWHOIS: <client> <nick> :End of /WHOIS list.
+        const nick = parv[1];
+        this.triggerEvent("WHOIS_END", {
+          serverId,
+          nick,
+        });
+      } else if (command === "319") {
+        // RPL_WHOISCHANNELS: <client> <nick> :<channels>
+        const nick = parv[1];
+        const channels = parv.slice(2).join(" ");
+        this.triggerEvent("WHOIS_CHANNELS", {
+          serverId,
+          nick,
+          channels,
+        });
+      } else if (command === "320" || command === "378" || command === "379") {
+        // RPL_WHOISSPECIAL: Various special WHOIS lines
+        // 320: security groups, reputation, etc.
+        // 378: connecting from
+        // 379: using modes
+        const nick = parv[1];
+        const message = parv.slice(2).join(" ");
+        this.triggerEvent("WHOIS_SPECIAL", {
+          serverId,
+          nick,
+          message,
+        });
+      } else if (command === "330") {
+        // RPL_WHOISACCOUNT: <client> <nick> <account> :is logged in as
+        const nick = parv[1];
+        const account = parv[2];
+        this.triggerEvent("WHOIS_ACCOUNT", {
+          serverId,
+          nick,
+          account,
+        });
+      } else if (command === "671") {
+        // RPL_WHOISSECURE: <client> <nick> :is using a secure connection
+        const nick = parv[1];
+        const message = parv.slice(2).join(" ");
+        this.triggerEvent("WHOIS_SECURE", {
+          serverId,
+          nick,
+          message,
         });
       }
     }

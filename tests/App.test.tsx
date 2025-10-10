@@ -67,6 +67,7 @@ describe("App", () => {
         // Server notices popup state
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       globalNotifications: [],
       globalSettings: {

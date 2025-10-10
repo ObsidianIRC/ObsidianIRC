@@ -19,6 +19,7 @@ import type {
   Server,
   ServerConfig,
   User,
+  WhoisData,
 } from "../types";
 
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
@@ -350,6 +351,8 @@ interface UIState {
   // Server notices popup state
   isServerNoticesPopupOpen: boolean;
   serverNoticesPopupMinimized: boolean;
+  // Profile view request - set when we want to open a user profile after closing settings
+  profileViewRequest: { serverId: string; username: string } | null;
 }
 
 export interface GlobalSettings {
@@ -430,6 +433,8 @@ export interface AppState {
   >; // batchId -> batch info
   activeBatches: Record<string, Record<string, BatchInfo>>; // serverId -> batchId -> batch info
   metadataFetchInProgress: Record<string, boolean>; // serverId -> is fetching own metadata
+  // WHOIS data cache
+  whoisData: Record<string, Record<string, WhoisData>>; // serverId -> nickname -> whois data
   // Account registration state
   pendingRegistration: {
     serverId: string;
@@ -537,6 +542,8 @@ export interface AppState {
   ) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
+  setProfileViewRequest: (serverId: string, username: string) => void;
+  clearProfileViewRequest: () => void;
   toggleDarkMode: () => void;
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
@@ -599,6 +606,7 @@ const useStore = create<AppState>((set, get) => ({
   metadataBatches: {},
   activeBatches: {},
   metadataFetchInProgress: {},
+  whoisData: {},
   pendingRegistration: null,
   selectedServerId: null,
 
@@ -632,6 +640,8 @@ const useStore = create<AppState>((set, get) => ({
     // Server notices popup state
     isServerNoticesPopupOpen: false,
     serverNoticesPopupMinimized: false,
+    // Profile view request
+    profileViewRequest: null,
   },
   globalSettings: {
     enableNotifications: false,
@@ -1447,6 +1457,24 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isUserProfileModalOpen:
           isOpen !== undefined ? isOpen : !state.ui.isUserProfileModalOpen,
+      },
+    }));
+  },
+
+  setProfileViewRequest: (serverId, username) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        profileViewRequest: { serverId, username },
+      },
+    }));
+  },
+
+  clearProfileViewRequest: () => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        profileViewRequest: null,
       },
     }));
   },
@@ -3429,6 +3457,212 @@ ircClient.on("RPL_NOTOPIC", ({ serverId, channelName }) => {
       return server;
     });
     return { servers: updatedServers };
+  });
+});
+
+// WHOIS event handlers
+ircClient.on("WHOIS_USER", ({ serverId, nick, username, host, realname }) => {
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick] || {
+      nick,
+      specialMessages: [],
+      timestamp: Date.now(),
+    };
+
+    return {
+      whoisData: {
+        ...state.whoisData,
+        [serverId]: {
+          ...serverWhois,
+          [nick]: {
+            ...existingData,
+            username,
+            host,
+            realname,
+            timestamp: Date.now(),
+          },
+        },
+      },
+    };
+  });
+});
+
+ircClient.on("WHOIS_SERVER", ({ serverId, nick, server, serverInfo }) => {
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick] || {
+      nick,
+      specialMessages: [],
+      timestamp: Date.now(),
+    };
+
+    return {
+      whoisData: {
+        ...state.whoisData,
+        [serverId]: {
+          ...serverWhois,
+          [nick]: {
+            ...existingData,
+            server,
+            serverInfo,
+          },
+        },
+      },
+    };
+  });
+});
+
+ircClient.on("WHOIS_IDLE", ({ serverId, nick, idle, signon }) => {
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick] || {
+      nick,
+      specialMessages: [],
+      timestamp: Date.now(),
+    };
+
+    return {
+      whoisData: {
+        ...state.whoisData,
+        [serverId]: {
+          ...serverWhois,
+          [nick]: {
+            ...existingData,
+            idle,
+            signon,
+          },
+        },
+      },
+    };
+  });
+});
+
+ircClient.on("WHOIS_CHANNELS", ({ serverId, nick, channels }) => {
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick] || {
+      nick,
+      specialMessages: [],
+      timestamp: Date.now(),
+    };
+
+    return {
+      whoisData: {
+        ...state.whoisData,
+        [serverId]: {
+          ...serverWhois,
+          [nick]: {
+            ...existingData,
+            channels,
+          },
+        },
+      },
+    };
+  });
+});
+
+ircClient.on("WHOIS_ACCOUNT", ({ serverId, nick, account }) => {
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick] || {
+      nick,
+      specialMessages: [],
+      timestamp: Date.now(),
+    };
+
+    return {
+      whoisData: {
+        ...state.whoisData,
+        [serverId]: {
+          ...serverWhois,
+          [nick]: {
+            ...existingData,
+            account,
+          },
+        },
+      },
+    };
+  });
+});
+
+ircClient.on("WHOIS_SECURE", ({ serverId, nick, message }) => {
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick] || {
+      nick,
+      specialMessages: [],
+      timestamp: Date.now(),
+    };
+
+    return {
+      whoisData: {
+        ...state.whoisData,
+        [serverId]: {
+          ...serverWhois,
+          [nick]: {
+            ...existingData,
+            secureConnection: message,
+          },
+        },
+      },
+    };
+  });
+});
+
+ircClient.on("WHOIS_SPECIAL", ({ serverId, nick, message }) => {
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick] || {
+      nick,
+      specialMessages: [],
+      timestamp: Date.now(),
+    };
+
+    // Deduplicate special messages
+    const updatedMessages = existingData.specialMessages.includes(message)
+      ? existingData.specialMessages
+      : [...existingData.specialMessages, message];
+
+    return {
+      whoisData: {
+        ...state.whoisData,
+        [serverId]: {
+          ...serverWhois,
+          [nick]: {
+            ...existingData,
+            specialMessages: updatedMessages,
+          },
+        },
+      },
+    };
+  });
+});
+
+ircClient.on("WHOIS_END", ({ serverId, nick }) => {
+  // Mark the whois data as complete
+  console.log(`WHOIS completed for ${nick} on server ${serverId}`);
+
+  useStore.setState((state) => {
+    const serverWhois = state.whoisData[serverId] || {};
+    const existingData = serverWhois[nick];
+
+    if (existingData) {
+      return {
+        whoisData: {
+          ...state.whoisData,
+          [serverId]: {
+            ...serverWhois,
+            [nick]: {
+              ...existingData,
+              isComplete: true,
+            },
+          },
+        },
+      };
+    }
+
+    return state;
   });
 });
 

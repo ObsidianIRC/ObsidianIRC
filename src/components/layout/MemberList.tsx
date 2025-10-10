@@ -8,6 +8,7 @@ import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import UserContextMenu from "../ui/UserContextMenu";
+import UserProfileModal from "../ui/UserProfileModal";
 
 const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   let bgColor = "bg-discord-dark-500"; // Default/offline
@@ -198,6 +199,9 @@ export const MemberList: React.FC = () => {
     username: "",
   });
 
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
+
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
   );
@@ -356,6 +360,11 @@ export const MemberList: React.FC = () => {
     }
   };
 
+  const handleOpenProfile = (username: string) => {
+    setSelectedProfileUsername(username);
+    setUserProfileModalOpen(true);
+  };
+
   const isMobileView = useMediaQuery();
   return (
     <div className="p-3 h-full overflow-y-auto">
@@ -390,6 +399,7 @@ export const MemberList: React.FC = () => {
         channelId={userContextMenu.channelId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
+        onOpenProfile={handleOpenProfile}
         currentUserStatus={userContextMenu.userStatusInChannel}
         currentUsername={
           ircClient.getCurrentUser(userContextMenu.serverId)?.username
@@ -457,6 +467,15 @@ export const MemberList: React.FC = () => {
         username={moderationModal.username}
         action={moderationModal.action}
       />
+
+      {selectedServerId && (
+        <UserProfileModal
+          isOpen={userProfileModalOpen}
+          onClose={() => setUserProfileModalOpen(false)}
+          serverId={selectedServerId}
+          username={selectedProfileUsername}
+        />
+      )}
     </div>
   );
 };

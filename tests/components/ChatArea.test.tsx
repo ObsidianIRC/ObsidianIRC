@@ -88,6 +88,7 @@ describe("ChatArea Tab Completion Integration", () => {
         // Server notices popup state
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       messages: {},
       typingUsers: {},
