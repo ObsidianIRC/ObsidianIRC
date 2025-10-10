@@ -1,25 +1,9 @@
-import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  FaAt,
-  FaBell,
-  FaBellSlash,
-  FaChevronLeft,
-  FaChevronRight,
-  FaEdit,
-  FaGift,
-  FaHashtag,
-  FaList,
-  FaPenAlt,
-  FaPlus,
-  FaSearch,
-  FaTimes,
-  FaUserPlus,
-} from "react-icons/fa";
+import { FaGift, FaList, FaPlus, FaTimes } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -31,11 +15,6 @@ import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
-import {
-  getChannelAvatarUrl,
-  getChannelDisplayName,
-  hasOpPermission,
-} from "../../lib/ircUtils";
 import {
   type FormattingType,
   getPreviewStyles,
@@ -63,6 +42,7 @@ import { ReplyBadge } from "../ui/ReplyBadge";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
+import { ChatHeader } from "./ChatHeader";
 
 const EMPTY_ARRAY: User[] = [];
 
@@ -173,8 +153,6 @@ export const ChatArea: React.FC<{
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const [inviteUserModalOpen, setInviteUserModalOpen] = useState(false);
   const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
-  const [isEditingTopic, setIsEditingTopic] = useState(false);
-  const [editedTopic, setEditedTopic] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleMessageCount, setVisibleMessageCount] = useState(100);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1353,266 +1331,24 @@ export const ChatArea: React.FC<{
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
-      <div className="min-h-[56px] px-4 border-b border-discord-dark-400 flex flex-wrap items-start md:items-center justify-between shadow-sm py-2 md:py-0 md:h-12 gap-y-2">
-        <div className="flex items-center flex-1 min-w-0 w-full md:w-auto">
-          {!isChanListVisible && (
-            <button
-              onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
-              aria-label="Expand channel list"
-            >
-              {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
-            </button>
-          )}
-          {selectedChannel && (
-            <div className="flex flex-col min-w-0 flex-1 md:flex-row md:items-center">
-              <div className="flex items-center min-w-0 flex-shrink-0">
-                {getChannelAvatarUrl(selectedChannel.metadata, 50) ? (
-                  <img
-                    src={getChannelAvatarUrl(selectedChannel.metadata, 50)}
-                    alt={selectedChannel.name}
-                    className="w-12 h-12 rounded-full object-cover mr-2 flex-shrink-0"
-                    onError={(e) => {
-                      // Fallback to # icon on error
-                      e.currentTarget.style.display = "none";
-                      const parent = e.currentTarget.parentElement;
-                      const fallbackIcon = parent?.querySelector(
-                        ".fallback-hash-icon",
-                      );
-                      if (fallbackIcon) {
-                        (fallbackIcon as HTMLElement).style.display =
-                          "inline-block";
-                      }
-                    }}
-                  />
-                ) : null}
-                <FaHashtag
-                  className="text-discord-text-muted mr-2 fallback-hash-icon flex-shrink-0 text-3xl"
-                  style={{
-                    display: getChannelAvatarUrl(selectedChannel.metadata, 50)
-                      ? "none"
-                      : "inline-block",
-                  }}
-                />
-                <h2 className="font-bold text-white mr-4 truncate">
-                  {getChannelDisplayName(
-                    selectedChannel.name,
-                    selectedChannel.metadata,
-                  )}
-                </h2>
-              </div>
-              <div className="md:mx-2 md:text-discord-text-muted hidden md:block">
-                |
-              </div>
-              {isEditingTopic ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (selectedServerId && selectedChannel) {
-                      ircClient.setTopic(
-                        selectedServerId,
-                        selectedChannel.name,
-                        editedTopic,
-                      );
-                      setIsEditingTopic(false);
-                    }
-                  }}
-                  className="flex items-center gap-2 flex-1 max-w-md mt-1 md:mt-0"
-                >
-                  <input
-                    type="text"
-                    value={editedTopic}
-                    onChange={(e) => setEditedTopic(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        setIsEditingTopic(false);
-                      }
-                    }}
-                    autoFocus
-                    className="flex-1 px-2 py-1 bg-discord-dark-300 text-white text-sm rounded"
-                    placeholder="Enter topic..."
-                  />
-                  <button
-                    type="submit"
-                    className="px-3 py-1 bg-discord-primary hover:bg-opacity-80 text-white text-sm rounded"
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingTopic(false)}
-                    className="px-3 py-1 bg-discord-dark-400 hover:bg-discord-dark-500 text-white text-sm rounded"
-                  >
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (selectedChannel) {
-                      const currentUserInChannel = selectedChannel.users.find(
-                        (u) => u.username === currentUser?.username,
-                      );
-                      if (hasOpPermission(currentUserInChannel?.status)) {
-                        setEditedTopic(selectedChannel.topic || "");
-                        setIsEditingTopic(true);
-                      }
-                    }
-                  }}
-                  className="text-discord-text-muted text-xs md:text-sm hover:text-white truncate min-w-0 md:max-w-md mt-0.5 mb-1 md:mt-0 md:mb-0"
-                  title={
-                    selectedChannel.topic
-                      ? `Topic: ${selectedChannel.topic}${
-                          selectedChannel.users.find(
-                            (u) => u.username === currentUser?.username,
-                          ) &&
-                          hasOpPermission(
-                            selectedChannel.users.find(
-                              (u) => u.username === currentUser?.username,
-                            )?.status,
-                          )
-                            ? " (Click to edit)"
-                            : ""
-                        }`
-                      : "No topic set"
-                  }
-                >
-                  {selectedChannel.topic || "No topic"}
-                </button>
-              )}
-            </div>
-          )}
-          {selectedPrivateChat && (
-            <>
-              <FaAt className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">
-                {selectedPrivateChat.username}
-              </h2>
-            </>
-          )}
-          {selectedChannelId === "server-notices" && (
-            <>
-              <FaList className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">Server Notices</h2>
-            </>
-          )}
-        </div>
-        {!!selectedServerId && selectedChannelId !== "server-notices" && (
-          <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={handleToggleNotificationVolume}
-              title={
-                globalSettings.notificationVolume > 0
-                  ? "Mute notifications"
-                  : "Enable notifications"
-              }
-            >
-              {globalSettings.notificationVolume > 0 ? (
-                <FaBell />
-              ) : (
-                <FaBellSlash />
-              )}
-            </button>
-            {selectedChannel && (
-              <button
-                className="hover:text-discord-text-normal"
-                onClick={() => setChannelSettingsModalOpen(true)}
-                title="Channel Settings"
-              >
-                <FaPenAlt />
-              </button>
-            )}
-            {selectedChannel && (
-              <button
-                className="hover:text-discord-text-normal"
-                onClick={() => setInviteUserModalOpen(true)}
-                title="Invite User"
-              >
-                <FaUserPlus />
-              </button>
-            )}
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => useStore.getState().toggleChannelListModal(true)}
-              title="List Channels"
-            >
-              <FaList />
-            </button>
-            {selectedChannel &&
-              (() => {
-                const serverCurrentUser = selectedServerId
-                  ? ircClient.getCurrentUser(selectedServerId)
-                  : null;
-                const channelUser = selectedChannel.users.find(
-                  (u) => u.username === serverCurrentUser?.username,
-                );
-                const isOperator =
-                  channelUser?.status?.includes("@") ||
-                  channelUser?.status?.includes("~");
-                return isOperator ? (
-                  <button
-                    className="hover:text-discord-text-normal"
-                    onClick={() =>
-                      useStore.getState().toggleChannelRenameModal(true)
-                    }
-                    title="Rename Channel"
-                  >
-                    <FaEdit />
-                  </button>
-                ) : null;
-              })()}
-            {/* Only show member list toggle for channels, not private chats */}
-            {selectedChannel && (
-              <button
-                className="hover:text-discord-text-normal"
-                onClick={() => toggleMemberList(!isMemberListVisible)}
-                aria-label={
-                  isMemberListVisible
-                    ? "Collapse member list"
-                    : "Expand member list"
-                }
-                data-testid="toggle-member-list"
-              >
-                {isMemberListVisible ? (
-                  <UsersIcon className="w-4 h-4 text-white" />
-                ) : (
-                  <UsersIcon className="w-4 h-4 text-gray" />
-                )}
-              </button>
-            )}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-20 md:w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-              />
-              <FaSearch className="absolute right-2 top-1.5 text-xs" />
-            </div>
-          </div>
-        )}
-        {selectedChannelId === "server-notices" && (
-          <div className="flex items-center gap-4 text-discord-text-muted">
-            {/* TODO: Re-enable pop out button for server notices
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() =>
-                setIsServerNoticesPoppedOut(!isServerNoticesPoppedOut)
-              }
-              title={
-                isServerNoticesPoppedOut
-                  ? "Pop in server notices"
-                  : "Pop out server notices"
-              }
-            >
-              <FaExternalLinkAlt />
-            </button>
-            */}
-          </div>
-        )}
-      </div>
+      <ChatHeader
+        selectedChannel={selectedChannel ?? null}
+        selectedPrivateChat={selectedPrivateChat ?? null}
+        selectedServerId={selectedServerId}
+        selectedChannelId={selectedChannelId}
+        currentUser={currentUser}
+        isChanListVisible={isChanListVisible}
+        isMemberListVisible={isMemberListVisible}
+        isNarrowView={isNarrowView}
+        globalSettings={globalSettings}
+        searchQuery={searchQuery}
+        onToggleChanList={onToggleChanList}
+        onToggleMemberList={() => toggleMemberList(!isMemberListVisible)}
+        onSearchQueryChange={setSearchQuery}
+        onToggleNotificationVolume={handleToggleNotificationVolume}
+        onOpenChannelSettings={() => setChannelSettingsModalOpen(true)}
+        onOpenInviteUser={() => setInviteUserModalOpen(true)}
+      />
 
       {/* Messages area */}
       {selectedServer &&
