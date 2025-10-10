@@ -162,3 +162,25 @@ export function isValidFormattingType(
   ];
   return validTypes.includes(format as FormattingType);
 }
+
+/**
+ * Strips IRC formatting codes from text
+ *
+ * @param text - The text with IRC formatting codes
+ * @returns Plain text without formatting codes
+ *
+ * @example
+ * ```typescript
+ * stripIrcFormatting('\x0304\x02Hello\x02')
+ * // Returns 'Hello'
+ * ```
+ */
+export function stripIrcFormatting(text: string): string {
+  return (
+    text
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: IRC color control codes
+      .replace(/\x03\d{0,2}(,\d{0,2})?/g, "")
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: IRC formatting control codes
+      .replace(/[\x02\x1D\x1F\x1E\x16\x11\x0F]/g, "")
+  );
+}
