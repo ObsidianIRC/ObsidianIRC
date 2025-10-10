@@ -6,6 +6,11 @@ import {
   playNotificationSound,
   shouldPlayNotificationSound,
 } from "../lib/notificationSounds";
+import {
+  checkForMention,
+  extractMentions,
+  showMentionNotification,
+} from "../lib/notifications";
 import { registerAllProtocolHandlers } from "../protocol";
 import type {
   Channel,
@@ -347,7 +352,7 @@ interface UIState {
   serverNoticesPopupMinimized: boolean;
 }
 
-interface GlobalSettings {
+export interface GlobalSettings {
   enableNotifications: boolean;
   notificationSound: string;
   enableNotificationSounds: boolean;
@@ -1826,6 +1831,26 @@ ircClient.on("CHANMSG", (response) => {
         ? findChannelMessageById(server.id, channel.id, replyId) || null
         : null;
 
+      // Check for mentions and get current state
+      const currentState = useStore.getState();
+      const currentServerUser = ircClient.getCurrentUser(response.serverId);
+      // Don't trigger mentions for our own messages
+      const isOwnMessage = response.sender === currentServerUser?.username;
+      const hasMention =
+        !isOwnMessage &&
+        checkForMention(
+          message,
+          currentServerUser,
+          currentState.globalSettings,
+        );
+      const mentions = !isOwnMessage
+        ? extractMentions(
+            message,
+            currentServerUser,
+            currentState.globalSettings,
+          )
+        : [];
+
       const newMessage = {
         id: uuidv4(),
         msgid: mtags?.msgid,
@@ -1837,9 +1862,63 @@ ircClient.on("CHANMSG", (response) => {
         type: "message" as const,
         reactions: [],
         replyMessage: replyMessage,
-        mentioned: [], // Add logic for mentions if needed
+        mentioned: mentions,
         tags: mtags,
       };
+
+      // Update channel unread count and mention flag if not the active channel
+      const isActiveChannel =
+        currentState.ui.selectedChannelId === channel.id &&
+        currentState.ui.selectedServerId === server.id;
+
+      // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
+      const isHistoricalMessage = mtags?.batch !== undefined;
+
+      if (
+        !isActiveChannel &&
+        response.sender !== currentServerUser?.username &&
+        !isHistoricalMessage
+      ) {
+        useStore.setState((state) => {
+          const updatedServers = state.servers.map((s) => {
+            if (s.id === server.id) {
+              const updatedChannels = s.channels.map((ch) => {
+                if (ch.id === channel.id) {
+                  return {
+                    ...ch,
+                    unreadCount: ch.unreadCount + 1,
+                    isMentioned: hasMention || ch.isMentioned,
+                  };
+                }
+                return ch;
+              });
+              return { ...s, channels: updatedChannels };
+            }
+            return s;
+          });
+          return { servers: updatedServers };
+        });
+
+        // Show browser notification for mentions
+        if (hasMention && currentState.globalSettings.enableNotifications) {
+          showMentionNotification(
+            server.id,
+            channelName,
+            response.sender,
+            message,
+            (serverId, msg) => {
+              // Fallback: Add a NOTE standard reply notification
+              useStore.getState().addGlobalNotification({
+                type: "note",
+                command: "MENTION",
+                code: "HIGHLIGHT",
+                message: msg,
+                serverId,
+              });
+            },
+          );
+        }
+      }
 
       // If message has bot tag, mark user as bot
       if (mtags?.bot !== undefined) {
@@ -1872,17 +1951,19 @@ ircClient.on("CHANMSG", (response) => {
 
       useStore.getState().addMessage(newMessage);
 
-      // Play notification sound if appropriate
-      const state = useStore.getState();
-      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
-      if (
-        shouldPlayNotificationSound(
-          newMessage,
-          serverCurrentUser,
-          state.globalSettings,
-        )
-      ) {
-        playNotificationSound(state.globalSettings);
+      // Play notification sound if appropriate (but not for historical messages)
+      if (!isHistoricalMessage) {
+        const state = useStore.getState();
+        const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+        if (
+          shouldPlayNotificationSound(
+            newMessage,
+            serverCurrentUser,
+            state.globalSettings,
+          )
+        ) {
+          playNotificationSound(state.globalSettings);
+        }
       }
 
       // Remove any typing users from the state
@@ -1974,17 +2055,22 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
 
       useStore.getState().addMessage(newMessage);
 
-      // Play notification sound if appropriate
-      const state = useStore.getState();
-      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
-      if (
-        shouldPlayNotificationSound(
-          newMessage,
-          serverCurrentUser,
-          state.globalSettings,
-        )
-      ) {
-        playNotificationSound(state.globalSettings);
+      // Play notification sound if appropriate (but not for historical messages)
+      // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
+      const isHistoricalMessage = mtags?.batch !== undefined;
+
+      if (!isHistoricalMessage) {
+        const state = useStore.getState();
+        const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+        if (
+          shouldPlayNotificationSound(
+            newMessage,
+            serverCurrentUser,
+            state.globalSettings,
+          )
+        ) {
+          playNotificationSound(state.globalSettings);
+        }
       }
 
       // Remove any typing users from the state
@@ -2046,17 +2132,22 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
 
       useStore.getState().addMessage(newMessage);
 
-      // Play notification sound if appropriate
-      const state = useStore.getState();
-      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
-      if (
-        shouldPlayNotificationSound(
-          newMessage,
-          serverCurrentUser,
-          state.globalSettings,
-        )
-      ) {
-        playNotificationSound(state.globalSettings);
+      // Play notification sound if appropriate (but not for historical messages)
+      // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
+      const isHistoricalMessage = mtags?.batch !== undefined;
+
+      if (!isHistoricalMessage) {
+        const state = useStore.getState();
+        const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+        if (
+          shouldPlayNotificationSound(
+            newMessage,
+            serverCurrentUser,
+            state.globalSettings,
+          )
+        ) {
+          playNotificationSound(state.globalSettings);
+        }
       }
     }
   }
@@ -2128,9 +2219,11 @@ ircClient.on("USERMSG", (response) => {
 
         useStore.getState().addMessage(newMessage);
 
-        // Play notification sound if appropriate (only if it's not from ourselves)
+        // Play notification sound if appropriate (only if it's not from ourselves and not historical)
         const currentUser = ircClient.getCurrentUser(response.serverId);
-        if (currentUser?.username !== sender) {
+        const isHistoricalMessage = mtags?.batch !== undefined;
+
+        if (currentUser?.username !== sender && !isHistoricalMessage) {
           const state = useStore.getState();
           const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
           if (
@@ -2223,19 +2316,6 @@ ircClient.on("USERMSG", (response) => {
 
       useStore.getState().addMessage(newMessage);
 
-      // Play notification sound if appropriate
-      const state = useStore.getState();
-      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
-      if (
-        shouldPlayNotificationSound(
-          newMessage,
-          serverCurrentUser,
-          state.globalSettings,
-        )
-      ) {
-        playNotificationSound(state.globalSettings);
-      }
-
       // Remove any typing users from the state
       useStore.setState((state) => {
         const key = `${server.id}-${privateChat.id}`;
@@ -2249,19 +2329,37 @@ ircClient.on("USERMSG", (response) => {
       });
 
       // Update private chat's last activity and unread count
+      // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
+      const isHistoricalMessage = mtags?.batch !== undefined;
+
+      // Play notification sound if appropriate (but not for historical messages)
+      if (!isHistoricalMessage) {
+        const state = useStore.getState();
+        const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+        if (
+          shouldPlayNotificationSound(
+            newMessage,
+            serverCurrentUser,
+            state.globalSettings,
+          )
+        ) {
+          playNotificationSound(state.globalSettings);
+        }
+      }
+
       useStore.setState((state) => {
         const updatedServers = state.servers.map((s) => {
           if (s.id === server.id) {
             const updatedPrivateChats =
               s.privateChats?.map((pc) => {
                 if (pc.id === privateChat.id) {
+                  const isActive = state.ui.selectedPrivateChatId === pc.id;
                   return {
                     ...pc,
                     lastActivity: new Date(),
                     unreadCount:
-                      state.ui.selectedPrivateChatId === pc.id
-                        ? 0
-                        : pc.unreadCount + 1,
+                      isActive || isHistoricalMessage ? 0 : pc.unreadCount + 1,
+                    isMentioned: !isHistoricalMessage && true, // All PMs are considered mentions (except historical)
                   };
                 }
                 return pc;
@@ -2272,6 +2370,33 @@ ircClient.on("USERMSG", (response) => {
         });
         return { servers: updatedServers };
       });
+
+      // Show browser notification for private messages
+      const currentState = useStore.getState();
+      const isActiveChat =
+        currentState.ui.selectedPrivateChatId === privateChat.id;
+      if (
+        !isActiveChat &&
+        !isHistoricalMessage &&
+        currentState.globalSettings.enableNotifications
+      ) {
+        showMentionNotification(
+          server.id,
+          `DM from ${sender}`,
+          sender,
+          message,
+          (serverId, msg) => {
+            // Fallback: Add a NOTE standard reply notification
+            useStore.getState().addGlobalNotification({
+              type: "note",
+              command: "PRIVMSG",
+              code: "DM",
+              message: msg,
+              serverId,
+            });
+          },
+        );
+      }
     }
   }
 });
@@ -2386,17 +2511,22 @@ ircClient.on("CHANNNOTICE", (response) => {
 
   useStore.getState().addMessage(newMessage);
 
-  // Play notification sound if appropriate
-  const state = useStore.getState();
-  const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
-  if (
-    shouldPlayNotificationSound(
-      newMessage,
-      serverCurrentUser,
-      state.globalSettings,
-    )
-  ) {
-    playNotificationSound(state.globalSettings);
+  // Play notification sound if appropriate (but not for historical messages)
+  // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
+  const isHistoricalMessage = mtags?.batch !== undefined;
+
+  if (!isHistoricalMessage) {
+    const state = useStore.getState();
+    const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+    if (
+      shouldPlayNotificationSound(
+        newMessage,
+        serverCurrentUser,
+        state.globalSettings,
+      )
+    ) {
+      playNotificationSound(state.globalSettings);
+    }
   }
 });
 
@@ -2510,17 +2640,22 @@ ircClient.on("USERNOTICE", (response) => {
 
   useStore.getState().addMessage(newMessage);
 
-  // Play notification sound if appropriate
-  const state = useStore.getState();
-  const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
-  if (
-    shouldPlayNotificationSound(
-      newMessage,
-      serverCurrentUser,
-      state.globalSettings,
-    )
-  ) {
-    playNotificationSound(state.globalSettings);
+  // Play notification sound if appropriate (but not for historical messages)
+  // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
+  const isHistoricalMessage = mtags?.batch !== undefined;
+
+  if (!isHistoricalMessage) {
+    const state = useStore.getState();
+    const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+    if (
+      shouldPlayNotificationSound(
+        newMessage,
+        serverCurrentUser,
+        state.globalSettings,
+      )
+    ) {
+      playNotificationSound(state.globalSettings);
+    }
   }
 });
 
@@ -3203,6 +3338,98 @@ ircClient.on("RPL_ENDOFINVITELIST", ({ serverId, channel }) => {
 ircClient.on("RPL_ENDOFEXCEPTLIST", ({ serverId, channel }) => {
   // Exception list loading is complete - could trigger UI updates if needed
   console.log(`Exception list loaded for ${channel} on server ${serverId}`);
+});
+
+// Topic handlers
+ircClient.on("TOPIC", ({ serverId, channelName, topic, sender }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          if (channel.name === channelName) {
+            return { ...channel, topic };
+          }
+          return channel;
+        });
+        return { ...server, channels: updatedChannels };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
+
+  // Optionally add a system message showing the topic change
+  const server = useStore.getState().servers.find((s) => s.id === serverId);
+  const channel = server?.channels.find((c) => c.name === channelName);
+  if (channel) {
+    const topicMessage: Message = {
+      id: `topic-${Date.now()}`,
+      channelId: channel.id,
+      userId: sender,
+      content: `changed the topic to: ${topic}`,
+      timestamp: new Date(),
+      serverId: serverId,
+      reactions: [],
+      type: "system",
+      replyMessage: null,
+      mentioned: [],
+    };
+
+    const key = `${serverId}-${channel.id}`;
+    useStore.setState((state) => ({
+      messages: {
+        ...state.messages,
+        [key]: [...(state.messages[key] || []), topicMessage],
+      },
+    }));
+  }
+});
+
+ircClient.on("RPL_TOPIC", ({ serverId, channelName, topic }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          if (channel.name === channelName) {
+            return { ...channel, topic };
+          }
+          return channel;
+        });
+        return { ...server, channels: updatedChannels };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
+});
+
+ircClient.on(
+  "RPL_TOPICWHOTIME",
+  ({ serverId, channelName, setter, timestamp }) => {
+    // This provides metadata about who set the topic and when
+    // We could store this if we extend the Channel interface
+    console.log(
+      `Topic for ${channelName} was set by ${setter} at ${new Date(timestamp * 1000).toISOString()}`,
+    );
+  },
+);
+
+ircClient.on("RPL_NOTOPIC", ({ serverId, channelName }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          if (channel.name === channelName) {
+            return { ...channel, topic: undefined };
+          }
+          return channel;
+        });
+        return { ...server, channels: updatedChannels };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
 });
 
 ircClient.on("KICK", ({ serverId, username, target, channelName, reason }) => {

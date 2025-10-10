@@ -28,7 +28,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 }) => {
   const [modes, setModes] = useState<ChannelMode[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"b" | "e" | "I" | "metadata">("b");
+  const [activeTab, setActiveTab] = useState<"b" | "e" | "I" | "general">("b");
   const [newMask, setNewMask] = useState("");
   const [editingMask, setEditingMask] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -38,8 +38,11 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   // Metadata state
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelDisplayName, setChannelDisplayName] = useState("");
+  const [channelTopic, setChannelTopic] = useState("");
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
   const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
+  const [isUpdatingTopic, setIsUpdatingTopic] = useState(false);
+  const [isApplyingChanges, setIsApplyingChanges] = useState(false);
 
   const hasFetchedRef = useRef(false);
   const isParsingRef = useRef(false);
@@ -282,6 +285,42 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
   const filteredModes = modes.filter((mode) => mode.type === activeTab);
 
+  // Handle applying all general tab changes
+  const applyGeneralChanges = async () => {
+    setIsApplyingChanges(true);
+    try {
+      // Apply topic change
+      if (channelTopic !== (channel?.topic || "")) {
+        ircClient.setTopic(serverId, channelName, channelTopic);
+      }
+
+      // Apply avatar change
+      if (channelAvatar !== (channel?.metadata?.avatar?.value || "")) {
+        await metadataSet(
+          serverId,
+          channelName,
+          "avatar",
+          channelAvatar || undefined,
+        );
+      }
+
+      // Apply display name change
+      if (
+        channelDisplayName !==
+        (channel?.metadata?.["display-name"]?.value || "")
+      ) {
+        await metadataSet(
+          serverId,
+          channelName,
+          "display-name",
+          channelDisplayName || undefined,
+        );
+      }
+    } finally {
+      setIsApplyingChanges(false);
+    }
+  };
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: Using channelName instead of channel to avoid infinite loop from object reference changes
   useEffect(() => {
     if (isOpen && channel) {
@@ -297,6 +336,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     if (isOpen && channel) {
       setChannelAvatar(channel.metadata?.avatar?.value || "");
       setChannelDisplayName(channel.metadata?.["display-name"]?.value || "");
+      setChannelTopic(channel.topic || "");
     }
   }, [isOpen, channel]);
 
@@ -354,20 +394,20 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           </button>
           {userHasOpPermission && supportsMetadata && (
             <button
-              onClick={() => setActiveTab("metadata")}
+              onClick={() => setActiveTab("general")}
               className={`px-4 py-2 text-sm font-medium ${
-                activeTab === "metadata"
+                activeTab === "general"
                   ? "text-white border-b-2 border-discord-blue"
                   : "text-discord-text-muted hover:text-white"
               }`}
             >
-              Metadata
+              General
             </button>
           )}
         </div>
 
         {/* Conditionally render based on active tab */}
-        {activeTab !== "metadata" ? (
+        {activeTab !== "general" ? (
           <>
             {/* Add new mask */}
             <div className="flex gap-2 mb-4">
@@ -503,8 +543,26 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           </>
         ) : (
           <>
-            {/* Metadata tab content */}
+            {/* General tab content */}
             <div className="flex-1 overflow-y-auto space-y-6">
+              {/* Channel Topic */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">
+                  Channel Topic
+                </label>
+                <p className="text-xs text-discord-text-muted mb-2">
+                  The topic that will be displayed for this channel. All users
+                  can see the topic.
+                </p>
+                <input
+                  type="text"
+                  value={channelTopic}
+                  onChange={(e) => setChannelTopic(e.target.value)}
+                  placeholder="Welcome to the channel!"
+                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                />
+              </div>
+
               {/* Channel Avatar */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
@@ -515,38 +573,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   sizing. Example:
                   https://example.com/avatar/&#123;size&#125;/channel.jpg
                 </p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={channelAvatar}
-                    onChange={(e) => setChannelAvatar(e.target.value)}
-                    placeholder="https://example.com/avatar/{size}/channel.jpg"
-                    className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
-                  />
-                  <button
-                    onClick={async () => {
-                      setIsUpdatingAvatar(true);
-                      try {
-                        await metadataSet(
-                          serverId,
-                          channelName,
-                          "avatar",
-                          channelAvatar || undefined,
-                        );
-                      } finally {
-                        setIsUpdatingAvatar(false);
-                      }
-                    }}
-                    disabled={isUpdatingAvatar}
-                    className="px-4 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    {isUpdatingAvatar ? (
-                      <FaSpinner className="animate-spin" size={14} />
-                    ) : (
-                      "Apply"
-                    )}
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  value={channelAvatar}
+                  onChange={(e) => setChannelAvatar(e.target.value)}
+                  placeholder="https://example.com/avatar/{size}/channel.jpg"
+                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                />
                 {channelAvatar && (
                   <div className="mt-2">
                     <p className="text-xs text-discord-text-muted mb-1">
@@ -574,38 +607,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   emoji, and special characters. The real channel name (
                   {channelName}) will still be used for IRC commands.
                 </p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={channelDisplayName}
-                    onChange={(e) => setChannelDisplayName(e.target.value)}
-                    placeholder="General Support Channel"
-                    className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
-                  />
-                  <button
-                    onClick={async () => {
-                      setIsUpdatingDisplayName(true);
-                      try {
-                        await metadataSet(
-                          serverId,
-                          channelName,
-                          "display-name",
-                          channelDisplayName || undefined,
-                        );
-                      } finally {
-                        setIsUpdatingDisplayName(false);
-                      }
-                    }}
-                    disabled={isUpdatingDisplayName}
-                    className="px-4 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    {isUpdatingDisplayName ? (
-                      <FaSpinner className="animate-spin" size={14} />
-                    ) : (
-                      "Apply"
-                    )}
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  value={channelDisplayName}
+                  onChange={(e) => setChannelDisplayName(e.target.value)}
+                  placeholder="General Support Channel"
+                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                />
               </div>
 
               <div className="pt-4 border-t border-discord-dark-400">
@@ -615,6 +623,24 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   who support the METADATA specification.
                 </p>
               </div>
+            </div>
+
+            {/* Apply button for General tab */}
+            <div className="mt-4 pt-4 border-t border-discord-dark-400 flex justify-end">
+              <button
+                onClick={applyGeneralChanges}
+                disabled={isApplyingChanges}
+                className="px-6 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                {isApplyingChanges ? (
+                  <span className="flex items-center gap-2">
+                    <FaSpinner className="animate-spin" size={14} />
+                    Applying...
+                  </span>
+                ) : (
+                  "Apply"
+                )}
+              </button>
             </div>
           </>
         )}

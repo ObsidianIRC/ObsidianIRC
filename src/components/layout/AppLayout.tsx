@@ -85,7 +85,7 @@ export const AppLayout: React.FC = () => {
             <ResizableSidebar
               bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
               isVisible={isChannelListVisible}
-              defaultWidth={200}
+              defaultWidth={240}
               minWidth={80}
               maxWidth={400}
               side="left"
@@ -121,7 +121,7 @@ export const AppLayout: React.FC = () => {
           <ResizableSidebar
             bypass={isNarrowView && mobileViewActiveColumn === "memberList"}
             isVisible={shouldShowMemberList}
-            defaultWidth={240}
+            defaultWidth={280}
             minWidth={80}
             maxWidth={400}
             side="right"

@@ -28,7 +28,11 @@ import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
-import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
+import {
+  getChannelAvatarUrl,
+  getChannelDisplayName,
+  hasOpPermission,
+} from "../../lib/ircUtils";
 import {
   type FormattingType,
   formatMessageForIrc,
@@ -234,6 +238,8 @@ export const ChatArea: React.FC<{
   });
   const [channelSettingsModalOpen, setChannelSettingsModalOpen] =
     useState(false);
+  const [isEditingTopic, setIsEditingTopic] = useState(false);
+  const [editedTopic, setEditedTopic] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1677,12 +1683,85 @@ export const ChatArea: React.FC<{
               <h2 className="font-bold text-white mr-4">Server Notices</h2>
             </>
           )}
-          {selectedChannel?.topic && (
+          {selectedChannel && (
             <>
               <div className="mx-2 text-discord-text-muted">|</div>
-              <div className="text-discord-text-muted text-sm truncate max-w-xs">
-                {selectedChannel.topic}
-              </div>
+              {isEditingTopic ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (selectedServerId && selectedChannel) {
+                      ircClient.setTopic(
+                        selectedServerId,
+                        selectedChannel.name,
+                        editedTopic,
+                      );
+                      setIsEditingTopic(false);
+                    }
+                  }}
+                  className="flex items-center gap-2 flex-1 max-w-md"
+                >
+                  <input
+                    type="text"
+                    value={editedTopic}
+                    onChange={(e) => setEditedTopic(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setIsEditingTopic(false);
+                      }
+                    }}
+                    autoFocus
+                    className="flex-1 px-2 py-1 bg-discord-dark-300 text-white text-sm rounded"
+                    placeholder="Enter topic..."
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1 bg-discord-primary hover:bg-opacity-80 text-white text-sm rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingTopic(false)}
+                    className="px-3 py-1 bg-discord-dark-400 hover:bg-discord-dark-500 text-white text-sm rounded"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (selectedChannel) {
+                      const currentUserInChannel = selectedChannel.users.find(
+                        (u) => u.username === currentUser?.username,
+                      );
+                      if (hasOpPermission(currentUserInChannel?.status)) {
+                        setEditedTopic(selectedChannel.topic || "");
+                        setIsEditingTopic(true);
+                      }
+                    }
+                  }}
+                  className="text-discord-text-muted text-sm hover:text-white truncate max-w-md"
+                  title={
+                    selectedChannel.topic
+                      ? `Topic: ${selectedChannel.topic}${
+                          selectedChannel.users.find(
+                            (u) => u.username === currentUser?.username,
+                          ) &&
+                          hasOpPermission(
+                            selectedChannel.users.find(
+                              (u) => u.username === currentUser?.username,
+                            )?.status,
+                          )
+                            ? " (Click to edit)"
+                            : ""
+                        }`
+                      : "No topic set"
+                  }
+                >
+                  {selectedChannel.topic || "No topic"}
+                </button>
+              )}
             </>
           )}
         </div>

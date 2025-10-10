@@ -232,6 +232,27 @@ export interface EventMap {
     serverId: string;
     channel: string;
   };
+  TOPIC: {
+    serverId: string;
+    channelName: string;
+    topic: string;
+    sender: string;
+  };
+  RPL_TOPIC: {
+    serverId: string;
+    channelName: string;
+    topic: string;
+  };
+  RPL_TOPICWHOTIME: {
+    serverId: string;
+    channelName: string;
+    setter: string;
+    timestamp: number;
+  };
+  RPL_NOTOPIC: {
+    serverId: string;
+    channelName: string;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -533,6 +554,18 @@ export class IRCClient {
       serverId,
       `@+draft/channel-context=${channelName} PRIVMSG ${targetUser} :${content}`,
     );
+  }
+
+  setTopic(serverId: string, channelName: string, topic: string): void {
+    // Send TOPIC command to set the channel topic
+    // Format: TOPIC #channel :New topic text
+    this.sendRaw(serverId, `TOPIC ${channelName} :${topic}`);
+  }
+
+  getTopic(serverId: string, channelName: string): void {
+    // Send TOPIC command without parameters to get current topic
+    // Format: TOPIC #channel
+    this.sendRaw(serverId, `TOPIC ${channelName}`);
   }
 
   sendMultilineMessage(
@@ -1692,6 +1725,44 @@ export class IRCClient {
         this.triggerEvent("RPL_ENDOFEXCEPTLIST", {
           serverId,
           channel,
+        });
+      } else if (command === "TOPIC") {
+        // TOPIC #channel :New topic text
+        const channelName = parv[0];
+        const topic = parv.slice(1).join(" ");
+        const sender = getNickFromNuh(source);
+        this.triggerEvent("TOPIC", {
+          serverId,
+          channelName,
+          topic,
+          sender,
+        });
+      } else if (command === "332") {
+        // RPL_TOPIC: <client> <channel> :<topic>
+        const channelName = parv[1];
+        const topic = parv.slice(2).join(" ");
+        this.triggerEvent("RPL_TOPIC", {
+          serverId,
+          channelName,
+          topic,
+        });
+      } else if (command === "333") {
+        // RPL_TOPICWHOTIME: <client> <channel> <setter> <timestamp>
+        const channelName = parv[1];
+        const setter = parv[2];
+        const timestamp = Number.parseInt(parv[3], 10);
+        this.triggerEvent("RPL_TOPICWHOTIME", {
+          serverId,
+          channelName,
+          setter,
+          timestamp,
+        });
+      } else if (command === "331") {
+        // RPL_NOTOPIC: <client> <channel> :No topic is set
+        const channelName = parv[1];
+        this.triggerEvent("RPL_NOTOPIC", {
+          serverId,
+          channelName,
         });
       }
     }

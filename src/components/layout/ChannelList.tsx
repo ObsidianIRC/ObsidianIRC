@@ -7,6 +7,7 @@ import {
   FaCog,
   FaHashtag,
   FaPlus,
+  FaSpinner,
   FaTrash,
   FaUser,
   FaUserPlus,
@@ -301,20 +302,39 @@ export const ChannelList: React.FC<{
                               )}
                             </span>
                           </div>
-                          {/* Trash Button */}
-                          {selectedChannelId === channel.id && (
-                            <button
-                              className="hidden group-hover:block text-discord-red hover:text-white"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (selectedServerId) {
-                                  leaveChannel(selectedServerId, channel.name);
-                                }
-                              }}
-                            >
-                              <FaTrash />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {/* Loading/Unread/Mention indicators */}
+                            {channel.isLoadingHistory ? (
+                              <FaSpinner className="w-3 h-3 text-gray-400 animate-spin" />
+                            ) : (
+                              selectedChannelId !== channel.id &&
+                              (channel.isMentioned &&
+                              channel.unreadCount > 0 ? (
+                                <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                                  {channel.unreadCount}
+                                </span>
+                              ) : channel.unreadCount > 0 ? (
+                                <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                              ) : null)
+                            )}
+                            {/* Trash Button */}
+                            {selectedChannelId === channel.id && (
+                              <button
+                                className="hidden group-hover:block text-discord-red hover:text-white"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (selectedServerId) {
+                                    leaveChannel(
+                                      selectedServerId,
+                                      channel.name,
+                                    );
+                                  }
+                                }}
+                              >
+                                <FaTrash />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </TouchableContextMenu>
                     ))}
@@ -432,23 +452,35 @@ export const ChannelList: React.FC<{
                             {privateChat.username}
                           </span>
                         </div>
-                        {/* Delete Button */}
-                        {selectedPrivateChatId === privateChat.id && (
-                          <button
-                            className="hidden group-hover:block text-discord-red hover:text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedServerId) {
-                                deletePrivateChat(
-                                  selectedServerId,
-                                  privateChat.id,
-                                );
-                              }
-                            }}
-                          >
-                            <FaTrash />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {/* Unread/Mention indicators */}
+                          {selectedPrivateChatId !== privateChat.id &&
+                            (privateChat.isMentioned &&
+                            privateChat.unreadCount > 0 ? (
+                              <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                                {privateChat.unreadCount}
+                              </span>
+                            ) : privateChat.unreadCount > 0 ? (
+                              <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                            ) : null)}
+                          {/* Delete Button */}
+                          {selectedPrivateChatId === privateChat.id && (
+                            <button
+                              className="hidden group-hover:block text-discord-red hover:text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedServerId) {
+                                  deletePrivateChat(
+                                    selectedServerId,
+                                    privateChat.id,
+                                  );
+                                }
+                              }}
+                            >
+                              <FaTrash />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </TouchableContextMenu>
                   ))}
