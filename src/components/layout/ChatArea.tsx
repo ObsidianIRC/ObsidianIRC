@@ -50,6 +50,7 @@ import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
 import GifSelector from "../ui/GifSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+import InviteUserModal from "../ui/InviteUserModal";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
@@ -240,6 +241,7 @@ export const ChatArea: React.FC<{
   const [channelSettingsModalOpen, setChannelSettingsModalOpen] =
     useState(false);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [inviteUserModalOpen, setInviteUserModalOpen] = useState(false);
   const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editedTopic, setEditedTopic] = useState("");
@@ -1818,9 +1820,15 @@ export const ChatArea: React.FC<{
                 <FaPenAlt />
               </button>
             )}
-            <button className="hover:text-discord-text-normal">
-              <FaUserPlus />
-            </button>
+            {selectedChannel && (
+              <button
+                className="hover:text-discord-text-normal"
+                onClick={() => setInviteUserModalOpen(true)}
+                title="Invite User"
+              >
+                <FaUserPlus />
+              </button>
+            )}
             <button
               className="hover:text-discord-text-normal"
               onClick={() => useStore.getState().toggleChannelListModal(true)}
@@ -2371,6 +2379,15 @@ export const ChatArea: React.FC<{
           isOpen={channelSettingsModalOpen}
           onClose={() => setChannelSettingsModalOpen(false)}
           serverId={selectedServerId || ""}
+          channelName={selectedChannel.name}
+        />
+      )}
+
+      {selectedChannel && selectedServerId && (
+        <InviteUserModal
+          isOpen={inviteUserModalOpen}
+          onClose={() => setInviteUserModalOpen(false)}
+          serverId={selectedServerId}
           channelName={selectedChannel.name}
         />
       )}

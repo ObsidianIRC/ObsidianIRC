@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   FaClock,
   FaGlobe,
@@ -273,7 +274,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     onClose();
   };
 
-  return (
+  if (!isOpen) return null;
+
+  return createPortal(
     <>
       <ExternalLinkWarningModal
         isOpen={!!pendingUrl}
@@ -282,7 +285,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         onCancel={handleCancelOpen}
       />
       <div
-        className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[9999] p-4"
         onClick={onClose}
       >
         <div
@@ -626,7 +629,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 };
 
