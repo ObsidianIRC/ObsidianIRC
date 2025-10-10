@@ -28,6 +28,7 @@ import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
+import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
 import {
   type FormattingType,
   formatMessageForIrc,
@@ -1608,9 +1609,30 @@ export const ChatArea: React.FC<{
           )}
           {selectedChannel && (
             <>
-              <FaHashtag className="text-discord-text-muted mr-2" />
+              {getChannelAvatarUrl(selectedChannel.metadata, 20) ? (
+                <img
+                  src={getChannelAvatarUrl(selectedChannel.metadata, 20)}
+                  alt={selectedChannel.name}
+                  className="w-5 h-5 rounded-full object-cover mr-2"
+                  onError={(e) => {
+                    // Fallback to # icon on error
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    const fallbackIcon = parent?.querySelector('.fallback-hash-icon');
+                    if (fallbackIcon) {
+                      (fallbackIcon as HTMLElement).style.display = "inline-block";
+                    }
+                  }}
+                />
+              ) : null}
+              <FaHashtag 
+                className="text-discord-text-muted mr-2 fallback-hash-icon" 
+                style={{ 
+                  display: getChannelAvatarUrl(selectedChannel.metadata, 20) ? "none" : "inline-block" 
+                }}
+              />
               <h2 className="font-bold text-white mr-4">
-                {selectedChannel.name.replace(/^#/, "")}
+                {getChannelDisplayName(selectedChannel.name, selectedChannel.metadata)}
               </h2>
             </>
           )}

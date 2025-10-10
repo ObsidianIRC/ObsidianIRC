@@ -2468,6 +2468,13 @@ ircClient.on(
       // Request topic and user list
       ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
       ircClient.sendRaw(serverId, `WHO ${channelName}`);
+      
+      // Request channel metadata if server supports it
+      if (serverSupportsMetadata(serverId)) {
+        setTimeout(() => {
+          ircClient.metadataGet(serverId, channelName, ["avatar", "display-name"]);
+        }, 100);
+      }
     }
 
     // Add join message if settings allow
@@ -4103,18 +4110,21 @@ ircClient.on(
             });
 
             // Update metadata for the channel itself if target matches channel name
-            const channelMetadata = channel.metadata || {};
-            if (
-              resolvedTarget === channel.name ||
-              resolvedTarget.startsWith("#")
-            ) {
-              channelMetadata[key] = { value, visibility };
+            let updatedChannelMetadata = channel.metadata || {};
+            if (resolvedTarget === channel.name) {
+              // Only update THIS channel's metadata if the target matches exactly
+              updatedChannelMetadata = { ...updatedChannelMetadata };
+              if (value !== null && value !== undefined && value !== "") {
+                updatedChannelMetadata[key] = { value, visibility };
+              } else {
+                delete updatedChannelMetadata[key];
+              }
             }
 
             return {
               ...channel,
               users: updatedUsers,
-              metadata: channelMetadata,
+              metadata: updatedChannelMetadata,
             };
           });
 

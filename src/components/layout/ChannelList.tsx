@@ -14,6 +14,7 @@ import {
 } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
+import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
 import useStore from "../../store";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
 import AddPrivateChatModal from "../ui/AddPrivateChatModal";
@@ -262,9 +263,30 @@ export const ChannelList: React.FC<{
                           onClick={() => selectChannel(channel.id)}
                         >
                           <div className="flex items-center gap-2 truncate">
-                            <FaHashtag className="shrink-0" />
+                            {getChannelAvatarUrl(channel.metadata, 16) ? (
+                              <img
+                                src={getChannelAvatarUrl(channel.metadata, 16)}
+                                alt={channel.name}
+                                className="w-4 h-4 rounded-full object-cover shrink-0"
+                                onError={(e) => {
+                                  // Fallback to # icon on error
+                                  e.currentTarget.style.display = "none";
+                                  const parent = e.currentTarget.parentElement;
+                                  const fallbackIcon = parent?.querySelector('.fallback-hash-icon');
+                                  if (fallbackIcon) {
+                                    (fallbackIcon as HTMLElement).style.display = "inline-block";
+                                  }
+                                }}
+                              />
+                            ) : null}
+                            <FaHashtag 
+                              className="shrink-0 fallback-hash-icon" 
+                              style={{ 
+                                display: getChannelAvatarUrl(channel.metadata, 16) ? "none" : "inline-block" 
+                              }}
+                            />
                             <span className="truncate">
-                              {channel.name.replace(/^#/, "")}
+                              {getChannelDisplayName(channel.name, channel.metadata)}
                             </span>
                           </div>
                           {/* Trash Button */}

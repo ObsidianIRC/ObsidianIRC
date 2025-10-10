@@ -2,7 +2,8 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaEdit, FaPlus, FaSpinner, FaTimes, FaTrash } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
-import useStore from "../../store";
+import { hasOpPermission } from "../../lib/ircUtils";
+import useStore, { serverSupportsMetadata } from "../../store";
 import type { Channel } from "../../types";
 
 interface ChannelSettingsModalProps {
@@ -27,19 +28,34 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 }) => {
   const [modes, setModes] = useState<ChannelMode[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"b" | "e" | "I">("b");
+  const [activeTab, setActiveTab] = useState<"b" | "e" | "I" | "metadata">("b");
   const [newMask, setNewMask] = useState("");
   const [editingMask, setEditingMask] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [removingMasks, setRemovingMasks] = useState(new Set<string>());
+  
+  // Metadata state
+  const [channelAvatar, setChannelAvatar] = useState("");
+  const [channelDisplayName, setChannelDisplayName] = useState("");
+  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
+  const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
 
   const hasFetchedRef = useRef(false);
   const isParsingRef = useRef(false);
 
   const servers = useStore((state) => state.servers);
+  const { metadataSet } = useStore();
   const server = servers.find((s) => s.id === serverId);
   const channel = server?.channels.find((c) => c.name === channelName);
+  
+  // Get current user's status in this channel
+  const currentUser = ircClient.getCurrentUser(serverId);
+  const currentUserInChannel = channel?.users.find(
+    (u) => u.username === currentUser?.username
+  );
+  const userHasOpPermission = hasOpPermission(currentUserInChannel?.status);
+  const supportsMetadata = serverSupportsMetadata(serverId);
 
   // Reset fetch state when modal closes
   useEffect(() => {
@@ -275,6 +291,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       fetchChannelModes();
     }
   }, [isOpen, channelName, fetchChannelModes]);
+  
+  // Load channel metadata when modal opens
+  useEffect(() => {
+    if (isOpen && channel) {
+      setChannelAvatar(channel.metadata?.avatar?.value || "");
+      setChannelDisplayName(channel.metadata?.["display-name"]?.value || "");
+    }
+  }, [isOpen, channel]);
 
   if (!isOpen) return null;
 
@@ -328,29 +352,44 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
             {modes.filter((m) => m.type === "I").length > 0 &&
               `(${modes.filter((m) => m.type === "I").length})`}
           </button>
+          {userHasOpPermission && supportsMetadata && (
+            <button
+              onClick={() => setActiveTab("metadata")}
+              className={`px-4 py-2 text-sm font-medium ${
+                activeTab === "metadata"
+                  ? "text-white border-b-2 border-discord-blue"
+                  : "text-discord-text-muted hover:text-white"
+              }`}
+            >
+              Metadata
+            </button>
+          )}
         </div>
 
-        {/* Add new mask */}
-        <div className="flex gap-2 mb-4">
-          <input
-            type="text"
-            value={newMask}
-            onChange={(e) => setNewMask(e.target.value)}
-            placeholder={`Add ${activeTab === "b" ? "ban" : activeTab === "e" ? "exception" : "invitation"} mask (e.g., nick!*@*, *!*@host.com)`}
-            className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
-          />
-          <button
-            onClick={() => newMask.trim() && addMode(activeTab, newMask.trim())}
-            disabled={!newMask.trim() || isAdding}
-            className="px-3 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isAdding ? (
-              <FaSpinner className="animate-spin" size={14} />
-            ) : (
-              <FaPlus size={14} />
-            )}
-          </button>
-        </div>
+        {/* Conditionally render based on active tab */}
+        {activeTab !== "metadata" ? (
+          <>
+            {/* Add new mask */}
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={newMask}
+                onChange={(e) => setNewMask(e.target.value)}
+                placeholder={`Add ${activeTab === "b" ? "ban" : activeTab === "e" ? "exception" : "invitation"} mask (e.g., nick!*@*, *!*@host.com)`}
+                className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
+              />
+              <button
+                onClick={() => newMask.trim() && addMode(activeTab, newMask.trim())}
+                disabled={!newMask.trim() || isAdding}
+                className="px-3 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAdding ? (
+                  <FaSpinner className="animate-spin" size={14} />
+                ) : (
+                  <FaPlus size={14} />
+                )}
+              </button>
+            </div>
 
         {/* Mode list */}
         <div className="flex-1 overflow-y-auto">
@@ -457,6 +496,119 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
             character. Examples: nick!*@*, *!*@host.com, *!*user@*
           </div>
         </div>
+          </>
+        ) : (
+          <>
+            {/* Metadata tab content */}
+            <div className="flex-1 overflow-y-auto space-y-6">
+              {/* Channel Avatar */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">
+                  Channel Avatar URL
+                </label>
+                <p className="text-xs text-discord-text-muted mb-2">
+                  URL with optional &#123;size&#125; substitution for dynamic sizing.
+                  Example: https://example.com/avatar/&#123;size&#125;/channel.jpg
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={channelAvatar}
+                    onChange={(e) => setChannelAvatar(e.target.value)}
+                    placeholder="https://example.com/avatar/{size}/channel.jpg"
+                    className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
+                  />
+                  <button
+                    onClick={async () => {
+                      setIsUpdatingAvatar(true);
+                      try {
+                        await metadataSet(
+                          serverId,
+                          channelName,
+                          "avatar",
+                          channelAvatar || undefined
+                        );
+                      } finally {
+                        setIsUpdatingAvatar(false);
+                      }
+                    }}
+                    disabled={isUpdatingAvatar}
+                    className="px-4 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {isUpdatingAvatar ? (
+                      <FaSpinner className="animate-spin" size={14} />
+                    ) : (
+                      "Apply"
+                    )}
+                  </button>
+                </div>
+                {channelAvatar && (
+                  <div className="mt-2">
+                    <p className="text-xs text-discord-text-muted mb-1">Preview:</p>
+                    <img
+                      src={channelAvatar.replace("{size}", "64")}
+                      alt="Channel avatar preview"
+                      className="w-16 h-16 rounded-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Channel Display Name */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">
+                  Channel Display Name
+                </label>
+                <p className="text-xs text-discord-text-muted mb-2">
+                  Alternative name for display in the UI. May contain spaces, emoji, and special characters.
+                  The real channel name ({channelName}) will still be used for IRC commands.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={channelDisplayName}
+                    onChange={(e) => setChannelDisplayName(e.target.value)}
+                    placeholder="General Support Channel"
+                    className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
+                  />
+                  <button
+                    onClick={async () => {
+                      setIsUpdatingDisplayName(true);
+                      try {
+                        await metadataSet(
+                          serverId,
+                          channelName,
+                          "display-name",
+                          channelDisplayName || undefined
+                        );
+                      } finally {
+                        setIsUpdatingDisplayName(false);
+                      }
+                    }}
+                    disabled={isUpdatingDisplayName}
+                    className="px-4 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {isUpdatingDisplayName ? (
+                      <FaSpinner className="animate-spin" size={14} />
+                    ) : (
+                      "Apply"
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-discord-dark-400">
+                <p className="text-xs text-discord-text-muted">
+                  Note: Channel metadata requires operator (@) or higher permissions to modify.
+                  Changes will be visible to all users who support the METADATA specification.
+                </p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
