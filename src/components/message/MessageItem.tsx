@@ -5,6 +5,7 @@ import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
+import { InviteMessage } from "./InviteMessage";
 import {
   ActionMessage,
   DateSeparator,
@@ -282,6 +283,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           users={users}
           showDate={showDate}
           onUsernameContextMenu={onUsernameContextMenu}
+        />
+      </>
+    );
+  }
+
+  // Handle invite messages
+  if (message.type === "invite") {
+    return (
+      <>
+        {showDate && (
+          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+        )}
+        <InviteMessage
+          message={message}
+          messageUser={messageUser}
+          onUsernameContextMenu={onUsernameContextMenu}
+          joinChannel={joinChannel}
         />
       </>
     );

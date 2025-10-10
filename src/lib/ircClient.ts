@@ -114,6 +114,11 @@ export interface EventMap {
     user: string;
   };
   SETNAME: { serverId: string; user: string; realname: string };
+  INVITE: EventWithTags & {
+    inviter: string;
+    target: string;
+    channel: string;
+  };
   FAIL: EventWithTags & {
     command: string;
     code: string;
@@ -355,6 +360,7 @@ export class IRCClient {
     "draft/channel-context",
     "znc.in/playback",
     "unrealircd.org/json-log",
+    "invite-notify",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -1036,6 +1042,19 @@ export class IRCClient {
           target,
           modestring,
           modeargs,
+        });
+      } else if (command === "INVITE") {
+        // Handle invite-notify capability
+        // Format: :<inviter> INVITE <target> <channel>
+        const inviter = getNickFromNuh(source);
+        const target = parv[0];
+        const channel = parv[1];
+        this.triggerEvent("INVITE", {
+          serverId,
+          mtags,
+          inviter,
+          target,
+          channel,
         });
       } else if (command === "PRIVMSG") {
         const target = parv[0];

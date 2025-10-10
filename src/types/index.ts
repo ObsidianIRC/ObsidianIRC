@@ -100,7 +100,8 @@ export interface Message {
     | "notice"
     | "netsplit"
     | "netjoin"
-    | "mode";
+    | "mode"
+    | "invite";
   content: string;
   timestamp: Date;
   userId: string;
@@ -123,6 +124,9 @@ export interface Message {
   quitUsers?: string[];
   server1?: string;
   server2?: string;
+  // Invite fields
+  inviteChannel?: string; // The channel being invited to
+  inviteTarget?: string; // Who is being invited
   // Link preview fields
   linkPreviewUrl?: string;
   linkPreviewTitle?: string;

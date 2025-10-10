@@ -3718,6 +3718,75 @@ ircClient.on("KICK", ({ serverId, username, target, channelName, reason }) => {
   }
 });
 
+ircClient.on("INVITE", ({ serverId, inviter, target, channel }) => {
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (!server) return;
+
+  // Get current user's nickname to determine the active channel
+  const currentUser = ircClient.getCurrentUser(serverId);
+  if (!currentUser) return;
+
+  // Determine where to show the invite message
+  // Show in the currently selected channel/chat, or fallback to server's first channel
+  let targetChannelId: string | null = null;
+  let targetChannelName: string | null = null;
+
+  // If we're on this server and have a selected channel, use that
+  if (state.ui.selectedServerId === serverId) {
+    if (state.ui.selectedChannelId) {
+      const selectedChannel = server.channels.find(
+        (c) => c.id === state.ui.selectedChannelId,
+      );
+      if (selectedChannel) {
+        targetChannelId = selectedChannel.id;
+        targetChannelName = selectedChannel.name;
+      }
+    } else if (state.ui.selectedPrivateChatId) {
+      // For private chats, we'll show it there
+      targetChannelId = state.ui.selectedPrivateChatId;
+    }
+  }
+
+  // If no active channel, use the first channel on the server as fallback
+  if (!targetChannelId && server.channels.length > 0) {
+    targetChannelId = server.channels[0].id;
+    targetChannelName = server.channels[0].name;
+  }
+
+  if (!targetChannelId) return;
+
+  // Create the invite message
+  const isForCurrentUser =
+    target.toLowerCase() === currentUser.username.toLowerCase();
+  const content = isForCurrentUser
+    ? `${inviter} has invited you to join ${channel}`
+    : `${inviter} has invited ${target} to join ${channel}`;
+
+  const inviteMessage: Message = {
+    id: uuidv4(),
+    type: "invite",
+    content,
+    timestamp: new Date(),
+    userId: inviter,
+    channelId: targetChannelId,
+    serverId: serverId,
+    reactions: [],
+    replyMessage: null,
+    mentioned: [],
+    inviteChannel: channel,
+    inviteTarget: target,
+  };
+
+  const key = `${serverId}-${targetChannelId}`;
+  useStore.setState((state) => ({
+    messages: {
+      ...state.messages,
+      [key]: [...(state.messages[key] || []), inviteMessage],
+    },
+  }));
+});
+
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
   if (key === "sasl") {
     const servers = loadSavedServers();
