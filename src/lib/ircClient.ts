@@ -1633,18 +1633,18 @@ export class IRCClient {
         const server = parv[4];
         const nick = parv[5];
         const flags = parv[6];
-        
+
         // Parse trailing which contains "hopcount realname"
         const trailing = parv[7] || "";
         const spaceIndex = trailing.indexOf(" ");
         let hopcount = trailing;
         let realname = "";
-        
+
         if (spaceIndex !== -1) {
           hopcount = trailing.substring(0, spaceIndex);
           realname = trailing.substring(spaceIndex + 1);
         }
-        
+
         this.triggerEvent("WHO_REPLY", {
           serverId,
           channel,
@@ -1671,10 +1671,10 @@ export class IRCClient {
         const account = parv[6];
         const opLevelField = parv[7] || "";
         const realname = parv[8] || ""; // May be empty if not returned
-        
+
         // Determine if user is away from flags (G=gone/away, H=here/present)
         const isAway = flags.includes("G");
-        
+
         // Extract op level from flags field (everything after H or G)
         // Flags format: H/G followed by status symbols like @, +, ~, %, &
         // Also may include * (IRC operator) and B (bot) which we need to filter out
@@ -1686,10 +1686,10 @@ export class IRCClient {
           // Filter to only include valid channel prefixes
           opLevel = statusPart
             .split("")
-            .filter(char => ["@", "+", "~", "%", "&"].includes(char))
+            .filter((char) => ["@", "+", "~", "%", "&"].includes(char))
             .join("");
         }
-        
+
         this.triggerEvent("WHOX_REPLY", {
           serverId,
           channel,

@@ -65,9 +65,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenChannelSettings,
   onOpenInviteUser,
 }) => {
-  const { 
-    toggleChannelListModal, 
-    toggleChannelRenameModal, 
+  const {
+    toggleChannelListModal,
+    toggleChannelRenameModal,
     toggleMemberList,
     pinPrivateChat,
     unpinPrivateChat,
@@ -97,7 +97,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     // Search through all channels for this user
     for (const channel of server.channels) {
       const user = channel.users.find(
-        (u) => u.username.toLowerCase() === selectedPrivateChat.username.toLowerCase()
+        (u) =>
+          u.username.toLowerCase() ===
+          selectedPrivateChat.username.toLowerCase(),
       );
       if (user?.metadata && Object.keys(user.metadata).length > 0) {
         return user.metadata;
@@ -302,8 +304,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             {selectedServerId && (
               <button
                 className={`ml-2 ${
-                  selectedPrivateChat.isPinned 
-                    ? "text-green-500 hover:text-green-400" 
+                  selectedPrivateChat.isPinned
+                    ? "text-green-500 hover:text-green-400"
                     : "text-discord-text-muted hover:text-yellow-400"
                 }`}
                 onClick={() => {
@@ -315,9 +317,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 }}
                 title={selectedPrivateChat.isPinned ? "Unpin" : "Pin"}
               >
-                <FaThumbtack 
-                  className={selectedPrivateChat.isPinned ? "" : "rotate-[25deg]"}
-                  style={selectedPrivateChat.isPinned ? {} : { transform: "rotate(25deg)" }}
+                <FaThumbtack
+                  className={
+                    selectedPrivateChat.isPinned ? "" : "rotate-[25deg]"
+                  }
+                  style={
+                    selectedPrivateChat.isPinned
+                      ? {}
+                      : { transform: "rotate(25deg)" }
+                  }
                 />
               </button>
             )}
@@ -441,7 +449,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           */}
         </div>
       )}
-      
+
       {/* User Profile Modal */}
       {userProfileModalOpen && selectedPrivateChat && selectedServerId && (
         <UserProfileModal

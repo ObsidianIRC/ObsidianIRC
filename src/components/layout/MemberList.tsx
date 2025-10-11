@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { FaChevronLeft, FaCheckCircle } from "react-icons/fa";
+import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import { getColorStyle, mircToHtml } from "../../lib/ircUtils";
@@ -74,10 +74,11 @@ const UserItem: React.FC<{
   const displayName = user.metadata?.["display-name"]?.value;
   const isBot = user.isBot || user.metadata?.bot?.value === "true";
   const botInfo = user.metadata?.bot?.value; // Bot software info for tooltip
-  
+
   // Check if user is verified (account matches nickname)
-  const isVerified = user.account && 
-    user.account !== "0" && 
+  const isVerified =
+    user.account &&
+    user.account !== "0" &&
     user.username.toLowerCase() === user.account.toLowerCase();
 
   // Reset avatar load failed state when avatar URL changes
@@ -116,7 +117,7 @@ const UserItem: React.FC<{
           }`}
         />
       </div>
-      
+
       {/* User info */}
       <div className="flex flex-col truncate min-w-0 flex-1">
         {/* Display name or username with badges */}
@@ -126,13 +127,16 @@ const UserItem: React.FC<{
               {user.status}
             </span>
           )}
-          <span className="truncate text-discord-text-normal" style={getColorStyle(color)}>
+          <span
+            className="truncate text-discord-text-normal"
+            style={getColorStyle(color)}
+          >
             {displayName || user.username}
             {/* Only show verified badge if NO display-name (showing username directly) */}
             {!displayName && isVerified && (
-              <FaCheckCircle 
-                className="inline ml-1 text-green-500" 
-                style={{ fontSize: '0.75em', verticalAlign: 'baseline' }}
+              <FaCheckCircle
+                className="inline ml-1 text-green-500"
+                style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
                 title="Verified account"
               />
             )}
@@ -150,7 +154,7 @@ const UserItem: React.FC<{
             )}
           </span>
         </div>
-        
+
         {/* Secondary info - username badge (if display-name exists), realname, status, website */}
         <div className="flex items-center gap-1.5 text-xs truncate mt-0.5">
           {displayName && (
@@ -158,15 +162,13 @@ const UserItem: React.FC<{
               <span className="bg-gray-300 text-black px-1 py-0 rounded font-bold whitespace-nowrap text-[10px]">
                 {user.username}
                 {isVerified && (
-                  <FaCheckCircle 
-                    className="inline ml-0.5 text-green-600" 
-                    style={{ fontSize: '0.75em', verticalAlign: 'baseline' }}
+                  <FaCheckCircle
+                    className="inline ml-0.5 text-green-600"
+                    style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
                     title="Verified account"
                   />
                 )}
-                {isBot && (
-                  <span className="ml-0.5">🤖</span>
-                )}
+                {isBot && <span className="ml-0.5">🤖</span>}
               </span>
               {(user.realname || metadataStatus || website) && (
                 <span className="text-discord-text-muted opacity-50">•</span>
@@ -174,19 +176,25 @@ const UserItem: React.FC<{
             </>
           )}
           {user.realname && (
-            <span className="truncate text-discord-text-muted">{mircToHtml(user.realname)}</span>
+            <span className="truncate text-discord-text-muted">
+              {mircToHtml(user.realname)}
+            </span>
           )}
           {user.realname && metadataStatus && (
             <span className="text-discord-text-muted opacity-50">•</span>
           )}
           {metadataStatus && (
-            <span className="truncate text-discord-text-muted">{mircToHtml(metadataStatus)}</span>
+            <span className="truncate text-discord-text-muted">
+              {mircToHtml(metadataStatus)}
+            </span>
           )}
           {(user.realname || metadataStatus) && website && (
             <span className="text-discord-text-muted opacity-50">•</span>
           )}
           {website && (
-            <span className="truncate text-discord-text-muted">🌐 {website}</span>
+            <span className="truncate text-discord-text-muted">
+              🌐 {website}
+            </span>
           )}
         </div>
       </div>

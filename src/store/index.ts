@@ -1111,14 +1111,20 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const channelKey = `${message.serverId}-${message.channelId}`;
       const currentMessages = state.messages[channelKey] || [];
-      
+
       // Add message and sort chronologically by timestamp
       const updatedMessages = [...currentMessages, message].sort((a, b) => {
-        const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
-        const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
+        const timeA =
+          a.timestamp instanceof Date
+            ? a.timestamp.getTime()
+            : new Date(a.timestamp).getTime();
+        const timeB =
+          b.timestamp instanceof Date
+            ? b.timestamp.getTime()
+            : new Date(b.timestamp).getTime();
         return timeA - timeB;
       });
-      
+
       return {
         messages: {
           ...state.messages,
@@ -1431,9 +1437,9 @@ const useStore = create<AppState>((set, get) => ({
         let hasUserInfo = false;
         for (const channel of server.channels) {
           const user = channel.users.find(
-            (u) => u.username.toLowerCase() === username.toLowerCase()
+            (u) => u.username.toLowerCase() === username.toLowerCase(),
           );
-          if (user && user.realname && user.account !== undefined) {
+          if (user?.realname && user.account !== undefined) {
             // We have complete user info, copy it to the PM
             hasUserInfo = true;
             useStore.setState((state) => ({
@@ -1503,9 +1509,9 @@ const useStore = create<AppState>((set, get) => ({
       let hasUserInfo = false;
       for (const channel of server.channels) {
         const user = channel.users.find(
-          (u) => u.username.toLowerCase() === username.toLowerCase()
+          (u) => u.username.toLowerCase() === username.toLowerCase(),
         );
-        if (user && user.realname && user.account !== undefined) {
+        if (user?.realname && user.account !== undefined) {
           // We have complete user info, copy it to the new PM
           hasUserInfo = true;
           newPrivateChat.realname = user.realname;
@@ -1628,7 +1634,7 @@ const useStore = create<AppState>((set, get) => ({
         0,
         ...(server.privateChats
           ?.filter((pc) => pc.isPinned && pc.order !== undefined)
-          .map((pc) => pc.order!) || []),
+          .map((pc) => pc.order as number) || []),
       );
 
       const updatedServers = state.servers.map((s) => {
@@ -2580,8 +2586,11 @@ ircClient.on("USERMSG", (response) => {
     // Check if this PRIVMSG is from the server itself (sender contains a ".")
     // Server messages should go to Server Notices, not create PM tabs
     if (sender.includes(".")) {
-      console.log("[USERMSG] Server message detected, routing to Server Notices:", sender);
-      
+      console.log(
+        "[USERMSG] Server message detected, routing to Server Notices:",
+        sender,
+      );
+
       const targetChannelId = "server-notices";
       const newMessage: Message = {
         id: uuidv4(),
@@ -2614,7 +2623,7 @@ ircClient.on("USERMSG", (response) => {
           playNotificationSound(state.globalSettings);
         }
       }
-      
+
       return; // Don't process as a regular PM
     }
 
@@ -3005,8 +3014,11 @@ ircClient.on("USERNOTICE", (response) => {
   // Check if this NOTICE is from the server itself (sender contains a ".")
   // Server notices should go to Server Notices, user notices should create PM tabs
   if (response.sender.includes(".")) {
-    console.log("[USERNOTICE] Server notice detected, routing to Server Notices:", response.sender);
-    
+    console.log(
+      "[USERNOTICE] Server notice detected, routing to Server Notices:",
+      response.sender,
+    );
+
     // Check if this is a JSON log notice
     const isJsonLog = mtags?.["unrealircd.org/json-log"];
     let jsonLogData = null;
@@ -3109,13 +3121,16 @@ ircClient.on("USERNOTICE", (response) => {
         playNotificationSound(state.globalSettings);
       }
     }
-    
+
     return; // Don't process as a user notice
   }
 
   // This is a user notice - treat it like a PM
-  console.log("[USERNOTICE] User notice detected, creating PM tab:", response.sender);
-  
+  console.log(
+    "[USERNOTICE] User notice detected, creating PM tab:",
+    response.sender,
+  );
+
   // Don't create private chats with ourselves
   const currentUser = ircClient.getCurrentUser(response.serverId);
   if (currentUser?.username === response.sender) {
@@ -3123,7 +3138,9 @@ ircClient.on("USERNOTICE", (response) => {
   }
 
   // Find or create private chat
-  let privateChat = server.privateChats?.find((pc) => pc.username === response.sender);
+  let privateChat = server.privateChats?.find(
+    (pc) => pc.username === response.sender,
+  );
 
   if (!privateChat) {
     // Auto-create private chat when receiving a notice
@@ -3567,14 +3584,14 @@ ircClient.on("QUIT", ({ serverId, username, reason, batchTag }) => {
       useStore.setState((state) => {
         const currentUsers = state.typingUsers[key] || [];
         const currentTimers = state.typingTimers[key] || {};
-        
+
         // Clear timer if it exists
         if (currentTimers[username]) {
           clearTimeout(currentTimers[username]);
         }
-        
+
         const { [username]: removedTimer, ...remainingTimers } = currentTimers;
-        
+
         return {
           typingUsers: {
             ...state.typingUsers,
@@ -3772,9 +3789,9 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
         let hasUserInfo = false;
         for (const channel of server.channels) {
           const user = channel.users.find(
-            (u) => u.username.toLowerCase() === username.toLowerCase()
+            (u) => u.username.toLowerCase() === username.toLowerCase(),
           );
-          if (user && user.realname && user.account !== undefined) {
+          if (user?.realname && user.account !== undefined) {
             // We have complete user info, copy it to the PM
             hasUserInfo = true;
             useStore.setState((state) => ({
@@ -3783,7 +3800,9 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
                   return {
                     ...s,
                     privateChats: s.privateChats?.map((pm) => {
-                      if (pm.username.toLowerCase() === username.toLowerCase()) {
+                      if (
+                        pm.username.toLowerCase() === username.toLowerCase()
+                      ) {
                         return {
                           ...pm,
                           realname: user.realname,
@@ -3881,14 +3900,14 @@ ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
       useStore.setState((state) => {
         const currentUsers = state.typingUsers[key] || [];
         const currentTimers = state.typingTimers[key] || {};
-        
+
         // Clear timer if it exists
         if (currentTimers[username]) {
           clearTimeout(currentTimers[username]);
         }
-        
+
         const { [username]: removedTimer, ...remainingTimers } = currentTimers;
-        
+
         return {
           typingUsers: {
             ...state.typingUsers,
@@ -4421,14 +4440,14 @@ ircClient.on("KICK", ({ serverId, username, target, channelName, reason }) => {
       useStore.setState((state) => {
         const currentUsers = state.typingUsers[key] || [];
         const currentTimers = state.typingTimers[key] || {};
-        
+
         // Clear timer if it exists
         if (currentTimers[target]) {
           clearTimeout(currentTimers[target]);
         }
-        
+
         const { [target]: removedTimer, ...remainingTimers } = currentTimers;
-        
+
         return {
           typingUsers: {
             ...state.typingUsers,
@@ -4813,10 +4832,11 @@ ircClient.on("TAGMSG", (response) => {
           useStore.setState((state) => {
             const currentUsers = state.typingUsers[key] || [];
             const currentTimers = state.typingTimers[key] || {};
-            
+
             // Remove the timer reference
-            const { [user.username]: removedTimer, ...remainingTimers } = currentTimers;
-            
+            const { [user.username]: removedTimer, ...remainingTimers } =
+              currentTimers;
+
             return {
               typingUsers: {
                 ...state.typingUsers,
@@ -4857,9 +4877,10 @@ ircClient.on("TAGMSG", (response) => {
       if (currentTimers[user.username]) {
         clearTimeout(currentTimers[user.username]);
       }
-      
-      const { [user.username]: removedTimer, ...remainingTimers } = currentTimers;
-      
+
+      const { [user.username]: removedTimer, ...remainingTimers } =
+        currentTimers;
+
       return {
         typingUsers: {
           ...state.typingUsers,
@@ -6142,7 +6163,7 @@ ircClient.on(
                     ircClient.sendRaw(serverId, `WHOIS ${nick}`);
                   }, 100);
                 }
-                
+
                 return {
                   ...pm,
                   isOnline: true,
@@ -6336,38 +6357,50 @@ ircClient.on("WHO_END", ({ serverId, mask }) => {
 });
 
 // WHO reply handler - for standard WHO responses (352) when server doesn't support WHOX
-ircClient.on("WHO_REPLY", ({ serverId, channel, username, host, server, nick, flags, hopcount, realname }) => {
-  const state = useStore.getState();
-  const serverData = state.servers.find((s) => s.id === serverId);
-  if (!serverData) return;
+ircClient.on(
+  "WHO_REPLY",
+  ({
+    serverId,
+    channel,
+    username,
+    host,
+    server,
+    nick,
+    flags,
+    hopcount,
+    realname,
+  }) => {
+    const state = useStore.getState();
+    const serverData = state.servers.find((s) => s.id === serverId);
+    if (!serverData) return;
 
-  // Determine if user is away from flags (G=gone/away, H=here/present)
-  const isAway = flags.includes("G");
+    // Determine if user is away from flags (G=gone/away, H=here/present)
+    const isAway = flags.includes("G");
 
-  // Update/add channel users from WHO response
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((s) => {
-      if (s.id === serverId) {
-        const updatedChannels = s.channels.map((ch) => {
-          // Only update the specific channel from the WHO response
-          if (ch.name === channel) {
-            // Check if user already exists in this channel
-            const existingUserIndex = ch.users.findIndex(
-              (user) => user.username.toLowerCase() === nick.toLowerCase()
-            );
-            
-            if (existingUserIndex !== -1) {
-              // Update existing user - preserve bot flag and account if already set
-              const existingUser = ch.users[existingUserIndex];
-              const updatedUsers = [...ch.users];
-              updatedUsers[existingUserIndex] = {
-                ...existingUser,
-                hostname: host,
-                realname: realname,
-                isAway: isAway,
-              };
-              return { ...ch, users: updatedUsers };
-            } else {
+    // Update/add channel users from WHO response
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedChannels = s.channels.map((ch) => {
+            // Only update the specific channel from the WHO response
+            if (ch.name === channel) {
+              // Check if user already exists in this channel
+              const existingUserIndex = ch.users.findIndex(
+                (user) => user.username.toLowerCase() === nick.toLowerCase(),
+              );
+
+              if (existingUserIndex !== -1) {
+                // Update existing user - preserve bot flag and account if already set
+                const existingUser = ch.users[existingUserIndex];
+                const updatedUsers = [...ch.users];
+                updatedUsers[existingUserIndex] = {
+                  ...existingUser,
+                  hostname: host,
+                  realname: realname,
+                  isAway: isAway,
+                };
+                return { ...ch, users: updatedUsers };
+              }
               // Add new user to channel
               const newUser: User = {
                 id: `${nick}-${serverId}`,
@@ -6380,84 +6413,97 @@ ircClient.on("WHO_REPLY", ({ serverId, channel, username, host, server, nick, fl
               };
               return { ...ch, users: [...ch.users, newUser] };
             }
-          }
-          return ch;
-        });
-        return { ...s, channels: updatedChannels };
-      }
-      return s;
+            return ch;
+          });
+          return { ...s, channels: updatedChannels };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
     });
-    return { servers: updatedServers };
-  });
-});
+  },
+);
 
 // WHOX reply handler - for WHO responses with account information
-ircClient.on("WHOX_REPLY", ({ serverId, channel, username, host, nick, account, flags, realname, isAway, opLevel }) => {
-  const state = useStore.getState();
-  const serverData = state.servers.find((s) => s.id === serverId);
-  if (!serverData) return;
+ircClient.on(
+  "WHOX_REPLY",
+  ({
+    serverId,
+    channel,
+    username,
+    host,
+    nick,
+    account,
+    flags,
+    realname,
+    isAway,
+    opLevel,
+  }) => {
+    const state = useStore.getState();
+    const serverData = state.servers.find((s) => s.id === serverId);
+    if (!serverData) return;
 
-  // Update private chat with account and realname information
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((s) => {
-      if (s.id === serverId) {
-        const updatedPrivateChats = s.privateChats?.map((pm) => {
-          if (pm.username.toLowerCase() === nick.toLowerCase()) {
-            // Determine bot status from flags (B flag indicates bot)
-            // Preserve existing bot flag if it was already set (don't overwrite)
-            const isBotFromFlags = flags.includes("B");
-            const isBot = pm.isBot || isBotFromFlags;
-            
-            return {
-              ...pm,
-              realname: realname,
-              account: account === "0" ? undefined : account, // "0" means not logged in
-              isOnline: true, // If we got a WHOX reply, they're online
-              isAway: isAway,
-              isBot: isBot,
-            };
-          }
-          return pm;
-        });
-        return { ...s, privateChats: updatedPrivateChats };
-      }
-      return s;
-    });
-    return { servers: updatedServers };
-  });
+    // Update private chat with account and realname information
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pm) => {
+            if (pm.username.toLowerCase() === nick.toLowerCase()) {
+              // Determine bot status from flags (B flag indicates bot)
+              // Preserve existing bot flag if it was already set (don't overwrite)
+              const isBotFromFlags = flags.includes("B");
+              const isBot = pm.isBot || isBotFromFlags;
 
-  // Also update/add channel users from WHOX response
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((s) => {
-      if (s.id === serverId) {
-        const updatedChannels = s.channels.map((ch) => {
-          // Only update the specific channel from the WHOX response
-          if (ch.name === channel) {
-            // Check if user already exists in this channel
-            const existingUserIndex = ch.users.findIndex(
-              (user) => user.username.toLowerCase() === nick.toLowerCase()
-            );
-            
-            // Determine bot status from flags (B flag indicates bot)
-            const isBotFromFlags = flags.includes("B");
-            
-            if (existingUserIndex !== -1) {
-              // Update existing user
-              const existingUser = ch.users[existingUserIndex];
-              const isBot = existingUser.isBot || isBotFromFlags;
-              
-              const updatedUsers = [...ch.users];
-              updatedUsers[existingUserIndex] = {
-                ...existingUser,
-                hostname: host,
+              return {
+                ...pm,
                 realname: realname,
                 account: account === "0" ? undefined : account, // "0" means not logged in
+                isOnline: true, // If we got a WHOX reply, they're online
                 isAway: isAway,
                 isBot: isBot,
-                status: opLevel || existingUser.status, // Update status with op level from WHOX
               };
-              return { ...ch, users: updatedUsers };
-            } else {
+            }
+            return pm;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
+    });
+
+    // Also update/add channel users from WHOX response
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedChannels = s.channels.map((ch) => {
+            // Only update the specific channel from the WHOX response
+            if (ch.name === channel) {
+              // Check if user already exists in this channel
+              const existingUserIndex = ch.users.findIndex(
+                (user) => user.username.toLowerCase() === nick.toLowerCase(),
+              );
+
+              // Determine bot status from flags (B flag indicates bot)
+              const isBotFromFlags = flags.includes("B");
+
+              if (existingUserIndex !== -1) {
+                // Update existing user
+                const existingUser = ch.users[existingUserIndex];
+                const isBot = existingUser.isBot || isBotFromFlags;
+
+                const updatedUsers = [...ch.users];
+                updatedUsers[existingUserIndex] = {
+                  ...existingUser,
+                  hostname: host,
+                  realname: realname,
+                  account: account === "0" ? undefined : account, // "0" means not logged in
+                  isAway: isAway,
+                  isBot: isBot,
+                  status: opLevel || existingUser.status, // Update status with op level from WHOX
+                };
+                return { ...ch, users: updatedUsers };
+              }
               // Add new user to channel
               const newUser: User = {
                 id: `${nick}-${serverId}`,
@@ -6473,28 +6519,28 @@ ircClient.on("WHOX_REPLY", ({ serverId, channel, username, host, nick, account, 
               };
               return { ...ch, users: [...ch.users, newUser] };
             }
-          }
-          return ch;
-        });
-        return { ...s, channels: updatedChannels };
-      }
-      return s;
+            return ch;
+          });
+          return { ...s, channels: updatedChannels };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
     });
-    return { servers: updatedServers };
-  });
 
-  // If user is away and we have a pinned PM with them, send WHOIS to get away message
-  const privateChat = serverData.privateChats?.find(
-    (pm) => pm.username.toLowerCase() === nick.toLowerCase() && pm.isPinned
-  );
-  
-  if (isAway && privateChat) {
-    // Send WHOIS to get the away message
-    setTimeout(() => {
-      ircClient.sendRaw(serverId, `WHOIS ${nick}`);
-    }, 50);
-  }
-});
+    // If user is away and we have a pinned PM with them, send WHOIS to get away message
+    const privateChat = serverData.privateChats?.find(
+      (pm) => pm.username.toLowerCase() === nick.toLowerCase() && pm.isPinned,
+    );
+
+    if (isAway && privateChat) {
+      // Send WHOIS to get the away message
+      setTimeout(() => {
+        ircClient.sendRaw(serverId, `WHOIS ${nick}`);
+      }, 50);
+    }
+  },
+);
 
 ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
   // Update user objects in channels
