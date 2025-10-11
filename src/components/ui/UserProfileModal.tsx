@@ -10,6 +10,7 @@ import {
   FaServer,
   FaShieldAlt,
   FaTimes,
+  FaUser,
   FaUserCheck,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
@@ -84,6 +85,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const servers = useStore((state) => state.servers);
   const joinChannel = useStore((state) => state.joinChannel);
   const selectChannel = useStore((state) => state.selectChannel);
+  const openPrivateChat = useStore((state) => state.openPrivateChat);
   const toggleUserProfileModal = useStore(
     (state) => state.toggleUserProfileModal,
   );
@@ -607,7 +609,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           {/* Footer */}
           <div className="px-6 py-4 bg-discord-dark-300 border-t border-discord-dark-400">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-3">
               {isOwnProfile && (
                 <button
                   onClick={() => {
@@ -617,6 +619,19 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
                 >
                   Edit Profile
+                </button>
+              )}
+              {!isOwnProfile && (
+                <button
+                  onClick={() => {
+                    openPrivateChat(serverId, username);
+                    onClose();
+                  }}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-green-600/20 flex items-center gap-2"
+                  title="Send private message"
+                >
+                  <FaUser size={14} />
+                  PM User
                 </button>
               )}
               <button

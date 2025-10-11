@@ -166,7 +166,24 @@ export interface EventMap {
     hopcount: string;
     realname: string;
   };
+  WHOX_REPLY: {
+    serverId: string;
+    channel: string;
+    username: string;
+    host: string;
+    nick: string;
+    account: string;
+    flags: string;
+    realname: string;
+    isAway: boolean;
+    opLevel: string;
+  };
   WHO_END: { serverId: string; mask: string };
+  RPL_AWAY: {
+    serverId: string;
+    nick: string;
+    awayMessage: string;
+  };
   MONONLINE: BaseIRCEvent & {
     targets: Array<{ nick: string; user?: string; host?: string }>;
   };
@@ -551,7 +568,8 @@ export class IRCClient {
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
       this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-      this.sendRaw(serverId, `WHO ${channelName}`);
+      // Don't send WHO here - it's handled in the store's JOIN handler with WHOX flags
+      // this.sendRaw(serverId, `WHO ${channelName}`);
 
       const channel: Channel = {
         id: uuidv4(),
@@ -1608,14 +1626,25 @@ export class IRCClient {
         this.triggerEvent("LIST_END", { serverId });
       } else if (command === "352") {
         // RPL_WHOREPLY: <channel> <user> <host> <server> <nick> <flags> :<hopcount> <realname>
+        // Note: hopcount and realname are in the trailing parameter together
         const channel = parv[1];
         const username = parv[2];
         const host = parv[3];
         const server = parv[4];
         const nick = parv[5];
         const flags = parv[6];
-        const hopcount = parv[7];
-        const realname = parv.slice(8).join(" "); // No need to remove leading : anymore
+        
+        // Parse trailing which contains "hopcount realname"
+        const trailing = parv[7] || "";
+        const spaceIndex = trailing.indexOf(" ");
+        let hopcount = trailing;
+        let realname = "";
+        
+        if (spaceIndex !== -1) {
+          hopcount = trailing.substring(0, spaceIndex);
+          realname = trailing.substring(spaceIndex + 1);
+        }
+        
         this.triggerEvent("WHO_REPLY", {
           serverId,
           channel,
@@ -1626,6 +1655,52 @@ export class IRCClient {
           flags,
           hopcount,
           realname,
+        });
+      } else if (command === "354") {
+        // RPL_WHOSPCRPL (WHOX): Response format depends on requested fields
+        // Our request: WHO <mask> %cuhnfaro
+        // Response order: channel, username, hostname, nickname, flags, account, realname, op_level
+        // Example: 354 Valware #lobby ~u knqsza5faubzs.irc mattf H@ mattf * mattf
+        // Fields returned in order: c=channel, u=username, h=hostname, n=nickname, f=flags, a=account, r=realname, o=op_level
+        // Note: flags contains H/G (here/gone) followed by optional status symbols (@, +, etc) and other flags like * (IRC oper) or B (bot)
+        const channel = parv[1];
+        const username = parv[2];
+        const host = parv[3];
+        const nick = parv[4];
+        const flags = parv[5];
+        const account = parv[6];
+        const opLevelField = parv[7] || "";
+        const realname = parv[8] || ""; // May be empty if not returned
+        
+        // Determine if user is away from flags (G=gone/away, H=here/present)
+        const isAway = flags.includes("G");
+        
+        // Extract op level from flags field (everything after H or G)
+        // Flags format: H/G followed by status symbols like @, +, ~, %, &
+        // Also may include * (IRC operator) and B (bot) which we need to filter out
+        // Only keep valid channel status prefixes: @ + ~ % &
+        let opLevel = "";
+        if (flags.length > 1) {
+          // Skip the first character (H or G)
+          const statusPart = flags.substring(1);
+          // Filter to only include valid channel prefixes
+          opLevel = statusPart
+            .split("")
+            .filter(char => ["@", "+", "~", "%", "&"].includes(char))
+            .join("");
+        }
+        
+        this.triggerEvent("WHOX_REPLY", {
+          serverId,
+          channel,
+          username,
+          host,
+          nick,
+          account,
+          flags,
+          realname,
+          isAway,
+          opLevel,
         });
       } else if (command === "305") {
         // RPL_UNAWAY: <client> :<message>
@@ -1642,6 +1717,16 @@ export class IRCClient {
         this.triggerEvent("RPL_NOWAWAY", {
           serverId,
           message,
+        });
+      } else if (command === "301") {
+        // RPL_AWAY: <client> <nick> :<away message>
+        // User is away
+        const nick = parv[1];
+        const awayMessage = parv.slice(2).join(" ");
+        this.triggerEvent("RPL_AWAY", {
+          serverId,
+          nick,
+          awayMessage,
         });
       } else if (command === "315") {
         // RPL_ENDOFWHO

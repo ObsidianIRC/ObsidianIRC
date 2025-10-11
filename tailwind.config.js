@@ -74,7 +74,7 @@ module.exports = {
           "dark-500": "#4F545C", // icons
           "dark-600": "#2F3136", // server member list
           // Message colors
-          "message-hover": "#32353B",
+          "message-hover": "#2A2D33",
           // Text colors
           "text-normal": "#DCDDDE",
           "text-muted": "#A3A6AA",
