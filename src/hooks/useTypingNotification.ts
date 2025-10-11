@@ -27,7 +27,6 @@ export function useTypingNotification({
 
   /**
    * Send typing notification based on text input
-   * Throttles active notifications to once per 5 seconds
    */
   const notifyTyping = useCallback(
     (target: string, text: string) => {
@@ -39,8 +38,8 @@ export function useTypingNotification({
       const currentTime = Date.now();
 
       if (text.length > 0) {
-        // Only send typing active if 5 seconds have passed
-        if (currentTime - lastTypingTimeRef.current < 5000) return;
+        // Only send typing active if 3 seconds have passed
+        if (currentTime - lastTypingTimeRef.current < 3000) return;
 
         lastTypingTimeRef.current = currentTime;
         ircClient.sendTyping(serverId, target, true);

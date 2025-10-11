@@ -26,11 +26,18 @@ const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 const LOCAL_STORAGE_SETTINGS_KEY = "globalSettings";
 const LOCAL_STORAGE_CHANNEL_ORDER_KEY = "channelOrder";
+const LOCAL_STORAGE_PINNED_PMS_KEY = "pinnedPrivateChats";
 
 // Type for saved metadata structure: serverId -> target -> key -> metadata
 type SavedMetadata = Record<
   string,
   Record<string, Record<string, { value: string; visibility: string }>>
+>;
+
+// Type for pinned private chats: serverId -> array of {username, order}
+type PinnedPrivateChatsMap = Record<
+  string,
+  Array<{ username: string; order: number }>
 >;
 
 // Type for channel order: serverId -> array of channel names in order
@@ -138,6 +145,25 @@ function saveChannelOrder(channelOrder: ChannelOrderMap) {
   localStorage.setItem(
     LOCAL_STORAGE_CHANNEL_ORDER_KEY,
     JSON.stringify(channelOrder),
+  );
+}
+
+// Load pinned private chats from localStorage
+function loadPinnedPrivateChats(): PinnedPrivateChatsMap {
+  try {
+    return JSON.parse(
+      localStorage.getItem(LOCAL_STORAGE_PINNED_PMS_KEY) || "{}",
+    );
+  } catch {
+    return {};
+  }
+}
+
+// Save pinned private chats to localStorage
+function savePinnedPrivateChats(pinnedChats: PinnedPrivateChatsMap) {
+  localStorage.setItem(
+    LOCAL_STORAGE_PINNED_PMS_KEY,
+    JSON.stringify(pinnedChats),
   );
 }
 
@@ -409,6 +435,7 @@ export interface AppState {
   connectionError: string | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, User[]>;
+  typingTimers: Record<string, Record<string, NodeJS.Timeout>>;
   globalNotifications: {
     id: string;
     type: "fail" | "warn" | "note";
@@ -553,6 +580,9 @@ export interface AppState {
   selectPrivateChat: (privateChatId: string | null) => void;
   openPrivateChat: (serverId: string, username: string) => void;
   deletePrivateChat: (serverId: string, privateChatId: string) => void;
+  pinPrivateChat: (serverId: string, privateChatId: string) => void;
+  unpinPrivateChat: (serverId: string, privateChatId: string) => void;
+  reorderPrivateChats: (serverId: string, privateChatIds: string[]) => void;
   markChannelAsRead: (serverId: string, channelId: string) => void;
   reorderChannels: (serverId: string, channelIds: string[]) => void;
   connectToSavedServers: () => void; // New action to load servers from localStorage
@@ -620,6 +650,7 @@ const useStore = create<AppState>((set, get) => ({
   connectionError: null,
   messages: {},
   typingUsers: {},
+  typingTimers: {},
   globalNotifications: [],
   channelList: {},
   listingInProgress: {},
@@ -872,7 +903,7 @@ const useStore = create<AppState>((set, get) => ({
           if (server.id === serverId) {
             // Check if channel already exists in store
             const existingChannel = server.channels.find(
-              (c) => c.name === channelName,
+              (c) => c.name.toLowerCase() === channelName.toLowerCase(),
             );
             if (existingChannel) {
               // Channel already exists, don't add duplicate
@@ -1080,10 +1111,24 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const channelKey = `${message.serverId}-${message.channelId}`;
       const currentMessages = state.messages[channelKey] || [];
+
+      // Add message and sort chronologically by timestamp
+      const updatedMessages = [...currentMessages, message].sort((a, b) => {
+        const timeA =
+          a.timestamp instanceof Date
+            ? a.timestamp.getTime()
+            : new Date(a.timestamp).getTime();
+        const timeB =
+          b.timestamp instanceof Date
+            ? b.timestamp.getTime()
+            : new Date(b.timestamp).getTime();
+        return timeA - timeB;
+      });
+
       return {
         messages: {
           ...state.messages,
-          [channelKey]: [...currentMessages, message],
+          [channelKey]: updatedMessages,
         },
       };
     });
@@ -1380,6 +1425,61 @@ const useStore = create<AppState>((set, get) => ({
         (pc) => pc.username === username,
       );
       if (existingChat) {
+        // MONITOR the user if not already monitored
+        ircClient.monitorAdd(serverId, [username]);
+
+        // Request chathistory for this PM (if server supports it)
+        setTimeout(() => {
+          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 100`);
+        }, 50);
+
+        // Check if we already have user info from channels
+        let hasUserInfo = false;
+        for (const channel of server.channels) {
+          const user = channel.users.find(
+            (u) => u.username.toLowerCase() === username.toLowerCase(),
+          );
+          if (user?.realname && user.account !== undefined) {
+            // We have complete user info, copy it to the PM
+            hasUserInfo = true;
+            useStore.setState((state) => ({
+              servers: state.servers.map((s) => {
+                if (s.id === serverId) {
+                  return {
+                    ...s,
+                    privateChats: s.privateChats?.map((pm) => {
+                      if (pm.username === username) {
+                        return {
+                          ...pm,
+                          realname: user.realname,
+                          account: user.account,
+                          isBot: user.isBot,
+                        };
+                      }
+                      return pm;
+                    }),
+                  };
+                }
+                return s;
+              }),
+            }));
+            break;
+          }
+        }
+
+        // Only request WHO if we don't already have complete user info
+        if (!hasUserInfo) {
+          // Request WHO to get current status using WHOX to also get account
+          // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
+          setTimeout(() => {
+            ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+          }, 100);
+        }
+
+        // Note: We don't request METADATA GET for individual users as some servers reject this.
+        // Instead, we rely on metadata from shared channels (if user is in a channel with us)
+        // or from localStorage if we previously got their metadata.
+
         // Select existing private chat
         return {
           ui: {
@@ -1401,7 +1501,25 @@ const useStore = create<AppState>((set, get) => ({
         unreadCount: 0,
         isMentioned: false,
         lastActivity: new Date(),
+        isOnline: false, // Will be updated by MONITOR response
+        isAway: false,
       };
+
+      // Check if we already have user info from channels
+      let hasUserInfo = false;
+      for (const channel of server.channels) {
+        const user = channel.users.find(
+          (u) => u.username.toLowerCase() === username.toLowerCase(),
+        );
+        if (user?.realname && user.account !== undefined) {
+          // We have complete user info, copy it to the new PM
+          hasUserInfo = true;
+          newPrivateChat.realname = user.realname;
+          newPrivateChat.account = user.account;
+          newPrivateChat.isBot = user.isBot;
+          break;
+        }
+      }
 
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
@@ -1412,6 +1530,27 @@ const useStore = create<AppState>((set, get) => ({
         }
         return s;
       });
+
+      // Add MONITOR for this user (server-specific)
+      ircClient.monitorAdd(serverId, [username]);
+
+      // Request chathistory for this new PM (if server supports it)
+      setTimeout(() => {
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 100`);
+      }, 50);
+
+      // Only request WHO if we don't already have complete user info
+      if (!hasUserInfo) {
+        // Request WHO to get their current status (H=here/green, G=gone/yellow) using WHOX to also get account
+        // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
+        setTimeout(() => {
+          ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+        }, 100);
+      }
+
+      // Note: We don't request METADATA GET for individual users as some servers reject this.
+      // Instead, we rely on metadata from shared channels (if user is in a channel with us)
+      // or from localStorage if we previously got their metadata.
 
       return {
         servers: updatedServers,
@@ -1432,6 +1571,10 @@ const useStore = create<AppState>((set, get) => ({
       const server = state.servers.find((s) => s.id === serverId);
       if (!server) return {};
 
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === privateChatId,
+      );
+
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
           return {
@@ -1442,6 +1585,11 @@ const useStore = create<AppState>((set, get) => ({
         }
         return s;
       });
+
+      // If unpinned, remove MONITOR (but don't UNSUB from metadata - that's global)
+      if (privateChat && !privateChat.isPinned) {
+        ircClient.monitorRemove(serverId, [privateChat.username]);
+      }
 
       // If the deleted private chat was selected, clear the selection
       const newState: Partial<AppState> = {
@@ -1456,7 +1604,143 @@ const useStore = create<AppState>((set, get) => ({
         };
       }
 
+      // Update localStorage if it was pinned
+      if (privateChat?.isPinned) {
+        const pinnedChats = loadPinnedPrivateChats();
+        if (pinnedChats[serverId]) {
+          pinnedChats[serverId] = pinnedChats[serverId].filter(
+            (pc) => pc.username !== privateChat.username,
+          );
+          savePinnedPrivateChats(pinnedChats);
+        }
+      }
+
       return newState;
+    });
+  },
+
+  pinPrivateChat: (serverId, privateChatId) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === privateChatId,
+      );
+      if (!privateChat) return {};
+
+      // Calculate the new order (highest + 1)
+      const maxOrder = Math.max(
+        0,
+        ...(server.privateChats
+          ?.filter((pc) => pc.isPinned && pc.order !== undefined)
+          .map((pc) => pc.order as number) || []),
+      );
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pc) => {
+            if (pc.id === privateChatId) {
+              return { ...pc, isPinned: true, order: maxOrder + 1 };
+            }
+            return pc;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+
+      // Save to localStorage
+      const pinnedChats = loadPinnedPrivateChats();
+      if (!pinnedChats[serverId]) {
+        pinnedChats[serverId] = [];
+      }
+      pinnedChats[serverId].push({
+        username: privateChat.username,
+        order: maxOrder + 1,
+      });
+      savePinnedPrivateChats(pinnedChats);
+
+      return { servers: updatedServers };
+    });
+  },
+
+  unpinPrivateChat: (serverId, privateChatId) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === privateChatId,
+      );
+      if (!privateChat) return {};
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pc) => {
+            if (pc.id === privateChatId) {
+              return { ...pc, isPinned: false, order: undefined };
+            }
+            return pc;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+
+      // Remove from localStorage
+      const pinnedChats = loadPinnedPrivateChats();
+      if (pinnedChats[serverId]) {
+        pinnedChats[serverId] = pinnedChats[serverId].filter(
+          (pc) => pc.username !== privateChat.username,
+        );
+        savePinnedPrivateChats(pinnedChats);
+      }
+
+      return { servers: updatedServers };
+    });
+  },
+
+  reorderPrivateChats: (serverId, privateChatIds) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      // Update order for each private chat
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pc) => {
+            const newOrder = privateChatIds.indexOf(pc.id);
+            if (newOrder !== -1 && pc.isPinned) {
+              return { ...pc, order: newOrder };
+            }
+            return pc;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+
+      // Save to localStorage
+      const pinnedChats = loadPinnedPrivateChats();
+      if (pinnedChats[serverId]) {
+        // Update order for all pinned chats
+        pinnedChats[serverId] = pinnedChats[serverId].map((pc) => {
+          const privateChat = server.privateChats?.find(
+            (p) => p.username === pc.username,
+          );
+          if (privateChat) {
+            const newOrder = privateChatIds.indexOf(privateChat.id);
+            if (newOrder !== -1) {
+              return { ...pc, order: newOrder };
+            }
+          }
+          return pc;
+        });
+        savePinnedPrivateChats(pinnedChats);
+      }
+
+      return { servers: updatedServers };
     });
   },
 
@@ -2299,6 +2583,50 @@ ircClient.on("USERMSG", (response) => {
     .servers.find((s) => s.id === response.serverId);
 
   if (server) {
+    // Check if this PRIVMSG is from the server itself (sender contains a ".")
+    // Server messages should go to Server Notices, not create PM tabs
+    if (sender.includes(".")) {
+      console.log(
+        "[USERMSG] Server message detected, routing to Server Notices:",
+        sender,
+      );
+
+      const targetChannelId = "server-notices";
+      const newMessage: Message = {
+        id: uuidv4(),
+        type: "notice",
+        content: message,
+        timestamp: timestamp,
+        userId: sender,
+        channelId: targetChannelId,
+        serverId: server.id,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+        tags: mtags,
+      };
+
+      useStore.getState().addMessage(newMessage);
+
+      // Play notification sound if appropriate (but not for historical messages)
+      const isHistoricalMessage = mtags?.batch !== undefined;
+      if (!isHistoricalMessage) {
+        const state = useStore.getState();
+        const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+        if (
+          shouldPlayNotificationSound(
+            newMessage,
+            serverCurrentUser,
+            state.globalSettings,
+          )
+        ) {
+          playNotificationSound(state.globalSettings);
+        }
+      }
+
+      return; // Don't process as a regular PM
+    }
+
     // Check if this is a whisper (has draft/channel-context tag)
     // Note: Client tags use + prefix, so check both with and without
     const channelContext = mtags?.["+draft/channel-context"];
@@ -2683,108 +3011,206 @@ ircClient.on("USERNOTICE", (response) => {
 
   if (!server) return;
 
-  // Check if this is a JSON log notice
-  const isJsonLog = mtags?.["unrealircd.org/json-log"];
-  let jsonLogData = null;
-  if (isJsonLog) {
-    try {
-      const jsonString = mtags["unrealircd.org/json-log"];
-      // Log the raw JSON string for debugging (first 200 chars)
-      console.log(
-        "Raw JSON log data:",
-        jsonString.substring(0, 200) + (jsonString.length > 200 ? "..." : ""),
-      );
-      jsonLogData = JSON.parse(jsonString);
-    } catch (error) {
-      console.error("Failed to parse JSON log:", error);
-      console.error("Raw JSON string was:", mtags["unrealircd.org/json-log"]);
-      // Try to clean up common issues
+  // Check if this NOTICE is from the server itself (sender contains a ".")
+  // Server notices should go to Server Notices, user notices should create PM tabs
+  if (response.sender.includes(".")) {
+    console.log(
+      "[USERNOTICE] Server notice detected, routing to Server Notices:",
+      response.sender,
+    );
+
+    // Check if this is a JSON log notice
+    const isJsonLog = mtags?.["unrealircd.org/json-log"];
+    let jsonLogData = null;
+    if (isJsonLog) {
       try {
-        const cleanedJson = mtags["unrealircd.org/json-log"]
-          // Replace all \s with spaces (UnrealIRCd uses \s as non-standard space escape)
-          .replace(/\\s/g, " ")
-          // Handle other potential escape issues
-          .replace(/\\'/g, "'")
-          .replace(/\\&/g, "&");
-
-        jsonLogData = JSON.parse(cleanedJson);
-        console.log("Successfully parsed after cleanup");
-      } catch (cleanupError) {
-        console.error("Failed to parse even after cleanup:", cleanupError);
-        // Try a more aggressive cleanup
+        const jsonString = mtags["unrealircd.org/json-log"];
+        // Log the raw JSON string for debugging (first 200 chars)
+        console.log(
+          "Raw JSON log data:",
+          jsonString.substring(0, 200) + (jsonString.length > 200 ? "..." : ""),
+        );
+        jsonLogData = JSON.parse(jsonString);
+      } catch (error) {
+        console.error("Failed to parse JSON log:", error);
+        console.error("Raw JSON string was:", mtags["unrealircd.org/json-log"]);
+        // Try to clean up common issues
         try {
-          const aggressiveClean = mtags["unrealircd.org/json-log"]
-            .replace(/\\s/g, " ") // Replace all \s with spaces
-            .replace(/\\'/g, "'") // Replace \' with '
-            .replace(/\\&/g, "&"); // Replace \& with &
+          const cleanedJson = mtags["unrealircd.org/json-log"]
+            // Replace all \s with spaces (UnrealIRCd uses \s as non-standard space escape)
+            .replace(/\\s/g, " ")
+            // Handle other potential escape issues
+            .replace(/\\'/g, "'")
+            .replace(/\\&/g, "&");
 
-          jsonLogData = JSON.parse(aggressiveClean);
-          console.log("Successfully parsed with aggressive cleanup");
-        } catch (aggressiveError) {
-          console.error("Failed aggressive cleanup:", aggressiveError);
-          // As a last resort, try to extract what we can
+          jsonLogData = JSON.parse(cleanedJson);
+          console.log("Successfully parsed after cleanup");
+        } catch (cleanupError) {
+          console.error("Failed to parse even after cleanup:", cleanupError);
+          // Try a more aggressive cleanup
           try {
-            // Look for JSON-like structure and extract key parts
-            const jsonStr = mtags["unrealircd.org/json-log"];
-            const extracted: Record<string, unknown> = {};
-            // Try to extract common fields manually
-            const timeMatch = jsonStr.match(/"timestamp":"([^"]+)"/);
-            if (timeMatch) extracted.timestamp = timeMatch[1];
-            const levelMatch = jsonStr.match(/"level":"([^"]+)"/);
-            if (levelMatch) extracted.level = levelMatch[1];
-            const msgMatch = jsonStr.match(/"msg":"([^"]+)"/);
-            if (msgMatch) {
-              // Clean the message
-              extracted.msg = msgMatch[1].replace(/\\s/g, " ");
+            const aggressiveClean = mtags["unrealircd.org/json-log"]
+              .replace(/\\s/g, " ") // Replace all \s with spaces
+              .replace(/\\'/g, "'") // Replace \' with '
+              .replace(/\\&/g, "&"); // Replace \& with &
+
+            jsonLogData = JSON.parse(aggressiveClean);
+            console.log("Successfully parsed with aggressive cleanup");
+          } catch (aggressiveError) {
+            console.error("Failed aggressive cleanup:", aggressiveError);
+            // As a last resort, try to extract what we can
+            try {
+              // Look for JSON-like structure and extract key parts
+              const jsonStr = mtags["unrealircd.org/json-log"];
+              const extracted: Record<string, unknown> = {};
+              // Try to extract common fields manually
+              const timeMatch = jsonStr.match(/"timestamp":"([^"]+)"/);
+              if (timeMatch) extracted.timestamp = timeMatch[1];
+              const levelMatch = jsonStr.match(/"level":"([^"]+)"/);
+              if (levelMatch) extracted.level = levelMatch[1];
+              const msgMatch = jsonStr.match(/"msg":"([^"]+)"/);
+              if (msgMatch) {
+                // Clean the message
+                extracted.msg = msgMatch[1].replace(/\\s/g, " ");
+              }
+              if (Object.keys(extracted).length > 0) {
+                jsonLogData = extracted;
+                console.log("Extracted partial data:", extracted);
+              }
+            } catch (extractError) {
+              console.error("Failed to extract partial data:", extractError);
             }
-            if (Object.keys(extracted).length > 0) {
-              jsonLogData = extracted;
-              console.log("Extracted partial data:", extracted);
-            }
-          } catch (extractError) {
-            console.error("Failed to extract partial data:", extractError);
           }
         }
       }
     }
+
+    // Route server notices to the server notices channel
+    const targetChannelId = "server-notices";
+
+    const newMessage: Message = {
+      id: uuidv4(),
+      type: isJsonLog ? "notice" : "notice", // Keep as notice type
+      content: message,
+      timestamp: timestamp,
+      userId: response.sender,
+      channelId: targetChannelId,
+      serverId: server.id,
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+      tags: mtags,
+      jsonLogData, // Add parsed JSON log data
+    };
+
+    useStore.getState().addMessage(newMessage);
+
+    // Play notification sound if appropriate (but not for historical messages)
+    const isHistoricalMessage = mtags?.batch !== undefined;
+
+    if (!isHistoricalMessage) {
+      const state = useStore.getState();
+      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+      if (
+        shouldPlayNotificationSound(
+          newMessage,
+          serverCurrentUser,
+          state.globalSettings,
+        )
+      ) {
+        playNotificationSound(state.globalSettings);
+      }
+    }
+
+    return; // Don't process as a user notice
   }
 
-  // Route all server notices to the server notices channel
-  const targetChannelId = "server-notices";
+  // This is a user notice - treat it like a PM
+  console.log(
+    "[USERNOTICE] User notice detected, creating PM tab:",
+    response.sender,
+  );
 
-  const newMessage: Message = {
-    id: uuidv4(),
-    type: isJsonLog ? "notice" : "notice", // Keep as notice type
-    content: message,
-    timestamp: timestamp,
-    userId: response.sender,
-    channelId: targetChannelId,
-    serverId: server.id,
-    reactions: [],
-    replyMessage: null,
-    mentioned: [],
-    tags: mtags,
-    jsonLogData, // Add parsed JSON log data
-  };
+  // Don't create private chats with ourselves
+  const currentUser = ircClient.getCurrentUser(response.serverId);
+  if (currentUser?.username === response.sender) {
+    return;
+  }
 
-  useStore.getState().addMessage(newMessage);
+  // Find or create private chat
+  let privateChat = server.privateChats?.find(
+    (pc) => pc.username === response.sender,
+  );
 
-  // Play notification sound if appropriate (but not for historical messages)
-  // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
-  const isHistoricalMessage = mtags?.batch !== undefined;
+  if (!privateChat) {
+    // Auto-create private chat when receiving a notice
+    useStore.getState().openPrivateChat(server.id, response.sender);
+    // Get the newly created private chat
+    privateChat = useStore
+      .getState()
+      .servers.find((s) => s.id === server.id)
+      ?.privateChats?.find((pc) => pc.username === response.sender);
+  }
 
-  if (!isHistoricalMessage) {
-    const state = useStore.getState();
-    const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
-    if (
-      shouldPlayNotificationSound(
-        newMessage,
-        serverCurrentUser,
-        state.globalSettings,
-      )
-    ) {
-      playNotificationSound(state.globalSettings);
+  if (privateChat) {
+    const newMessage: Message = {
+      id: uuidv4(),
+      msgid: mtags?.msgid,
+      content: message,
+      timestamp,
+      userId: response.sender,
+      channelId: privateChat.id, // Use private chat ID as channel ID
+      serverId: server.id,
+      type: "notice" as const, // Mark as notice type
+      reactions: [],
+      replyMessage: null,
+      mentioned: [], // PMs don't have mentions in the traditional sense
+      tags: mtags,
+    };
+
+    useStore.getState().addMessage(newMessage);
+
+    // Update private chat's last activity and unread count
+    const isHistoricalMessage = mtags?.batch !== undefined;
+
+    // Play notification sound if appropriate (but not for historical messages)
+    if (!isHistoricalMessage) {
+      const state = useStore.getState();
+      const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
+      if (
+        shouldPlayNotificationSound(
+          newMessage,
+          serverCurrentUser,
+          state.globalSettings,
+        )
+      ) {
+        playNotificationSound(state.globalSettings);
+      }
     }
+
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === server.id) {
+          const updatedPrivateChats =
+            s.privateChats?.map((pc) => {
+              if (pc.id === privateChat.id) {
+                const isActive = state.ui.selectedPrivateChatId === pc.id;
+                return {
+                  ...pc,
+                  lastActivity: new Date(),
+                  unreadCount:
+                    isActive || isHistoricalMessage ? 0 : pc.unreadCount + 1,
+                  isMentioned: !isHistoricalMessage && true, // All PMs are considered mentions (except historical)
+                };
+              }
+              return pc;
+            }) || [];
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
+    });
   }
 });
 
@@ -2808,7 +3234,8 @@ ircClient.on(
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
           const existingChannel = server.channels.find(
-            (channel) => channel.name === channelName,
+            (channel) =>
+              channel.name.toLowerCase() === channelName.toLowerCase(),
           );
 
           if (!existingChannel) {
@@ -2829,8 +3256,21 @@ ircClient.on(
               channels: [...server.channels, newChannel],
             };
           }
+
+          // If channel exists but with different case, update the name to match server's canonical case
+          if (existingChannel.name !== channelName) {
+            const updatedChannels = server.channels.map((channel) =>
+              channel.name.toLowerCase() === channelName.toLowerCase()
+                ? { ...channel, name: channelName }
+                : channel,
+            );
+            return {
+              ...server,
+              channels: updatedChannels,
+            };
+          }
           const updatedChannels = server.channels.map((channel) => {
-            if (channel.name === channelName) {
+            if (channel.name.toLowerCase() === channelName.toLowerCase()) {
               const userAlreadyExists = channel.users.some(
                 (user) => user.username === username,
               );
@@ -2853,6 +3293,7 @@ ircClient.on(
                       isOnline: true,
                       status: "",
                       account, // Store account from extended-join if available
+                      realname, // Store realname from extended-join if available
                       metadata: userMetadata,
                     },
                   ],
@@ -2882,9 +3323,10 @@ ircClient.on(
     // If we joined a channel, request channel information
     const ourNick = ircClient.getNick(serverId);
     if (username === ourNick) {
-      // Request topic and user list
+      // Request topic and user list with WHOX to get account information
       ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
-      ircClient.sendRaw(serverId, `WHO ${channelName}`);
+      // Use WHOX to get user info: c=channel, u=username, h=hostname, n=nickname, f=flags, a=account, r=realname, o=op level
+      ircClient.sendRaw(serverId, `WHO ${channelName} %cuhnfaro`);
 
       // Request channel metadata if server supports it
       if (serverSupportsMetadata(serverId)) {
@@ -3148,6 +3590,35 @@ ircClient.on("QUIT", ({ serverId, username, reason, batchTag }) => {
       });
     }
   }
+
+  // Remove typing notifications and clear timers for the user who quit from all channels
+  if (server) {
+    channelsUserWasIn.forEach((channelId) => {
+      const key = `${serverId}-${channelId}`;
+      useStore.setState((state) => {
+        const currentUsers = state.typingUsers[key] || [];
+        const currentTimers = state.typingTimers[key] || {};
+
+        // Clear timer if it exists
+        if (currentTimers[username]) {
+          clearTimeout(currentTimers[username]);
+        }
+
+        const { [username]: removedTimer, ...remainingTimers } = currentTimers;
+
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [key]: currentUsers.filter((u) => u.username !== username),
+          },
+          typingTimers: {
+            ...state.typingTimers,
+            [key]: remainingTimers,
+          },
+        };
+      });
+    });
+  }
 });
 
 ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
@@ -3266,6 +3737,118 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     }));
   } else {
   }
+
+  // Restore pinned private chats for this server
+  const pinnedChats = loadPinnedPrivateChats();
+  const serverPinnedChats = pinnedChats[serverId] || [];
+
+  if (serverPinnedChats.length > 0) {
+    // Sort by order
+    const sortedPinnedChats = [...serverPinnedChats].sort(
+      (a, b) => a.order - b.order,
+    );
+
+    useStore.setState((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      // Create private chat objects for pinned users
+      const restoredPrivateChats: PrivateChat[] = sortedPinnedChats.map(
+        ({ username, order }) => ({
+          id: uuidv4(),
+          username,
+          serverId,
+          unreadCount: 0,
+          isMentioned: false,
+          lastActivity: new Date(),
+          isPinned: true,
+          order,
+          isOnline: false, // Will be updated by MONITOR
+          isAway: false,
+        }),
+      );
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          return {
+            ...s,
+            privateChats: [...(s.privateChats || []), ...restoredPrivateChats],
+          };
+        }
+        return s;
+      });
+
+      return { servers: updatedServers };
+    });
+
+    // MONITOR all pinned users
+    const usernames = sortedPinnedChats.map((pc) => pc.username);
+    ircClient.monitorAdd(serverId, usernames);
+
+    // Request chathistory for each pinned PM
+    setTimeout(() => {
+      for (const { username } of sortedPinnedChats) {
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 100`);
+      }
+    }, 50);
+
+    // For each pinned user, check if we have their info from channels first
+    setTimeout(() => {
+      const state = useStore.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return;
+
+      for (const { username } of sortedPinnedChats) {
+        // Check if we already have user info from channels
+        let hasUserInfo = false;
+        for (const channel of server.channels) {
+          const user = channel.users.find(
+            (u) => u.username.toLowerCase() === username.toLowerCase(),
+          );
+          if (user?.realname && user.account !== undefined) {
+            // We have complete user info, copy it to the PM
+            hasUserInfo = true;
+            useStore.setState((state) => ({
+              servers: state.servers.map((s) => {
+                if (s.id === serverId) {
+                  return {
+                    ...s,
+                    privateChats: s.privateChats?.map((pm) => {
+                      if (
+                        pm.username.toLowerCase() === username.toLowerCase()
+                      ) {
+                        return {
+                          ...pm,
+                          realname: user.realname,
+                          account: user.account,
+                          isBot: user.isBot,
+                        };
+                      }
+                      return pm;
+                    }),
+                  };
+                }
+                return s;
+              }),
+            }));
+            break;
+          }
+        }
+
+        // Only request WHO if we don't have complete user info
+        if (!hasUserInfo) {
+          // Request WHO for this user to get their current status using WHOX
+          // This will trigger WHOIS if they're away (and we'll get their away message via 301)
+          // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
+          ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+        }
+      }
+    }, 100);
+
+    // Note: We don't request METADATA GET for individual users as some servers reject this.
+    // Instead, we rely on metadata from shared channels (if user is in a channel with us)
+    // or from localStorage if we previously got their metadata.
+  }
 });
 
 ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
@@ -3273,7 +3856,7 @@ ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return {
               ...channel,
               users: channel.users.filter((user) => user.username !== username), // Remove the user
@@ -3321,6 +3904,37 @@ ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
       }
     }
   }
+
+  // Remove typing notification and clear timer for the user who parted
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels.find((c) => c.name === channelName);
+    if (channel) {
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => {
+        const currentUsers = state.typingUsers[key] || [];
+        const currentTimers = state.typingTimers[key] || {};
+
+        // Clear timer if it exists
+        if (currentTimers[username]) {
+          clearTimeout(currentTimers[username]);
+        }
+
+        const { [username]: removedTimer, ...remainingTimers } = currentTimers;
+
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [key]: currentUsers.filter((u) => u.username !== username),
+          },
+          typingTimers: {
+            ...state.typingTimers,
+            [key]: remainingTimers,
+          },
+        };
+      });
+    }
+  }
 });
 
 ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
@@ -3333,7 +3947,7 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
           const updatedChannels = server.channels.map((channel) => {
-            if (channel.name === target) {
+            if (channel.name.toLowerCase() === target.toLowerCase()) {
               // Parse the modestring and modeargs to update channel modes
               // For now, we'll store the raw modestring
               return {
@@ -3488,7 +4102,7 @@ ircClient.on("TOPIC", ({ serverId, channelName, topic, sender }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, topic };
           }
           return channel;
@@ -3532,7 +4146,7 @@ ircClient.on("RPL_TOPIC", ({ serverId, channelName, topic }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, topic };
           }
           return channel;
@@ -3561,7 +4175,7 @@ ircClient.on("RPL_NOTOPIC", ({ serverId, channelName }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, topic: undefined };
           }
           return channel;
@@ -3784,7 +4398,7 @@ ircClient.on("KICK", ({ serverId, username, target, channelName, reason }) => {
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       const updatedChannels = server.channels.map((channel) => {
-        if (channel.name === channelName) {
+        if (channel.name.toLowerCase() === channelName.toLowerCase()) {
           return {
             ...channel,
             users: channel.users.filter((user) => user.username !== target), // Remove the user
@@ -3828,6 +4442,37 @@ ircClient.on("KICK", ({ serverId, username, target, channelName, reason }) => {
           },
         }));
       }
+    }
+  }
+
+  // Remove typing notification and clear timer for the kicked user
+  const server = state.servers.find((s) => s.id === serverId);
+  if (server) {
+    const channel = server.channels.find((c) => c.name === channelName);
+    if (channel) {
+      const key = `${serverId}-${channel.id}`;
+      useStore.setState((state) => {
+        const currentUsers = state.typingUsers[key] || [];
+        const currentTimers = state.typingTimers[key] || {};
+
+        // Clear timer if it exists
+        if (currentTimers[target]) {
+          clearTimeout(currentTimers[target]);
+        }
+
+        const { [target]: removedTimer, ...remainingTimers } = currentTimers;
+
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [key]: currentUsers.filter((u) => u.username !== target),
+          },
+          typingTimers: {
+            ...state.typingTimers,
+            [key]: remainingTimers,
+          },
+        };
+      });
     }
   }
 });
@@ -4188,11 +4833,46 @@ ircClient.on("TAGMSG", (response) => {
 
     useStore.setState((state) => {
       const currentUsers = state.typingUsers[key] || [];
+      const currentTimers = state.typingTimers[key] || {};
 
       if (isActive) {
+        // Clear existing timer for this user if it exists
+        if (currentTimers[user.username]) {
+          clearTimeout(currentTimers[user.username]);
+        }
+
+        // Create a new timer to auto-clear typing notification after 6 seconds
+        const timer = setTimeout(() => {
+          useStore.setState((state) => {
+            const currentUsers = state.typingUsers[key] || [];
+            const currentTimers = state.typingTimers[key] || {};
+
+            // Remove the timer reference
+            const { [user.username]: removedTimer, ...remainingTimers } =
+              currentTimers;
+
+            return {
+              typingUsers: {
+                ...state.typingUsers,
+                [key]: currentUsers.filter((u) => u.username !== user.username),
+              },
+              typingTimers: {
+                ...state.typingTimers,
+                [key]: remainingTimers,
+              },
+            };
+          });
+        }, 6000);
+
         // Don't add if already in the list
         if (currentUsers.some((u) => u.username === user.username)) {
-          return {};
+          // Update timer even if user is already in list
+          return {
+            typingTimers: {
+              ...state.typingTimers,
+              [key]: { ...currentTimers, [user.username]: timer },
+            },
+          };
         }
 
         return {
@@ -4200,13 +4880,29 @@ ircClient.on("TAGMSG", (response) => {
             ...state.typingUsers,
             [key]: [...currentUsers, user],
           },
+          typingTimers: {
+            ...state.typingTimers,
+            [key]: { ...currentTimers, [user.username]: timer },
+          },
         };
       }
-      // Remove the user from the list
+      // Remove the user from the list when they send "paused" or "done"
+      // Clear their timer if it exists
+      if (currentTimers[user.username]) {
+        clearTimeout(currentTimers[user.username]);
+      }
+
+      const { [user.username]: removedTimer, ...remainingTimers } =
+        currentTimers;
+
       return {
         typingUsers: {
           ...state.typingUsers,
           [key]: currentUsers.filter((u) => u.username !== user.username),
+        },
+        typingTimers: {
+          ...state.typingTimers,
+          [key]: remainingTimers,
         },
       };
     });
@@ -4782,10 +5478,22 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
           }
         }
 
+        // Update metadata for private chat users
+        const updatedPrivateChats = server.privateChats?.map((pm) => {
+          if (pm.username.toLowerCase() === resolvedTarget.toLowerCase()) {
+            // We don't store metadata directly on PrivateChat,
+            // but we can use this to trigger UI updates
+            // The avatar/metadata will be looked up from savedMetadata
+            return { ...pm };
+          }
+          return pm;
+        });
+
         return {
           ...server,
           channels: updatedChannels,
           metadata: updatedMetadata,
+          privateChats: updatedPrivateChats,
         };
       }
       return server;
@@ -5298,7 +6006,7 @@ ircClient.on("SETNAME", ({ serverId, user, realname }) => {
       return {
         currentUser: {
           ...state.currentUser,
-          displayName: realname,
+          realname: realname,
         },
       };
     }
@@ -5309,10 +6017,116 @@ ircClient.on("SETNAME", ({ serverId, user, realname }) => {
         const updatedChannels = s.channels.map((c) => ({
           ...c,
           users: c.users.map((u) =>
-            u.username === user ? { ...u, displayName: realname } : u,
+            u.username === user ? { ...u, realname: realname } : u,
           ),
         }));
         return { ...s, channels: updatedChannels };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+// MONITOR event handlers
+ircClient.on("MONONLINE", ({ serverId, targets }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update private chats to mark users as online
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedPrivateChats = s.privateChats?.map((pm) => {
+          const target = targets.find(
+            (t) => t.nick.toLowerCase() === pm.username.toLowerCase(),
+          );
+          if (target) {
+            return { ...pm, isOnline: true, isAway: false };
+          }
+          return pm;
+        });
+        return { ...s, privateChats: updatedPrivateChats };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+ircClient.on("MONOFFLINE", ({ serverId, targets }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update private chats to mark users as offline
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedPrivateChats = s.privateChats?.map((pm) => {
+          const isOffline = targets.some(
+            (t) => t.toLowerCase() === pm.username.toLowerCase(),
+          );
+          if (isOffline) {
+            return { ...pm, isOnline: false, isAway: false };
+          }
+          return pm;
+        });
+        return { ...s, privateChats: updatedPrivateChats };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+// Handle AWAY notifications for monitored users (extended-monitor)
+ircClient.on("AWAY", ({ serverId, username, awayMessage }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update private chats for monitored users
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedPrivateChats = s.privateChats?.map((pm) => {
+          if (pm.username.toLowerCase() === username.toLowerCase()) {
+            return {
+              ...pm,
+              isAway: awayMessage !== undefined && awayMessage !== null,
+              awayMessage: awayMessage || undefined,
+              isOnline: true, // They're still online, just away
+            };
+          }
+          return pm;
+        });
+        return { ...s, privateChats: updatedPrivateChats };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+// Handle RPL_AWAY (301) from WHOIS responses
+ircClient.on("RPL_AWAY", ({ serverId, nick, awayMessage }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedPrivateChats = s.privateChats?.map((pm) => {
+          if (pm.username.toLowerCase() === nick.toLowerCase()) {
+            return {
+              ...pm,
+              awayMessage: awayMessage || undefined,
+              isAway: true,
+            };
+          }
+          return pm;
+        });
+        return { ...s, privateChats: updatedPrivateChats };
       }
       return s;
     });
@@ -5338,6 +6152,54 @@ ircClient.on(
     const serverData = state.servers.find((s) => s.id === serverId);
     if (!serverData) return;
 
+    // Parse away status from flags (e.g., "H@" means here and operator, "G" means gone/away)
+    let isAway = false;
+    if (flags) {
+      // First character indicates here (H) or gone/away (G)
+      if (flags[0] === "G") {
+        isAway = true;
+      } else if (flags[0] === "H") {
+        isAway = false;
+      }
+    }
+
+    // If channel is "*", this is a user-specific WHO query (e.g., "WHO username")
+    // Update private chats only in this case
+    if (channel === "*") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((s) => {
+          if (s.id === serverId) {
+            const updatedPrivateChats = s.privateChats?.map((pm) => {
+              if (pm.username.toLowerCase() === nick.toLowerCase()) {
+                // If user is away and this is a pinned PM, send WHOIS to get away message
+                if (isAway && pm.isPinned) {
+                  setTimeout(() => {
+                    ircClient.sendRaw(serverId, `WHOIS ${nick}`);
+                  }, 100);
+                }
+
+                return {
+                  ...pm,
+                  isOnline: true,
+                  isAway: isAway,
+                };
+              }
+              return pm;
+            });
+
+            return {
+              ...s,
+              privateChats: updatedPrivateChats,
+            };
+          }
+          return s;
+        });
+
+        return { servers: updatedServers };
+      });
+      return; // Don't process channel user list for user-specific queries
+    }
+
     // Find the channel this WHO reply belongs to
     const channelData = serverData.channels.find((c) => c.name === channel);
     if (!channelData) {
@@ -5346,16 +6208,8 @@ ircClient.on(
 
     // Parse channel status from flags (e.g., "H@" means here and operator)
     let channelStatus = "";
-    let isAway = false;
 
     if (flags) {
-      // First character indicates here (H) or gone/away (G)
-      if (flags[0] === "G") {
-        isAway = true;
-      } else if (flags[0] === "H") {
-        isAway = false;
-      }
-
       // Extract channel status prefixes from flags
       const statusChars = flags.match(/[~&@%+]/g);
       if (statusChars) {
@@ -5368,6 +6222,7 @@ ircClient.on(
       id: nick,
       username: nick,
       hostname: host, // Store the hostname from WHO reply
+      realname: realname, // Store the realname/gecos from WHO reply
       avatar: undefined,
       isOnline: true,
       isAway: isAway,
@@ -5402,6 +6257,7 @@ ircClient.on(
     useStore.setState((state) => {
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
+          // Update channels
           const updatedChannels = s.channels.map((ch) => {
             if (ch.name === channel) {
               // Check if user already exists in the list
@@ -5428,7 +6284,23 @@ ircClient.on(
             return ch;
           });
 
-          return { ...s, channels: updatedChannels };
+          // Also update private chats if this user has a PM tab open
+          const updatedPrivateChats = s.privateChats.map((pm) => {
+            if (pm.username.toLowerCase() === nick.toLowerCase()) {
+              // Update the PM tab with realname from WHO
+              return {
+                ...pm,
+                realname: realname,
+              };
+            }
+            return pm;
+          });
+
+          return {
+            ...s,
+            channels: updatedChannels,
+            privateChats: updatedPrivateChats,
+          };
         }
         return s;
       });
@@ -5447,23 +6319,242 @@ ircClient.on("WHO_END", ({ serverId, mask }) => {
 
   // Find the channel (mask should be the channel name)
   const channelData = serverData.channels.find((c) => c.name === mask);
-  if (!channelData) return;
 
-  // Only request metadata if server supports it
-  if (serverSupportsMetadata(serverId)) {
-    // Request metadata for all users in the channel
-    channelData.users.forEach((user) => {
-      // Only request if we don't already have metadata for this user
-      const hasMetadata =
-        user.metadata && Object.keys(user.metadata).length > 0;
-      if (!hasMetadata) {
-        setTimeout(() => {
-          useStore.getState().metadataList(serverId, user.username);
-        }, Math.random() * 1000); // Stagger requests to avoid spam
-      }
-    });
+  if (channelData) {
+    // This was a WHO for a channel
+    // Only request metadata if server supports it
+    if (serverSupportsMetadata(serverId)) {
+      // Request metadata for all users in the channel
+      channelData.users.forEach((user) => {
+        // Only request if we don't already have metadata for this user
+        const hasMetadata =
+          user.metadata && Object.keys(user.metadata).length > 0;
+        if (!hasMetadata) {
+          setTimeout(() => {
+            useStore.getState().metadataList(serverId, user.username);
+          }, Math.random() * 1000); // Stagger requests to avoid spam
+        }
+      });
+    }
+  } else {
+    // This might be a WHO for an individual user (private chat)
+    // If we got no WHO_REPLY before this WHO_END, the user is offline
+    const privateChat = serverData.privateChats?.find(
+      (pm) => pm.username.toLowerCase() === mask.toLowerCase(),
+    );
+
+    if (privateChat) {
+      // Check if we got a WHO_REPLY for this user by checking their online status
+      // If they're still marked as offline after WHO_END, they're truly offline
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((s) => {
+          if (s.id === serverId) {
+            const updatedPrivateChats = s.privateChats?.map((pm) => {
+              if (pm.username.toLowerCase() === mask.toLowerCase()) {
+                // If no WHO_REPLY was received, isOnline would still be false
+                // Keep it that way and mark as not away
+                if (!pm.isOnline) {
+                  return { ...pm, isOnline: false, isAway: false };
+                }
+                return pm;
+              }
+              return pm;
+            });
+            return { ...s, privateChats: updatedPrivateChats };
+          }
+          return s;
+        });
+        return { servers: updatedServers };
+      });
+    }
   }
 });
+
+// WHO reply handler - for standard WHO responses (352) when server doesn't support WHOX
+ircClient.on(
+  "WHO_REPLY",
+  ({
+    serverId,
+    channel,
+    username,
+    host,
+    server,
+    nick,
+    flags,
+    hopcount,
+    realname,
+  }) => {
+    const state = useStore.getState();
+    const serverData = state.servers.find((s) => s.id === serverId);
+    if (!serverData) return;
+
+    // Determine if user is away from flags (G=gone/away, H=here/present)
+    const isAway = flags.includes("G");
+
+    // Update/add channel users from WHO response
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedChannels = s.channels.map((ch) => {
+            // Only update the specific channel from the WHO response
+            if (ch.name === channel) {
+              // Check if user already exists in this channel
+              const existingUserIndex = ch.users.findIndex(
+                (user) => user.username.toLowerCase() === nick.toLowerCase(),
+              );
+
+              if (existingUserIndex !== -1) {
+                // Update existing user - preserve bot flag and account if already set
+                const existingUser = ch.users[existingUserIndex];
+                const updatedUsers = [...ch.users];
+                updatedUsers[existingUserIndex] = {
+                  ...existingUser,
+                  hostname: host,
+                  realname: realname,
+                  isAway: isAway,
+                };
+                return { ...ch, users: updatedUsers };
+              }
+              // Add new user to channel
+              const newUser: User = {
+                id: `${nick}-${serverId}`,
+                username: nick,
+                hostname: host,
+                realname: realname,
+                isOnline: true,
+                isAway: isAway,
+                metadata: {},
+              };
+              return { ...ch, users: [...ch.users, newUser] };
+            }
+            return ch;
+          });
+          return { ...s, channels: updatedChannels };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
+    });
+  },
+);
+
+// WHOX reply handler - for WHO responses with account information
+ircClient.on(
+  "WHOX_REPLY",
+  ({
+    serverId,
+    channel,
+    username,
+    host,
+    nick,
+    account,
+    flags,
+    realname,
+    isAway,
+    opLevel,
+  }) => {
+    const state = useStore.getState();
+    const serverData = state.servers.find((s) => s.id === serverId);
+    if (!serverData) return;
+
+    // Update private chat with account and realname information
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pm) => {
+            if (pm.username.toLowerCase() === nick.toLowerCase()) {
+              // Determine bot status from flags (B flag indicates bot)
+              // Preserve existing bot flag if it was already set (don't overwrite)
+              const isBotFromFlags = flags.includes("B");
+              const isBot = pm.isBot || isBotFromFlags;
+
+              return {
+                ...pm,
+                realname: realname,
+                account: account === "0" ? undefined : account, // "0" means not logged in
+                isOnline: true, // If we got a WHOX reply, they're online
+                isAway: isAway,
+                isBot: isBot,
+              };
+            }
+            return pm;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
+    });
+
+    // Also update/add channel users from WHOX response
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedChannels = s.channels.map((ch) => {
+            // Only update the specific channel from the WHOX response
+            if (ch.name === channel) {
+              // Check if user already exists in this channel
+              const existingUserIndex = ch.users.findIndex(
+                (user) => user.username.toLowerCase() === nick.toLowerCase(),
+              );
+
+              // Determine bot status from flags (B flag indicates bot)
+              const isBotFromFlags = flags.includes("B");
+
+              if (existingUserIndex !== -1) {
+                // Update existing user
+                const existingUser = ch.users[existingUserIndex];
+                const isBot = existingUser.isBot || isBotFromFlags;
+
+                const updatedUsers = [...ch.users];
+                updatedUsers[existingUserIndex] = {
+                  ...existingUser,
+                  hostname: host,
+                  realname: realname,
+                  account: account === "0" ? undefined : account, // "0" means not logged in
+                  isAway: isAway,
+                  isBot: isBot,
+                  status: opLevel || existingUser.status, // Update status with op level from WHOX
+                };
+                return { ...ch, users: updatedUsers };
+              }
+              // Add new user to channel
+              const newUser: User = {
+                id: `${nick}-${serverId}`,
+                username: nick,
+                hostname: host,
+                realname: realname,
+                account: account === "0" ? undefined : account,
+                isOnline: true,
+                isAway: isAway,
+                isBot: isBotFromFlags,
+                status: opLevel, // Set status from op level in WHOX
+                metadata: {},
+              };
+              return { ...ch, users: [...ch.users, newUser] };
+            }
+            return ch;
+          });
+          return { ...s, channels: updatedChannels };
+        }
+        return s;
+      });
+      return { servers: updatedServers };
+    });
+
+    // If user is away and we have a pinned PM with them, send WHOIS to get away message
+    const privateChat = serverData.privateChats?.find(
+      (pm) => pm.username.toLowerCase() === nick.toLowerCase() && pm.isPinned,
+    );
+
+    if (isAway && privateChat) {
+      // Send WHOIS to get the away message
+      setTimeout(() => {
+        ircClient.sendRaw(serverId, `WHOIS ${nick}`);
+      }, 50);
+    }
+  },
+);
 
 ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
   // Update user objects in channels
@@ -5855,7 +6946,7 @@ ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, isLoadingHistory: isLoading };
           }
           return channel;

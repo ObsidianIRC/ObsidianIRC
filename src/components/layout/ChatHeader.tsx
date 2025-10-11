@@ -1,17 +1,19 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import type React from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  FaAt,
   FaBell,
   FaBellSlash,
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
   FaHashtag,
+  FaInfoCircle,
   FaList,
   FaPenAlt,
   FaSearch,
+  FaThumbtack,
+  FaUser,
   FaUserPlus,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
@@ -20,8 +22,9 @@ import {
   getChannelDisplayName,
   hasOpPermission,
 } from "../../lib/ircUtils";
-import useStore from "../../store";
+import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
+import UserProfileModal from "../ui/UserProfileModal";
 
 interface ChatHeaderProps {
   selectedChannel: Channel | null;
@@ -62,10 +65,51 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenChannelSettings,
   onOpenInviteUser,
 }) => {
-  const { toggleChannelListModal, toggleChannelRenameModal, toggleMemberList } =
-    useStore();
+  const {
+    toggleChannelListModal,
+    toggleChannelRenameModal,
+    toggleMemberList,
+    pinPrivateChat,
+    unpinPrivateChat,
+  } = useStore();
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editedTopic, setEditedTopic] = useState("");
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+
+  const servers = useStore((state) => state.servers);
+
+  // Get private chat user metadata - first check localStorage, then check shared channels
+  const privateChatUserMetadata = useMemo(() => {
+    if (!selectedPrivateChat || !selectedServerId) return null;
+
+    // First check localStorage for saved metadata
+    const savedMetadata = loadSavedMetadata();
+    const serverMetadata = savedMetadata[selectedServerId];
+    if (serverMetadata?.[selectedPrivateChat.username]) {
+      return serverMetadata[selectedPrivateChat.username];
+    }
+
+    // If not in localStorage, check if user is in any shared channels
+    const server = servers.find((s) => s.id === selectedServerId);
+    if (!server) return null;
+
+    // Search through all channels for this user
+    for (const channel of server.channels) {
+      const user = channel.users.find(
+        (u) =>
+          u.username.toLowerCase() ===
+          selectedPrivateChat.username.toLowerCase(),
+      );
+      if (user?.metadata && Object.keys(user.metadata).length > 0) {
+        return user.metadata;
+      }
+    }
+
+    return null;
+  }, [selectedPrivateChat, selectedServerId, servers]);
+
+  const privateChatAvatar = privateChatUserMetadata?.avatar?.value;
 
   // Check if current user is operator
   const isOperator = (() => {
@@ -212,12 +256,90 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         )}
         {selectedPrivateChat && (
-          <>
-            <FaAt className="text-discord-text-muted mr-2" />
-            <h2 className="font-bold text-white mr-4">
-              {selectedPrivateChat.username}
-            </h2>
-          </>
+          <div className="flex items-center gap-3">
+            {/* User avatar */}
+            <div className="relative w-10 h-10 flex-shrink-0">
+              {privateChatAvatar && !avatarLoadFailed ? (
+                <img
+                  src={privateChatAvatar}
+                  alt={selectedPrivateChat.username}
+                  className="w-full h-full rounded-full object-cover"
+                  onError={() => setAvatarLoadFailed(true)}
+                />
+              ) : (
+                <div className="w-full h-full rounded-full bg-discord-dark-400 flex items-center justify-center">
+                  <FaUser className="text-discord-text-muted text-xl" />
+                </div>
+              )}
+              {/* Status indicator */}
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-discord-dark-200 ${
+                  selectedPrivateChat.isOnline
+                    ? selectedPrivateChat.isAway
+                      ? "bg-yellow-500"
+                      : "bg-green-500"
+                    : "bg-gray-500"
+                }`}
+                title={
+                  selectedPrivateChat.isOnline
+                    ? selectedPrivateChat.isAway
+                      ? "Away"
+                      : "Online"
+                    : "Offline"
+                }
+              />
+            </div>
+            {/* Username and status */}
+            <div className="flex flex-col">
+              <h2 className="font-bold text-white">
+                {selectedPrivateChat.username}
+              </h2>
+              {privateChatUserMetadata?.status?.value && (
+                <span className="text-xs text-discord-text-muted">
+                  {privateChatUserMetadata.status.value}
+                </span>
+              )}
+            </div>
+            {/* Pin/Unpin button */}
+            {selectedServerId && (
+              <button
+                className={`ml-2 ${
+                  selectedPrivateChat.isPinned
+                    ? "text-green-500 hover:text-green-400"
+                    : "text-discord-text-muted hover:text-yellow-400"
+                }`}
+                onClick={() => {
+                  if (selectedPrivateChat.isPinned) {
+                    unpinPrivateChat(selectedServerId, selectedPrivateChat.id);
+                  } else {
+                    pinPrivateChat(selectedServerId, selectedPrivateChat.id);
+                  }
+                }}
+                title={selectedPrivateChat.isPinned ? "Unpin" : "Pin"}
+              >
+                <FaThumbtack
+                  className={
+                    selectedPrivateChat.isPinned ? "" : "rotate-[25deg]"
+                  }
+                  style={
+                    selectedPrivateChat.isPinned
+                      ? {}
+                      : { transform: "rotate(25deg)" }
+                  }
+                />
+              </button>
+            )}
+            {/* User Info button */}
+            {selectedServerId && (
+              <button
+                className="ml-2 text-discord-text-muted hover:text-white"
+                onClick={() => setUserProfileModalOpen(true)}
+                title="User Profile"
+              >
+                <FaInfoCircle />
+              </button>
+            )}
+          </div>
         )}
         {selectedChannelId === "server-notices" && (
           <>
@@ -326,6 +448,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </button>
           */}
         </div>
+      )}
+
+      {/* User Profile Modal */}
+      {userProfileModalOpen && selectedPrivateChat && selectedServerId && (
+        <UserProfileModal
+          isOpen={userProfileModalOpen}
+          onClose={() => setUserProfileModalOpen(false)}
+          serverId={selectedServerId}
+          username={selectedPrivateChat.username}
+        />
       )}
     </div>
   );

@@ -166,7 +166,38 @@ export interface EventMap {
     hopcount: string;
     realname: string;
   };
+  WHOX_REPLY: {
+    serverId: string;
+    channel: string;
+    username: string;
+    host: string;
+    nick: string;
+    account: string;
+    flags: string;
+    realname: string;
+    isAway: boolean;
+    opLevel: string;
+  };
   WHO_END: { serverId: string; mask: string };
+  RPL_AWAY: {
+    serverId: string;
+    nick: string;
+    awayMessage: string;
+  };
+  MONONLINE: BaseIRCEvent & {
+    targets: Array<{ nick: string; user?: string; host?: string }>;
+  };
+  MONOFFLINE: BaseIRCEvent & {
+    targets: string[]; // Just nicknames
+  };
+  MONLIST: BaseIRCEvent & {
+    targets: string[];
+  };
+  ENDOFMONLIST: BaseIRCEvent;
+  MONLISTFULL: BaseIRCEvent & {
+    limit: number;
+    targets: string[];
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -361,6 +392,8 @@ export class IRCClient {
     "znc.in/playback",
     "unrealircd.org/json-log",
     "invite-notify",
+    "monitor",
+    "extended-monitor",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -535,7 +568,6 @@ export class IRCClient {
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
       this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-      this.sendRaw(serverId, `WHO ${channelName}`);
 
       const channel: Channel = {
         id: uuidv4(),
@@ -784,6 +816,29 @@ export class IRCClient {
 
   metadataSync(serverId: string, target: string): void {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
+  }
+
+  // MONITOR commands
+  monitorAdd(serverId: string, targets: string[]): void {
+    const targetsStr = targets.join(",");
+    this.sendRaw(serverId, `MONITOR + ${targetsStr}`);
+  }
+
+  monitorRemove(serverId: string, targets: string[]): void {
+    const targetsStr = targets.join(",");
+    this.sendRaw(serverId, `MONITOR - ${targetsStr}`);
+  }
+
+  monitorClear(serverId: string): void {
+    this.sendRaw(serverId, "MONITOR C");
+  }
+
+  monitorList(serverId: string): void {
+    this.sendRaw(serverId, "MONITOR L");
+  }
+
+  monitorStatus(serverId: string): void {
+    this.sendRaw(serverId, "MONITOR S");
   }
 
   markChannelAsRead(serverId: string, channelId: string): void {
@@ -1469,6 +1524,51 @@ export class IRCClient {
           target,
           retryAfter,
         });
+      } else if (command === "730") {
+        // RPL_MONONLINE
+        // Format: 730 <nick> :target[!user@host][,target[!user@host]]*
+        const targetList = parv.slice(1).join(" ");
+        const cleanTargetList = targetList.startsWith(":")
+          ? targetList.substring(1)
+          : targetList;
+        const targets = cleanTargetList.split(",").map((target) => {
+          const parts = target.split("!");
+          if (parts.length === 2) {
+            const [nick, userhost] = parts;
+            const [user, host] = userhost.split("@");
+            return { nick, user, host };
+          }
+          return { nick: target };
+        });
+        this.triggerEvent("MONONLINE", { serverId, targets });
+      } else if (command === "731") {
+        // RPL_MONOFFLINE
+        // Format: 731 <nick> :target[,target2]*
+        const targetList = parv.slice(1).join(" ");
+        const cleanTargetList = targetList.startsWith(":")
+          ? targetList.substring(1)
+          : targetList;
+        const targets = cleanTargetList.split(",");
+        this.triggerEvent("MONOFFLINE", { serverId, targets });
+      } else if (command === "732") {
+        // RPL_MONLIST
+        // Format: 732 <nick> :target[,target2]*
+        const targetList = parv.slice(1).join(" ");
+        const cleanTargetList = targetList.startsWith(":")
+          ? targetList.substring(1)
+          : targetList;
+        const targets = cleanTargetList.split(",");
+        this.triggerEvent("MONLIST", { serverId, targets });
+      } else if (command === "733") {
+        // RPL_ENDOFMONLIST
+        this.triggerEvent("ENDOFMONLIST", { serverId });
+      } else if (command === "734") {
+        // ERR_MONLISTFULL
+        // Format: 734 <nick> <limit> <targets> :Monitor list is full.
+        const limit = Number.parseInt(parv[1], 10);
+        const targetList = parv[2];
+        const targets = targetList.split(",");
+        this.triggerEvent("MONLISTFULL", { serverId, limit, targets });
       } else if (command === "FAIL" && parv[0] === "METADATA") {
         // FAIL METADATA <subcommand> <code> [<target>] [<key>] [<retryAfter>] :[<message>]
         // ERR_METADATATOOMANY, ERR_METADATATARGETINVALID, ERR_METADATANOACCESS, ERR_METADATANOKEY, ERR_METADATARATELIMITED
@@ -1524,14 +1624,25 @@ export class IRCClient {
         this.triggerEvent("LIST_END", { serverId });
       } else if (command === "352") {
         // RPL_WHOREPLY: <channel> <user> <host> <server> <nick> <flags> :<hopcount> <realname>
+        // Note: hopcount and realname are in the trailing parameter together
         const channel = parv[1];
         const username = parv[2];
         const host = parv[3];
         const server = parv[4];
         const nick = parv[5];
         const flags = parv[6];
-        const hopcount = parv[7];
-        const realname = parv.slice(8).join(" "); // No need to remove leading : anymore
+
+        // Parse trailing which contains "hopcount realname"
+        const trailing = parv[7] || "";
+        const spaceIndex = trailing.indexOf(" ");
+        let hopcount = trailing;
+        let realname = "";
+
+        if (spaceIndex !== -1) {
+          hopcount = trailing.substring(0, spaceIndex);
+          realname = trailing.substring(spaceIndex + 1);
+        }
+
         this.triggerEvent("WHO_REPLY", {
           serverId,
           channel,
@@ -1542,6 +1653,52 @@ export class IRCClient {
           flags,
           hopcount,
           realname,
+        });
+      } else if (command === "354") {
+        // RPL_WHOSPCRPL (WHOX): Response format depends on requested fields
+        // Our request: WHO <mask> %cuhnfaro
+        // Response order: channel, username, hostname, nickname, flags, account, realname, op_level
+        // Example: 354 Valware #lobby ~u knqsza5faubzs.irc mattf H@ mattf * mattf
+        // Fields returned in order: c=channel, u=username, h=hostname, n=nickname, f=flags, a=account, r=realname, o=op_level
+        // Note: flags contains H/G (here/gone) followed by optional status symbols (@, +, etc) and other flags like * (IRC oper) or B (bot)
+        const channel = parv[1];
+        const username = parv[2];
+        const host = parv[3];
+        const nick = parv[4];
+        const flags = parv[5];
+        const account = parv[6];
+        const opLevelField = parv[7] || "";
+        const realname = parv[8] || ""; // May be empty if not returned
+
+        // Determine if user is away from flags (G=gone/away, H=here/present)
+        const isAway = flags.includes("G");
+
+        // Extract op level from flags field (everything after H or G)
+        // Flags format: H/G followed by status symbols like @, +, ~, %, &
+        // Also may include * (IRC operator) and B (bot) which we need to filter out
+        // Only keep valid channel status prefixes: @ + ~ % &
+        let opLevel = "";
+        if (flags.length > 1) {
+          // Skip the first character (H or G)
+          const statusPart = flags.substring(1);
+          // Filter to only include valid channel prefixes
+          opLevel = statusPart
+            .split("")
+            .filter((char) => ["@", "+", "~", "%", "&"].includes(char))
+            .join("");
+        }
+
+        this.triggerEvent("WHOX_REPLY", {
+          serverId,
+          channel,
+          username,
+          host,
+          nick,
+          account,
+          flags,
+          realname,
+          isAway,
+          opLevel,
         });
       } else if (command === "305") {
         // RPL_UNAWAY: <client> :<message>
@@ -1558,6 +1715,16 @@ export class IRCClient {
         this.triggerEvent("RPL_NOWAWAY", {
           serverId,
           message,
+        });
+      } else if (command === "301") {
+        // RPL_AWAY: <client> <nick> :<away message>
+        // User is away
+        const nick = parv[1];
+        const awayMessage = parv.slice(2).join(" ");
+        this.triggerEvent("RPL_AWAY", {
+          serverId,
+          nick,
+          awayMessage,
         });
       } else if (command === "315") {
         // RPL_ENDOFWHO

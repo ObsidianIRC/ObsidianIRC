@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string;
   hostname?: string; // User's hostname from WHO or CHGHOST
+  realname?: string; // User's real name/gecos field from WHO
   avatar?: string;
   displayName?: string;
   account?: string;
@@ -75,6 +76,14 @@ export interface PrivateChat {
   unreadCount: number;
   isMentioned: boolean;
   lastActivity?: Date;
+  isPinned?: boolean;
+  order?: number;
+  isOnline?: boolean; // Tracked via MONITOR
+  isAway?: boolean; // Tracked via extended-monitor + away-notify
+  awayMessage?: string; // Away message from extended-monitor
+  realname?: string; // Realname/gecos from WHO or extended-join
+  account?: string; // Account name from WHOX
+  isBot?: boolean; // Bot status from WHO/WHOX or message tags
 }
 
 export interface Reaction {

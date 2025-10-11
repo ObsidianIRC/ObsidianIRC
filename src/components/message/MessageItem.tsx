@@ -445,7 +445,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   return (
     <div
       data-message-id={message.id}
-      className={`px-4 py-1 hover:bg-${theme}-message-hover group relative transition-colors duration-300`}
+      className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
+        showHeader ? "py-2 mt-2" : "py-0.5"
+      }`}
     >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />

@@ -1,9 +1,9 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { FaChevronLeft } from "react-icons/fa";
+import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
-import { getColorStyle } from "../../lib/ircUtils";
+import { getColorStyle, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
@@ -68,11 +68,18 @@ const UserItem: React.FC<{
 
   // Display metadata like website or status
   const website = user.metadata?.url?.value || user.metadata?.website?.value;
-  const status = user.metadata?.status?.value;
+  const metadataStatus = user.metadata?.status?.value; // Metadata status message
   const avatarUrl = user.metadata?.avatar?.value;
   const color = user.metadata?.color?.value;
+  const displayName = user.metadata?.["display-name"]?.value;
   const isBot = user.isBot || user.metadata?.bot?.value === "true";
   const botInfo = user.metadata?.bot?.value; // Bot software info for tooltip
+
+  // Check if user is verified (account matches nickname)
+  const isVerified =
+    user.account &&
+    user.account !== "0" &&
+    user.username.toLowerCase() === user.account.toLowerCase();
 
   // Reset avatar load failed state when avatar URL changes
   useEffect(() => {
@@ -81,61 +88,63 @@ const UserItem: React.FC<{
 
   return (
     <div
-      className={`flex items-center py-2 px-3 mx-2 rounded cursor-pointer ${
-        currentUser?.username !== user.username
-          ? "hover:bg-discord-dark-400"
-          : "opacity-60 hover:bg-discord-dark-400"
-      }`}
+      className="flex items-center gap-3 py-2 px-3 mx-2 mb-1 rounded cursor-pointer bg-discord-dark-400/30 hover:bg-discord-dark-400/50 transition-colors"
       onClick={(e) => {
         const avatarElement = e.currentTarget.querySelector(".w-10.h-10");
         onContextMenu(e, user.username, serverId, channelId, avatarElement);
       }}
     >
-      <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold relative">
-        {avatarUrl && !avatarLoadFailed ? (
-          <img
-            src={avatarUrl}
-            alt={user.username}
-            className="w-10 h-10 rounded-full object-cover"
-            onError={() => {
-              setAvatarLoadFailed(true);
-            }}
-          />
-        ) : (
-          user.username.charAt(0).toUpperCase()
-        )}
-        {/* Presence indicator - green if here, yellow if away */}
-        <div
-          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-discord-dark-600 ${user.isAway ? "bg-discord-yellow" : "bg-discord-green"}`}
+      {/* Avatar with status indicator */}
+      <div className="relative shrink-0">
+        <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold overflow-hidden">
+          {avatarUrl && !avatarLoadFailed ? (
+            <img
+              src={avatarUrl}
+              alt={user.username}
+              className="w-full h-full object-cover"
+              onError={() => {
+                setAvatarLoadFailed(true);
+              }}
+            />
+          ) : (
+            user.username.charAt(0).toUpperCase()
+          )}
+        </div>
+        {/* Status indicator overlay */}
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-discord-dark-200 ${
+            user.isAway ? "bg-yellow-500" : "bg-green-500"
+          }`}
         />
-        {/* Status metadata indicator (if set via metadata) */}
-        {status && (
-          <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
-            <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-              <span className="text-xs">💡</span>
-            </div>
-            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
-              <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                {status}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-      <div className="ml-3 flex-1 min-w-0">
-        <div className="flex items-center">
+
+      {/* User info */}
+      <div className="flex flex-col truncate min-w-0 flex-1">
+        {/* Display name or username with badges */}
+        <div className="flex items-center gap-1">
           {user.status && (
-            <span className="inline-block bg-discord-dark-600 text-white px-1 rounded text-xs mr-1">
+            <span className="shrink-0 bg-blue-600 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-sm">
               {user.status}
             </span>
           )}
-          <span className="truncate" style={getColorStyle(color)}>
-            {user.username}
-            {isBot && (
+          <span
+            className="truncate text-discord-text-normal"
+            style={getColorStyle(color)}
+          >
+            {displayName || user.username}
+            {/* Only show verified badge if NO display-name (showing username directly) */}
+            {!displayName && isVerified && (
+              <FaCheckCircle
+                className="inline ml-1 text-green-500"
+                style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
+                title="Verified account"
+              />
+            )}
+            {!displayName && isBot && (
               <span className="ml-1 group relative">
                 🤖
                 {botInfo && botInfo !== "true" && (
-                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
                     <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
                       {botInfo}
                     </div>
@@ -145,16 +154,49 @@ const UserItem: React.FC<{
             )}
           </span>
         </div>
-        {status && (
-          <div className="text-xs text-discord-text-muted truncate">
-            {status}
-          </div>
-        )}
-        {website && (
-          <div className="text-xs text-discord-text-muted truncate">
-            🌐 {website}
-          </div>
-        )}
+
+        {/* Secondary info - username badge (if display-name exists), realname, status, website */}
+        <div className="flex items-center gap-1.5 text-xs truncate mt-0.5">
+          {displayName && (
+            <>
+              <span className="bg-gray-300 text-black px-1 py-0 rounded font-bold whitespace-nowrap text-[10px]">
+                {user.username}
+                {isVerified && (
+                  <FaCheckCircle
+                    className="inline ml-0.5 text-green-600"
+                    style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
+                    title="Verified account"
+                  />
+                )}
+                {isBot && <span className="ml-0.5">🤖</span>}
+              </span>
+              {(user.realname || metadataStatus || website) && (
+                <span className="text-discord-text-muted opacity-50">•</span>
+              )}
+            </>
+          )}
+          {user.realname && (
+            <span className="truncate text-discord-text-muted">
+              {mircToHtml(user.realname)}
+            </span>
+          )}
+          {user.realname && metadataStatus && (
+            <span className="text-discord-text-muted opacity-50">•</span>
+          )}
+          {metadataStatus && (
+            <span className="truncate text-discord-text-muted">
+              {mircToHtml(metadataStatus)}
+            </span>
+          )}
+          {(user.realname || metadataStatus) && website && (
+            <span className="text-discord-text-muted opacity-50">•</span>
+          )}
+          {website && (
+            <span className="truncate text-discord-text-muted">
+              🌐 {website}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -367,7 +409,7 @@ export const MemberList: React.FC = () => {
 
   const isMobileView = useMediaQuery();
   return (
-    <div className="p-3 h-full overflow-y-auto">
+    <div className="px-1 py-3 h-full overflow-y-auto">
       {isMobileView && (
         <button
           onClick={() => toggleMemberList(false)}

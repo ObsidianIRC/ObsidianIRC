@@ -85,16 +85,14 @@ export const AppLayout: React.FC = () => {
             <ResizableSidebar
               bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
               isVisible={isChannelListVisible}
-              defaultWidth={240}
+              defaultWidth={264}
               minWidth={80}
               maxWidth={400}
               side="left"
               onMinReached={() => toggleChannelList(false)}
             >
               <div
-                className={
-                  "channel-list w-full h-full bg-discord-dark-100 md:block z-20"
-                }
+                className={`channel-list ${isNarrowView ? "w-[calc(100vw-72px)]" : "w-full"} h-full bg-discord-dark-100 md:block z-20`}
               >
                 <ChannelList
                   onToggle={() => {
