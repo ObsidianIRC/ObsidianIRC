@@ -93,7 +93,7 @@ export const AppLayout: React.FC = () => {
             >
               <div
                 className={
-                  "channel-list w-full h-full bg-discord-dark-100 md:block z-20"
+                  `channel-list ${isNarrowView ? 'w-[calc(100vw-72px)]' : 'w-full'} h-full bg-discord-dark-100 md:block z-20`
                 }
               >
                 <ChannelList
