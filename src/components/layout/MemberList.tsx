@@ -409,7 +409,7 @@ export const MemberList: React.FC = () => {
 
   const isMobileView = useMediaQuery();
   return (
-    <div className="p-3 h-full overflow-y-auto">
+    <div className="px-1 py-3 h-full overflow-y-auto">
       {isMobileView && (
         <button
           onClick={() => toggleMemberList(false)}

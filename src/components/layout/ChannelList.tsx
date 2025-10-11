@@ -512,7 +512,7 @@ export const ChannelList: React.FC<{
               )}
 
               {isTextChannelsOpen && (
-                <div className="ml-2">
+                <div>
                   {sortedChannels
                     .filter(
                       (channel, index, self) =>
@@ -749,7 +749,7 @@ export const ChannelList: React.FC<{
               </div>
 
               {isPrivateChatsOpen && (
-                <div className="ml-2">
+                <div>
                   {sortedPrivateChats.map((privateChat) => (
                     <TouchableContextMenu
                       key={privateChat.id}
@@ -805,13 +805,13 @@ export const ChannelList: React.FC<{
                         onDragEnd={handlePMDragEnd}
                         className={`
                           px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
-                          ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white -ml-2" : "hover:bg-discord-dark-100 hover:text-discord-channels-active ml-0"}
+                          ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                           ${draggedPMId === privateChat.id ? "opacity-50" : ""}
                           ${dragOverPMId === privateChat.id && draggedPMId !== privateChat.id ? "border-t-2 border-discord-blurple" : ""}
                         `}
                         style={{
                           transition:
-                            "background-color 150ms ease-in, color 150ms ease-in, margin-left 200ms ease-in-out, opacity 200ms ease-in-out",
+                            "background-color 150ms ease-in, color 150ms ease-in, opacity 200ms ease-in-out",
                           backgroundColor:
                             selectedPrivateChatId !== privateChat.id
                               ? privateChat.isOnline
@@ -1116,12 +1116,12 @@ export const ChannelList: React.FC<{
                 </span>
               </div>
 
-              <div className="ml-2">
+              <div>
                 <div
                   className={`
                     px-2 py-1 mb-1 rounded flex items-center cursor-pointer
                     transition-all duration-200 ease-in-out
-                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white -ml-2" : "hover:bg-discord-dark-100 hover:text-discord-channels-active ml-0"}
+                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                   `}
                   onClick={() => selectChannel("server-notices")}
                 >

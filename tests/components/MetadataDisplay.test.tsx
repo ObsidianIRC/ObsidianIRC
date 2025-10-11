@@ -166,11 +166,11 @@ describe("Metadata Display Features", () => {
     it("should display colored usernames", () => {
       render(<MemberList />);
 
-      // Alice should have red color (#ff0000)
-      const aliceElement = screen.getByText("alice");
+      // Alice should have red color (rgb(255, 0, 0)) - display name is shown
+      const aliceElement = screen.getByText("Alice Wonderland");
       expect(aliceElement).toHaveStyle({ color: "#ff0000" });
 
-      // Bob should have blue color
+      // Bob should have blue color - username is shown since no display name
       const bobElement = screen.getByText("bob");
       expect(bobElement).toHaveStyle({ color: "rgb(0, 0, 255)" });
     });
@@ -190,12 +190,16 @@ describe("Metadata Display Features", () => {
       );
     });
 
-    it("should display status lightbulb for users with status", () => {
+    it("should display status text for users with status", () => {
       render(<MemberList />);
 
-      // Alice, Charlie, and current user should have status lightbulbs
-      const lightbulbIcons = screen.getAllByText("💡");
-      expect(lightbulbIcons.length).toBe(2); // Alice, Charlie, and current user
+      // Alice should have status text "Working on something cool!"
+      expect(
+        screen.getByText("Working on something cool!"),
+      ).toBeInTheDocument();
+
+      // Charlie should have status text "Away from keyboard"
+      expect(screen.getByText("Away from keyboard")).toBeInTheDocument();
     });
 
     it("should show status tooltip on hover", async () => {

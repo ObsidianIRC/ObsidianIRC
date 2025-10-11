@@ -85,7 +85,7 @@ export const AppLayout: React.FC = () => {
             <ResizableSidebar
               bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
               isVisible={isChannelListVisible}
-              defaultWidth={240}
+              defaultWidth={264}
               minWidth={80}
               maxWidth={400}
               side="left"
