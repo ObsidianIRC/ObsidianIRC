@@ -21,6 +21,7 @@ import {
   getChannelAvatarUrl,
   getChannelDisplayName,
   hasOpPermission,
+  mircToHtml,
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
@@ -168,10 +169,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 }}
               />
               <h2 className="font-bold text-white mr-4 truncate">
-                {getChannelDisplayName(
+                {mircToHtml(getChannelDisplayName(
                   selectedChannel.name,
                   selectedChannel.metadata,
-                )}
+                ))}
               </h2>
             </div>
             <div className="md:mx-2 md:text-discord-text-muted hidden md:block">
@@ -250,7 +251,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     : "No topic set"
                 }
               >
-                {selectedChannel.topic || "No topic"}
+                {selectedChannel.topic ? mircToHtml(selectedChannel.topic) : "No topic"}
               </button>
             )}
           </div>
