@@ -27,7 +27,6 @@ export function useTypingNotification({
 
   /**
    * Send typing notification based on text input
-   * Throttles active notifications to once per 3 seconds
    */
   const notifyTyping = useCallback(
     (target: string, text: string) => {
