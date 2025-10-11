@@ -114,11 +114,11 @@ export const ChannelList: React.FC<{
     if (!selectedServer || !selectedServer.isConnected) {
       return "offline";
     }
-    if (selectedServer.isAway) {
+    if (selectedServer.isAway || currentUser?.isAway) {
       return "away";
     }
     return "online";
-  }, [selectedServer]);
+  }, [selectedServer, currentUser?.isAway]);
 
   // Get channel order from store
   const channelOrder = useStore((state) => state.channelOrder);
@@ -609,10 +609,12 @@ export const ChannelList: React.FC<{
                             {/* Channel name and topic */}
                             <div className="flex flex-col min-w-0 flex-1">
                               <span className="truncate font-medium max-w-full">
-                                {mircToHtml(getChannelDisplayName(
-                                  channel.name,
-                                  channel.metadata,
-                                ))}
+                                {mircToHtml(
+                                  getChannelDisplayName(
+                                    channel.name,
+                                    channel.metadata,
+                                  ),
+                                )}
                               </span>
                               {/* Badge with channel name (if display-name exists) and topic */}
                               <div className="flex items-center gap-1.5 text-xs truncate">
@@ -1173,7 +1175,7 @@ export const ChannelList: React.FC<{
               {userStatus === "online"
                 ? "Online"
                 : userStatus === "away"
-                  ? selectedServer?.awayMessage || "Away"
+                  ? "Away"
                   : "Offline"}
             </div>
           </div>

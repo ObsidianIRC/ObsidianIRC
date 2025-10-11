@@ -2,7 +2,11 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
-import { getChannelAvatarUrl, getChannelDisplayName, mircToHtml } from "../../lib/ircUtils";
+import {
+  getChannelAvatarUrl,
+  getChannelDisplayName,
+  mircToHtml,
+} from "../../lib/ircUtils";
 import useStore from "../../store";
 
 const ChannelListModal: React.FC = () => {
@@ -250,11 +254,9 @@ const ChannelListModal: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-white font-medium">
-                        {displayName ? (
-                          mircToHtml(displayName)
-                        ) : (
-                          getChannelDisplayName(channel.channel, {})
-                        )}
+                        {displayName
+                          ? mircToHtml(displayName)
+                          : getChannelDisplayName(channel.channel, {})}
                       </span>
                       {hasMetadata &&
                         displayName &&
