@@ -92,9 +92,7 @@ export const AppLayout: React.FC = () => {
               onMinReached={() => toggleChannelList(false)}
             >
               <div
-                className={
-                  `channel-list ${isNarrowView ? 'w-[calc(100vw-72px)]' : 'w-full'} h-full bg-discord-dark-100 md:block z-20`
-                }
+                className={`channel-list ${isNarrowView ? "w-[calc(100vw-72px)]" : "w-full"} h-full bg-discord-dark-100 md:block z-20`}
               >
                 <ChannelList
                   onToggle={() => {
