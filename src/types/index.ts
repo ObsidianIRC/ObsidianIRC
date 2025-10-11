@@ -75,6 +75,10 @@ export interface PrivateChat {
   unreadCount: number;
   isMentioned: boolean;
   lastActivity?: Date;
+  isPinned?: boolean;
+  order?: number;
+  isOnline?: boolean; // Tracked via MONITOR
+  isAway?: boolean; // Tracked via extended-monitor + away-notify
 }
 
 export interface Reaction {

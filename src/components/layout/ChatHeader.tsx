@@ -1,8 +1,7 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import type React from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  FaAt,
   FaBell,
   FaBellSlash,
   FaChevronLeft,
@@ -12,6 +11,7 @@ import {
   FaList,
   FaPenAlt,
   FaSearch,
+  FaUser,
   FaUserPlus,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
@@ -20,7 +20,7 @@ import {
   getChannelDisplayName,
   hasOpPermission,
 } from "../../lib/ircUtils";
-import useStore from "../../store";
+import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
 
 interface ChatHeaderProps {
@@ -66,6 +66,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     useStore();
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editedTopic, setEditedTopic] = useState("");
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
+  // Get private chat user metadata
+  const privateChatUserMetadata = useMemo(() => {
+    if (!selectedPrivateChat || !selectedServerId) return null;
+
+    const savedMetadata = loadSavedMetadata();
+    const serverMetadata = savedMetadata[selectedServerId];
+    if (!serverMetadata) return null;
+
+    return serverMetadata[selectedPrivateChat.username];
+  }, [selectedPrivateChat, selectedServerId]);
+
+  const privateChatAvatar = privateChatUserMetadata?.avatar?.value;
 
   // Check if current user is operator
   const isOperator = (() => {
@@ -212,12 +226,51 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         )}
         {selectedPrivateChat && (
-          <>
-            <FaAt className="text-discord-text-muted mr-2" />
-            <h2 className="font-bold text-white mr-4">
-              {selectedPrivateChat.username}
-            </h2>
-          </>
+          <div className="flex items-center gap-3">
+            {/* User avatar */}
+            <div className="relative w-10 h-10 flex-shrink-0">
+              {privateChatAvatar && !avatarLoadFailed ? (
+                  <img
+                    src={privateChatAvatar}
+                    alt={selectedPrivateChat.username}
+                    className="w-full h-full rounded-full object-cover"
+                    onError={() => setAvatarLoadFailed(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-full bg-discord-dark-400 flex items-center justify-center">
+                    <FaUser className="text-discord-text-muted text-xl" />
+                  </div>
+                )}
+                {/* Status indicator */}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-discord-dark-200 ${
+                    selectedPrivateChat.isOnline
+                      ? selectedPrivateChat.isAway
+                        ? "bg-yellow-500"
+                        : "bg-green-500"
+                      : "bg-gray-500"
+                  }`}
+                  title={
+                    selectedPrivateChat.isOnline
+                      ? selectedPrivateChat.isAway
+                        ? "Away"
+                        : "Online"
+                      : "Offline"
+                  }
+                />
+              </div>
+              {/* Username and status */}
+              <div className="flex flex-col">
+                <h2 className="font-bold text-white">
+                  {selectedPrivateChat.username}
+                </h2>
+                {privateChatUserMetadata?.status?.value && (
+                  <span className="text-xs text-discord-text-muted">
+                    {privateChatUserMetadata.status.value}
+                  </span>
+                )}
+              </div>
+            </div>
         )}
         {selectedChannelId === "server-notices" && (
           <>

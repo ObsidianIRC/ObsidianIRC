@@ -167,6 +167,20 @@ export interface EventMap {
     realname: string;
   };
   WHO_END: { serverId: string; mask: string };
+  MONONLINE: BaseIRCEvent & {
+    targets: Array<{ nick: string; user?: string; host?: string }>;
+  };
+  MONOFFLINE: BaseIRCEvent & {
+    targets: string[]; // Just nicknames
+  };
+  MONLIST: BaseIRCEvent & {
+    targets: string[];
+  };
+  ENDOFMONLIST: BaseIRCEvent;
+  MONLISTFULL: BaseIRCEvent & {
+    limit: number;
+    targets: string[];
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -361,6 +375,8 @@ export class IRCClient {
     "znc.in/playback",
     "unrealircd.org/json-log",
     "invite-notify",
+    "monitor",
+    "extended-monitor",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -784,6 +800,29 @@ export class IRCClient {
 
   metadataSync(serverId: string, target: string): void {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
+  }
+
+  // MONITOR commands
+  monitorAdd(serverId: string, targets: string[]): void {
+    const targetsStr = targets.join(",");
+    this.sendRaw(serverId, `MONITOR + ${targetsStr}`);
+  }
+
+  monitorRemove(serverId: string, targets: string[]): void {
+    const targetsStr = targets.join(",");
+    this.sendRaw(serverId, `MONITOR - ${targetsStr}`);
+  }
+
+  monitorClear(serverId: string): void {
+    this.sendRaw(serverId, "MONITOR C");
+  }
+
+  monitorList(serverId: string): void {
+    this.sendRaw(serverId, "MONITOR L");
+  }
+
+  monitorStatus(serverId: string): void {
+    this.sendRaw(serverId, "MONITOR S");
   }
 
   markChannelAsRead(serverId: string, channelId: string): void {
@@ -1469,6 +1508,51 @@ export class IRCClient {
           target,
           retryAfter,
         });
+      } else if (command === "730") {
+        // RPL_MONONLINE
+        // Format: 730 <nick> :target[!user@host][,target[!user@host]]*
+        const targetList = parv.slice(1).join(" ");
+        const cleanTargetList = targetList.startsWith(":")
+          ? targetList.substring(1)
+          : targetList;
+        const targets = cleanTargetList.split(",").map((target) => {
+          const parts = target.split("!");
+          if (parts.length === 2) {
+            const [nick, userhost] = parts;
+            const [user, host] = userhost.split("@");
+            return { nick, user, host };
+          }
+          return { nick: target };
+        });
+        this.triggerEvent("MONONLINE", { serverId, targets });
+      } else if (command === "731") {
+        // RPL_MONOFFLINE
+        // Format: 731 <nick> :target[,target2]*
+        const targetList = parv.slice(1).join(" ");
+        const cleanTargetList = targetList.startsWith(":")
+          ? targetList.substring(1)
+          : targetList;
+        const targets = cleanTargetList.split(",");
+        this.triggerEvent("MONOFFLINE", { serverId, targets });
+      } else if (command === "732") {
+        // RPL_MONLIST
+        // Format: 732 <nick> :target[,target2]*
+        const targetList = parv.slice(1).join(" ");
+        const cleanTargetList = targetList.startsWith(":")
+          ? targetList.substring(1)
+          : targetList;
+        const targets = cleanTargetList.split(",");
+        this.triggerEvent("MONLIST", { serverId, targets });
+      } else if (command === "733") {
+        // RPL_ENDOFMONLIST
+        this.triggerEvent("ENDOFMONLIST", { serverId });
+      } else if (command === "734") {
+        // ERR_MONLISTFULL
+        // Format: 734 <nick> <limit> <targets> :Monitor list is full.
+        const limit = Number.parseInt(parv[1], 10);
+        const targetList = parv[2];
+        const targets = targetList.split(",");
+        this.triggerEvent("MONLISTFULL", { serverId, limit, targets });
       } else if (command === "FAIL" && parv[0] === "METADATA") {
         // FAIL METADATA <subcommand> <code> [<target>] [<key>] [<retryAfter>] :[<message>]
         // ERR_METADATATOOMANY, ERR_METADATATARGETINVALID, ERR_METADATANOACCESS, ERR_METADATANOKEY, ERR_METADATARATELIMITED

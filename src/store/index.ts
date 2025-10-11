@@ -26,11 +26,18 @@ const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 const LOCAL_STORAGE_SETTINGS_KEY = "globalSettings";
 const LOCAL_STORAGE_CHANNEL_ORDER_KEY = "channelOrder";
+const LOCAL_STORAGE_PINNED_PMS_KEY = "pinnedPrivateChats";
 
 // Type for saved metadata structure: serverId -> target -> key -> metadata
 type SavedMetadata = Record<
   string,
   Record<string, Record<string, { value: string; visibility: string }>>
+>;
+
+// Type for pinned private chats: serverId -> array of {username, order}
+type PinnedPrivateChatsMap = Record<
+  string,
+  Array<{ username: string; order: number }>
 >;
 
 // Type for channel order: serverId -> array of channel names in order
@@ -138,6 +145,25 @@ function saveChannelOrder(channelOrder: ChannelOrderMap) {
   localStorage.setItem(
     LOCAL_STORAGE_CHANNEL_ORDER_KEY,
     JSON.stringify(channelOrder),
+  );
+}
+
+// Load pinned private chats from localStorage
+function loadPinnedPrivateChats(): PinnedPrivateChatsMap {
+  try {
+    return JSON.parse(
+      localStorage.getItem(LOCAL_STORAGE_PINNED_PMS_KEY) || "{}",
+    );
+  } catch {
+    return {};
+  }
+}
+
+// Save pinned private chats to localStorage
+function savePinnedPrivateChats(pinnedChats: PinnedPrivateChatsMap) {
+  localStorage.setItem(
+    LOCAL_STORAGE_PINNED_PMS_KEY,
+    JSON.stringify(pinnedChats),
   );
 }
 
@@ -553,6 +579,9 @@ export interface AppState {
   selectPrivateChat: (privateChatId: string | null) => void;
   openPrivateChat: (serverId: string, username: string) => void;
   deletePrivateChat: (serverId: string, privateChatId: string) => void;
+  pinPrivateChat: (serverId: string, privateChatId: string) => void;
+  unpinPrivateChat: (serverId: string, privateChatId: string) => void;
+  reorderPrivateChats: (serverId: string, privateChatIds: string[]) => void;
   markChannelAsRead: (serverId: string, channelId: string) => void;
   reorderChannels: (serverId: string, channelIds: string[]) => void;
   connectToSavedServers: () => void; // New action to load servers from localStorage
@@ -1380,6 +1409,26 @@ const useStore = create<AppState>((set, get) => ({
         (pc) => pc.username === username,
       );
       if (existingChat) {
+        // MONITOR the user if not already monitored
+        ircClient.monitorAdd(serverId, [username]);
+        
+        // Request WHO to get current status
+        setTimeout(() => {
+          ircClient.sendRaw(serverId, `WHO ${username}`);
+        }, 50);
+        
+        // Request metadata
+        if (serverSupportsMetadata(serverId)) {
+          setTimeout(() => {
+            ircClient.metadataGet(serverId, username, [
+              "avatar",
+              "status",
+              "url",
+              "website",
+            ]);
+          }, 100);
+        }
+        
         // Select existing private chat
         return {
           ui: {
@@ -1401,6 +1450,8 @@ const useStore = create<AppState>((set, get) => ({
         unreadCount: 0,
         isMentioned: false,
         lastActivity: new Date(),
+        isOnline: false, // Will be updated by MONITOR response
+        isAway: false,
       };
 
       const updatedServers = state.servers.map((s) => {
@@ -1412,6 +1463,29 @@ const useStore = create<AppState>((set, get) => ({
         }
         return s;
       });
+
+      // Add MONITOR for this user (server-specific)
+      ircClient.monitorAdd(serverId, [username]);
+
+      // Request WHO to get their current status (H=here/green, G=gone/yellow)
+      setTimeout(() => {
+        ircClient.sendRaw(serverId, `WHO ${username}`);
+      }, 50);
+
+      // Subscribe to metadata for this user if server supports it
+      if (serverSupportsMetadata(serverId)) {
+        // Note: We don't SUB directly per-user, but the global SUB we have
+        // will send us updates for all users including this one
+        // Request their current metadata
+        setTimeout(() => {
+          ircClient.metadataGet(serverId, username, [
+            "avatar",
+            "status",
+            "url",
+            "website",
+          ]);
+        }, 100);
+      }
 
       return {
         servers: updatedServers,
@@ -1432,6 +1506,10 @@ const useStore = create<AppState>((set, get) => ({
       const server = state.servers.find((s) => s.id === serverId);
       if (!server) return {};
 
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === privateChatId,
+      );
+
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
           return {
@@ -1442,6 +1520,11 @@ const useStore = create<AppState>((set, get) => ({
         }
         return s;
       });
+
+      // If unpinned, remove MONITOR (but don't UNSUB from metadata - that's global)
+      if (privateChat && !privateChat.isPinned) {
+        ircClient.monitorRemove(serverId, [privateChat.username]);
+      }
 
       // If the deleted private chat was selected, clear the selection
       const newState: Partial<AppState> = {
@@ -1456,7 +1539,143 @@ const useStore = create<AppState>((set, get) => ({
         };
       }
 
+      // Update localStorage if it was pinned
+      if (privateChat?.isPinned) {
+        const pinnedChats = loadPinnedPrivateChats();
+        if (pinnedChats[serverId]) {
+          pinnedChats[serverId] = pinnedChats[serverId].filter(
+            (pc) => pc.username !== privateChat.username,
+          );
+          savePinnedPrivateChats(pinnedChats);
+        }
+      }
+
       return newState;
+    });
+  },
+
+  pinPrivateChat: (serverId, privateChatId) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === privateChatId,
+      );
+      if (!privateChat) return {};
+
+      // Calculate the new order (highest + 1)
+      const maxOrder = Math.max(
+        0,
+        ...(server.privateChats
+          ?.filter((pc) => pc.isPinned && pc.order !== undefined)
+          .map((pc) => pc.order!) || []),
+      );
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pc) => {
+            if (pc.id === privateChatId) {
+              return { ...pc, isPinned: true, order: maxOrder + 1 };
+            }
+            return pc;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+
+      // Save to localStorage
+      const pinnedChats = loadPinnedPrivateChats();
+      if (!pinnedChats[serverId]) {
+        pinnedChats[serverId] = [];
+      }
+      pinnedChats[serverId].push({
+        username: privateChat.username,
+        order: maxOrder + 1,
+      });
+      savePinnedPrivateChats(pinnedChats);
+
+      return { servers: updatedServers };
+    });
+  },
+
+  unpinPrivateChat: (serverId, privateChatId) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.id === privateChatId,
+      );
+      if (!privateChat) return {};
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pc) => {
+            if (pc.id === privateChatId) {
+              return { ...pc, isPinned: false, order: undefined };
+            }
+            return pc;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+
+      // Remove from localStorage
+      const pinnedChats = loadPinnedPrivateChats();
+      if (pinnedChats[serverId]) {
+        pinnedChats[serverId] = pinnedChats[serverId].filter(
+          (pc) => pc.username !== privateChat.username,
+        );
+        savePinnedPrivateChats(pinnedChats);
+      }
+
+      return { servers: updatedServers };
+    });
+  },
+
+  reorderPrivateChats: (serverId, privateChatIds) => {
+    set((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      // Update order for each private chat
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          const updatedPrivateChats = s.privateChats?.map((pc) => {
+            const newOrder = privateChatIds.indexOf(pc.id);
+            if (newOrder !== -1 && pc.isPinned) {
+              return { ...pc, order: newOrder };
+            }
+            return pc;
+          });
+          return { ...s, privateChats: updatedPrivateChats };
+        }
+        return s;
+      });
+
+      // Save to localStorage
+      const pinnedChats = loadPinnedPrivateChats();
+      if (pinnedChats[serverId]) {
+        // Update order for all pinned chats
+        pinnedChats[serverId] = pinnedChats[serverId].map((pc) => {
+          const privateChat = server.privateChats?.find(
+            (p) => p.username === pc.username,
+          );
+          if (privateChat) {
+            const newOrder = privateChatIds.indexOf(privateChat.id);
+            if (newOrder !== -1) {
+              return { ...pc, order: newOrder };
+            }
+          }
+          return pc;
+        });
+        savePinnedPrivateChats(pinnedChats);
+      }
+
+      return { servers: updatedServers };
     });
   },
 
@@ -3266,6 +3485,71 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     }));
   } else {
   }
+
+  // Restore pinned private chats for this server
+  const pinnedChats = loadPinnedPrivateChats();
+  const serverPinnedChats = pinnedChats[serverId] || [];
+
+  if (serverPinnedChats.length > 0) {
+    // Sort by order
+    const sortedPinnedChats = [...serverPinnedChats].sort(
+      (a, b) => a.order - b.order,
+    );
+
+    useStore.setState((state) => {
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return {};
+
+      // Create private chat objects for pinned users
+      const restoredPrivateChats: PrivateChat[] = sortedPinnedChats.map(
+        ({ username, order }) => ({
+          id: uuidv4(),
+          username,
+          serverId,
+          unreadCount: 0,
+          isMentioned: false,
+          lastActivity: new Date(),
+          isPinned: true,
+          order,
+          isOnline: false, // Will be updated by MONITOR
+          isAway: false,
+        }),
+      );
+
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          return {
+            ...s,
+            privateChats: [
+              ...(s.privateChats || []),
+              ...restoredPrivateChats,
+            ],
+          };
+        }
+        return s;
+      });
+
+      return { servers: updatedServers };
+    });
+
+    // MONITOR all pinned users
+    const usernames = sortedPinnedChats.map((pc) => pc.username);
+    ircClient.monitorAdd(serverId, usernames);
+
+    // Request metadata for pinned users if server supports it
+    if (serverSupportsMetadata(serverId)) {
+      setTimeout(() => {
+        for (const { username } of sortedPinnedChats) {
+          ircClient.metadataGet(serverId, username, [
+            "avatar",
+            "status",
+            "url",
+            "website",
+          ]);
+        }
+      }, 200);
+    }
+  }
 });
 
 ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
@@ -4782,10 +5066,22 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
           }
         }
 
+        // Update metadata for private chat users
+        const updatedPrivateChats = server.privateChats?.map((pm) => {
+          if (pm.username.toLowerCase() === resolvedTarget.toLowerCase()) {
+            // We don't store metadata directly on PrivateChat,
+            // but we can use this to trigger UI updates
+            // The avatar/metadata will be looked up from savedMetadata
+            return { ...pm };
+          }
+          return pm;
+        });
+
         return {
           ...server,
           channels: updatedChannels,
           metadata: updatedMetadata,
+          privateChats: updatedPrivateChats,
         };
       }
       return server;
@@ -5321,6 +5617,87 @@ ircClient.on("SETNAME", ({ serverId, user, realname }) => {
   });
 });
 
+// MONITOR event handlers
+ircClient.on("MONONLINE", ({ serverId, targets }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update private chats to mark users as online
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedPrivateChats = s.privateChats?.map((pm) => {
+          const target = targets.find(
+            (t) => t.nick.toLowerCase() === pm.username.toLowerCase(),
+          );
+          if (target) {
+            return { ...pm, isOnline: true, isAway: false };
+          }
+          return pm;
+        });
+        return { ...s, privateChats: updatedPrivateChats };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+ircClient.on("MONOFFLINE", ({ serverId, targets }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update private chats to mark users as offline
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedPrivateChats = s.privateChats?.map((pm) => {
+          const isOffline = targets.some(
+            (t) => t.toLowerCase() === pm.username.toLowerCase(),
+          );
+          if (isOffline) {
+            return { ...pm, isOnline: false, isAway: false };
+          }
+          return pm;
+        });
+        return { ...s, privateChats: updatedPrivateChats };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
+// Handle AWAY notifications for monitored users (extended-monitor)
+ircClient.on("AWAY", ({ serverId, username, awayMessage }) => {
+  useStore.setState((state) => {
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return {};
+
+    // Update private chats for monitored users
+    const updatedServers = state.servers.map((s) => {
+      if (s.id === serverId) {
+        const updatedPrivateChats = s.privateChats?.map((pm) => {
+          if (pm.username.toLowerCase() === username.toLowerCase()) {
+            return { 
+              ...pm, 
+              isAway: awayMessage !== undefined && awayMessage !== null,
+              isOnline: true, // They're still online, just away
+            };
+          }
+          return pm;
+        });
+        return { ...s, privateChats: updatedPrivateChats };
+      }
+      return s;
+    });
+
+    return { servers: updatedServers };
+  });
+});
+
 ircClient.on(
   "WHO_REPLY",
   ({
@@ -5402,6 +5779,7 @@ ircClient.on(
     useStore.setState((state) => {
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
+          // Update channels
           const updatedChannels = s.channels.map((ch) => {
             if (ch.name === channel) {
               // Check if user already exists in the list
@@ -5428,7 +5806,19 @@ ircClient.on(
             return ch;
           });
 
-          return { ...s, channels: updatedChannels };
+          // Also update private chats if this user has one
+          const updatedPrivateChats = s.privateChats?.map((pm) => {
+            if (pm.username.toLowerCase() === nick.toLowerCase()) {
+              return {
+                ...pm,
+                isOnline: true,
+                isAway: isAway,
+              };
+            }
+            return pm;
+          });
+
+          return { ...s, channels: updatedChannels, privateChats: updatedPrivateChats };
         }
         return s;
       });
@@ -5447,21 +5837,54 @@ ircClient.on("WHO_END", ({ serverId, mask }) => {
 
   // Find the channel (mask should be the channel name)
   const channelData = serverData.channels.find((c) => c.name === mask);
-  if (!channelData) return;
-
-  // Only request metadata if server supports it
-  if (serverSupportsMetadata(serverId)) {
-    // Request metadata for all users in the channel
-    channelData.users.forEach((user) => {
-      // Only request if we don't already have metadata for this user
-      const hasMetadata =
-        user.metadata && Object.keys(user.metadata).length > 0;
-      if (!hasMetadata) {
-        setTimeout(() => {
-          useStore.getState().metadataList(serverId, user.username);
-        }, Math.random() * 1000); // Stagger requests to avoid spam
-      }
-    });
+  
+  if (channelData) {
+    // This was a WHO for a channel
+    // Only request metadata if server supports it
+    if (serverSupportsMetadata(serverId)) {
+      // Request metadata for all users in the channel
+      channelData.users.forEach((user) => {
+        // Only request if we don't already have metadata for this user
+        const hasMetadata =
+          user.metadata && Object.keys(user.metadata).length > 0;
+        if (!hasMetadata) {
+          setTimeout(() => {
+            useStore.getState().metadataList(serverId, user.username);
+          }, Math.random() * 1000); // Stagger requests to avoid spam
+        }
+      });
+    }
+  } else {
+    // This might be a WHO for an individual user (private chat)
+    // If we got no WHO_REPLY before this WHO_END, the user is offline
+    const privateChat = serverData.privateChats?.find(
+      (pm) => pm.username.toLowerCase() === mask.toLowerCase(),
+    );
+    
+    if (privateChat) {
+      // Check if we got a WHO_REPLY for this user by checking their online status
+      // If they're still marked as offline after WHO_END, they're truly offline
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((s) => {
+          if (s.id === serverId) {
+            const updatedPrivateChats = s.privateChats?.map((pm) => {
+              if (pm.username.toLowerCase() === mask.toLowerCase()) {
+                // If no WHO_REPLY was received, isOnline would still be false
+                // Keep it that way and mark as not away
+                if (!pm.isOnline) {
+                  return { ...pm, isOnline: false, isAway: false };
+                }
+                return pm;
+              }
+              return pm;
+            });
+            return { ...s, privateChats: updatedPrivateChats };
+          }
+          return s;
+        });
+        return { servers: updatedServers };
+      });
+    }
   }
 });
 

@@ -8,6 +8,7 @@ import {
   FaHashtag,
   FaPlus,
   FaSpinner,
+  FaThumbtack,
   FaTrash,
   FaUser,
   FaUserPlus,
@@ -29,6 +30,9 @@ export const ChannelList: React.FC<{
     joinChannel,
     leaveChannel,
     deletePrivateChat,
+    pinPrivateChat,
+    unpinPrivateChat,
+    reorderPrivateChats,
     toggleUserProfileModal,
     setMobileViewActiveColumn,
     reorderChannels,
@@ -88,6 +92,8 @@ export const ChannelList: React.FC<{
   const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(
     null,
   );
+  const [draggedPMId, setDraggedPMId] = useState<string | null>(null);
+  const [dragOverPMId, setDragOverPMId] = useState<string | null>(null);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
@@ -145,6 +151,27 @@ export const ChannelList: React.FC<{
 
     return sorted;
   }, [selectedServer, selectedServerId, channelOrder]);
+
+  // Sort private chats by order (pinned first, then by order number)
+  const sortedPrivateChats = useMemo(() => {
+    if (!selectedServer) return [];
+
+    const privateChats = selectedServer.privateChats || [];
+
+    // Sort: pinned chats first (by order), then unpinned chats
+    return [...privateChats].sort((a, b) => {
+      // Both pinned: sort by order
+      if (a.isPinned && b.isPinned) {
+        return (a.order || 0) - (b.order || 0);
+      }
+      // Only a is pinned
+      if (a.isPinned) return -1;
+      // Only b is pinned
+      if (b.isPinned) return 1;
+      // Neither pinned: maintain order
+      return 0;
+    });
+  }, [selectedServer]);
 
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
@@ -225,6 +252,61 @@ export const ChannelList: React.FC<{
   const handleDragEnd = () => {
     setDraggedChannelId(null);
     setDragOverChannelId(null);
+  };
+
+  // Private message drag and drop handlers
+  const handlePMDragStart = (e: React.DragEvent, pmId: string) => {
+    setDraggedPMId(pmId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", e.currentTarget.innerHTML);
+  };
+
+  const handlePMDragOver = (e: React.DragEvent, pmId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverPMId(pmId);
+  };
+
+  const handlePMDragLeave = () => {
+    setDragOverPMId(null);
+  };
+
+  const handlePMDrop = (e: React.DragEvent, targetPMId: string) => {
+    e.preventDefault();
+
+    if (!draggedPMId || !selectedServerId || draggedPMId === targetPMId) {
+      setDraggedPMId(null);
+      setDragOverPMId(null);
+      return;
+    }
+
+    // Get sorted private chats
+    const privateChats = sortedPrivateChats;
+    const draggedIndex = privateChats.findIndex((pm) => pm.id === draggedPMId);
+    const targetIndex = privateChats.findIndex((pm) => pm.id === targetPMId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedPMId(null);
+      setDragOverPMId(null);
+      return;
+    }
+
+    // Reorder the private chats
+    const reordered = [...privateChats];
+    const [removed] = reordered.splice(draggedIndex, 1);
+    reordered.splice(targetIndex, 0, removed);
+
+    // Update the store with the new order
+    const newOrder = reordered.map((pm) => pm.id);
+    reorderPrivateChats(selectedServerId, newOrder);
+
+    setDraggedPMId(null);
+    setDragOverPMId(null);
+  };
+
+  const handlePMDragEnd = () => {
+    setDraggedPMId(null);
+    setDragOverPMId(null);
   };
 
   const isNarrowView = useMediaQuery();
@@ -547,10 +629,31 @@ export const ChannelList: React.FC<{
 
               {isPrivateChatsOpen && (
                 <div className="ml-2">
-                  {selectedServer.privateChats?.map((privateChat) => (
+                  {sortedPrivateChats.map((privateChat) => (
                     <TouchableContextMenu
                       key={privateChat.id}
                       menuItems={[
+                        {
+                          label: privateChat.isPinned
+                            ? "Unpin Private Chat"
+                            : "Pin Private Chat",
+                          icon: <FaThumbtack size={14} />,
+                          onClick: () => {
+                            if (selectedServerId) {
+                              if (privateChat.isPinned) {
+                                unpinPrivateChat(
+                                  selectedServerId,
+                                  privateChat.id,
+                                );
+                              } else {
+                                pinPrivateChat(selectedServerId, privateChat.id);
+                              }
+                            }
+                          },
+                          className: privateChat.isPinned
+                            ? "text-yellow-400"
+                            : "",
+                        },
                         {
                           label: "Delete Private Chat",
                           icon: <FaTrash size={14} />,
@@ -567,21 +670,58 @@ export const ChannelList: React.FC<{
                       ]}
                     >
                       <div
+                        draggable={privateChat.isPinned}
+                        onDragStart={(e) =>
+                          privateChat.isPinned &&
+                          handlePMDragStart(e, privateChat.id)
+                        }
+                        onDragOver={(e) => handlePMDragOver(e, privateChat.id)}
+                        onDragLeave={handlePMDragLeave}
+                        onDrop={(e) => handlePMDrop(e, privateChat.id)}
+                        onDragEnd={handlePMDragEnd}
                         className={`
                           px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer
                           transition-all duration-200 ease-in-out
                           ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white -ml-2" : "hover:bg-discord-dark-100 hover:text-discord-channels-active ml-0"}
+                          ${draggedPMId === privateChat.id ? "opacity-50" : ""}
+                          ${dragOverPMId === privateChat.id && draggedPMId !== privateChat.id ? "border-t-2 border-discord-blurple" : ""}
                         `}
                         onClick={() => selectPrivateChat(privateChat.id)}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <FaUser
-                            className={`shrink-0 ${
-                              selectedPrivateChatId === privateChat.id
-                                ? "text-2xl"
-                                : ""
-                            }`}
-                          />
+                          {/* Status indicator */}
+                          <div className="relative">
+                            <FaUser
+                              className={`shrink-0 ${
+                                selectedPrivateChatId === privateChat.id
+                                  ? "text-2xl"
+                                  : ""
+                              }`}
+                            />
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-discord-dark-200 ${
+                                privateChat.isOnline
+                                  ? privateChat.isAway
+                                    ? "bg-yellow-500"
+                                    : "bg-green-500"
+                                  : "bg-gray-500"
+                              }`}
+                              title={
+                                privateChat.isOnline
+                                  ? privateChat.isAway
+                                    ? "Away"
+                                    : "Online"
+                                  : "Offline"
+                              }
+                            />
+                          </div>
+                          {/* Pin indicator */}
+                          {privateChat.isPinned && (
+                            <FaThumbtack
+                              className="text-xs text-yellow-400"
+                              title="Pinned"
+                            />
+                          )}
                           <span className="truncate">
                             {privateChat.username}
                           </span>
