@@ -568,8 +568,6 @@ export class IRCClient {
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
       this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-      // Don't send WHO here - it's handled in the store's JOIN handler with WHOX flags
-      // this.sendRaw(serverId, `WHO ${channelName}`);
 
       const channel: Channel = {
         id: uuidv4(),
