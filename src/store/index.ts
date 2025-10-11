@@ -903,7 +903,7 @@ const useStore = create<AppState>((set, get) => ({
           if (server.id === serverId) {
             // Check if channel already exists in store
             const existingChannel = server.channels.find(
-              (c) => c.name === channelName,
+              (c) => c.name.toLowerCase() === channelName.toLowerCase(),
             );
             if (existingChannel) {
               // Channel already exists, don't add duplicate
@@ -3234,7 +3234,8 @@ ircClient.on(
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
           const existingChannel = server.channels.find(
-            (channel) => channel.name === channelName,
+            (channel) =>
+              channel.name.toLowerCase() === channelName.toLowerCase(),
           );
 
           if (!existingChannel) {
@@ -3255,8 +3256,21 @@ ircClient.on(
               channels: [...server.channels, newChannel],
             };
           }
+
+          // If channel exists but with different case, update the name to match server's canonical case
+          if (existingChannel.name !== channelName) {
+            const updatedChannels = server.channels.map((channel) =>
+              channel.name.toLowerCase() === channelName.toLowerCase()
+                ? { ...channel, name: channelName }
+                : channel,
+            );
+            return {
+              ...server,
+              channels: updatedChannels,
+            };
+          }
           const updatedChannels = server.channels.map((channel) => {
-            if (channel.name === channelName) {
+            if (channel.name.toLowerCase() === channelName.toLowerCase()) {
               const userAlreadyExists = channel.users.some(
                 (user) => user.username === username,
               );
@@ -3842,7 +3856,7 @@ ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return {
               ...channel,
               users: channel.users.filter((user) => user.username !== username), // Remove the user
@@ -3933,7 +3947,7 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
           const updatedChannels = server.channels.map((channel) => {
-            if (channel.name === target) {
+            if (channel.name.toLowerCase() === target.toLowerCase()) {
               // Parse the modestring and modeargs to update channel modes
               // For now, we'll store the raw modestring
               return {
@@ -4088,7 +4102,7 @@ ircClient.on("TOPIC", ({ serverId, channelName, topic, sender }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, topic };
           }
           return channel;
@@ -4132,7 +4146,7 @@ ircClient.on("RPL_TOPIC", ({ serverId, channelName, topic }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, topic };
           }
           return channel;
@@ -4161,7 +4175,7 @@ ircClient.on("RPL_NOTOPIC", ({ serverId, channelName }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, topic: undefined };
           }
           return channel;
@@ -4384,7 +4398,7 @@ ircClient.on("KICK", ({ serverId, username, target, channelName, reason }) => {
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       const updatedChannels = server.channels.map((channel) => {
-        if (channel.name === channelName) {
+        if (channel.name.toLowerCase() === channelName.toLowerCase()) {
           return {
             ...channel,
             users: channel.users.filter((user) => user.username !== target), // Remove the user
@@ -6932,7 +6946,7 @@ ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
-          if (channel.name === channelName) {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             return { ...channel, isLoadingHistory: isLoading };
           }
           return channel;
