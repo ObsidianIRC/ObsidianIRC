@@ -32,6 +32,7 @@ export interface Server {
   botMode?: string;
   filehost?: string;
   linkSecurity?: number; // Link security level from unrealircd.org/link-security
+  jwtToken?: string; // JWT token for filehost authentication
 }
 
 export interface ServerConfig {

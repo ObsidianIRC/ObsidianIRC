@@ -198,6 +198,11 @@ export interface EventMap {
     limit: number;
     targets: string[];
   };
+  EXTJWT: BaseIRCEvent & {
+    requestedTarget: string;
+    serviceName: string;
+    jwtToken: string;
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -816,6 +821,16 @@ export class IRCClient {
 
   metadataSync(serverId: string, target: string): void {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
+  }
+
+  // EXTJWT commands
+  requestExtJwt(serverId: string, target?: string, serviceName?: string): void {
+    // EXTJWT ( <channel> | * ) [service_name]
+    const targetParam = target || "*";
+    const command = serviceName
+      ? `EXTJWT ${targetParam} ${serviceName}`
+      : `EXTJWT ${targetParam}`;
+    this.sendRaw(serverId, command);
   }
 
   // MONITOR commands
@@ -2079,6 +2094,25 @@ export class IRCClient {
           serverId,
           nick,
           message,
+        });
+      } else if (command === "EXTJWT") {
+        // EXTJWT <requested_target> <service_name> [*] <jwt_token>
+        const requestedTarget = parv[0];
+        const serviceName = parv[1];
+        // Check if there's a continuation marker (*)
+        let jwtToken: string;
+        if (parv[2] === "*") {
+          // Continuation format: EXTJWT target service * token
+          jwtToken = parv[3];
+        } else {
+          // Normal format: EXTJWT target service token
+          jwtToken = parv[2];
+        }
+        this.triggerEvent("EXTJWT", {
+          serverId,
+          requestedTarget,
+          serviceName,
+          jwtToken,
         });
       }
     }

@@ -221,7 +221,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     message.content.trim() === message.content &&
     message.content.startsWith(server.filehost) &&
     (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/upload/")); // fallback for upload URLs
+      message.content.includes("/images/")); // check for backend upload URLs
 
   // Check if message is just a GIF URL from GIPHY or Tenor
   const isGifUrl =

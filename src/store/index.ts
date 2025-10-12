@@ -2232,7 +2232,7 @@ ircClient.on("CHANMSG", (response) => {
     .servers.find((s) => s.id === response.serverId);
 
   if (server) {
-    const channel = server.channels.find((c) => c.name === channelName);
+    const channel = server.channels.find((c) => c.name.toLowerCase() === channelName.toLowerCase());
     const replyTo = null;
 
     if (channel) {
@@ -2413,7 +2413,7 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
 
   if (server) {
     const channel = channelName
-      ? server.channels.find((c) => c.name === channelName)
+      ? server.channels.find((c) => c.name.toLowerCase() === channelName.toLowerCase())
       : null;
 
     if (channel) {
@@ -2516,6 +2516,11 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
           serverId: server.id,
           unreadCount: 0,
           isMentioned: false,
+          lastActivity: new Date(),
+          isPinned: false,
+          order: undefined,
+          isOnline: false, // Will be updated by MONITOR
+          isAway: false,
         };
         privateChat = newPrivateChat;
         useStore.setState((state) => ({
@@ -2806,7 +2811,7 @@ ircClient.on("USERMSG", (response) => {
 
       useStore.setState((state) => {
         const updatedServers = state.servers.map((s) => {
-          if (s.id === server.id) {
+          if (s.id === response.serverId) {
             const updatedPrivateChats =
               s.privateChats?.map((pc) => {
                 if (pc.id === privateChat.id) {
@@ -3106,6 +3111,7 @@ ircClient.on("USERNOTICE", (response) => {
     useStore.getState().addMessage(newMessage);
 
     // Play notification sound if appropriate (but not for historical messages)
+    // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
     const isHistoricalMessage = mtags?.batch !== undefined;
 
     if (!isHistoricalMessage) {
@@ -3190,7 +3196,7 @@ ircClient.on("USERNOTICE", (response) => {
 
     useStore.setState((state) => {
       const updatedServers = state.servers.map((s) => {
-        if (s.id === server.id) {
+        if (s.id === response.serverId) {
           const updatedPrivateChats =
             s.privateChats?.map((pc) => {
               if (pc.id === privateChat.id) {
@@ -3311,11 +3317,9 @@ ircClient.on(
 
       // Request metadata for the joining user to get their current metadata
       // This is needed for users who join after we're already in the channel
-      if (serverSupportsMetadata(serverId)) {
-        setTimeout(() => {
-          useStore.getState().metadataList(serverId, username);
-        }, 100);
-      }
+      setTimeout(() => {
+        useStore.getState().metadataList(serverId, username);
+      }, 100);
 
       return { servers: updatedServers };
     });
@@ -3347,7 +3351,7 @@ ircClient.on(
     ) {
       const server = state.servers.find((s) => s.id === serverId);
       if (server) {
-        const channel = server.channels.find((c) => c.name === channelName);
+        const channel = server.channels.find((c) => c.name.toLowerCase() === channelName.toLowerCase());
         if (channel) {
           const joinMessage: Message = {
             id: uuidv4(),
@@ -3814,9 +3818,7 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
                   return {
                     ...s,
                     privateChats: s.privateChats?.map((pm) => {
-                      if (
-                        pm.username.toLowerCase() === username.toLowerCase()
-                      ) {
+                      if (pm.username === username) {
                         return {
                           ...pm,
                           realname: user.realname,
@@ -3837,10 +3839,9 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
 
         // Only request WHO if we don't have complete user info
         if (!hasUserInfo) {
-          // Request WHO for this user to get their current status using WHOX
-          // This will trigger WHOIS if they're away (and we'll get their away message via 301)
+          // Request WHO to get current status using WHOX to also get account
           // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
-          ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+          ircClient.sendRaw(serverId, `WHO ${username} %uhnfra`);
         }
       }
     }, 100);
@@ -3849,6 +3850,19 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     // Instead, we rely on metadata from shared channels (if user is in a channel with us)
     // or from localStorage if we previously got their metadata.
   }
+});
+
+ircClient.on("EXTJWT", ({ serverId, requestedTarget, serviceName, jwtToken }) => {
+  console.log('🔑 EXTJWT received:', { serverId, requestedTarget, serviceName, jwtToken: jwtToken ? 'present' : 'missing' });
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        return { ...server, jwtToken };
+      }
+      return server;
+    });
+    return { servers: updatedServers };
+  });
 });
 
 ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
@@ -4165,7 +4179,9 @@ ircClient.on(
     // This provides metadata about who set the topic and when
     // We could store this if we extend the Channel interface
     console.log(
-      `Topic for ${channelName} was set by ${setter} at ${new Date(timestamp * 1000).toISOString()}`,
+      `Topic for ${channelName} was set by ${setter} at ${new Date(
+        timestamp * 1000,
+      ).toISOString()}`,
     );
   },
 );
@@ -4547,6 +4563,39 @@ ircClient.on("INVITE", ({ serverId, inviter, target, channel }) => {
 });
 
 ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
+  console.log(
+    `[CAP_ACKNOWLEDGED] Server ${serverId} acknowledged capability: ${key} (${capabilities})`,
+  );
+  if (capabilities?.startsWith("draft/metadata")) {
+    // Check if already subscribed to avoid duplicate subscriptions
+    const currentSubs =
+      useStore.getState().metadataSubscriptions[serverId] || [];
+    console.log(
+      `[CAP_ACKNOWLEDGED] Current metadata subscriptions for server ${serverId}:`,
+      currentSubs,
+    );
+    if (currentSubs.length === 0) {
+      // Subscribe to common metadata keys
+      const defaultKeys = [
+        "url",
+        "website",
+        "status",
+        "location",
+        "avatar",
+        "color",
+        "display-name",
+        "bot", // Subscribe to bot metadata for tooltip information
+      ];
+      console.log(
+        "[CAP_ACKNOWLEDGED] Attempting to subscribe to default metadata keys:",
+        defaultKeys,
+      );
+      useStore.getState().metadataSub(serverId, defaultKeys);
+    }
+
+    // Note: Metadata restoration/sending is now handled in the "ready" event
+    // to ensure the server is ready to receive METADATA commands
+  }
   if (key === "sasl") {
     const servers = loadSavedServers();
     for (const serv of servers) {
@@ -4603,6 +4652,7 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
           }
           return server;
         });
+
         return { servers: updatedServers };
       });
 
@@ -5465,7 +5515,11 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
             }
           }
 
-          return { ...channel, users: updatedUsers, metadata: channelMetadata };
+          return {
+            ...channel,
+            users: updatedUsers,
+            metadata: channelMetadata,
+          };
         });
 
         // Update metadata for the server itself if target is server
@@ -5644,7 +5698,6 @@ ircClient.on(
               if (user.username === resolvedTarget) {
                 const metadata = { ...(user.metadata || {}) };
                 // Only update metadata if value is present (not empty/null)
-                // This prevents server empty responses from clearing local values
                 if (value !== null && value !== undefined && value !== "") {
                   metadata[key] = { value, visibility };
                 } else {
@@ -5691,7 +5744,6 @@ ircClient.on(
       if (state.currentUser?.username === resolvedTarget) {
         const metadata = { ...(state.currentUser.metadata || {}) };
         // Only update metadata if value is present (not empty/null)
-        // This prevents server empty responses from clearing local values
         if (value !== null && value !== undefined && value !== "") {
           metadata[key] = { value, visibility };
         } else {
@@ -5891,56 +5943,144 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
   });
 });
 
-ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
-  useStore.getState().capAck(serverId, "ACK", cliCaps);
-  // Store capabilities on the server
-  useStore.setState((state) => ({
-    servers: state.servers.map((server) => {
+// Helper function to process netsplit batches
+function processBatchedNetsplit(
+  serverId: string,
+  batchId: string,
+  batch: BatchInfo,
+) {
+  const store = useStore.getState();
+  const batch_info = store.activeBatches[serverId]?.[batchId];
+  if (!batch_info) return;
+
+  const quitEvents = batch_info.events;
+  const [server1, server2] = batch_info.parameters || ["*.net", "*.split"];
+
+  // Create a single netsplit message
+  const netsplitMessage = {
+    id: `netsplit-${batchId}`,
+    content: "Oops! The net split! ⚠️",
+    timestamp: new Date(),
+    userId: "system",
+    channelId: "", // Will be set per channel
+    serverId,
+    type: "netsplit" as const,
+    batchId,
+    quitUsers: quitEvents.map((e) => e.data.username),
+    server1,
+    server2,
+    reactions: [],
+    replyMessage: null,
+    mentioned: [],
+  };
+
+  // Group affected channels and add the netsplit message to each
+  const affectedChannels = new Set<string>();
+
+  // Process each quit event to remove users and track affected channels
+  quitEvents.forEach((event) => {
+    const { username } = event.data;
+
+    // Find which channels this user was in and remove them
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          const updatedChannels = server.channels.map((channel) => {
+            const userIndex = channel.users.findIndex(
+              (u) => u.username === username,
+            );
+            if (userIndex !== -1) {
+              affectedChannels.add(channel.id);
+              // Remove the user from the channel
+              const updatedUsers = channel.users.filter(
+                (u) => u.username !== username,
+              );
+              return { ...channel, users: updatedUsers };
+            }
+            return channel;
+          });
+          return { ...server, channels: updatedChannels };
+        }
+        return server;
+      });
+      return { servers: updatedServers };
+    });
+  });
+
+  // Add netsplit message to each affected channel
+  affectedChannels.forEach((channelId) => {
+    const channelMessage = { ...netsplitMessage, channelId };
+    useStore.getState().addMessage(channelMessage);
+  });
+}
+
+// Helper function to process netjoin batches
+function processBatchedNetjoin(
+  serverId: string,
+  batchId: string,
+  batch: BatchInfo,
+) {
+  const store = useStore.getState();
+  const batch_info = store.activeBatches[serverId]?.[batchId];
+  if (!batch_info) return;
+
+  const joinEvents = batch_info.events;
+  const [server1, server2] = batch_info.parameters || ["*.net", "*.join"];
+
+  // Process each join event normally first
+  joinEvents.forEach((event) => {
+    // Re-trigger the JOIN event to add users back
+    if (event.type === "JOIN") {
+      ircClient.triggerEvent("JOIN", event.data);
+    }
+  });
+
+  // Find and update any existing netsplit messages to show rejoin
+  useStore.setState((state) => {
+    const updatedMessages = { ...state.messages };
+
+    Object.keys(updatedMessages).forEach((channelKey) => {
+      const messages = updatedMessages[channelKey];
+      const updatedChannelMessages = messages.map((message) => {
+        if (
+          message.type === "netsplit" &&
+          message.serverId === serverId &&
+          message.server1 === server1 &&
+          message.server2 === server2
+        ) {
+          // Update the netsplit message to show rejoin
+          return {
+            ...message,
+            content: "The network split and rejoined. ✅",
+            type: "netjoin" as const,
+          };
+        }
+        return message;
+      });
+      updatedMessages[channelKey] = updatedChannelMessages;
+    });
+
+    return { messages: updatedMessages };
+  });
+}
+
+// Handle chathistory loading state
+ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
-        return {
-          ...server,
-          capabilities: cliCaps.split(" "),
-        };
+        const updatedChannels = server.channels.map((channel) => {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
+            return { ...channel, isLoadingHistory: isLoading };
+          }
+          return channel;
+        });
+        return { ...server, channels: updatedChannels };
       }
       return server;
-    }),
-  }));
-});
-
-ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
-  console.log(
-    `[CAP_ACKNOWLEDGED] Server ${serverId} acknowledged capability: ${key} (${capabilities})`,
-  );
-  if (capabilities?.startsWith("draft/metadata")) {
-    // Check if already subscribed to avoid duplicate subscriptions
-    const currentSubs =
-      useStore.getState().metadataSubscriptions[serverId] || [];
-    console.log(
-      `[CAP_ACKNOWLEDGED] Current metadata subscriptions for server ${serverId}:`,
-      currentSubs,
-    );
-    if (currentSubs.length === 0) {
-      // Subscribe to common metadata keys
-      const defaultKeys = [
-        "url",
-        "website",
-        "status",
-        "location",
-        "avatar",
-        "color",
-        "display-name",
-        "bot", // Subscribe to bot metadata for tooltip information
-      ];
-      console.log(
-        "[CAP_ACKNOWLEDGED] Attempting to subscribe to default metadata keys:",
-        defaultKeys,
-      );
-      useStore.getState().metadataSub(serverId, defaultKeys);
-    }
-
-    // Note: Metadata restoration/sending is now handled in the "ready" event
-    // to ensure the server is ready to receive METADATA commands
-  }
+    });
+    return { servers: updatedServers };
+  });
 });
 
 ircClient.on(
@@ -6135,6 +6275,7 @@ ircClient.on("RPL_AWAY", ({ serverId, nick, awayMessage }) => {
   });
 });
 
+// WHO reply handler - for standard WHO responses (352) when server doesn't support WHOX
 ircClient.on(
   "WHO_REPLY",
   ({
@@ -6206,7 +6347,7 @@ ircClient.on(
       return;
     }
 
-    // Parse channel status from flags (e.g., "H@" means here and operator)
+    // Parse channel status from flags (e.g., "@" means operator)
     let channelStatus = "";
 
     if (flags) {
@@ -6356,7 +6497,6 @@ ircClient.on("WHO_END", ({ serverId, mask }) => {
                 if (!pm.isOnline) {
                   return { ...pm, isOnline: false, isAway: false };
                 }
-                return pm;
               }
               return pm;
             });
@@ -6369,74 +6509,6 @@ ircClient.on("WHO_END", ({ serverId, mask }) => {
     }
   }
 });
-
-// WHO reply handler - for standard WHO responses (352) when server doesn't support WHOX
-ircClient.on(
-  "WHO_REPLY",
-  ({
-    serverId,
-    channel,
-    username,
-    host,
-    server,
-    nick,
-    flags,
-    hopcount,
-    realname,
-  }) => {
-    const state = useStore.getState();
-    const serverData = state.servers.find((s) => s.id === serverId);
-    if (!serverData) return;
-
-    // Determine if user is away from flags (G=gone/away, H=here/present)
-    const isAway = flags.includes("G");
-
-    // Update/add channel users from WHO response
-    useStore.setState((state) => {
-      const updatedServers = state.servers.map((s) => {
-        if (s.id === serverId) {
-          const updatedChannels = s.channels.map((ch) => {
-            // Only update the specific channel from the WHO response
-            if (ch.name === channel) {
-              // Check if user already exists in this channel
-              const existingUserIndex = ch.users.findIndex(
-                (user) => user.username.toLowerCase() === nick.toLowerCase(),
-              );
-
-              if (existingUserIndex !== -1) {
-                // Update existing user - preserve bot flag and account if already set
-                const existingUser = ch.users[existingUserIndex];
-                const updatedUsers = [...ch.users];
-                updatedUsers[existingUserIndex] = {
-                  ...existingUser,
-                  hostname: host,
-                  realname: realname,
-                  isAway: isAway,
-                };
-                return { ...ch, users: updatedUsers };
-              }
-              // Add new user to channel
-              const newUser: User = {
-                id: `${nick}-${serverId}`,
-                username: nick,
-                hostname: host,
-                realname: realname,
-                isOnline: true,
-                isAway: isAway,
-                metadata: {},
-              };
-              return { ...ch, users: [...ch.users, newUser] };
-            }
-            return ch;
-          });
-          return { ...s, channels: updatedChannels };
-        }
-        return s;
-      });
-      return { servers: updatedServers };
-    });
-  },
-);
 
 // WHOX reply handler - for WHO responses with account information
 ircClient.on(
@@ -6816,146 +6888,6 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
         [serverId]: remainingBatches,
       },
     };
-  });
-});
-
-// Helper function to process netsplit batches
-function processBatchedNetsplit(
-  serverId: string,
-  batchId: string,
-  batch: BatchInfo,
-) {
-  const store = useStore.getState();
-  const batch_info = store.activeBatches[serverId]?.[batchId];
-  if (!batch_info) return;
-
-  const quitEvents = batch_info.events;
-  const [server1, server2] = batch_info.parameters || ["*.net", "*.split"];
-
-  // Create a single netsplit message
-  const netsplitMessage = {
-    id: `netsplit-${batchId}`,
-    content: "Oops! The net split! ⚠️",
-    timestamp: new Date(),
-    userId: "system",
-    channelId: "", // Will be set per channel
-    serverId,
-    type: "netsplit" as const,
-    batchId,
-    quitUsers: quitEvents.map((e) => e.data.username),
-    server1,
-    server2,
-    reactions: [],
-    replyMessage: null,
-    mentioned: [],
-  };
-
-  // Group affected channels and add the netsplit message to each
-  const affectedChannels = new Set<string>();
-
-  // Process each quit event to remove users and track affected channels
-  quitEvents.forEach((event) => {
-    const { username } = event.data;
-
-    // Find which channels this user was in and remove them
-    useStore.setState((state) => {
-      const updatedServers = state.servers.map((server) => {
-        if (server.id === serverId) {
-          const updatedChannels = server.channels.map((channel) => {
-            const userIndex = channel.users.findIndex(
-              (u) => u.username === username,
-            );
-            if (userIndex !== -1) {
-              affectedChannels.add(channel.id);
-              // Remove the user from the channel
-              const updatedUsers = channel.users.filter(
-                (u) => u.username !== username,
-              );
-              return { ...channel, users: updatedUsers };
-            }
-            return channel;
-          });
-          return { ...server, channels: updatedChannels };
-        }
-        return server;
-      });
-      return { servers: updatedServers };
-    });
-  });
-
-  // Add netsplit message to each affected channel
-  affectedChannels.forEach((channelId) => {
-    const channelMessage = { ...netsplitMessage, channelId };
-    useStore.getState().addMessage(channelMessage);
-  });
-}
-
-// Helper function to process netjoin batches
-function processBatchedNetjoin(
-  serverId: string,
-  batchId: string,
-  batch: BatchInfo,
-) {
-  const store = useStore.getState();
-  const batch_info = store.activeBatches[serverId]?.[batchId];
-  if (!batch_info) return;
-
-  const joinEvents = batch_info.events;
-  const [server1, server2] = batch_info.parameters || ["*.net", "*.join"];
-
-  // Process each join event normally first
-  joinEvents.forEach((event) => {
-    // Re-trigger the JOIN event to add users back
-    if (event.type === "JOIN") {
-      ircClient.triggerEvent("JOIN", event.data);
-    }
-  });
-
-  // Find and update any existing netsplit messages to show rejoin
-  useStore.setState((state) => {
-    const updatedMessages = { ...state.messages };
-
-    Object.keys(updatedMessages).forEach((channelKey) => {
-      const messages = updatedMessages[channelKey];
-      const updatedChannelMessages = messages.map((message) => {
-        if (
-          message.type === "netsplit" &&
-          message.serverId === serverId &&
-          message.server1 === server1 &&
-          message.server2 === server2
-        ) {
-          // Update the netsplit message to show rejoin
-          return {
-            ...message,
-            content: "The network split and rejoined. ✅",
-            type: "netjoin" as const,
-          };
-        }
-        return message;
-      });
-      updatedMessages[channelKey] = updatedChannelMessages;
-    });
-
-    return { messages: updatedMessages };
-  });
-}
-
-// Handle chathistory loading state
-ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((server) => {
-      if (server.id === serverId) {
-        const updatedChannels = server.channels.map((channel) => {
-          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
-            return { ...channel, isLoadingHistory: isLoading };
-          }
-          return channel;
-        });
-        return { ...server, channels: updatedChannels };
-      }
-      return server;
-    });
-    return { servers: updatedServers };
   });
 });
 
