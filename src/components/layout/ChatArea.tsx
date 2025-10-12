@@ -1533,6 +1533,7 @@ export const ChatArea: React.FC<{
                     onDirectReaction={directReaction}
                     users={selectedChannel?.users || []}
                     onRedactMessage={handleRedactMessage}
+                    onOpenProfile={handleOpenProfile}
                   />
                 );
               })}
@@ -1943,6 +1944,7 @@ export const ChatArea: React.FC<{
                         onDirectReaction={directReaction}
                         users={selectedServer?.users || []}
                         onRedactMessage={handleRedactMessage}
+                        onOpenProfile={handleOpenProfile}
                       />
                     );
                   },
