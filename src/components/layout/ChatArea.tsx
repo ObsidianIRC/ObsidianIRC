@@ -546,19 +546,26 @@ export const ChatArea: React.FC<{
     let jwtToken = selectedServer?.jwtToken;
     if (!jwtToken) {
       // Request JWT token from IRC server
-      console.log('🔑 Requesting JWT token from IRC server for service "filehost"');
+      console.log(
+        '🔑 Requesting JWT token from IRC server for service "filehost"',
+      );
       ircClient.requestExtJwt(selectedServerId, "*", "filehost");
-      
+
       // Wait a bit for the token to arrive (this is a simple approach)
       // In a production app, you'd want to listen for the EXTJWT event
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Check again after waiting
-      const updatedServer = useStore.getState().servers.find(s => s.id === selectedServerId);
+      const updatedServer = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
       jwtToken = updatedServer?.jwtToken;
-      
-      console.log('🔑 After waiting, JWT token:', jwtToken ? `${jwtToken.substring(0, 20)}...` : 'still null/undefined');
-      
+
+      console.log(
+        "🔑 After waiting, JWT token:",
+        jwtToken ? `${jwtToken.substring(0, 20)}...` : "still null/undefined",
+      );
+
       if (!jwtToken) {
         console.error("Failed to obtain JWT token for image upload");
         // TODO: Show error to user
@@ -572,35 +579,41 @@ export const ChatArea: React.FC<{
     try {
       // Upload directly to the filehost URL with JWT authentication
       const uploadUrl = `${filehostUrl}/upload`;
-      console.log('🔄 Image upload: Starting upload to', uploadUrl);
-      console.log('🔑 JWT token present:', !!jwtToken);
-      console.log('� JWT token value:', jwtToken ? `${jwtToken.substring(0, 20)}...` : 'null/undefined');
-      console.log('�📦 File size:', file.size, 'bytes');
+      console.log("🔄 Image upload: Starting upload to", uploadUrl);
+      console.log("🔑 JWT token present:", !!jwtToken);
+      console.log(
+        "� JWT token value:",
+        jwtToken ? `${jwtToken.substring(0, 20)}...` : "null/undefined",
+      );
+      console.log("�📦 File size:", file.size, "bytes");
 
       const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          'Authorization': `Bearer ${jwtToken}`,
+          Authorization: `Bearer ${jwtToken}`,
         },
         body: formData,
       });
 
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log("📡 Response status:", response.status);
+      console.log(
+        "📡 Response headers:",
+        Object.fromEntries(response.headers.entries()),
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Upload failed with status:', response.status);
-        console.error('❌ Error response:', errorText);
+        console.error("❌ Upload failed with status:", response.status);
+        console.error("❌ Error response:", errorText);
         throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Upload successful:', data);
+      console.log("✅ Upload successful:", data);
       if (data.saved_url) {
         // Create the full URL by prepending the filehost
         const fullImageUrl = `${filehostUrl}${data.saved_url}`;
-        
+
         // Send the link directly to the current channel/user
         const target =
           selectedChannel?.name ?? selectedPrivateChat?.username ?? "";

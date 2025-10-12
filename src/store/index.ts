@@ -2232,7 +2232,9 @@ ircClient.on("CHANMSG", (response) => {
     .servers.find((s) => s.id === response.serverId);
 
   if (server) {
-    const channel = server.channels.find((c) => c.name.toLowerCase() === channelName.toLowerCase());
+    const channel = server.channels.find(
+      (c) => c.name.toLowerCase() === channelName.toLowerCase(),
+    );
     const replyTo = null;
 
     if (channel) {
@@ -2413,7 +2415,9 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
 
   if (server) {
     const channel = channelName
-      ? server.channels.find((c) => c.name.toLowerCase() === channelName.toLowerCase())
+      ? server.channels.find(
+          (c) => c.name.toLowerCase() === channelName.toLowerCase(),
+        )
       : null;
 
     if (channel) {
@@ -3351,7 +3355,9 @@ ircClient.on(
     ) {
       const server = state.servers.find((s) => s.id === serverId);
       if (server) {
-        const channel = server.channels.find((c) => c.name.toLowerCase() === channelName.toLowerCase());
+        const channel = server.channels.find(
+          (c) => c.name.toLowerCase() === channelName.toLowerCase(),
+        );
         if (channel) {
           const joinMessage: Message = {
             id: uuidv4(),
@@ -3852,18 +3858,26 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
   }
 });
 
-ircClient.on("EXTJWT", ({ serverId, requestedTarget, serviceName, jwtToken }) => {
-  console.log('🔑 EXTJWT received:', { serverId, requestedTarget, serviceName, jwtToken: jwtToken ? 'present' : 'missing' });
-  useStore.setState((state) => {
-    const updatedServers = state.servers.map((server) => {
-      if (server.id === serverId) {
-        return { ...server, jwtToken };
-      }
-      return server;
+ircClient.on(
+  "EXTJWT",
+  ({ serverId, requestedTarget, serviceName, jwtToken }) => {
+    console.log("🔑 EXTJWT received:", {
+      serverId,
+      requestedTarget,
+      serviceName,
+      jwtToken: jwtToken ? "present" : "missing",
     });
-    return { servers: updatedServers };
-  });
-});
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          return { ...server, jwtToken };
+        }
+        return server;
+      });
+      return { servers: updatedServers };
+    });
+  },
+);
 
 ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
   useStore.setState((state) => {
