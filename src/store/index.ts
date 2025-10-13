@@ -491,6 +491,8 @@ export interface AppState {
   } | null;
   // Channel order persistence
   channelOrder: ChannelOrderMap; // serverId -> ordered array of channel names
+  // Message deduplication tracking
+  processedMessageIds: Set<string>; // Set of msgid values that have already been processed
   // UI state
   ui: UIState;
   globalSettings: GlobalSettings;
@@ -663,6 +665,7 @@ const useStore = create<AppState>((set, get) => ({
   whoisData: {},
   pendingRegistration: null,
   channelOrder: loadChannelOrder(),
+  processedMessageIds: new Set<string>(),
   selectedServerId: null,
 
   // UI state
@@ -2212,6 +2215,15 @@ registerAllProtocolHandlers(ircClient, useStore);
 ircClient.on("CHANMSG", (response) => {
   const { mtags, channelName, message, timestamp } = response;
 
+  // Check for duplicate messages based on msgid
+  if (mtags?.msgid) {
+    const currentState = useStore.getState();
+    if (currentState.processedMessageIds.has(mtags.msgid)) {
+      console.log(`Skipping duplicate message with msgid: ${mtags.msgid}`);
+      return;
+    }
+  }
+
   // Check if sender is ignored
   const globalSettings = useStore.getState().globalSettings;
   if (
@@ -2381,6 +2393,13 @@ ircClient.on("CHANMSG", (response) => {
         }
       }
 
+      // Mark this message ID as processed to prevent duplicates
+      if (mtags?.msgid) {
+        useStore.setState((state) => ({
+          processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+        }));
+      }
+
       // Remove any typing users from the state
       useStore.setState((state) => {
         const key = `${server.id}-${channel.id}`;
@@ -2400,6 +2419,16 @@ ircClient.on("CHANMSG", (response) => {
 ircClient.on("MULTILINE_MESSAGE", (response) => {
   const { mtags, channelName, sender, message, messageIds, timestamp } =
     response;
+
+  // Check for duplicate messages based on messageIds
+  if (messageIds && messageIds.length > 0) {
+    const currentState = useStore.getState();
+    const hasDuplicate = messageIds.some(id => currentState.processedMessageIds.has(id));
+    if (hasDuplicate) {
+      console.log(`Skipping duplicate multiline message with messageIds: ${messageIds.join(', ')}`);
+      return;
+    }
+  }
 
   // Check if sender is ignored
   const globalSettings = useStore.getState().globalSettings;
@@ -2468,6 +2497,13 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
           });
           return { servers: updatedServers };
         });
+      }
+
+      // Mark these message IDs as processed to prevent duplicates
+      if (messageIds && messageIds.length > 0) {
+        useStore.setState((state) => ({
+          processedMessageIds: new Set([...state.processedMessageIds, ...messageIds]),
+        }));
       }
 
       useStore.getState().addMessage(newMessage);
@@ -2586,6 +2622,15 @@ ircClient.on("USERMSG", (response) => {
     channelContext: mtags?.["+draft/channel-context"],
   });
 
+  // Check for duplicate messages based on msgid
+  if (mtags?.msgid) {
+    const currentState = useStore.getState();
+    if (currentState.processedMessageIds.has(mtags.msgid)) {
+      console.log(`Skipping duplicate USERMSG with msgid: ${mtags.msgid}`);
+      return;
+    }
+  }
+
   // Find the server
   const server = useStore
     .getState()
@@ -2682,6 +2727,13 @@ ircClient.on("USERMSG", (response) => {
           tags: mtags, // This includes the draft/channel-context tag
           whisperTarget: target, // Store the recipient for display
         };
+
+        // Mark this message ID as processed to prevent duplicates
+        if (mtags?.msgid) {
+          useStore.setState((state) => ({
+            processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+          }));
+        }
 
         useStore.getState().addMessage(newMessage);
 
@@ -2780,6 +2832,13 @@ ircClient.on("USERMSG", (response) => {
         });
       }
 
+      // Mark this message ID as processed to prevent duplicates
+      if (mtags?.msgid) {
+        useStore.setState((state) => ({
+          processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+        }));
+      }
+
       useStore.getState().addMessage(newMessage);
 
       // Remove any typing users from the state
@@ -2869,6 +2928,15 @@ ircClient.on("USERMSG", (response) => {
 
 ircClient.on("CHANNNOTICE", (response) => {
   const { mtags, channelName, message, timestamp } = response;
+
+  // Check for duplicate messages based on msgid
+  if (mtags?.msgid) {
+    const currentState = useStore.getState();
+    if (currentState.processedMessageIds.has(mtags.msgid)) {
+      console.log(`Skipping duplicate CHANNNOTICE with msgid: ${mtags.msgid}`);
+      return;
+    }
+  }
 
   // Check if sender is ignored
   const globalSettings = useStore.getState().globalSettings;
@@ -2975,6 +3043,13 @@ ircClient.on("CHANNNOTICE", (response) => {
     jsonLogData, // Add parsed JSON log data
   };
 
+  // Mark this message ID as processed to prevent duplicates
+  if (mtags?.msgid) {
+    useStore.setState((state) => ({
+      processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+    }));
+  }
+
   useStore.getState().addMessage(newMessage);
 
   // Play notification sound if appropriate (but not for historical messages)
@@ -2998,6 +3073,15 @@ ircClient.on("CHANNNOTICE", (response) => {
 
 ircClient.on("USERNOTICE", (response) => {
   const { mtags, message, timestamp } = response;
+
+  // Check for duplicate messages based on msgid
+  if (mtags?.msgid) {
+    const currentState = useStore.getState();
+    if (currentState.processedMessageIds.has(mtags.msgid)) {
+      console.log(`Skipping duplicate USERNOTICE with msgid: ${mtags.msgid}`);
+      return;
+    }
+  }
 
   // Check if sender is ignored
   const globalSettings = useStore.getState().globalSettings;
@@ -3111,6 +3195,13 @@ ircClient.on("USERNOTICE", (response) => {
       tags: mtags,
       jsonLogData, // Add parsed JSON log data
     };
+
+    // Mark this message ID as processed to prevent duplicates
+    if (mtags?.msgid) {
+      useStore.setState((state) => ({
+        processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+      }));
+    }
 
     useStore.getState().addMessage(newMessage);
 
@@ -3323,7 +3414,7 @@ ircClient.on(
       // This is needed for users who join after we're already in the channel
       setTimeout(() => {
         useStore.getState().metadataList(serverId, username);
-      }, 100);
+      }, 1000);
 
       return { servers: updatedServers };
     });
