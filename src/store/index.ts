@@ -2396,7 +2396,10 @@ ircClient.on("CHANMSG", (response) => {
       // Mark this message ID as processed to prevent duplicates
       if (mtags?.msgid) {
         useStore.setState((state) => ({
-          processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+          processedMessageIds: new Set([
+            ...state.processedMessageIds,
+            mtags.msgid,
+          ]),
         }));
       }
 
@@ -2423,9 +2426,13 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
   // Check for duplicate messages based on messageIds
   if (messageIds && messageIds.length > 0) {
     const currentState = useStore.getState();
-    const hasDuplicate = messageIds.some(id => currentState.processedMessageIds.has(id));
+    const hasDuplicate = messageIds.some((id) =>
+      currentState.processedMessageIds.has(id),
+    );
     if (hasDuplicate) {
-      console.log(`Skipping duplicate multiline message with messageIds: ${messageIds.join(', ')}`);
+      console.log(
+        `Skipping duplicate multiline message with messageIds: ${messageIds.join(", ")}`,
+      );
       return;
     }
   }
@@ -2502,7 +2509,10 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       // Mark these message IDs as processed to prevent duplicates
       if (messageIds && messageIds.length > 0) {
         useStore.setState((state) => ({
-          processedMessageIds: new Set([...state.processedMessageIds, ...messageIds]),
+          processedMessageIds: new Set([
+            ...state.processedMessageIds,
+            ...messageIds,
+          ]),
         }));
       }
 
@@ -2731,7 +2741,10 @@ ircClient.on("USERMSG", (response) => {
         // Mark this message ID as processed to prevent duplicates
         if (mtags?.msgid) {
           useStore.setState((state) => ({
-            processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+            processedMessageIds: new Set([
+              ...state.processedMessageIds,
+              mtags.msgid,
+            ]),
           }));
         }
 
@@ -2835,7 +2848,10 @@ ircClient.on("USERMSG", (response) => {
       // Mark this message ID as processed to prevent duplicates
       if (mtags?.msgid) {
         useStore.setState((state) => ({
-          processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+          processedMessageIds: new Set([
+            ...state.processedMessageIds,
+            mtags.msgid,
+          ]),
         }));
       }
 
@@ -3199,7 +3215,10 @@ ircClient.on("USERNOTICE", (response) => {
     // Mark this message ID as processed to prevent duplicates
     if (mtags?.msgid) {
       useStore.setState((state) => ({
-        processedMessageIds: new Set([...state.processedMessageIds, mtags.msgid]),
+        processedMessageIds: new Set([
+          ...state.processedMessageIds,
+          mtags.msgid,
+        ]),
       }));
     }
 
