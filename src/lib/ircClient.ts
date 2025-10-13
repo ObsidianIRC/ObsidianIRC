@@ -572,7 +572,7 @@ export class IRCClient {
       if (existing) return existing;
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
-      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
 
       const channel: Channel = {
         id: uuidv4(),

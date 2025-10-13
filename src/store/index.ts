@@ -1433,7 +1433,7 @@ const useStore = create<AppState>((set, get) => ({
 
         // Request chathistory for this PM (if server supports it)
         setTimeout(() => {
-          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 100`);
+          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 50`);
         }, 50);
 
         // Check if we already have user info from channels
@@ -1539,7 +1539,7 @@ const useStore = create<AppState>((set, get) => ({
 
       // Request chathistory for this new PM (if server supports it)
       setTimeout(() => {
-        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 100`);
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 50`);
       }, 50);
 
       // Only request WHO if we don't already have complete user info
@@ -3478,7 +3478,7 @@ ircClient.on(
         }));
 
         // Request CHATHISTORY for the new channel
-        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
 
         // Trigger event to notify store that history loading started
         ircClient.triggerEvent("CHATHISTORY_LOADING", {
@@ -3511,7 +3511,7 @@ ircClient.on(
         }));
 
         // Request CHATHISTORY for the existing channel
-        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
 
         // Trigger event to notify store that history loading started
         ircClient.triggerEvent("CHATHISTORY_LOADING", {
@@ -4018,7 +4018,7 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     // Request chathistory for each pinned PM
     setTimeout(() => {
       for (const { username } of sortedPinnedChats) {
-        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 100`);
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 50`);
       }
     }, 50);
 
