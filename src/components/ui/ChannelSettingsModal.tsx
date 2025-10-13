@@ -5,8 +5,8 @@ import { FaEdit, FaPlus, FaSpinner, FaTimes, FaTrash } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import { hasOpPermission } from "../../lib/ircUtils";
 import useStore, { serverSupportsMetadata } from "../../store";
-import AvatarUpload from "./AvatarUpload";
 import type { Channel } from "../../types";
+import AvatarUpload from "./AvatarUpload";
 
 interface ChannelSettingsModalProps {
   isOpen: boolean;
@@ -573,8 +573,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                 <p className="text-xs text-discord-text-muted mb-2">
                   {server?.filehost
                     ? "Upload an image or provide a URL with optional {size} substitution for dynamic sizing"
-                    : "URL with optional {size} substitution for dynamic sizing. Example: https://example.com/avatar/{size}/channel.jpg"
-                  }
+                    : "URL with optional {size} substitution for dynamic sizing. Example: https://example.com/avatar/{size}/channel.jpg"}
                 </p>
                 {server?.filehost ? (
                   <AvatarUpload

@@ -1,8 +1,8 @@
-import type React from 'react';
-import { useRef, useState } from 'react';
-import { FaUpload, FaSpinner, FaTimes } from 'react-icons/fa';
-import ircClient from '../../lib/ircClient';
-import useStore from '../../store';
+import type React from "react";
+import { useRef, useState } from "react";
+import { FaSpinner, FaTimes, FaUpload } from "react-icons/fa";
+import ircClient from "../../lib/ircClient";
+import useStore from "../../store";
 
 interface AvatarUploadProps {
   currentAvatarUrl?: string;
@@ -17,7 +17,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
   onAvatarUrlChange,
   serverId,
   channelName,
-  className = '',
+  className = "",
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -26,7 +26,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
   const { servers } = useStore();
 
-  const server = servers.find(s => s.id === serverId);
+  const server = servers.find((s) => s.id === serverId);
   const filehostUrl = server?.filehost;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,14 +34,14 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setUploadError('Please select an image file');
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please select an image file");
       return;
     }
 
     // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError('File size must be less than 5MB');
+      setUploadError("File size must be less than 5MB");
       return;
     }
 
@@ -69,34 +69,36 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
       let jwtToken = server?.jwtToken;
       if (!jwtToken) {
         // Request JWT token from IRC server
-        console.log('🔑 Requesting JWT token for avatar upload');
+        console.log("🔑 Requesting JWT token for avatar upload");
         ircClient.requestExtJwt(serverId, "*", "filehost");
 
         // Wait for token
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        const updatedServer = useStore.getState().servers.find(s => s.id === serverId);
+        const updatedServer = useStore
+          .getState()
+          .servers.find((s) => s.id === serverId);
         jwtToken = updatedServer?.jwtToken;
 
         if (!jwtToken) {
-          throw new Error('Failed to obtain JWT token for avatar upload');
+          throw new Error("Failed to obtain JWT token for avatar upload");
         }
       }
 
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append("image", file);
 
       // Determine upload endpoint
       const endpoint = channelName
         ? `/upload/avatar/channel/${encodeURIComponent(channelName)}`
-        : '/upload/avatar/user';
+        : "/upload/avatar/user";
 
       const uploadUrl = `${filehostUrl}${endpoint}`;
 
-      console.log('🔄 Avatar upload: Starting upload to', uploadUrl);
+      console.log("🔄 Avatar upload: Starting upload to", uploadUrl);
 
       const response = await fetch(uploadUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `Bearer ${jwtToken}`,
         },
@@ -104,22 +106,24 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Upload failed: ${response.status} ${response.statusText}`,
+        );
       }
 
       const data = await response.json();
-      console.log('📡 Avatar upload response:', data);
+      console.log("📡 Avatar upload response:", data);
 
       if (data.saved_url) {
         const fullUrl = `${filehostUrl}${data.saved_url}`;
         onAvatarUrlChange(fullUrl);
         setPreviewUrl(null); // Clear preview since we have the uploaded URL
       } else {
-        throw new Error('Invalid response: no saved_url');
+        throw new Error("Invalid response: no saved_url");
       }
     } catch (error) {
-      console.error('Avatar upload error:', error);
-      setUploadError(error instanceof Error ? error.message : 'Upload failed');
+      console.error("Avatar upload error:", error);
+      setUploadError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setIsUploading(false);
     }
@@ -133,7 +137,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     setPreviewUrl(null);
     setUploadError(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -142,7 +146,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     return (
       <input
         type="url"
-        value={currentAvatarUrl || ''}
+        value={currentAvatarUrl || ""}
         onChange={(e) => onAvatarUrlChange(e.target.value)}
         placeholder="https://example.com/avatar.jpg"
         className={`w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary ${className}`}
@@ -159,12 +163,8 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
           disabled={isUploading}
           className="flex items-center gap-2 px-3 py-2 bg-discord-primary hover:bg-discord-primary-hover text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isUploading ? (
-            <FaSpinner className="animate-spin" />
-          ) : (
-            <FaUpload />
-          )}
-          {isUploading ? 'Uploading...' : 'Upload Avatar'}
+          {isUploading ? <FaSpinner className="animate-spin" /> : <FaUpload />}
+          {isUploading ? "Uploading..." : "Upload Avatar"}
         </button>
 
         {(previewUrl || currentAvatarUrl) && (
@@ -187,9 +187,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         className="hidden"
       />
 
-      {uploadError && (
-        <p className="text-red-400 text-sm">{uploadError}</p>
-      )}
+      {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
 
       {(previewUrl || currentAvatarUrl) && (
         <div className="flex items-center gap-3">
@@ -198,11 +196,11 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
             alt="Avatar preview"
             className="w-16 h-16 rounded-full object-cover border-2 border-discord-dark-300"
             onError={(e) => {
-              e.currentTarget.style.display = 'none';
+              e.currentTarget.style.display = "none";
             }}
           />
           <div className="text-sm text-discord-text-muted">
-            {previewUrl ? 'Preview (not yet uploaded)' : 'Current avatar'}
+            {previewUrl ? "Preview (not yet uploaded)" : "Current avatar"}
           </div>
         </div>
       )}

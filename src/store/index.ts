@@ -3333,8 +3333,10 @@ ircClient.on(
     if (username === ourNick) {
       const currentState = useStore.getState();
       const serverData = currentState.servers.find((s) => s.id === serverId);
-      const channelData = serverData?.channels.find((c) => c.name === channelName);
-      
+      const channelData = serverData?.channels.find(
+        (c) => c.name === channelName,
+      );
+
       if (!channelData) {
         // Channel doesn't exist in store, create it (similar to joinChannel)
         const newChannel = {
@@ -3350,7 +3352,7 @@ ircClient.on(
           isLoadingHistory: true, // Start in loading state
           needsWhoRequest: true, // Need to request WHO after CHATHISTORY completes
         };
-        
+
         // Add channel to store
         useStore.setState((state) => ({
           servers: state.servers.map((server) => {
@@ -3363,10 +3365,10 @@ ircClient.on(
             return server;
           }),
         }));
-        
+
         // Request CHATHISTORY for the new channel
         ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-        
+
         // Trigger event to notify store that history loading started
         ircClient.triggerEvent("CHATHISTORY_LOADING", {
           serverId,
@@ -3382,7 +3384,11 @@ ircClient.on(
                 ...server,
                 channels: server.channels.map((channel) => {
                   if (channel.name === channelName) {
-                    return { ...channel, isLoadingHistory: true, needsWhoRequest: true };
+                    return {
+                      ...channel,
+                      isLoadingHistory: true,
+                      needsWhoRequest: true,
+                    };
                   }
                   return channel;
                 }),
@@ -3391,10 +3397,10 @@ ircClient.on(
             return server;
           }),
         }));
-        
+
         // Request CHATHISTORY for the existing channel
         ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
-        
+
         // Trigger event to notify store that history loading started
         ircClient.triggerEvent("CHATHISTORY_LOADING", {
           serverId,
@@ -3409,8 +3415,10 @@ ircClient.on(
       // Find the channel in the store
       const currentState = useStore.getState();
       const serverData = currentState.servers.find((s) => s.id === serverId);
-      const channelData = serverData?.channels.find((c) => c.name === channelName);
-      
+      const channelData = serverData?.channels.find(
+        (c) => c.name === channelName,
+      );
+
       if (channelData?.isLoadingHistory) {
         // CHATHISTORY is still loading, defer WHO request until it completes
         useStore.setState((state) => ({
@@ -4797,7 +4805,7 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
         useStore.setState((state) => {
           // Check if warning already exists for this server
           const existingWarning = state.ui.linkSecurityWarnings.find(
-            (w) => w.serverId === serverId
+            (w) => w.serverId === serverId,
           );
           if (existingWarning) {
             return state; // Don't add duplicate warning
@@ -6196,12 +6204,12 @@ ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
         const updatedChannels = server.channels.map((channel) => {
           if (channel.name.toLowerCase() === channelName.toLowerCase()) {
             const updatedChannel = { ...channel, isLoadingHistory: isLoading };
-            
+
             // If loading just completed and we need to send WHO, do it now
             if (!isLoading && channel.needsWhoRequest) {
               // Send WHO request now that CHATHISTORY is done
               ircClient.sendRaw(serverId, `WHO ${channelName} %cuhnfaro`);
-              
+
               // Request channel metadata if server supports it
               if (serverSupportsMetadata(serverId)) {
                 setTimeout(() => {
@@ -6211,11 +6219,11 @@ ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
                   ]);
                 }, 100);
               }
-              
+
               // Clear the flag
               updatedChannel.needsWhoRequest = false;
             }
-            
+
             return updatedChannel;
           }
           return channel;

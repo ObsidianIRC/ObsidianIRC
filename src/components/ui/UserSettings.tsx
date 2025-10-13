@@ -419,12 +419,9 @@ const UserSettings: React.FC = React.memo(() => {
     [],
   );
 
-  const handleAvatarUrlChange = useCallback(
-    (url: string) => {
-      setAvatar(url);
-    },
-    [],
-  );
+  const handleAvatarUrlChange = useCallback((url: string) => {
+    setAvatar(url);
+  }, []);
 
   const handleHomepageChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
