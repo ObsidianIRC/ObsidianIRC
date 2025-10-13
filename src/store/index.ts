@@ -3328,22 +3328,122 @@ ircClient.on(
       return { servers: updatedServers };
     });
 
-    // If we joined a channel, request channel information
+    // If we joined a channel that doesn't exist in the store yet, create it
     const ourNick = ircClient.getNick(serverId);
     if (username === ourNick) {
-      // Request topic and user list with WHOX to get account information
-      ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
-      // Use WHOX to get user info: c=channel, u=username, h=hostname, n=nickname, f=flags, a=account, r=realname, o=op level
-      ircClient.sendRaw(serverId, `WHO ${channelName} %cuhnfaro`);
+      const currentState = useStore.getState();
+      const serverData = currentState.servers.find((s) => s.id === serverId);
+      const channelData = serverData?.channels.find((c) => c.name === channelName);
+      
+      if (!channelData) {
+        // Channel doesn't exist in store, create it (similar to joinChannel)
+        const newChannel = {
+          id: uuidv4(),
+          name: channelName,
+          topic: "",
+          isPrivate: false,
+          serverId,
+          unreadCount: 0,
+          isMentioned: false,
+          messages: [],
+          users: [],
+          isLoadingHistory: true, // Start in loading state
+          needsWhoRequest: true, // Need to request WHO after CHATHISTORY completes
+        };
+        
+        // Add channel to store
+        useStore.setState((state) => ({
+          servers: state.servers.map((server) => {
+            if (server.id === serverId) {
+              return {
+                ...server,
+                channels: [...server.channels, newChannel],
+              };
+            }
+            return server;
+          }),
+        }));
+        
+        // Request CHATHISTORY for the new channel
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+        
+        // Trigger event to notify store that history loading started
+        ircClient.triggerEvent("CHATHISTORY_LOADING", {
+          serverId,
+          channelName,
+          isLoading: true,
+        });
+      } else if (!channelData.isLoadingHistory) {
+        // Channel exists but CHATHISTORY hasn't been requested yet, request it
+        useStore.setState((state) => ({
+          servers: state.servers.map((server) => {
+            if (server.id === serverId) {
+              return {
+                ...server,
+                channels: server.channels.map((channel) => {
+                  if (channel.name === channelName) {
+                    return { ...channel, isLoadingHistory: true, needsWhoRequest: true };
+                  }
+                  return channel;
+                }),
+              };
+            }
+            return server;
+          }),
+        }));
+        
+        // Request CHATHISTORY for the existing channel
+        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 100`);
+        
+        // Trigger event to notify store that history loading started
+        ircClient.triggerEvent("CHATHISTORY_LOADING", {
+          serverId,
+          channelName,
+          isLoading: true,
+        });
+      }
+    }
 
-      // Request channel metadata if server supports it
-      if (serverSupportsMetadata(serverId)) {
-        setTimeout(() => {
-          ircClient.metadataGet(serverId, channelName, [
-            "avatar",
-            "display-name",
-          ]);
-        }, 100);
+    // If we joined a channel, request channel information
+    if (username === ourNick) {
+      // Find the channel in the store
+      const currentState = useStore.getState();
+      const serverData = currentState.servers.find((s) => s.id === serverId);
+      const channelData = serverData?.channels.find((c) => c.name === channelName);
+      
+      if (channelData?.isLoadingHistory) {
+        // CHATHISTORY is still loading, defer WHO request until it completes
+        useStore.setState((state) => ({
+          servers: state.servers.map((server) => {
+            if (server.id === serverId) {
+              return {
+                ...server,
+                channels: server.channels.map((channel) => {
+                  if (channel.name === channelName) {
+                    return { ...channel, needsWhoRequest: true };
+                  }
+                  return channel;
+                }),
+              };
+            }
+            return server;
+          }),
+        }));
+      } else {
+        // Request topic and user list with WHOX to get account information
+        ircClient.sendRaw(serverId, `TOPIC ${channelName}`);
+        // Use WHOX to get user info: c=channel, u=username, h=hostname, n=nickname, f=flags, a=account, r=realname, o=op level
+        ircClient.sendRaw(serverId, `WHO ${channelName} %cuhnfaro`);
+
+        // Request channel metadata if server supports it
+        if (serverSupportsMetadata(serverId)) {
+          setTimeout(() => {
+            ircClient.metadataGet(serverId, channelName, [
+              "avatar",
+              "display-name",
+            ]);
+          }, 100);
+        }
       }
     }
 
@@ -4694,15 +4794,25 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
         hasLowLinkSecurity && !serverConfig?.skipLinkSecurityWarning;
 
       if (shouldWarnLocalhost || shouldWarnLinkSecurity) {
-        useStore.setState((state) => ({
-          ui: {
-            ...state.ui,
-            linkSecurityWarnings: [
-              ...state.ui.linkSecurityWarnings,
-              { serverId, timestamp: Date.now() },
-            ],
-          },
-        }));
+        useStore.setState((state) => {
+          // Check if warning already exists for this server
+          const existingWarning = state.ui.linkSecurityWarnings.find(
+            (w) => w.serverId === serverId
+          );
+          if (existingWarning) {
+            return state; // Don't add duplicate warning
+          }
+
+          return {
+            ui: {
+              ...state.ui,
+              linkSecurityWarnings: [
+                ...state.ui.linkSecurityWarnings,
+                { serverId, timestamp: Date.now() },
+              ],
+            },
+          };
+        });
       }
     }
   }
@@ -6085,7 +6195,28 @@ ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
       if (server.id === serverId) {
         const updatedChannels = server.channels.map((channel) => {
           if (channel.name.toLowerCase() === channelName.toLowerCase()) {
-            return { ...channel, isLoadingHistory: isLoading };
+            const updatedChannel = { ...channel, isLoadingHistory: isLoading };
+            
+            // If loading just completed and we need to send WHO, do it now
+            if (!isLoading && channel.needsWhoRequest) {
+              // Send WHO request now that CHATHISTORY is done
+              ircClient.sendRaw(serverId, `WHO ${channelName} %cuhnfaro`);
+              
+              // Request channel metadata if server supports it
+              if (serverSupportsMetadata(serverId)) {
+                setTimeout(() => {
+                  ircClient.metadataGet(serverId, channelName, [
+                    "avatar",
+                    "display-name",
+                  ]);
+                }, 100);
+              }
+              
+              // Clear the flag
+              updatedChannel.needsWhoRequest = false;
+            }
+            
+            return updatedChannel;
           }
           return channel;
         });

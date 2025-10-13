@@ -418,7 +418,7 @@ const LinkSecurityWarningModal: React.FC = () => {
     <>
       {linkSecurityWarnings.map((warning) => (
         <SingleWarningModal
-          key={warning.serverId}
+          key={`${warning.serverId}-${warning.timestamp}`}
           serverId={warning.serverId}
           timestamp={warning.timestamp}
         />

@@ -62,6 +62,7 @@ export interface Channel {
   users: User[];
   isRead?: boolean;
   isLoadingHistory?: boolean;
+  needsWhoRequest?: boolean;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
   modes?: string;
   modeArgs?: string[];

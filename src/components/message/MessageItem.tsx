@@ -1,6 +1,6 @@
+import exifr from "exifr";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import exifr from "exifr";
 import ircClient from "../../lib/ircClient";
 import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
@@ -26,72 +26,94 @@ import {
 // Function to extract JPEG COM (comment) marker data
 function extractJpegComment(uint8Array: Uint8Array): string | null {
   // JPEG files start with 0xFF 0xD8 (SOI marker)
-  if (uint8Array.length < 4 || uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8) {
+  if (
+    uint8Array.length < 4 ||
+    uint8Array[0] !== 0xff ||
+    uint8Array[1] !== 0xd8
+  ) {
     return null;
   }
-  
+
   let offset = 2;
-  
+
   while (offset < uint8Array.length - 1) {
     // Look for marker (starts with 0xFF)
-    if (uint8Array[offset] !== 0xFF) {
+    if (uint8Array[offset] !== 0xff) {
       break;
     }
-    
+
     const marker = uint8Array[offset + 1];
     const markerLength = (uint8Array[offset + 2] << 8) | uint8Array[offset + 3];
-    
+
     // COM marker is 0xFE
-    if (marker === 0xFE) {
+    if (marker === 0xfe) {
       // Extract comment data (skip the 2-byte length field)
-      const commentData = uint8Array.slice(offset + 4, offset + markerLength + 2);
+      const commentData = uint8Array.slice(
+        offset + 4,
+        offset + markerLength + 2,
+      );
       // Convert to string, assuming UTF-8
       try {
-        return new TextDecoder('utf-8').decode(commentData);
+        return new TextDecoder("utf-8").decode(commentData);
       } catch (e) {
         // Try latin1 if UTF-8 fails
         return String.fromCharCode.apply(null, Array.from(commentData));
       }
     }
-    
+
     // Move to next marker
     offset += markerLength + 2;
-    
+
     // SOS marker (0xDA) indicates start of scan data - comments usually come before this
-    if (marker === 0xDA) {
+    if (marker === 0xda) {
       break;
     }
   }
-  
+
   return null;
 }
 
 // Component to display banner overlay for filehost images
-const FilehostImageBanner: React.FC<{ exifData: { author?: string; jwt_expiry?: string; server_expiry?: string }; serverId?: string; onOpenProfile?: (username: string) => void }> = ({ exifData, serverId, onOpenProfile }) => {
+const FilehostImageBanner: React.FC<{
+  exifData: { author?: string; jwt_expiry?: string; server_expiry?: string };
+  serverId?: string;
+  onOpenProfile?: (username: string) => void;
+}> = ({ exifData, serverId, onOpenProfile }) => {
   const currentUser = serverId ? ircClient.getCurrentUser(serverId) : null;
-  
+
   if (!exifData.author) return null;
-  
-  const [ircNick, ircAccount] = exifData.author.split(':');
-  const isVerified = currentUser?.account && ircAccount !== '0' && currentUser.account.toLowerCase() === ircAccount.toLowerCase();
-  
+
+  const [ircNick, ircAccount] = exifData.author.split(":");
+  const isVerified =
+    currentUser?.account &&
+    ircAccount !== "0" &&
+    currentUser.account.toLowerCase() === ircAccount.toLowerCase();
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the image click
     if (onOpenProfile) {
       onOpenProfile(ircNick);
     }
   };
-  
+
   return (
-    <div 
+    <div
       className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-b-lg flex items-center cursor-pointer hover:bg-opacity-90 transition-opacity"
       onClick={handleClick}
     >
       <div className="flex items-center gap-1">
         <span>{ircNick}</span>
         {isVerified && (
-          <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          <svg
+            className="w-3 h-3 text-green-400"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+              clipRule="evenodd"
+            />
           </svg>
         )}
       </div>
@@ -100,11 +122,20 @@ const FilehostImageBanner: React.FC<{ exifData: { author?: string; jwt_expiry?: 
 };
 
 // Component to render image with fallback to URL if loading fails
-const ImageWithFallback: React.FC<{ url: string; isFilehostImage?: boolean; serverId?: string; onOpenProfile?: (username: string) => void }> = ({ url, isFilehostImage = false, serverId, onOpenProfile }) => {
+const ImageWithFallback: React.FC<{
+  url: string;
+  isFilehostImage?: boolean;
+  serverId?: string;
+  onOpenProfile?: (username: string) => void;
+}> = ({ url, isFilehostImage = false, serverId, onOpenProfile }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
-  const [exifData, setExifData] = useState<{ author?: string; jwt_expiry?: string; server_expiry?: string } | null>(null);
+  const [exifData, setExifData] = useState<{
+    author?: string;
+    jwt_expiry?: string;
+    server_expiry?: string;
+  } | null>(null);
   const [exifError, setExifError] = useState(false);
 
   // Simple in-memory cache for images per session
@@ -166,9 +197,9 @@ const ImageWithFallback: React.FC<{ url: string; isFilehostImage?: boolean; serv
             throw new Error(`HTTP ${response.status}`);
           }
           const blob = await response.blob();
-          
+
           const exif = await exifr.parse(blob);
-          
+
           // Try to find the Comment field in various places
           let commentData = null;
           if (exif?.Comment) {
@@ -182,7 +213,7 @@ const ImageWithFallback: React.FC<{ url: string; isFilehostImage?: boolean; serv
           } else if (exif?.xmp?.description) {
             commentData = exif.xmp.description;
           }
-          
+
           // If no comment found in standard EXIF, try to manually parse JPEG COM markers
           if (!commentData) {
             try {
@@ -193,7 +224,7 @@ const ImageWithFallback: React.FC<{ url: string; isFilehostImage?: boolean; serv
               console.warn("Failed to manually parse JPEG comment:", error);
             }
           }
-          
+
           if (commentData) {
             try {
               const parsedData = JSON.parse(commentData);
@@ -203,11 +234,19 @@ const ImageWithFallback: React.FC<{ url: string; isFilehostImage?: boolean; serv
                 server_expiry: parsedData.server_expiry,
               });
             } catch (parseError) {
-              console.warn("Failed to parse EXIF Comment JSON:", parseError, "Raw data:", commentData);
+              console.warn(
+                "Failed to parse EXIF Comment JSON:",
+                parseError,
+                "Raw data:",
+                commentData,
+              );
               setExifError(true);
             }
           } else {
-            console.warn("No Comment field found in EXIF data. Available fields:", Object.keys(exif || {}));
+            console.warn(
+              "No Comment field found in EXIF data. Available fields:",
+              Object.keys(exif || {}),
+            );
             // Log the full exif object for debugging
             console.warn("Full EXIF data:", exif);
             setExifError(true);
@@ -266,7 +305,11 @@ const ImageWithFallback: React.FC<{ url: string; isFilehostImage?: boolean; serv
           style={{ maxHeight: "150px" }}
         />
         {isFilehostImage && exifData && (
-          <FilehostImageBanner exifData={exifData} serverId={serverId} onOpenProfile={onOpenProfile} />
+          <FilehostImageBanner
+            exifData={exifData}
+            serverId={serverId}
+            onOpenProfile={onOpenProfile}
+          />
         )}
       </div>
     </div>
@@ -627,7 +670,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
               {isImageUrl || isGifUrl ? (
-                <ImageWithFallback url={message.content} isFilehostImage={isImageUrl} serverId={message.serverId} onOpenProfile={onOpenProfile} />
+                <ImageWithFallback
+                  url={message.content}
+                  isFilehostImage={isImageUrl}
+                  serverId={message.serverId}
+                  onOpenProfile={onOpenProfile}
+                />
               ) : (
                 <div
                   className="overflow-hidden"

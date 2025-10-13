@@ -5,6 +5,7 @@ import { FaEdit, FaPlus, FaSpinner, FaTimes, FaTrash } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import { hasOpPermission } from "../../lib/ircUtils";
 import useStore, { serverSupportsMetadata } from "../../store";
+import AvatarUpload from "./AvatarUpload";
 import type { Channel } from "../../types";
 
 interface ChannelSettingsModalProps {
@@ -567,34 +568,46 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {/* Channel Avatar */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
-                  Channel Avatar URL
+                  Channel Avatar
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  URL with optional &#123;size&#125; substitution for dynamic
-                  sizing. Example:
-                  https://example.com/avatar/&#123;size&#125;/channel.jpg
+                  {server?.filehost
+                    ? "Upload an image or provide a URL with optional {size} substitution for dynamic sizing"
+                    : "URL with optional {size} substitution for dynamic sizing. Example: https://example.com/avatar/{size}/channel.jpg"
+                  }
                 </p>
-                <input
-                  type="text"
-                  value={channelAvatar}
-                  onChange={(e) => setChannelAvatar(e.target.value)}
-                  placeholder="https://example.com/avatar/{size}/channel.jpg"
-                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
-                />
-                {channelAvatar && (
-                  <div className="mt-2">
-                    <p className="text-xs text-discord-text-muted mb-1">
-                      Preview:
-                    </p>
-                    <img
-                      src={channelAvatar.replace("{size}", "64")}
-                      alt="Channel avatar preview"
-                      className="w-16 h-16 rounded-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
+                {server?.filehost ? (
+                  <AvatarUpload
+                    currentAvatarUrl={channelAvatar}
+                    onAvatarUrlChange={setChannelAvatar}
+                    serverId={serverId}
+                    channelName={channelName}
+                  />
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={channelAvatar}
+                      onChange={(e) => setChannelAvatar(e.target.value)}
+                      placeholder="https://example.com/avatar/{size}/channel.jpg"
+                      className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                     />
-                  </div>
+                    {channelAvatar && (
+                      <div className="mt-2">
+                        <p className="text-xs text-discord-text-muted mb-1">
+                          Preview:
+                        </p>
+                        <img
+                          src={channelAvatar.replace("{size}", "64")}
+                          alt="Channel avatar preview"
+                          className="w-16 h-16 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

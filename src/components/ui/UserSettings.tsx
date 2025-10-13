@@ -10,6 +10,7 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isValidIgnorePattern } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
 import useStore, { serverSupportsMetadata } from "../../store";
+import AvatarUpload from "./AvatarUpload";
 import UserProfileModal from "./UserProfileModal";
 
 type SettingsCategory = "profile" | "notifications" | "preferences" | "account";
@@ -414,6 +415,13 @@ const UserSettings: React.FC = React.memo(() => {
           avatarInputRef.current?.focus();
         }
       }, 0);
+    },
+    [],
+  );
+
+  const handleAvatarUrlChange = useCallback(
+    (url: string) => {
+      setAvatar(url);
     },
     [],
   );
@@ -869,18 +877,26 @@ const UserSettings: React.FC = React.memo(() => {
           </SettingField>
 
           <SettingField
-            label="Avatar URL"
-            description="A link to your profile picture (supports common image formats)"
+            label="Avatar"
+            description="Your profile picture (upload an image or provide a URL)"
           >
-            <input
-              key="avatar-input"
-              ref={avatarInputRef}
-              type="url"
-              value={avatar}
-              onChange={handleAvatarChange}
-              placeholder="https://example.com/avatar.jpg"
-              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-            />
+            {currentServer?.filehost ? (
+              <AvatarUpload
+                currentAvatarUrl={avatar}
+                onAvatarUrlChange={handleAvatarUrlChange}
+                serverId={currentServer.id}
+              />
+            ) : (
+              <input
+                key="avatar-input"
+                ref={avatarInputRef}
+                type="url"
+                value={avatar}
+                onChange={handleAvatarChange}
+                placeholder="https://example.com/avatar.jpg"
+                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+              />
+            )}
           </SettingField>
 
           <SettingField

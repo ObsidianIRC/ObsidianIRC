@@ -96,10 +96,10 @@ This backend uses multiple authentication methods:
 Upload an image using one of three methods. All methods return the same response format.
 
 **Image Processing:** All uploaded images are automatically processed:
-- Resized to fit within 1080p resolution (1920x1080 max)
-- Converted to JPEG format
+- Resized to fit within 1080p resolution (1920x1080 max) when compression is enabled
+- Converted to JPEG format when needed
 - All existing EXIF data is stripped for privacy
-- Custom EXIF data is added containing the uploader's account name and expiration timestamp
+- Custom metadata is added as JPEG comments containing the uploader's nick:account and expiration timestamps
 
 #### Method 1: JSON URL Upload
 Perfect for importing images from external sources.
@@ -203,6 +203,84 @@ All uploaded images are **automatically deleted 2 minutes** after upload. This e
 ```
 Image expired or doesn't exist
 ```
+
+## Avatar Uploads
+
+Upload permanent avatar images for users and channels. Unlike regular image uploads, avatars are **never automatically deleted** and only one avatar per user/channel is allowed.
+
+### User Avatars
+
+Upload a permanent avatar for your IRC account.
+
+**Endpoint:** `POST /upload/avatar/user`
+
+**Requirements:**
+- Valid JWT token required
+- `account` field must be present in JWT
+- Only one avatar per account (old avatars are automatically replaced)
+
+**Request:**
+```bash
+curl -X POST http://localhost:8080/upload/avatar/user \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "image=@avatar.jpg"
+```
+
+**Response:**
+```json
+{
+  "saved_url": "/images/avatar_user_testnick_1759624622919675760.jpg"
+}
+```
+
+### Channel Avatars
+
+Upload a permanent avatar for an IRC channel.
+
+**Endpoint:** `POST /upload/avatar/channel/{channel}`
+
+**Requirements:**
+- Valid JWT token required
+- `account` field must be present in JWT
+- User must have channel operator (`o`), admin (`a`), or owner (`q`) permissions
+- Only one avatar per channel (old avatars are automatically replaced)
+
+**Request:**
+```bash
+curl -X POST http://localhost:8080/upload/avatar/channel/#mychannel \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "image=@channel-avatar.jpg"
+```
+
+**Response:**
+```json
+{
+  "saved_url": "/images/avatar_channel_#mychannel_1759624622919675760.jpg"
+}
+```
+
+**Permission Error:**
+```json
+{
+  "error": "Channel operator/admin/owner permission required"
+}
+```
+
+### Avatar Image Processing
+
+Avatars undergo the same processing as regular uploads:
+- Resized to fit within configured dimensions when compression is enabled
+- Converted to JPEG format when needed
+- All existing EXIF data is stripped for privacy
+- Custom metadata is added as JPEG comments containing the uploader's nick:account and permanent timestamps
+
+### Avatar Lifecycle
+
+```
+Upload → Stored Permanently → Replaced on next upload
+```
+
+Avatars are **never automatically deleted** but are replaced when the same user/channel uploads a new avatar.
 
 ## JWT Authentication for IRC Clients
 
@@ -649,6 +727,11 @@ curl -I http://localhost:8080/images/{filename_from_response}  # Should return 4
 | `UNREALIRCD_WS_URL` | `wss://127.0.0.1:8600/` | IRC server WebSocket URL |
 | `UNREALIRCD_API_USERNAME` | `adminpanel` | IRC API username |
 | `UNREALIRCD_API_PASSWORD` | `password` | IRC API password |
+| `IMAGE_COMPRESSION_ENABLED` | `false` | Enable image compression and resizing |
+| `IMAGE_MAX_WIDTH` | `1920` | Maximum width for compressed images |
+| `IMAGE_MAX_HEIGHT` | `1080` | Maximum height for compressed images |
+| `IMAGE_JPEG_QUALITY` | `85` | JPEG quality (1-100) when converting to JPEG |
+| `IMAGE_CONVERT_TO_JPEG` | `false` | Force conversion of all images to JPEG format |
 
 ### Example .env file
 
@@ -662,6 +745,11 @@ PASSWORD_SALT_SIZE=32
 UNREALIRCD_WS_URL=wss://127.0.0.1:8600/
 UNREALIRCD_API_USERNAME=adminpanel
 UNREALIRCD_API_PASSWORD=password
+IMAGE_COMPRESSION_ENABLED=false
+IMAGE_MAX_WIDTH=1920
+IMAGE_MAX_HEIGHT=1080
+IMAGE_JPEG_QUALITY=85
+IMAGE_CONVERT_TO_JPEG=false
 ```
 
 ### Currently configurable values:
@@ -672,6 +760,11 @@ UNREALIRCD_API_PASSWORD=password
 | Image deletion timeout | `DELETE_TIMEOUT_MINUTES` | `2 minutes` |
 | Max upload size | `MAX_UPLOAD_SIZE_MB` | `32MB` |
 | Password salt size | `PASSWORD_SALT_SIZE` | `32 bytes` |
+| Image compression | `IMAGE_COMPRESSION_ENABLED` | `false` |
+| Max image width | `IMAGE_MAX_WIDTH` | `1920px` |
+| Max image height | `IMAGE_MAX_HEIGHT` | `1080px` |
+| JPEG quality | `IMAGE_JPEG_QUALITY` | `85%` |
+| Force JPEG conversion | `IMAGE_CONVERT_TO_JPEG` | `false` |
 
 ## Example Use Cases
 
