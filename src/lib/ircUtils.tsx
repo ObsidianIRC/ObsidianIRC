@@ -66,7 +66,8 @@ export function parseIsupport(tokens: string): Record<string, string> {
   for (const token of tokenPairs) {
     const [key, value] = token.split("=");
     if (value) {
-      tokenMap[key] = value;
+      // Replace \x20 with actual space character
+      tokenMap[key] = value.replace(/\\x20/g, " ");
     } else {
       tokenMap[key] = ""; // empty string fallback
     }
