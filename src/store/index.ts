@@ -3351,6 +3351,7 @@ ircClient.on(
           users: [],
           isLoadingHistory: true, // Start in loading state
           needsWhoRequest: true, // Need to request WHO after CHATHISTORY completes
+          chathistoryRequested: true, // Mark that we've requested CHATHISTORY
         };
 
         // Add channel to store
@@ -3375,7 +3376,7 @@ ircClient.on(
           channelName,
           isLoading: true,
         });
-      } else if (!channelData.isLoadingHistory) {
+      } else if (!channelData.chathistoryRequested) {
         // Channel exists but CHATHISTORY hasn't been requested yet, request it
         useStore.setState((state) => ({
           servers: state.servers.map((server) => {
@@ -3388,6 +3389,7 @@ ircClient.on(
                       ...channel,
                       isLoadingHistory: true,
                       needsWhoRequest: true,
+                      chathistoryRequested: true,
                     };
                   }
                   return channel;

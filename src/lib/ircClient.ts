@@ -586,6 +586,7 @@ export class IRCClient {
         users: [],
         isLoadingHistory: true, // Start in loading state
         needsWhoRequest: true, // Need to request WHO after CHATHISTORY completes
+        chathistoryRequested: true, // Mark that we've requested CHATHISTORY
       };
       server.channels.push(channel);
 

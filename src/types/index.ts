@@ -63,6 +63,7 @@ export interface Channel {
   isRead?: boolean;
   isLoadingHistory?: boolean;
   needsWhoRequest?: boolean;
+  chathistoryRequested?: boolean;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
   modes?: string;
   modeArgs?: string[];
