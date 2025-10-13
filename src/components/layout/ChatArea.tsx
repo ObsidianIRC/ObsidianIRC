@@ -277,6 +277,17 @@ export const ChatArea: React.FC<{
     });
   };
 
+  // Handle setting reply and focusing input
+  const handleSetReplyTo = (message: MessageType | null) => {
+    setLocalReplyTo(message);
+    // Focus the input after setting reply
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 0);
+  };
+
   // Toggle notification sound volume
   const handleToggleNotificationVolume = async () => {
     const currentVolume = globalSettings.notificationVolume;
@@ -1509,7 +1520,7 @@ export const ChatArea: React.FC<{
                         ).toDateString()
                     }
                     showHeader={showHeader}
-                    setReplyTo={setLocalReplyTo}
+                    setReplyTo={handleSetReplyTo}
                     onUsernameContextMenu={(
                       e,
                       username,
