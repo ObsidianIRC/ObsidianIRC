@@ -418,9 +418,16 @@ export const ChannelList: React.FC<{
     <div className="h-full flex flex-col text-discord-channels-default">
       {/* Server header */}
       <div className="px-4 h-12 shadow-md flex items-center justify-between border-b border-discord-dark-400">
-        <h1 className="font-bold text-white truncate">
-          {selectedServer?.name || "Home"}
-        </h1>
+        <div className="flex flex-col min-w-0 flex-1">
+          <h1 className="font-bold text-white truncate">
+            {selectedServer?.networkName || selectedServer?.name || "Home"}
+          </h1>
+          {selectedServer?.networkName && selectedServer.name !== selectedServer.networkName && (
+            <div className="text-xs text-discord-channels-default truncate">
+              {selectedServer.name}
+            </div>
+          )}
+        </div>
         <button
           onClick={handleCollapseClick}
           className="text-discord-channels-default hover:text-white"

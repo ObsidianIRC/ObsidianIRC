@@ -1336,7 +1336,7 @@ export class IRCClient {
           if (key === "NETWORK") {
             const server = this.servers.get(serverId);
             if (server) {
-              server.name = value;
+              server.networkName = value;
               this.servers.set(serverId, server);
             }
           }

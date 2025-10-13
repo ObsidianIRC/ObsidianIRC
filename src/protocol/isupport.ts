@@ -25,7 +25,7 @@ export function registerISupportHandler(
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server: Server) => {
           if (server.id === serverId) {
-            return { ...server, name: value };
+            return { ...server, networkName: value };
           }
           return server;
         });

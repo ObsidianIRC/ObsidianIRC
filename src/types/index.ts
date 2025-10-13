@@ -17,6 +17,7 @@ export interface User {
 export interface Server {
   id: string;
   name: string;
+  networkName?: string; // Network name from ISUPPORT NETWORK token
   host: string;
   port: number;
   channels: Channel[];
