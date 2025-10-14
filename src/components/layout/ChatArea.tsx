@@ -556,9 +556,16 @@ export const ChatArea: React.FC<{
     // Check if we have a JWT token, request one if not
     let jwtToken = selectedServer?.jwtToken;
     if (!jwtToken) {
+      // Clear any existing JWT token to ensure we get a fresh one
+      useStore.setState((state) => ({
+        servers: state.servers.map((server) =>
+          server.id === selectedServerId ? { ...server, jwtToken: undefined } : server
+        ),
+      }));
+
       // Request JWT token from IRC server
       console.log(
-        '🔑 Requesting JWT token from IRC server for service "filehost"',
+        '🔑 Requesting fresh JWT token from IRC server for service "filehost"',
       );
       ircClient.requestExtJwt(selectedServerId, "*", "filehost");
 

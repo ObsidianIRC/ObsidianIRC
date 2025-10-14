@@ -65,24 +65,31 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     setUploadError(null);
 
     try {
-      // Get JWT token
-      let jwtToken = server?.jwtToken;
+      // Clear any existing JWT token to ensure we get a fresh one
+      useStore.setState((state) => ({
+        servers: state.servers.map((server) =>
+          server.id === serverId ? { ...server, jwtToken: undefined } : server
+        ),
+      }));
+
+      // Request a fresh JWT token with the correct target
+      const target = channelName || "*";
+      console.log(
+        "🔑 Requesting fresh JWT token for avatar upload, target:",
+        target,
+      );
+      ircClient.requestExtJwt(serverId, target, "filehost");
+
+      // Wait for token
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const updatedServer = useStore
+        .getState()
+        .servers.find((s) => s.id === serverId);
+      const jwtToken = updatedServer?.jwtToken;
+
       if (!jwtToken) {
-        // Request JWT token from IRC server
-        console.log("🔑 Requesting JWT token for avatar upload");
-        ircClient.requestExtJwt(serverId, "*", "filehost");
-
-        // Wait for token
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        const updatedServer = useStore
-          .getState()
-          .servers.find((s) => s.id === serverId);
-        jwtToken = updatedServer?.jwtToken;
-
-        if (!jwtToken) {
-          throw new Error("Failed to obtain JWT token for avatar upload");
-        }
+        throw new Error("Failed to obtain JWT token for avatar upload");
       }
 
       const formData = new FormData();
