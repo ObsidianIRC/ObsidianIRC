@@ -68,7 +68,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
       // Clear any existing JWT token to ensure we get a fresh one
       useStore.setState((state) => ({
         servers: state.servers.map((server) =>
-          server.id === serverId ? { ...server, jwtToken: undefined } : server
+          server.id === serverId ? { ...server, jwtToken: undefined } : server,
         ),
       }));
 

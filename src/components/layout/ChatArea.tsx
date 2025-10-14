@@ -559,7 +559,9 @@ export const ChatArea: React.FC<{
       // Clear any existing JWT token to ensure we get a fresh one
       useStore.setState((state) => ({
         servers: state.servers.map((server) =>
-          server.id === selectedServerId ? { ...server, jwtToken: undefined } : server
+          server.id === selectedServerId
+            ? { ...server, jwtToken: undefined }
+            : server,
         ),
       }));
 
