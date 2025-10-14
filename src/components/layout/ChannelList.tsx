@@ -422,11 +422,12 @@ export const ChannelList: React.FC<{
           <h1 className="font-bold text-white truncate">
             {selectedServer?.networkName || selectedServer?.name || "Home"}
           </h1>
-          {selectedServer?.networkName && selectedServer.name !== selectedServer.networkName && (
-            <div className="text-xs text-discord-channels-default truncate">
-              {selectedServer.name}
-            </div>
-          )}
+          {selectedServer?.networkName &&
+            selectedServer.name !== selectedServer.networkName && (
+              <div className="text-xs text-discord-channels-default truncate">
+                {selectedServer.name}
+              </div>
+            )}
         </div>
         <button
           onClick={handleCollapseClick}
