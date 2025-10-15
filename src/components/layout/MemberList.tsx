@@ -93,12 +93,24 @@ const UserItem: React.FC<{
 
   // Determine if avatar should be shown based on media controls
   const isFilehostAvatar =
-    avatarUrl && server?.filehost && avatarUrl.startsWith(server.filehost);
+    avatarUrl &&
+    server?.filehost &&
+    (() => {
+      try {
+        const avatarUrlObj = new URL(avatarUrl);
+        const filehostUrl = new URL(server.filehost);
+        if (avatarUrlObj.origin !== filehostUrl.origin) {
+          return false;
+        }
+        return avatarUrlObj.pathname.startsWith(filehostUrl.pathname);
+      } catch {
+        return false;
+      }
+    })();
   const shouldShowAvatar =
     avatarUrl &&
     ((isFilehostAvatar && showSafeMedia) || showExternalContent) &&
     !avatarLoadFailed;
-
   // Reset avatar load failed state when avatar URL changes
   useEffect(() => {
     setAvatarLoadFailed(false);
