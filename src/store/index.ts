@@ -5460,7 +5460,6 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   }
 
   if (!preventCapEnd) {
-    console.log("no prevent cap end");
     ircClient.sendRaw(serverId, "CAP END");
     ircClient.userOnConnect(serverId);
   } else {
