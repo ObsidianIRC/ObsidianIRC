@@ -480,6 +480,7 @@ export interface AppState {
   >; // batchId -> batch info
   activeBatches: Record<string, Record<string, BatchInfo>>; // serverId -> batchId -> batch info
   metadataFetchInProgress: Record<string, boolean>; // serverId -> is fetching own metadata
+  userMetadataRequested: Record<string, Set<string>>; // serverId -> Set of usernames we've requested metadata for
   // WHOIS data cache
   whoisData: Record<string, Record<string, WhoisData>>; // serverId -> nickname -> whois data
   // Account registration state
@@ -662,6 +663,7 @@ const useStore = create<AppState>((set, get) => ({
   metadataBatches: {},
   activeBatches: {},
   metadataFetchInProgress: {},
+  userMetadataRequested: {},
   whoisData: {},
   pendingRegistration: null,
   channelOrder: loadChannelOrder(),
@@ -2117,9 +2119,57 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   metadataList: (serverId, target) => {
-    if (serverSupportsMetadata(serverId)) {
-      ircClient.metadataList(serverId, target);
+    if (!serverSupportsMetadata(serverId)) {
+      return;
     }
+
+    // Check if we've already requested metadata for this user
+    const requestedUsers = get().userMetadataRequested[serverId] || new Set();
+    if (requestedUsers.has(target)) {
+      return; // Already requested
+    }
+
+    // Check if we already have metadata for this user
+    const savedMetadata = loadSavedMetadata();
+    const serverMetadata = savedMetadata[serverId];
+    if (serverMetadata?.[target] && Object.keys(serverMetadata[target]).length > 0) {
+      // We already have metadata, mark as requested to avoid future requests
+      set((state) => ({
+        userMetadataRequested: {
+          ...state.userMetadataRequested,
+          [serverId]: new Set([...(state.userMetadataRequested[serverId] || []), target]),
+        },
+      }));
+      return; // No need to request
+    }
+
+    // Check if user is in any channel and has metadata there
+    const server = get().servers.find(s => s.id === serverId);
+    if (server) {
+      for (const channel of server.channels) {
+        const user = channel.users.find(u => u.username.toLowerCase() === target.toLowerCase());
+        if (user?.metadata && Object.keys(user.metadata).length > 0) {
+          // We already have metadata, mark as requested
+          set((state) => ({
+            userMetadataRequested: {
+              ...state.userMetadataRequested,
+              [serverId]: new Set([...(state.userMetadataRequested[serverId] || []), target]),
+            },
+          }));
+          return; // No need to request
+        }
+      }
+    }
+
+    // Mark as requested and fetch metadata
+    set((state) => ({
+      userMetadataRequested: {
+        ...state.userMetadataRequested,
+        [serverId]: new Set([...(state.userMetadataRequested[serverId] || []), target]),
+      },
+    }));
+
+    ircClient.metadataList(serverId, target);
   },
 
   metadataSet: (serverId, target, key, value, visibility) => {
