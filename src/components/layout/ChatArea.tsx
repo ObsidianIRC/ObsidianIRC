@@ -1551,7 +1551,8 @@ export const ChatArea: React.FC<{
                     onReactionUnreact={unreact}
                     onOpenReactionModal={openReactionModal}
                     onDirectReaction={directReaction}
-                    users={selectedChannel?.users || []}
+                    serverId={selectedServerId || ""}
+                    channelId={selectedChannelId || undefined}
                     onRedactMessage={handleRedactMessage}
                     onOpenProfile={handleOpenProfile}
                   />
@@ -1962,7 +1963,8 @@ export const ChatArea: React.FC<{
                         onReactionUnreact={unreact}
                         onOpenReactionModal={openReactionModal}
                         onDirectReaction={directReaction}
-                        users={selectedServer?.users || []}
+                        serverId={selectedServerId || ""}
+                        channelId={undefined}
                         onRedactMessage={handleRedactMessage}
                         onOpenProfile={handleOpenProfile}
                       />

@@ -425,6 +425,9 @@ export interface GlobalSettings {
   enableMultilineInput: boolean;
   multilineOnShiftEnter: boolean;
   autoFallbackToSingleLine: boolean;
+  // Media settings
+  showSafeMedia: boolean;
+  showExternalContent: boolean;
 }
 
 export interface AppState {
@@ -728,6 +731,9 @@ const useStore = create<AppState>((set, get) => ({
     enableMultilineInput: true,
     multilineOnShiftEnter: true,
     autoFallbackToSingleLine: true,
+    // Media settings
+    showSafeMedia: true,
+    showExternalContent: false,
     ...loadSavedGlobalSettings(), // Load saved settings from localStorage
   },
 
@@ -3459,13 +3465,25 @@ ircClient.on(
                 (user) => user.username === username,
               );
               if (!userAlreadyExists) {
-                // Check if this is the current user and copy their metadata
-                const ircCurrentUser = ircClient.getCurrentUser(serverId);
-                const isCurrentUser = ircCurrentUser?.username === username;
-                const userMetadata =
-                  isCurrentUser && ircCurrentUser
-                    ? ircCurrentUser.metadata
-                    : {};
+                // Check if this user already exists in other channels and copy their metadata
+                let userMetadata = {};
+                const existingUserInOtherChannels = server.channels
+                  .filter(
+                    (ch) => ch.name.toLowerCase() !== channelName.toLowerCase(),
+                  )
+                  .flatMap((ch) => ch.users)
+                  .find((user) => user.username === username);
+
+                if (existingUserInOtherChannels) {
+                  userMetadata = { ...existingUserInOtherChannels.metadata };
+                } else {
+                  // Check if this is the current user and copy their metadata
+                  const ircCurrentUser = ircClient.getCurrentUser(serverId);
+                  const isCurrentUser = ircCurrentUser?.username === username;
+                  if (isCurrentUser && ircCurrentUser) {
+                    userMetadata = { ...ircCurrentUser.metadata };
+                  }
+                }
 
                 return {
                   ...channel,
@@ -5789,7 +5807,7 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
     const resolvedTarget =
       target === "*"
         ? ircClient.getNick(serverId) || serverCurrentUser?.username || target
-        : target;
+        : target.split("!")[0]; // Extract nickname from mask
 
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -5970,7 +5988,7 @@ ircClient.on(
       const resolvedTarget =
         target === "*"
           ? ircClient.getNick(serverId) || state.currentUser?.username || target
-          : target;
+          : target.split("!")[0]; // Extract nickname from mask
 
       // If we're fetching our own metadata, update saved values
       if (isFetchingOwn && target === "*") {
@@ -6136,7 +6154,7 @@ ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
   const resolvedTarget =
     target === "*"
       ? ircClient.getNick(serverId) || state.currentUser?.username || target
-      : target;
+      : target.split("!")[0]; // Extract nickname from mask
 
   // If we're fetching our own metadata and the key is not set, delete it from saved values
   if (isFetchingOwn && target === "*") {
@@ -7211,6 +7229,103 @@ ircClient.on("BATCH_END", ({ serverId, batchId }) => {
         [serverId]: remainingBatches,
       },
     };
+  });
+});
+
+// NAMES reply handler - when we get the initial user list for a channel
+ircClient.on("NAMES", ({ serverId, channelName, users }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id === serverId) {
+        const updatedChannels = server.channels.map((channel) => {
+          if (channel.name.toLowerCase() === channelName.toLowerCase()) {
+            // Add users from NAMES reply to the channel
+            const existingUsernames = new Set(
+              channel.users.map((u) => u.username.toLowerCase()),
+            );
+
+            const newUsers = users
+              .filter(
+                (user) => !existingUsernames.has(user.username.toLowerCase()),
+              )
+              .map((user) => {
+                // Check if we already have metadata for this user from localStorage or other channels
+                let existingMetadata = {};
+
+                // First check localStorage
+                const savedMetadata = loadSavedMetadata();
+                const serverMetadata = savedMetadata[serverId];
+                if (serverMetadata?.[user.username]) {
+                  existingMetadata = { ...serverMetadata[user.username] };
+                }
+
+                // Then check if user exists in other channels and has metadata
+                if (Object.keys(existingMetadata).length === 0) {
+                  for (const otherChannel of server.channels) {
+                    if (
+                      otherChannel.name.toLowerCase() !==
+                      channelName.toLowerCase()
+                    ) {
+                      const existingUser = otherChannel.users.find(
+                        (u) =>
+                          u.username.toLowerCase() ===
+                          user.username.toLowerCase(),
+                      );
+                      if (
+                        existingUser?.metadata &&
+                        Object.keys(existingUser.metadata).length > 0
+                      ) {
+                        existingMetadata = { ...existingUser.metadata };
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                return {
+                  ...user,
+                  id: uuidv4(),
+                  isOnline: true,
+                  metadata: existingMetadata,
+                };
+              });
+
+            return {
+              ...channel,
+              users: [...channel.users, ...newUsers],
+            };
+          }
+          return channel;
+        });
+
+        return {
+          ...server,
+          channels: updatedChannels,
+        };
+      }
+      return server;
+    });
+
+    // Request metadata for users who don't have it yet
+    if (serverSupportsMetadata(serverId)) {
+      const serverData = state.servers.find((s) => s.id === serverId);
+      const channelData = serverData?.channels.find(
+        (c) => c.name.toLowerCase() === channelName.toLowerCase(),
+      );
+
+      if (channelData) {
+        // Request metadata for users who don't have it
+        channelData.users.forEach((user) => {
+          const hasMetadata =
+            user.metadata && Object.keys(user.metadata).length > 0;
+          if (!hasMetadata) {
+            useStore.getState().metadataList(serverId, user.username);
+          }
+        });
+      }
+    }
+
+    return { servers: updatedServers };
   });
 });
 

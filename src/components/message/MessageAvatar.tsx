@@ -1,5 +1,6 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useStore from "../../store";
 
 interface MessageAvatarProps {
   userId: string;
@@ -10,6 +11,7 @@ interface MessageAvatarProps {
   showHeader: boolean;
   onClick?: (e: React.MouseEvent) => void;
   isClickable?: boolean;
+  serverId?: string;
 }
 
 export const MessageAvatar: React.FC<MessageAvatarProps> = ({
@@ -21,14 +23,25 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
   showHeader,
   onClick,
   isClickable = false,
+  serverId,
 }) => {
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const username = userId.split("-")[0];
 
-  // Reset image load failed state when avatar URL changes
-  useEffect(() => {
-    setImageLoadFailed(false);
-  }, []);
+  // Get global settings and server info
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
+  const server = serverId
+    ? useStore.getState().servers.find((s) => s.id === serverId)
+    : null;
+
+  // Check if avatar is from our trusted FILEHOST
+  const isFilehostAvatar =
+    avatarUrl && server?.filehost && avatarUrl.startsWith(server.filehost);
+  // Show avatar if it's from FILEHOST (trusted) and safe media is enabled, or if external content is allowed
+  const shouldShowAvatar =
+    avatarUrl && ((isFilehostAvatar && showSafeMedia) || showExternalContent);
 
   if (!showHeader) {
     return (
@@ -44,7 +57,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
       onClick={onClick}
     >
       <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white relative">
-        {avatarUrl && !imageLoadFailed ? (
+        {shouldShowAvatar && !imageLoadFailed ? (
           <img
             src={avatarUrl}
             alt={username}

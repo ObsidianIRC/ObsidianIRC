@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import useStore from "../../store";
 import ExternalLinkWarningModal from "../ui/ExternalLinkWarningModal";
 
 interface LinkPreviewProps {
@@ -18,6 +19,9 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
   messageContent,
 }) => {
   const [showWarningModal, setShowWarningModal] = useState(false);
+
+  // Get global settings
+  const { showExternalContent } = useStore((state) => state.globalSettings);
 
   // Don't render if there's no content to show
   if (!title && !snippet && !imageUrl) {
@@ -68,7 +72,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
         }}
       >
         <div className="flex items-start h-full">
-          {imageUrl && (
+          {imageUrl && showExternalContent && (
             <div
               className="relative inline-block h-full"
               style={{ verticalAlign: "top" }}

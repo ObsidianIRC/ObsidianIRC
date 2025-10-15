@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ircClient from "../../lib/ircClient";
 import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
 import useStore from "../../store";
-import type { MessageType, User } from "../../types";
+import type { MessageType } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import { InviteMessage } from "./InviteMessage";
 import {
@@ -338,7 +338,8 @@ interface MessageItemProps {
     position: { x: number; y: number },
   ) => void;
   onDirectReaction: (emoji: string, message: MessageType) => void;
-  users: User[];
+  serverId: string;
+  channelId?: string;
   onRedactMessage?: (message: MessageType) => void;
 }
 
@@ -355,16 +356,62 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onReactionUnreact,
   onOpenReactionModal,
   onDirectReaction,
-  users,
+  serverId,
+  channelId,
   onRedactMessage,
 }) => {
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
 
-  // Find the user for this message
-  const messageUser = users.find(
-    (user) => user.username === message.userId.split("-")[0],
-  );
+  // Get the user for this message using reactive selector
+  const messageUser = useStore((state) => {
+    if (!serverId) return undefined;
+
+    // For private chats, check private chats
+    if (!channelId) {
+      const privateChat = state.servers
+        .find((s) => s.id === serverId)
+        ?.privateChats?.find(
+          (pc) => pc.username === message.userId.split("-")[0],
+        );
+      if (privateChat) {
+        // For private chats, get metadata from the user in channels or saved metadata
+        const server = state.servers.find((s) => s.id === serverId);
+        if (server) {
+          for (const channel of server.channels) {
+            const user = channel.users.find(
+              (u) =>
+                u.username.toLowerCase() === privateChat.username.toLowerCase(),
+            );
+            if (user?.metadata && Object.keys(user.metadata).length > 0) {
+              return user;
+            }
+          }
+        }
+        // Return a basic user object for private chat
+        return {
+          id: privateChat.id,
+          username: privateChat.username,
+          realname: "",
+          account: "",
+          isOnline: true,
+          isAway: false,
+          status: "",
+          isBot: false,
+          metadata: {},
+        };
+      }
+      return undefined;
+    }
+
+    // For channels, find the user in the channel
+    const server = state.servers.find((s) => s.id === serverId);
+    const channel = server?.channels.find((c) => c.id === channelId);
+    return channel?.users.find(
+      (user) => user.username === message.userId.split("-")[0],
+    );
+  });
+
   const avatarUrl = messageUser?.metadata?.avatar?.value;
   const displayName = messageUser?.metadata?.["display-name"]?.value;
   const userColor = messageUser?.metadata?.color?.value;
@@ -380,6 +427,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const server = useStore
     .getState()
     .servers.find((s) => s.id === message.serverId);
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
   const canRedact =
     !isSystem &&
     isCurrentUser &&
@@ -411,6 +461,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       message.content.includes("/giphy.gif") ||
       message.content.includes("/tinygif") ||
       message.content.match(/tenor\.com\/view\//));
+
+  // Check if message is just an external image URL (not from filehost)
+  const isExternalImageUrl =
+    message.content.trim() === message.content &&
+    !isImageUrl && // Not a filehost image
+    !isGifUrl && // Not a GIF from specific services
+    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+      message.content.includes("/images/")) &&
+    (message.content.startsWith("http://") ||
+      message.content.startsWith("https://"));
 
   // Handle system messages
   if (isSystem) {
@@ -457,7 +517,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         <EventMessage
           message={message}
           messageUser={messageUser}
-          users={users}
           showDate={showDate}
           onUsernameContextMenu={onUsernameContextMenu}
         />
@@ -640,6 +699,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           showHeader={showHeader}
           onClick={handleAvatarClick}
           isClickable={isClickable}
+          serverId={message.serverId}
         />
 
         <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
@@ -669,7 +729,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             )}
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {isImageUrl || isGifUrl ? (
+              {(isImageUrl && showSafeMedia) ||
+              (isGifUrl && showExternalContent) ||
+              (isExternalImageUrl && showExternalContent) ? (
                 <ImageWithFallback
                   url={message.content}
                   isFilehostImage={isImageUrl}

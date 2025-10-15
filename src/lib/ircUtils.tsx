@@ -5,8 +5,16 @@ import type { User } from "../types";
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
   for (const name of namesResponse.split(" ")) {
-    const regex = /([~&@%+]*)([^\s!]+)!/;
-    const match = regex.exec(name);
+    // Try to match with userhost format first (nick!user@host)
+    let regex = /([~&@%+]*)([^\s!]+)!/;
+    let match = regex.exec(name);
+
+    if (!match) {
+      // If no match, try without ! (just nickname)
+      regex = /([~&@%+]*)([^\s!]+)/;
+      match = regex.exec(name);
+    }
+
     if (match) {
       const [_, prefix, username] = match;
       users.push({

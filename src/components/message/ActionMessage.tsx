@@ -66,6 +66,7 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
             );
           }}
           isClickable={true}
+          serverId={message.serverId}
         />
         <div className="flex-1 text-white">
           <div className="flex items-center">

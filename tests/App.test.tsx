@@ -90,6 +90,8 @@ describe("App", () => {
         enableMultilineInput: true,
         multilineOnShiftEnter: true,
         autoFallbackToSingleLine: true,
+        showSafeMedia: true,
+        showExternalContent: false,
       },
     });
   });

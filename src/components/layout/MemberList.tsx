@@ -66,6 +66,16 @@ const UserItem: React.FC<{
 }> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
+  // Get global settings for media controls
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
+
+  // Get server for filehost detection
+  const server = useStore((state) =>
+    state.servers.find((s) => s.id === serverId),
+  );
+
   // Display metadata like website or status
   const website = user.metadata?.url?.value || user.metadata?.website?.value;
   const metadataStatus = user.metadata?.status?.value; // Metadata status message
@@ -80,6 +90,14 @@ const UserItem: React.FC<{
     user.account &&
     user.account !== "0" &&
     user.username.toLowerCase() === user.account.toLowerCase();
+
+  // Determine if avatar should be shown based on media controls
+  const isFilehostAvatar =
+    avatarUrl && server?.filehost && avatarUrl.startsWith(server.filehost);
+  const shouldShowAvatar =
+    avatarUrl &&
+    ((isFilehostAvatar && showSafeMedia) || showExternalContent) &&
+    !avatarLoadFailed;
 
   // Reset avatar load failed state when avatar URL changes
   useEffect(() => {
@@ -97,7 +115,7 @@ const UserItem: React.FC<{
       {/* Avatar with status indicator */}
       <div className="relative shrink-0">
         <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold overflow-hidden">
-          {avatarUrl && !avatarLoadFailed ? (
+          {shouldShowAvatar ? (
             <img
               src={avatarUrl}
               alt={user.username}

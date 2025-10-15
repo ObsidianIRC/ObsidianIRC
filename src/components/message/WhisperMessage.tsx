@@ -131,6 +131,7 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
             showHeader={showHeader}
             onClick={handleAvatarClick}
             isClickable={isClickable}
+            serverId={message.serverId}
           />
 
           <div className="flex-1 relative">

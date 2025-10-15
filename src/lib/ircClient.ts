@@ -1269,7 +1269,10 @@ export class IRCClient {
         });
       } else if (command === "353") {
         const channelName = parv[2];
-        const names = parv.slice(3).join(" ").trim().substring(1);
+        const namesStr = parv.slice(3).join(" ").trim();
+        const names = namesStr.startsWith(":")
+          ? namesStr.substring(1)
+          : namesStr;
         const newUsers = parseNamesResponse(names); // Parse the user list
 
         // Trigger an event to notify the UI
