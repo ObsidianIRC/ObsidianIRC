@@ -113,6 +113,24 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
       });
 
       if (!response.ok) {
+        // Handle 403 Forbidden specially - get the response body for the error message
+        if (response.status === 403) {
+          const reason = await response.text();
+          const errorMessage = `Failed to upload avatar: ${reason}`;
+
+          // Show custom notification
+          useStore.getState().addGlobalNotification({
+            type: "fail",
+            command: "UPLOAD",
+            code: "AVATAR_UPLOAD_FORBIDDEN",
+            message: errorMessage,
+            target: channelName || undefined,
+            serverId,
+          });
+
+          throw new Error(errorMessage);
+        }
+
         throw new Error(
           `Upload failed: ${response.status} ${response.statusText}`,
         );
