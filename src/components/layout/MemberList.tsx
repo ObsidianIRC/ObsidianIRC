@@ -223,15 +223,23 @@ const UserItem: React.FC<{
 export const MemberList: React.FC = () => {
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId },
+    ui,
     currentUser,
     toggleMemberList,
     openPrivateChat,
+    selectPrivateChat,
     warnUser,
     kickUser,
     banUserByNick,
     banUserByHostmask,
   } = useStore();
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
+    selectedChannelId: null,
+    selectedPrivateChatId: null,
+  };
+  const { selectedChannelId } = currentSelection;
 
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
@@ -417,6 +425,14 @@ export const MemberList: React.FC = () => {
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
+      // Find and select the private chat
+      const server = servers.find((s) => s.id === selectedServerId);
+      const privateChat = server?.privateChats?.find(
+        (pc) => pc.username === username,
+      );
+      if (privateChat) {
+        selectPrivateChat(privateChat.id);
+      }
     }
   };
 

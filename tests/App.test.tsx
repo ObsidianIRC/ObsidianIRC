@@ -41,8 +41,7 @@ describe("App", () => {
       typingUsers: {},
       ui: {
         selectedServerId: null,
-        selectedChannelId: null,
-        selectedPrivateChatId: null,
+        perServerSelections: {},
         isAddServerModalOpen: false,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,

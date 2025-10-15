@@ -82,13 +82,22 @@ describe("Store", () => {
 
   describe("channel selection", () => {
     test("should select channel", () => {
-      const { selectChannel } = useStore.getState();
+      const { selectChannel, selectServer } = useStore.getState();
+
+      // First select a server
+      selectServer("test-server");
 
       selectChannel("#test");
-      expect(useStore.getState().ui.selectedChannelId).toBe("#test");
+      expect(
+        useStore.getState().ui.perServerSelections["test-server"]
+          ?.selectedChannelId,
+      ).toBe("#test");
 
       selectChannel(null);
-      expect(useStore.getState().ui.selectedChannelId).toBeNull();
+      expect(
+        useStore.getState().ui.perServerSelections["test-server"]
+          ?.selectedChannelId,
+      ).toBeNull();
     });
   });
 });

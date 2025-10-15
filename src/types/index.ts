@@ -14,6 +14,12 @@ export interface User {
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
+export type ConnectionState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
+
 export interface Server {
   id: string;
   name: string;
@@ -24,6 +30,7 @@ export interface Server {
   privateChats: PrivateChat[];
   icon?: string;
   isConnected: boolean;
+  connectionState?: ConnectionState;
   isAway?: boolean; // Whether we are marked as away on this server
   awayMessage?: string; // Our away message on this server
   users: User[];

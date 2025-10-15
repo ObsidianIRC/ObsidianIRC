@@ -34,8 +34,12 @@ describe("Nickname retry functionality", () => {
       ],
       ui: {
         selectedServerId: "test-server",
-        selectedChannelId: "test-channel",
-        selectedPrivateChatId: null,
+        perServerSelections: {
+          "test-server": {
+            selectedChannelId: "test-channel",
+            selectedPrivateChatId: null,
+          },
+        },
         isAddServerModalOpen: false,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,
@@ -122,8 +126,12 @@ describe("Nickname retry functionality", () => {
       ],
       ui: {
         selectedServerId: "test-server",
-        selectedChannelId: "test-channel",
-        selectedPrivateChatId: null,
+        perServerSelections: {
+          "test-server": {
+            selectedChannelId: "test-channel",
+            selectedPrivateChatId: null,
+          },
+        },
         isAddServerModalOpen: false,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,

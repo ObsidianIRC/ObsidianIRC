@@ -10,4 +10,18 @@ export function registerAllProtocolHandlers(
 ) {
   registerISupportHandler(ircClient, useStore);
   registerModeHandler(ircClient, useStore);
+
+  // Register ready event handler for shimmer effect
+  ircClient.on("ready", ({ serverId }) => {
+    useStore.getState().triggerServerShimmer(serverId);
+  });
+
+  // Register connection state change handler
+  ircClient.on("connectionStateChange", ({ serverId, connectionState }) => {
+    useStore.setState((state) => ({
+      servers: state.servers.map((server) =>
+        server.id === serverId ? { ...server, connectionState } : server,
+      ),
+    }));
+  });
 }

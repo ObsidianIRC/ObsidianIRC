@@ -125,8 +125,12 @@ describe("Metadata Display Features", () => {
       },
       ui: {
         selectedServerId: "server1",
-        selectedChannelId: "channel1",
-        selectedPrivateChatId: null,
+        perServerSelections: {
+          server1: {
+            selectedChannelId: "channel1",
+            selectedPrivateChatId: null,
+          },
+        },
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,

@@ -161,20 +161,10 @@ export const ChatArea: React.FC<{
 
   const {
     servers,
-    ui: {
-      selectedServerId,
-      selectedChannelId,
-      selectedPrivateChatId,
-      isMemberListVisible,
-      isSettingsModalOpen,
-      isUserProfileModalOpen,
-      isAddServerModalOpen,
-      isChannelListModalOpen,
-      isChannelRenameModalOpen,
-      isServerNoticesPopupOpen,
-    },
+    ui,
     toggleMemberList,
     openPrivateChat,
+    selectPrivateChat,
     messages,
     connect,
     joinChannel,
@@ -186,6 +176,22 @@ export const ChatArea: React.FC<{
     banUserByNick,
     banUserByHostmask,
   } = useStore();
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
+    selectedChannelId: null,
+    selectedPrivateChatId: null,
+  };
+  const { selectedChannelId, selectedPrivateChatId } = currentSelection;
+  const {
+    isMemberListVisible,
+    isSettingsModalOpen,
+    isUserProfileModalOpen,
+    isAddServerModalOpen,
+    isChannelListModalOpen,
+    isChannelRenameModalOpen,
+    isServerNoticesPopupOpen,
+  } = ui;
 
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -1216,6 +1222,14 @@ export const ChatArea: React.FC<{
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
+      // Find and select the private chat
+      const server = servers.find((s) => s.id === selectedServerId);
+      const privateChat = server?.privateChats?.find(
+        (pc) => pc.username === username,
+      );
+      if (privateChat) {
+        selectPrivateChat(privateChat.id);
+      }
     }
   };
 

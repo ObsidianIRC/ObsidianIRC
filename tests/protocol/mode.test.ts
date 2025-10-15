@@ -24,8 +24,7 @@ describe("MODE Protocol Handler", () => {
       listingInProgress: {},
       ui: {
         selectedServerId: null,
-        selectedChannelId: null,
-        selectedPrivateChatId: null,
+        perServerSelections: {},
         isAddServerModalOpen: false,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,

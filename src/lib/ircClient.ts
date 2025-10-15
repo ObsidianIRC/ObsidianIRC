@@ -5,6 +5,7 @@ import type {
   BaseMetadataEvent,
   BaseUserActionEvent,
   Channel,
+  ConnectionState,
   EventWithTags,
   MetadataValueEvent,
   Server,
@@ -18,6 +19,10 @@ import {
 
 export interface EventMap {
   ready: BaseIRCEvent & { serverName: string; nickname: string };
+  connectionStateChange: BaseIRCEvent & {
+    serverId: string;
+    connectionState: ConnectionState;
+  };
   NICK: EventWithTags & {
     oldNick: string;
     newNick: string;
@@ -354,6 +359,10 @@ export class IRCClient {
     new Map();
   private pendingConnections: Map<string, Promise<Server>> = new Map();
   private pendingCapReqs: Map<string, number> = new Map(); // Track how many CAP REQ batches are pending ACK
+  private reconnectionAttempts: Map<string, number> = new Map(); // Track reconnection attempts per server
+  private reconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map(); // Track reconnection timeouts per server
+  private pingTimers: Map<string, NodeJS.Timeout> = new Map(); // Track ping timers per server
+  private pongTimeouts: Map<string, NodeJS.Timeout> = new Map(); // Track pong timeouts per server
   private activeBatches: Map<
     string,
     Map<
@@ -426,12 +435,14 @@ export class IRCClient {
       return existingConnection;
     }
 
-    // Check if already connected to this server
-    const existingServer = Array.from(this.servers.values()).find(
-      (server) => server.host === host && server.port === port,
-    );
-    if (existingServer) {
-      return Promise.resolve(existingServer);
+    // Check if already connected to this server (but allow reconnection if serverId is provided)
+    if (!serverId) {
+      const existingServer = Array.from(this.servers.values()).find(
+        (server) => server.host === host && server.port === port,
+      );
+      if (existingServer) {
+        return Promise.resolve(existingServer);
+      }
     }
 
     // Create a new connection promise and store it
@@ -452,17 +463,34 @@ export class IRCClient {
       // Use provided name, default to host if name is empty
       const finalName = name?.trim() || host;
 
-      const server: Server = {
-        id: serverId || uuidv4(),
-        name: finalName,
-        host,
-        port,
-        channels: [],
-        privateChats: [],
-        isConnected: false, // Not connected yet
-        users: [],
-      };
-      this.servers.set(server.id, server);
+      // Check if we're reconnecting to an existing server
+      let server: Server;
+      if (serverId && this.servers.has(serverId)) {
+        // Reuse existing server object for reconnection
+        const existingServer = this.servers.get(serverId);
+        if (existingServer) {
+          server = existingServer;
+          // Update connection state
+          server.connectionState = "connecting";
+          server.isConnected = false;
+        } else {
+          throw new Error(`Server ${serverId} not found despite has() check`);
+        }
+      } else {
+        // Create new server object
+        server = {
+          id: serverId || uuidv4(),
+          name: finalName,
+          host,
+          port,
+          channels: [],
+          privateChats: [],
+          isConnected: false, // Not connected yet
+          connectionState: "connecting",
+          users: [],
+        };
+        this.servers.set(server.id, server);
+      }
       this.sockets.set(server.id, socket);
       // Only enable SASL if we have both account name AND password
       this.saslEnabled.set(server.id, !!(_saslAccountName && _saslPassword));
@@ -496,19 +524,50 @@ export class IRCClient {
 
         // Update server to mark as connected
         server.isConnected = true;
+        server.connectionState = "connected";
+        this.triggerEvent("connectionStateChange", {
+          serverId: server.id,
+          connectionState: "connected",
+        });
+
+        // Start WebSocket ping timer for keepalive
+        this.startWebSocketPing(server.id);
 
         socket.onclose = () => {
+          // Stop WebSocket ping timers
+          this.stopWebSocketPing(server.id);
           this.sockets.delete(server.id);
           server.isConnected = false;
+          // Only start reconnection if not already reconnecting (e.g., from ERROR handler)
+          const wasReconnecting = server.connectionState === "reconnecting";
+          server.connectionState = "disconnected";
+          this.triggerEvent("connectionStateChange", {
+            serverId: server.id,
+            connectionState: "disconnected",
+          });
           this.pendingConnections.delete(connectionKey);
+          // Start reconnection logic only if not already reconnecting
+          if (!wasReconnecting) {
+            this.startReconnection(
+              server.id,
+              name,
+              host,
+              port,
+              nickname,
+              password,
+              _saslAccountName,
+              _saslPassword,
+            );
+          }
         };
 
         resolve(server);
       };
 
       socket.onerror = (error) => {
-        // Clean up failed connection
-        this.servers.delete(server.id);
+        // Mark server as disconnected but keep it in the map
+        server.isConnected = false;
+        server.connectionState = "disconnected";
         this.sockets.delete(server.id);
         this.pendingConnections.delete(connectionKey);
         reject(new Error(`Failed to connect to ${host}:${port}`));
@@ -545,8 +604,134 @@ export class IRCClient {
     const server = this.servers.get(serverId);
     if (server) {
       server.isConnected = false;
+      server.connectionState = "disconnected";
+      this.triggerEvent("connectionStateChange", {
+        serverId: server.id,
+        connectionState: "disconnected",
+      });
       const connectionKey = `${server.host}:${server.port}`;
       this.pendingConnections.delete(connectionKey);
+    }
+    // Clear reconnection state
+    this.reconnectionAttempts.delete(serverId);
+    const timeout = this.reconnectionTimeouts.get(serverId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.reconnectionTimeouts.delete(serverId);
+    }
+    // Stop WebSocket ping timers
+    this.stopWebSocketPing(serverId);
+  }
+
+  private startReconnection(
+    serverId: string,
+    name: string,
+    host: string,
+    port: number,
+    nickname: string,
+    password?: string,
+    saslAccountName?: string,
+    saslPassword?: string,
+  ): void {
+    const server = this.servers.get(serverId);
+    if (!server) return;
+
+    // Cancel any existing reconnection
+    const existingTimeout = this.reconnectionTimeouts.get(serverId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    const attempts = this.reconnectionAttempts.get(serverId) || 0;
+    this.reconnectionAttempts.set(serverId, attempts + 1);
+
+    // Calculate delay based on attempt count
+    let delay = 0;
+    if (attempts === 0) {
+      delay = 0; // Immediate retry
+    } else if (attempts === 1) {
+      delay = 15000; // 15 seconds
+    } else if (attempts === 2) {
+      delay = 30000; // 30 seconds
+    } else if (attempts <= 100) {
+      delay = 60000; // 60 seconds for attempts 3-100
+    } else {
+      // After 100 attempts, stop trying
+      server.connectionState = "disconnected";
+      this.triggerEvent("connectionStateChange", {
+        serverId: server.id,
+        connectionState: "disconnected",
+      });
+      return;
+    }
+
+    server.connectionState = "reconnecting";
+    this.triggerEvent("connectionStateChange", {
+      serverId: server.id,
+      connectionState: "reconnecting",
+    });
+
+    this.reconnectionTimeouts.set(
+      serverId,
+      setTimeout(() => {
+        this.attemptReconnection(
+          serverId,
+          name,
+          host,
+          port,
+          nickname,
+          password,
+          saslAccountName,
+          saslPassword,
+        );
+      }, delay),
+    );
+  }
+
+  private async attemptReconnection(
+    serverId: string,
+    name: string,
+    host: string,
+    port: number,
+    nickname: string,
+    password?: string,
+    saslAccountName?: string,
+    saslPassword?: string,
+  ): Promise<void> {
+    const server = this.servers.get(serverId);
+    if (!server) return;
+
+    try {
+      server.connectionState = "connecting";
+      this.triggerEvent("connectionStateChange", {
+        serverId: server.id,
+        connectionState: "connecting",
+      });
+      await this.connect(
+        name,
+        host,
+        port,
+        nickname,
+        password,
+        saslAccountName,
+        saslPassword,
+        serverId,
+      );
+      // Success - reset reconnection attempts
+      this.reconnectionAttempts.delete(serverId);
+      this.reconnectionTimeouts.delete(serverId);
+    } catch (error) {
+      // Failed - try again
+      this.startReconnection(
+        serverId,
+        name,
+        host,
+        port,
+        nickname,
+        password,
+        saslAccountName,
+        saslPassword,
+      );
     }
   }
 
@@ -565,6 +750,53 @@ export class IRCClient {
     }
   }
 
+  private startWebSocketPing(serverId: string): void {
+    // Clear any existing ping timer
+    this.stopWebSocketPing(serverId);
+
+    // Send ping every 30 seconds
+    const pingTimer = setInterval(() => {
+      const socket = this.sockets.get(serverId);
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        try {
+          // Send WebSocket ping frame (opcode 0x9)
+          // Since we can't send ping frames directly in JS, we'll send an IRC PING
+          // which serves as both IRC keepalive and WebSocket activity
+          const timestamp = Date.now().toString();
+          this.sendRaw(serverId, `PING ${timestamp}`);
+
+          // Set a timeout for pong response (10 seconds)
+          const pongTimeout = setTimeout(() => {
+            console.warn(
+              `WebSocket ping timeout for server ${serverId}, closing connection`,
+            );
+            socket.close(1000, "Ping timeout");
+          }, 10000);
+
+          this.pongTimeouts.set(serverId, pongTimeout);
+        } catch (error) {
+          console.error(`Failed to send ping for server ${serverId}:`, error);
+        }
+      }
+    }, 30000); // 30 seconds
+
+    this.pingTimers.set(serverId, pingTimer);
+  }
+
+  private stopWebSocketPing(serverId: string): void {
+    const pingTimer = this.pingTimers.get(serverId);
+    if (pingTimer) {
+      clearInterval(pingTimer);
+      this.pingTimers.delete(serverId);
+    }
+
+    const pongTimeout = this.pongTimeouts.get(serverId);
+    if (pongTimeout) {
+      clearTimeout(pongTimeout);
+      this.pongTimeouts.delete(serverId);
+    }
+  }
+
   joinChannel(serverId: string, channelName: string): Channel {
     const server = this.servers.get(serverId);
     if (server) {
@@ -572,7 +804,11 @@ export class IRCClient {
       if (existing) return existing;
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
-      this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
+
+      // Only request CHATHISTORY if the server supports it
+      if (server.capabilities?.includes("draft/chathistory")) {
+        this.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
+      }
 
       const channel: Channel = {
         id: uuidv4(),
@@ -584,18 +820,21 @@ export class IRCClient {
         isMentioned: false,
         messages: [],
         users: [],
-        isLoadingHistory: true, // Start in loading state
-        needsWhoRequest: true, // Need to request WHO after CHATHISTORY completes
-        chathistoryRequested: true, // Mark that we've requested CHATHISTORY
+        isLoadingHistory: !!server.capabilities?.includes("draft/chathistory"), // Only loading if we requested history
+        needsWhoRequest: true, // Need to request WHO after CHATHISTORY completes (or immediately if no CHATHISTORY)
+        chathistoryRequested:
+          !!server.capabilities?.includes("draft/chathistory"), // Mark that we've requested CHATHISTORY only if supported
       };
       server.channels.push(channel);
 
-      // Trigger event to notify store that history loading started
-      this.triggerEvent("CHATHISTORY_LOADING", {
-        serverId,
-        channelName,
-        isLoading: true,
-      });
+      // Trigger event to notify store that history loading started (only if we actually requested it)
+      if (server.capabilities?.includes("draft/chathistory")) {
+        this.triggerEvent("CHATHISTORY_LOADING", {
+          serverId,
+          channelName,
+          isLoading: true,
+        });
+      }
 
       return channel;
     }
@@ -970,7 +1209,26 @@ export class IRCClient {
 
       if (command === "PING") {
         const key = parv.join(" ");
-        this.sendRaw(serverId, `PONG ${key}`);
+        this.sendRaw(serverId, `PONG :${key}`);
+      } else if (command === "PONG") {
+        // Clear pong timeout since we received a response
+        const pongTimeout = this.pongTimeouts.get(serverId);
+        if (pongTimeout) {
+          clearTimeout(pongTimeout);
+          this.pongTimeouts.delete(serverId);
+        }
+      } else if (command === "ERROR") {
+        // Server is closing the connection - close the socket and let onclose handler handle reconnection
+        const errorMessage = parv.join(" ");
+        console.log(`IRC ERROR from server ${serverId}: ${errorMessage}`);
+
+        const socket = this.sockets.get(serverId);
+        if (socket) {
+          console.log(
+            `ERROR handler: Closing socket for server ${serverId} due to ERROR message`,
+          );
+          socket.close(1000, "Server sent ERROR");
+        }
       } else if (command === "001") {
         const serverName = source;
         const nickname = parv[0]; // Our actual nick as assigned by the server
@@ -988,6 +1246,29 @@ export class IRCClient {
         }
 
         this.triggerEvent("ready", { serverId, serverName, nickname });
+
+        // Rejoin channels if this is a reconnection (server already has channels)
+        const server = this.servers.get(serverId);
+        if (server) {
+          console.log(
+            `Server ${serverId} has ${server.channels.length} channels:`,
+            server.channels.map((c) => c.name),
+          );
+          if (server.channels.length > 0) {
+            console.log(
+              `Rejoining ${server.channels.length} channels after reconnection:`,
+              server.channels.map((c) => c.name),
+            );
+            for (const channel of server.channels) {
+              console.log(`Sending JOIN for channel: ${channel.name}`);
+              this.sendRaw(serverId, `JOIN ${channel.name}`);
+            }
+          } else {
+            console.log(`No channels to rejoin for server ${serverId}`);
+          }
+        } else {
+          console.log(`Server ${serverId} not found for rejoining channels`);
+        }
       } else if (command === "NICK") {
         const oldNick = getNickFromNuh(source);
         let newNick = parv[0];

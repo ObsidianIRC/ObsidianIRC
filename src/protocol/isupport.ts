@@ -7,7 +7,7 @@ export function registerISupportHandler(
   useStore: typeof AppState,
 ) {
   ircClient.on("ISUPPORT", ({ serverId, key, value }) => {
-    if (key === "FAVICON") {
+    if (key === "FAVICON" || key === "ICON" || key === "draft/ICON") {
       const favicon = value;
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server: Server) => {
