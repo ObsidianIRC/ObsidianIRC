@@ -5288,6 +5288,9 @@ ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
 ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
   if (param !== "+") return;
 
+  // Don't respond to AUTHENTICATE if CAP negotiation is already complete
+  if (ircClient.isCapNegotiationComplete(serverId)) return;
+
   let user: string | undefined;
   let pass: string | undefined;
   const servers = loadSavedServers();
@@ -5307,8 +5310,9 @@ ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
     serverId,
     `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
   );
-  ircClient.sendRaw(serverId, "CAP END");
-  ircClient.userOnConnect(serverId);
+  // Note: CAP END will be sent by the IRC client when SASL authentication completes (903/904-907 responses)
+  // ircClient.sendRaw(serverId, "CAP END");
+  // ircClient.userOnConnect(serverId);
 });
 
 // Handle CAP LS to get informational capabilities like unrealircd.org/link-security
@@ -5456,6 +5460,7 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
   }
 
   if (!preventCapEnd) {
+    console.log("no prevent cap end");
     ircClient.sendRaw(serverId, "CAP END");
     ircClient.userOnConnect(serverId);
   } else {

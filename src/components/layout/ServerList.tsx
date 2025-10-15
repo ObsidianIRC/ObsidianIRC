@@ -1,9 +1,9 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaEllipsisH, FaRedo, FaTrash } from "react-icons/fa";
-import type { Server } from "../../types";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
+import type { Server } from "../../types";
 
 export const ServerList: React.FC = () => {
   const {

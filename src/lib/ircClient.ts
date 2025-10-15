@@ -359,6 +359,7 @@ export class IRCClient {
     new Map();
   private pendingConnections: Map<string, Promise<Server>> = new Map();
   private pendingCapReqs: Map<string, number> = new Map(); // Track how many CAP REQ batches are pending ACK
+  private capNegotiationComplete: Map<string, boolean> = new Map(); // Track if CAP negotiation is complete
   private reconnectionAttempts: Map<string, number> = new Map(); // Track reconnection attempts per server
   private reconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map(); // Track reconnection timeouts per server
   private pingTimers: Map<string, NodeJS.Timeout> = new Map(); // Track ping timers per server
@@ -1109,6 +1110,10 @@ export class IRCClient {
 
   capEnd(_serverId: string) {}
 
+  isCapNegotiationComplete(serverId: string): boolean {
+    return this.capNegotiationComplete.get(serverId) ?? false;
+  }
+
   getNick(serverId: string): string | undefined {
     return this.nicks.get(serverId);
   }
@@ -1610,6 +1615,7 @@ export class IRCClient {
         } else if (subcommand === "NAK") {
           // Server rejected some capabilities, but we should still end CAP negotiation
           this.sendRaw(serverId, "CAP END");
+          this.capNegotiationComplete.set(serverId, true);
         } else if (subcommand === "NEW") this.onCapNew(serverId, caps);
         else if (subcommand === "DEL") this.onCapDel(serverId, caps);
         else {
@@ -1629,14 +1635,6 @@ export class IRCClient {
       } else if (command === "AUTHENTICATE") {
         const param = parv.join(" ");
         this.triggerEvent("AUTHENTICATE", { serverId, param });
-
-        // Handle SASL PLAIN authentication
-        if (param === "+") {
-          const creds = this.saslCredentials.get(serverId);
-          if (creds) {
-            this.sendSaslPlain(serverId, creds.username, creds.password);
-          }
-        }
       } else if (command === "BATCH") {
         // BATCH +reference-tag type [parameters...] or BATCH -reference-tag
         const batchRef = parv[0];
@@ -2046,16 +2044,17 @@ export class IRCClient {
           error: "No nickname given",
           message,
         });
-      } else if (
-        command === "900" ||
-        command === "901" ||
-        command === "902" ||
-        command === "903"
-      ) {
+      } else if (command === "900") {
+        // RPL_LOGGEDIN: You are now logged in as <nick>
+        // This comes before SASL completion, don't end CAP negotiation yet
+        const message = parv.slice(2).join(" ");
+      } else if (command === "901" || command === "902" || command === "903") {
         // SASL authentication successful
         const message = parv.slice(2).join(" ");
         // Finish capability negotiation
         this.sendRaw(serverId, "CAP END");
+        this.capNegotiationComplete.set(serverId, true);
+        this.userOnConnect(serverId);
       } else if (
         command === "904" ||
         command === "905" ||
@@ -2066,6 +2065,8 @@ export class IRCClient {
         const message = parv.slice(2).join(" ");
         // Still finish capability negotiation even if SASL failed
         this.sendRaw(serverId, "CAP END");
+        this.capNegotiationComplete.set(serverId, true);
+        this.userOnConnect(serverId);
       } else if (command === "432") {
         // ERR_ERRONEUSNICKNAME: <nick> :Erroneous nickname
         const nick = parv[1];
@@ -2404,14 +2405,6 @@ export class IRCClient {
     }
   }
 
-  /* Send SASL plain */
-  sendSaslPlain(serverId: string, username: string, password: string) {
-    this.sendRaw(
-      serverId,
-      `AUTHENTICATE ${btoa(`${username}\x00${username}\x00${password}`)}`,
-    );
-  }
-
   onCapLs(serverId: string, cliCaps: string, isFinal: boolean): void {
     let accumulated = this.capLsAccumulated.get(serverId);
     if (!accumulated) {
@@ -2490,6 +2483,7 @@ export class IRCClient {
           if (this.pendingCapReqs.has(serverId)) {
             this.pendingCapReqs.delete(serverId);
             this.sendRaw(serverId, "CAP END");
+            this.capNegotiationComplete.set(serverId, true);
             this.userOnConnect(serverId);
           }
         }, 5000); // 5 second timeout
