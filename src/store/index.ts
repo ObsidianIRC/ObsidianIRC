@@ -2132,28 +2132,39 @@ const useStore = create<AppState>((set, get) => ({
     // Check if we already have metadata for this user
     const savedMetadata = loadSavedMetadata();
     const serverMetadata = savedMetadata[serverId];
-    if (serverMetadata?.[target] && Object.keys(serverMetadata[target]).length > 0) {
+    if (
+      serverMetadata?.[target] &&
+      Object.keys(serverMetadata[target]).length > 0
+    ) {
       // We already have metadata, mark as requested to avoid future requests
       set((state) => ({
         userMetadataRequested: {
           ...state.userMetadataRequested,
-          [serverId]: new Set([...(state.userMetadataRequested[serverId] || []), target]),
+          [serverId]: new Set([
+            ...(state.userMetadataRequested[serverId] || []),
+            target,
+          ]),
         },
       }));
       return; // No need to request
     }
 
     // Check if user is in any channel and has metadata there
-    const server = get().servers.find(s => s.id === serverId);
+    const server = get().servers.find((s) => s.id === serverId);
     if (server) {
       for (const channel of server.channels) {
-        const user = channel.users.find(u => u.username.toLowerCase() === target.toLowerCase());
+        const user = channel.users.find(
+          (u) => u.username.toLowerCase() === target.toLowerCase(),
+        );
         if (user?.metadata && Object.keys(user.metadata).length > 0) {
           // We already have metadata, mark as requested
           set((state) => ({
             userMetadataRequested: {
               ...state.userMetadataRequested,
-              [serverId]: new Set([...(state.userMetadataRequested[serverId] || []), target]),
+              [serverId]: new Set([
+                ...(state.userMetadataRequested[serverId] || []),
+                target,
+              ]),
             },
           }));
           return; // No need to request
@@ -2165,7 +2176,10 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => ({
       userMetadataRequested: {
         ...state.userMetadataRequested,
-        [serverId]: new Set([...(state.userMetadataRequested[serverId] || []), target]),
+        [serverId]: new Set([
+          ...(state.userMetadataRequested[serverId] || []),
+          target,
+        ]),
       },
     }));
 
@@ -3481,9 +3495,7 @@ ircClient.on(
 
       // Request metadata for the joining user to get their current metadata
       // This is needed for users who join after we're already in the channel
-      setTimeout(() => {
-        useStore.getState().metadataList(serverId, username);
-      }, 1000);
+      useStore.getState().metadataList(serverId, username);
 
       return { servers: updatedServers };
     });
@@ -6374,12 +6386,10 @@ ircClient.on("CHATHISTORY_LOADING", ({ serverId, channelName, isLoading }) => {
 
               // Request channel metadata if server supports it
               if (serverSupportsMetadata(serverId)) {
-                setTimeout(() => {
-                  ircClient.metadataGet(serverId, channelName, [
-                    "avatar",
-                    "display-name",
-                  ]);
-                }, 100);
+                ircClient.metadataGet(serverId, channelName, [
+                  "avatar",
+                  "display-name",
+                ]);
               }
 
               // Clear the flag
@@ -6786,9 +6796,7 @@ ircClient.on("WHO_END", ({ serverId, mask }) => {
         const hasMetadata =
           user.metadata && Object.keys(user.metadata).length > 0;
         if (!hasMetadata) {
-          setTimeout(() => {
-            useStore.getState().metadataList(serverId, user.username);
-          }, Math.random() * 1000); // Stagger requests to avoid spam
+          useStore.getState().metadataList(serverId, user.username);
         }
       });
     }
