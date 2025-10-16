@@ -1,10 +1,10 @@
 import exifr from "exifr";
-import React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import * as React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ircClient from "../../lib/ircClient";
 import { isUserVerified, processMarkdownInText } from "../../lib/ircUtils";
 import useStore from "../../store";
-import type { MessageType } from "../../types";
+import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import { InviteMessage } from "./InviteMessage";
 import {
@@ -343,29 +343,17 @@ interface MessageItemProps {
   onRedactMessage?: (message: MessageType) => void;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = React.memo(({
-  message,
-  showDate,
-  showHeader,
-  setReplyTo,
-  onUsernameContextMenu,
-  onOpenProfile,
-  onIrcLinkClick,
-  onReactClick,
-  joinChannel,
-  onReactionUnreact,
-  onOpenReactionModal,
-  onDirectReaction,
-  serverId,
-  channelId,
-  onRedactMessage,
-}) => {
+export const MessageItem = React.memo((props: MessageItemProps) => {
+  const { message, showDate, showHeader, setReplyTo, onUsernameContextMenu, onOpenProfile, onIrcLinkClick, onReactClick, joinChannel, onReactionUnreact, onOpenReactionModal, onDirectReaction, serverId, channelId, onRedactMessage } = props;
+  const pmUserCache = useRef(new Map<string, User>());
+  const EMPTY_MESSAGES = useRef<MessageType[]>([]).current;
+
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
 
-  // Get the user for this message using reactive selector
-  const rawMessageUser = useStore((state) => {
-    if (!serverId) return undefined;
+  // Get the user key using reactive selector
+  const userKey = useStore(useCallback((state) => {
+    if (!serverId) return 'none';
 
     // For private chats, check private chats
     if (!channelId) {
@@ -375,45 +363,70 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
           (pc) => pc.username === message.userId.split("-")[0],
         );
       if (privateChat) {
-        // For private chats, get metadata from the user in channels or saved metadata
+        // Check if user is in any channel
         const server = state.servers.find((s) => s.id === serverId);
         if (server) {
-          for (const channel of server.channels) {
-            const user = channel.users.find(
-              (u) =>
-                u.username.toLowerCase() === privateChat.username.toLowerCase(),
-            );
-            if (user?.metadata && Object.keys(user.metadata).length > 0) {
-              return user;
-            }
+          const user = server.channels.flatMap(c => c.users).find(
+            (u) => u.username.toLowerCase() === privateChat.username.toLowerCase(),
+          );
+          if (user) {
+            return `channel-${user.id}`;
           }
         }
-        // Return a basic user object for private chat
-        return {
-          id: privateChat.id,
-          username: privateChat.username,
-          realname: "",
-          account: "",
-          isOnline: true,
-          isAway: false,
-          status: "",
-          isBot: false,
-          metadata: {},
-        };
+        return `pm-${privateChat.id}`;
       }
-      return undefined;
+      return 'none';
     }
 
     // For channels, find the user in the channel
     const server = state.servers.find((s) => s.id === serverId);
     const channel = server?.channels.find((c) => c.id === channelId);
-    return channel?.users.find(
+    const user = channel?.users.find(
       (user) => user.username === message.userId.split("-")[0],
     );
-  });
+    return user ? `channel-${user.id}` : 'none';
+  }, [serverId, channelId, message.userId]));
 
-  // Memoize the messageUser to prevent infinite re-renders
-  const messageUser = useMemo(() => rawMessageUser, [rawMessageUser]);
+  const rawMessageUser = useMemo(() => {
+    if (userKey === 'none') return undefined;
+
+    if (userKey.startsWith('pm-')) {
+      const privateChatId = userKey.slice(3);
+      const state = useStore.getState();
+      const privateChat = state.servers
+        .find((s) => s.id === serverId)
+        ?.privateChats?.find((pc) => pc.id === privateChatId);
+      if (privateChat) {
+        const key = `${serverId}-${message.userId}`;
+        let user = pmUserCache.current.get(key);
+        if (!user) {
+          user = {
+            id: privateChat.id,
+            username: privateChat.username,
+            realname: "",
+            account: "",
+            isOnline: true,
+            isAway: false,
+            status: "",
+            isBot: false,
+            metadata: {},
+          };
+          pmUserCache.current.set(key, user);
+        }
+        return user;
+      }
+    } else if (userKey.startsWith('channel-')) {
+      const userId = userKey.slice(8);
+      const state = useStore.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      const channel = server?.channels.find((c) => c.id === channelId);
+      return channel?.users.find((user) => user.id === userId);
+    }
+
+    return undefined;
+  }, [userKey, serverId, channelId, message.userId]);
+
+  const messageUser = rawMessageUser;
 
   const avatarUrl = messageUser?.metadata?.avatar?.value;
   const displayName = messageUser?.metadata?.["display-name"]?.value;
@@ -428,12 +441,12 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
   const isIrcOp = messageUser?.isIrcOp || false;
 
   // Check if message redaction is supported and possible
-  const server = useStore((state) =>
+  const server = useStore(useCallback((state) =>
     state.servers.find((s) => s.id === message.serverId),
-  );
-  const showSafeMedia = useStore((state) => state.globalSettings.showSafeMedia);
-  const showExternalContent = useStore((state) => state.globalSettings.showExternalContent);
-  const enableMarkdownRendering = useStore((state) => state.globalSettings.enableMarkdownRendering);
+  [message.serverId]));
+  const showSafeMedia = useStore(useCallback((state) => state.globalSettings.showSafeMedia, []));
+  const showExternalContent = useStore(useCallback((state) => state.globalSettings.showExternalContent, []));
+  const enableMarkdownRendering = useStore(useCallback((state) => state.globalSettings.enableMarkdownRendering, []));
   const canRedact =
     !isSystem &&
     isCurrentUser &&
@@ -442,15 +455,14 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
     !!onRedactMessage;
 
   // Get the channel messages to handle multiline message content
-  const rawChannelMessages = useStore((state) => {
-    if (!serverId || !channelId) return [];
+  const rawChannelMessages = useStore(useCallback((state) => {
+    if (!serverId || !channelId) return EMPTY_MESSAGES;
     const server = state.servers.find((s) => s.id === serverId);
     const channel = server?.channels.find((c) => c.id === channelId);
-    return channel?.messages ?? [];
-  });
+    return channel?.messages ?? EMPTY_MESSAGES;
+  }, [serverId, channelId, EMPTY_MESSAGES]));
 
-  // Memoize channelMessages to prevent infinite re-renders
-  const channelMessages = useMemo(() => rawChannelMessages, [rawChannelMessages]);
+  const channelMessages = rawChannelMessages;
 
   // For multiline messages, combine content from all messages in the group
   const getMessageContent = () => {
@@ -846,4 +858,4 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
       </div>
     </div>
   );
-});
+}, (prev: MessageItemProps, next: MessageItemProps) => prev.message.id === next.message.id && prev.serverId === next.serverId && prev.channelId === next.channelId);
