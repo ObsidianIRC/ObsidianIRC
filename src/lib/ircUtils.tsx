@@ -240,8 +240,8 @@ export function renderMarkdown(
     return `<a href="${sanitizedHref}"${titleAttr} target="_blank" rel="noopener noreferrer" class="${linkClass}">${text}</a>`;
   };
 
-  // Strip all HTML tags from input before markdown processing
-  const textWithoutHtml = text.replace(/<[^>]*>/g, "");
+  // Escape HTML tags in input so they render as text
+  const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   marked.setOptions({
     breaks: true,
@@ -250,80 +250,14 @@ export function renderMarkdown(
   });
 
   // Parse markdown to HTML
-  const html = marked.parse(textWithoutHtml) as string;
-
-  // Additional security: only allow specific markdown-related HTML tags
-  // Define allowed HTML tags for markdown rendering
-  const allowedTags = new Set([
-    "p",
-    "br",
-    "strong",
-    "b",
-    "em",
-    "i",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "ul",
-    "ol",
-    "li",
-    "blockquote",
-    "code",
-    "pre",
-    "a",
-    "img",
-    "hr",
-    "table",
-    "thead",
-    "tbody",
-    "tr",
-    "th",
-    "td",
-    "del",
-    "ins",
-  ]);
-
-  // Remove dangerous content first
-  let sanitizedHtml = html
-    .replace(/<script[^>]*>.*?<\/script>/gi, "")
-    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, "")
-    .replace(/<object[^>]*>.*?<\/object>/gi, "")
-    .replace(/<embed[^>]*>.*?<\/embed>/gi, "")
-    .replace(/<style[^>]*>.*?<\/style>/gi, "")
-    .replace(/<link[^>]*\/?>/gi, "")
-    .replace(/<meta[^>]*\/?>/gi, "")
-    .replace(/on\w+="[^"]*"/gi, "") // Remove event handlers
-    .replace(/javascript:/gi, "#");
-
-  // Remove any HTML tags that are not in the allowed list
-  sanitizedHtml = sanitizedHtml.replace(
-    /<\/?([a-zA-Z][a-zA-Z0-9]*)(?:\s[^>]*)?>/g,
-    (match, tagName) => {
-      return allowedTags.has(tagName.toLowerCase()) ? match : "";
-    },
-  );
-
-  // Remove all style attributes from allowed tags and ensure img tags have controlled styling
-  sanitizedHtml = sanitizedHtml.replace(/<([^>]+)>/g, (match, content) => {
-    // For img tags, ensure they have our controlled style
-    if (content.trim().startsWith("img")) {
-      // Remove any existing style and add our controlled one
-      const withoutStyle = content.replace(/\s+style="[^"]*"/gi, "");
-      return `<${withoutStyle} style="max-height: 150px;">`;
-    }
-    // Remove style attributes from all other tags
-    return `<${content.replace(/\s+style="[^"]*"/gi, "")}>`;
-  });
+  const html = marked.parse(escapedText) as string;
 
   // Return a div with dangerouslySetInnerHTML
   return (
     <div
       className="markdown-content"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML is sanitized above
-      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }
