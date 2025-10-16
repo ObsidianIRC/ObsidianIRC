@@ -914,7 +914,7 @@ export const MessageItem = React.memo(
     );
   },
   (prev: MessageItemProps, next: MessageItemProps) =>
-    prev.message.id === next.message.id &&
+    prev.message === next.message &&
     prev.serverId === next.serverId &&
     prev.channelId === next.channelId,
 );

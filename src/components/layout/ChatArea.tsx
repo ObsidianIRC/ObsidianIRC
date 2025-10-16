@@ -1344,11 +1344,20 @@ export const ChatArea: React.FC<{
       );
       if (confirmed) {
         const server = servers.find((s) => s.id === selectedServerId);
-        const channel = server?.channels.find(
-          (c) => c.id === message.channelId,
-        );
-        if (server && channel) {
-          redactMessage(selectedServerId, channel.name, message.msgid);
+        if (!server) return;
+
+        let target: string | undefined;
+        if (message.channelId) {
+          const channel = server.channels.find((c) => c.id === message.channelId);
+          target = channel?.name;
+        } else {
+          // Private message, find by userId
+          const privateChat = server.privateChats?.find((pc) => pc.username === message.userId.split("-")[0]);
+          target = privateChat?.username;
+        }
+
+        if (target) {
+          redactMessage(selectedServerId, target, message.msgid);
         }
       }
     }
