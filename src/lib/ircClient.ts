@@ -545,6 +545,7 @@ export class IRCClient {
         this.startWebSocketPing(server.id);
 
         socket.onclose = () => {
+          console.log(`WebSocket onclose for server ${serverId}`);
           // Stop WebSocket ping timers
           this.stopWebSocketPing(server.id);
           this.sockets.delete(server.id);
@@ -644,6 +645,7 @@ export class IRCClient {
     saslAccountName?: string,
     saslPassword?: string,
   ): void {
+    console.log(`Starting reconnection for server ${serverId}`);
     const server = this.servers.get(serverId);
     if (!server) return;
 
@@ -685,6 +687,7 @@ export class IRCClient {
     this.reconnectionTimeouts.set(
       serverId,
       setTimeout(() => {
+        console.log(`Reconnection timeout fired for server ${serverId}, attempting reconnection`);
         this.attemptReconnection(
           serverId,
           name,
