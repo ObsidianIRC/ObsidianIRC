@@ -100,6 +100,7 @@ export interface PrivateChat {
   realname?: string; // Realname/gecos from WHO or extended-join
   account?: string; // Account name from WHOX
   isBot?: boolean; // Bot status from WHO/WHOX or message tags
+  isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
 }
 
 export interface Reaction {
