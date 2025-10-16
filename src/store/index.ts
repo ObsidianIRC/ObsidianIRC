@@ -2636,13 +2636,17 @@ ircClient.on("connectionStateChange", ({ serverId, connectionState }) => {
     // switch back to this server to maintain continuity during reconnection
     let newUi = { ...state.ui };
     if (connectionState === "connected" && state.ui.selectedServerId === null) {
-      const reconnectedServer = updatedServers.find(s => s.id === serverId);
+      const reconnectedServer = updatedServers.find((s) => s.id === serverId);
       if (reconnectedServer) {
         const serverSelection = getServerSelection(state, serverId);
         newUi = {
           ...newUi,
           selectedServerId: serverId,
-          perServerSelections: setServerSelection(state, serverId, serverSelection),
+          perServerSelections: setServerSelection(
+            state,
+            serverId,
+            serverSelection,
+          ),
         };
       }
     }

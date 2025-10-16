@@ -540,7 +540,7 @@ export class IRCClient {
         if (server.channels.length > 0) {
           for (const channel of server.channels) {
             if (serverId) {
-              this.sendRaw(serverId!, `JOIN ${channel.name}`);
+              this.sendRaw(serverId, `JOIN ${channel.name}`);
             }
           }
         }
