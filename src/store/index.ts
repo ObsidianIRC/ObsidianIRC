@@ -4535,9 +4535,30 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
 
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
+          // Merge existing private chats with restored pinned chats, deduplicating by username
+          const existingChats = s.privateChats || [];
+          const mergedPrivateChats = [...existingChats];
+
+          for (const restoredChat of restoredPrivateChats) {
+            const existingIndex = mergedPrivateChats.findIndex(
+              (pc) => pc.username === restoredChat.username,
+            );
+            if (existingIndex === -1) {
+              // Chat doesn't exist, add it
+              mergedPrivateChats.push(restoredChat);
+            } else {
+              // Chat exists, ensure it's marked as pinned with correct order
+              mergedPrivateChats[existingIndex] = {
+                ...mergedPrivateChats[existingIndex],
+                isPinned: true,
+                order: restoredChat.order,
+              };
+            }
+          }
+
           return {
             ...s,
-            privateChats: [...(s.privateChats || []), ...restoredPrivateChats],
+            privateChats: mergedPrivateChats,
           };
         }
         return s;
