@@ -159,33 +159,37 @@ export const ChatArea: React.FC<{
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const servers = useStore((state) => state.servers);
+  const ui = useStore((state) => state.ui);
+  const globalSettings = useStore((state) => state.globalSettings);
+  const messages = useStore((state) => state.messages);
+  const toggleMemberList = useStore((state) => state.toggleMemberList);
+  const openPrivateChat = useStore((state) => state.openPrivateChat);
+  const selectPrivateChat = useStore((state) => state.selectPrivateChat);
+  const connect = useStore((state) => state.connect);
+  const joinChannel = useStore((state) => state.joinChannel);
+  const toggleAddServerModal = useStore((state) => state.toggleAddServerModal);
+  const redactMessage = useStore((state) => state.redactMessage);
+  const warnUser = useStore((state) => state.warnUser);
+  const kickUser = useStore((state) => state.kickUser);
+  const banUserByNick = useStore((state) => state.banUserByNick);
+  const banUserByHostmask = useStore((state) => state.banUserByHostmask);
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
+    selectedChannelId: null,
+    selectedPrivateChatId: null,
+  };
+  const { selectedChannelId, selectedPrivateChatId } = currentSelection;
   const {
-    servers,
-    ui: {
-      selectedServerId,
-      selectedChannelId,
-      selectedPrivateChatId,
-      isMemberListVisible,
-      isSettingsModalOpen,
-      isUserProfileModalOpen,
-      isAddServerModalOpen,
-      isChannelListModalOpen,
-      isChannelRenameModalOpen,
-      isServerNoticesPopupOpen,
-    },
-    toggleMemberList,
-    openPrivateChat,
-    messages,
-    connect,
-    joinChannel,
-    toggleAddServerModal,
-    redactMessage,
-    globalSettings,
-    warnUser,
-    kickUser,
-    banUserByNick,
-    banUserByHostmask,
-  } = useStore();
+    isMemberListVisible,
+    isSettingsModalOpen,
+    isUserProfileModalOpen,
+    isAddServerModalOpen,
+    isChannelListModalOpen,
+    isChannelRenameModalOpen,
+    isServerNoticesPopupOpen,
+  } = ui;
 
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -275,6 +279,17 @@ export const ChatArea: React.FC<{
       port: parsed.port.toString(),
       nickname: parsed.nick || "user",
     });
+  };
+
+  // Handle setting reply and focusing input
+  const handleSetReplyTo = (message: MessageType | null) => {
+    setLocalReplyTo(message);
+    // Focus the input after setting reply
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 0);
   };
 
   // Toggle notification sound volume
@@ -540,25 +555,89 @@ export const ChatArea: React.FC<{
   const handleImageUpload = async (file: File) => {
     if (!selectedServer?.filehost || !selectedServerId) return;
 
+    const filehostUrl = selectedServer.filehost;
+
+    // Check if we have a JWT token, request one if not
+    let jwtToken = selectedServer?.jwtToken;
+    if (!jwtToken) {
+      // Clear any existing JWT token to ensure we get a fresh one
+      useStore.setState((state) => ({
+        servers: state.servers.map((server) =>
+          server.id === selectedServerId
+            ? { ...server, jwtToken: undefined }
+            : server,
+        ),
+      }));
+
+      // Request JWT token from IRC server
+      console.log(
+        '🔑 Requesting fresh JWT token from IRC server for service "filehost"',
+      );
+      ircClient.requestExtJwt(selectedServerId, "*", "filehost");
+
+      // Wait a bit for the token to arrive (this is a simple approach)
+      // In a production app, you'd want to listen for the EXTJWT event
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Check again after waiting
+      const updatedServer = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
+      jwtToken = updatedServer?.jwtToken;
+
+      console.log(
+        "🔑 After waiting, JWT token:",
+        jwtToken ? `${jwtToken.substring(0, 20)}...` : "still null/undefined",
+      );
+
+      if (!jwtToken) {
+        console.error("Failed to obtain JWT token for image upload");
+        // TODO: Show error to user
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append("image", file);
-    formData.append("filehost", selectedServer.filehost);
 
     try {
-      // Use proxy for development to avoid CORS issues
-      const uploadUrl = "/upload";
+      // Upload directly to the filehost URL with JWT authentication
+      const uploadUrl = `${filehostUrl}/upload`;
+      console.log("🔄 Image upload: Starting upload to", uploadUrl);
+      console.log("🔑 JWT token present:", !!jwtToken);
+      console.log(
+        "� JWT token value:",
+        jwtToken ? `${jwtToken.substring(0, 20)}...` : "null/undefined",
+      );
+      console.log("�📦 File size:", file.size, "bytes");
 
       const response = await fetch(uploadUrl, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
         body: formData,
       });
 
+      console.log("📡 Response status:", response.status);
+      console.log(
+        "📡 Response headers:",
+        Object.fromEntries(response.headers.entries()),
+      );
+
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
+        const errorText = await response.text();
+        console.error("❌ Upload failed with status:", response.status);
+        console.error("❌ Error response:", errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log("✅ Upload successful:", data);
       if (data.saved_url) {
+        // Create the full URL by prepending the filehost
+        const fullImageUrl = `${filehostUrl}${data.saved_url}`;
+
         // Send the link directly to the current channel/user
         const target =
           selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
@@ -568,7 +647,7 @@ export const ChatArea: React.FC<{
           if (selectedServerId) {
             ircClient.sendRaw(
               selectedServerId,
-              `PRIVMSG ${target} :${data.saved_url}`,
+              `PRIVMSG ${target} :${fullImageUrl}`,
             );
           }
 
@@ -576,7 +655,7 @@ export const ChatArea: React.FC<{
           if (selectedPrivateChat && currentUser && selectedServerId) {
             const outgoingMessage = {
               id: uuidv4(),
-              content: data.saved_url,
+              content: fullImageUrl,
               timestamp: new Date(),
               userId: currentUser.username || currentUser.id,
               channelId: selectedPrivateChat.id,
@@ -1141,6 +1220,14 @@ export const ChatArea: React.FC<{
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
+      // Find and select the private chat
+      const server = servers.find((s) => s.id === selectedServerId);
+      const privateChat = server?.privateChats?.find(
+        (pc) => pc.username === username,
+      );
+      if (privateChat) {
+        selectPrivateChat(privateChat.id);
+      }
     }
   };
 
@@ -1257,11 +1344,24 @@ export const ChatArea: React.FC<{
       );
       if (confirmed) {
         const server = servers.find((s) => s.id === selectedServerId);
-        const channel = server?.channels.find(
-          (c) => c.id === message.channelId,
-        );
-        if (server && channel) {
-          redactMessage(selectedServerId, channel.name, message.msgid);
+        if (!server) return;
+
+        let target: string | undefined;
+        if (message.channelId) {
+          const channel = server.channels.find(
+            (c) => c.id === message.channelId,
+          );
+          target = channel?.name;
+        } else {
+          // Private message, find by userId
+          const privateChat = server.privateChats?.find(
+            (pc) => pc.username === message.userId.split("-")[0],
+          );
+          target = privateChat?.username;
+        }
+
+        if (target) {
+          redactMessage(selectedServerId, target, message.msgid);
         }
       }
     }
@@ -1454,7 +1554,7 @@ export const ChatArea: React.FC<{
                         ).toDateString()
                     }
                     showHeader={showHeader}
-                    setReplyTo={setLocalReplyTo}
+                    setReplyTo={handleSetReplyTo}
                     onUsernameContextMenu={(
                       e,
                       username,
@@ -1476,8 +1576,10 @@ export const ChatArea: React.FC<{
                     onReactionUnreact={unreact}
                     onOpenReactionModal={openReactionModal}
                     onDirectReaction={directReaction}
-                    users={selectedChannel?.users || []}
+                    serverId={selectedServerId || ""}
+                    channelId={selectedChannelId || undefined}
                     onRedactMessage={handleRedactMessage}
+                    onOpenProfile={handleOpenProfile}
                   />
                 );
               })}
@@ -1886,8 +1988,10 @@ export const ChatArea: React.FC<{
                         onReactionUnreact={unreact}
                         onOpenReactionModal={openReactionModal}
                         onDirectReaction={directReaction}
-                        users={selectedServer?.users || []}
+                        serverId={selectedServerId || ""}
+                        channelId={undefined}
                         onRedactMessage={handleRedactMessage}
+                        onOpenProfile={handleOpenProfile}
                       />
                     );
                   },

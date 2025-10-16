@@ -4,7 +4,7 @@ import {
   FaInfoCircle,
   FaTimesCircle,
 } from "react-icons/fa";
-import { mircToHtml } from "../../lib/ircUtils";
+import { processMarkdownInText } from "../../lib/ircUtils";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 
 interface StandardReplyNotificationProps {
@@ -68,7 +68,7 @@ export const StandardReplyNotification: React.FC<
     }
   };
 
-  const htmlContent = mircToHtml(message);
+  const htmlContent = processMarkdownInText(message);
 
   return (
     <div

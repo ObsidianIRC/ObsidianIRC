@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => {
       '__DEFAULT_IRC_SERVER_NAME__': JSON.stringify(process.env.VITE_DEFAULT_IRC_SERVER_NAME),
       '__DEFAULT_IRC_CHANNELS__': process.env.VITE_DEFAULT_IRC_CHANNELS ? process.env.VITE_DEFAULT_IRC_CHANNELS.replace(/^['"]|['"]$/g, '').split(',').map(ch => ch.trim()) : [],
       '__HIDE_SERVER_LIST__': process.env.VITE_HIDE_SERVER_LIST === 'true',
+      '__BACKEND_URL__': JSON.stringify(process.env.VITE_BACKEND_URL || 'http://localhost:8080'),
     },
     // prevent vite from obscuring rust errors
     clearScreen: false,
@@ -32,13 +33,6 @@ export default defineConfig(({ mode }) => {
     server: {
       strictPort: true,
       cors: true,
-      proxy: {
-        '/upload': {
-          target: 'http://localhost:8080',
-          changeOrigin: true,
-          secure: false,
-        },
-      },
     },
     // to access the Tauri environment variables set by the CLI with information about the current target
     envPrefix: ['VITE_', 'TAURI_PLATFORM', 'TAURI_ARCH', 'TAURI_FAMILY', 'TAURI_PLATFORM_VERSION', 'TAURI_PLATFORM_TYPE', 'TAURI_DEBUG'],

@@ -6,7 +6,6 @@ import type { Message as MessageType, User } from "../../types";
 interface EventMessageProps {
   message: MessageType;
   messageUser?: User;
-  users: User[];
   showDate: boolean;
   onUsernameContextMenu: (
     e: React.MouseEvent,
@@ -20,7 +19,6 @@ interface EventMessageProps {
 export const EventMessage: React.FC<EventMessageProps> = ({
   message,
   messageUser,
-  users,
   onUsernameContextMenu,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);

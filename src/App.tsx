@@ -9,6 +9,7 @@ import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
+import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
@@ -68,12 +69,15 @@ const initializeEnvSettings = (
 const App: React.FC = () => {
   const {
     toggleAddServerModal,
+    toggleEditServerModal,
     ui: {
       isAddServerModalOpen,
       isUserProfileModalOpen,
       isChannelListModalOpen,
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
+      isEditServerModalOpen,
+      editServerId,
       linkSecurityWarnings,
       profileViewRequest,
     },
@@ -143,6 +147,12 @@ const App: React.FC = () => {
     <div className="h-screen overflow-hidden">
       <AppLayout />
       {isAddServerModalOpen && <AddServerModal />}
+      {isEditServerModalOpen && editServerId && (
+        <EditServerModal
+          serverId={editServerId}
+          onClose={() => toggleEditServerModal(false)}
+        />
+      )}
       {isUserProfileModalOpen && <UserSettings />}
       {isChannelListModalOpen && <ChannelListModal />}
       {isChannelRenameModalOpen && <ChannelRenameModal />}

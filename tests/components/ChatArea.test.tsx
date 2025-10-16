@@ -63,11 +63,17 @@ describe("ChatArea Tab Completion Integration", () => {
       currentUser: { id: "user1", username: "testuser", isOnline: true },
       ui: {
         selectedServerId: "server1",
-        selectedChannelId: "channel1",
-        selectedPrivateChatId: null,
+        perServerSelections: {
+          server1: {
+            selectedChannelId: "channel1",
+            selectedPrivateChatId: null,
+          },
+        },
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,
+        isEditServerModalOpen: false,
+        editServerId: null,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,

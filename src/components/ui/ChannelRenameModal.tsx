@@ -4,12 +4,19 @@ import { FaTimes } from "react-icons/fa";
 import useStore from "../../store";
 
 const ChannelRenameModal: React.FC = () => {
-  const {
-    servers,
-    ui: { selectedServerId, selectedChannelId },
-    renameChannel,
-    toggleChannelRenameModal,
-  } = useStore();
+  const { servers, ui, renameChannel, toggleChannelRenameModal } = useStore();
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = selectedServerId
+    ? ui.perServerSelections[selectedServerId] || {
+        selectedChannelId: null,
+        selectedPrivateChatId: null,
+      }
+    : {
+        selectedChannelId: null,
+        selectedPrivateChatId: null,
+      };
+  const { selectedChannelId } = currentSelection;
 
   const selectedServer = servers.find((s) => s.id === selectedServerId);
   const selectedChannel = selectedServer?.channels.find(

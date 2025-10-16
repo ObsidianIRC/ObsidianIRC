@@ -4,6 +4,8 @@ import {
   cloneElement,
   Fragment,
   isValidElement,
+  useEffect,
+  useRef,
   useState,
 } from "react";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
@@ -18,6 +20,28 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
   onIrcLinkClick,
 }) => {
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle clicks on external links within dangerouslySetInnerHTML content
+  useEffect(() => {
+    const handleExternalLinkClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target?.classList.contains("external-link-security")) {
+        e.preventDefault();
+        const url = target.getAttribute("href");
+        if (url) {
+          setPendingUrl(url);
+        }
+      }
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener("click", handleExternalLinkClick);
+      return () =>
+        container.removeEventListener("click", handleExternalLinkClick);
+    }
+  }, []);
 
   const handleLinkClick = (e: React.MouseEvent, url: string) => {
     // Handle IRC links
@@ -107,6 +131,10 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
           if ((child as React.ReactElement).type === "a") {
             return child;
           }
+          // Skip elements with dangerouslySetInnerHTML to avoid conflicts
+          if ((child as React.ReactElement).props?.dangerouslySetInnerHTML) {
+            return child;
+          }
           // Directly process the children of the React element
           const processed = processChildren(
             (child as React.ReactElement).props?.children,
@@ -130,7 +158,7 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
         onConfirm={handleConfirmOpen}
         onCancel={handleCancelOpen}
       />
-      {processChildren(children)}
+      <div ref={containerRef}>{processChildren(children)}</div>
     </>
   );
 };

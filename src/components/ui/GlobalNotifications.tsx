@@ -1,9 +1,24 @@
 import type React from "react";
+import { useEffect } from "react";
 import { FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
 import useStore from "../../store";
 
 export const GlobalNotifications: React.FC = () => {
   const { globalNotifications, removeGlobalNotification } = useStore();
+
+  // Auto-remove notifications after 10 seconds
+  useEffect(() => {
+    const timeouts = globalNotifications.map((notification) => {
+      return setTimeout(() => {
+        removeGlobalNotification(notification.id);
+      }, 10000); // 10 seconds
+    });
+
+    return () => {
+      // Clear all timeouts when component unmounts or notifications change
+      timeouts.forEach(clearTimeout);
+    };
+  }, [globalNotifications, removeGlobalNotification]);
 
   if (globalNotifications.length === 0) {
     return null;
@@ -27,13 +42,13 @@ export const GlobalNotifications: React.FC = () => {
   const getBackgroundColor = (type: "fail" | "warn" | "note") => {
     switch (type) {
       case "fail":
-        return "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800";
+        return "bg-red-50 dark:bg-red-950/90 border-red-200 dark:border-red-800";
       case "warn":
-        return "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800";
+        return "bg-yellow-50 dark:bg-yellow-950/90 border-yellow-200 dark:border-yellow-800";
       case "note":
-        return "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800";
+        return "bg-blue-50 dark:bg-blue-950/90 border-blue-200 dark:border-blue-800";
       default:
-        return "bg-gray-50 dark:bg-gray-950/20 border-gray-200 dark:border-gray-800";
+        return "bg-gray-50 dark:bg-gray-950/90 border-gray-200 dark:border-gray-800";
     }
   };
 
@@ -44,10 +59,10 @@ export const GlobalNotifications: React.FC = () => {
     }).format(date);
   };
 
-  // Only show FAIL and WARN notifications globally
+  // Show FAIL, WARN, and NOTE notifications globally
   const visibleNotifications = globalNotifications.filter(
     (n: { type: "fail" | "warn" | "note" }) =>
-      n.type === "fail" || n.type === "warn",
+      n.type === "fail" || n.type === "warn" || n.type === "note",
   );
 
   if (visibleNotifications.length === 0) {

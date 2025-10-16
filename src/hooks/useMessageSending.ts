@@ -103,7 +103,7 @@ export function useMessageSending({
 
       const batchId = createBatchId();
       const replyPrefix = localReplyTo
-        ? `@+draft/reply=${localReplyTo.id};`
+        ? `@+draft/reply=${localReplyTo.msgid};`
         : "";
 
       ircClient.sendRaw(
@@ -195,7 +195,7 @@ export function useMessageSending({
         splitLines.forEach((line: string) => {
           ircClient.sendRaw(
             selectedServerId,
-            `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+            `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
           );
         });
       } else {
@@ -210,7 +210,7 @@ export function useMessageSending({
           splitLines.forEach((splitLine: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${splitLine}`,
+              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${splitLine}`,
             );
           });
         });
@@ -241,7 +241,7 @@ export function useMessageSending({
       splitLines.forEach((line: string) => {
         ircClient.sendRaw(
           selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${line}`,
+          `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
         );
       });
     },

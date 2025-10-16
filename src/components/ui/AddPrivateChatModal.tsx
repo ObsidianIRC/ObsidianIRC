@@ -15,7 +15,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
   onClose,
   serverId,
 }) => {
-  const { openPrivateChat, servers } = useStore();
+  const { openPrivateChat, selectPrivateChat, servers } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
 
   const availableUsers = useMemo(() => {
@@ -51,6 +51,14 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
 
   const handleUserSelect = (username: string) => {
     openPrivateChat(serverId, username);
+    // Find and select the private chat
+    const server = servers.find((s) => s.id === serverId);
+    const privateChat = server?.privateChats?.find(
+      (pc) => pc.username === username,
+    );
+    if (privateChat) {
+      selectPrivateChat(privateChat.id);
+    }
     setSearchTerm("");
     onClose();
   };

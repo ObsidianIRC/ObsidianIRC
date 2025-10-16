@@ -12,20 +12,26 @@ import { ServerList } from "./ServerList";
 
 export const AppLayout: React.FC = () => {
   const {
-    ui: {
-      isDarkMode,
-      isMobileMenuOpen,
-      isMemberListVisible,
-      isChannelListVisible,
-      mobileViewActiveColumn,
-      selectedServerId,
-      selectedPrivateChatId,
-    },
+    ui,
     toggleMobileMenu,
     toggleMemberList,
     toggleChannelList,
     setMobileViewActiveColumn,
   } = useStore();
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
+    selectedChannelId: null,
+    selectedPrivateChatId: null,
+  };
+  const { selectedPrivateChatId } = currentSelection;
+  const {
+    isDarkMode,
+    isMobileMenuOpen,
+    isMemberListVisible,
+    isChannelListVisible,
+    mobileViewActiveColumn,
+  } = ui;
 
   // Hide member list for private chats
   const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;

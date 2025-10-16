@@ -21,6 +21,7 @@ import {
   getChannelAvatarUrl,
   getChannelDisplayName,
   hasOpPermission,
+  isUrlFromFilehost,
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
@@ -78,6 +79,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
 
   const servers = useStore((state) => state.servers);
+
+  // Get global settings for media controls
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
 
   // Get private chat user metadata - first check localStorage, then check shared channels
   const privateChatUserMetadata = useMemo(() => {
@@ -140,31 +146,63 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {selectedChannel && (
           <div className="flex flex-col min-w-0 flex-1 md:flex-row md:items-center">
             <div className="flex items-center min-w-0 flex-shrink-0">
-              {getChannelAvatarUrl(selectedChannel.metadata, 50) ? (
-                <img
-                  src={getChannelAvatarUrl(selectedChannel.metadata, 50)}
-                  alt={selectedChannel.name}
-                  className="w-12 h-12 rounded-full object-cover mr-2 flex-shrink-0"
-                  onError={(e) => {
-                    // Fallback to # icon on error
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    const fallbackIcon = parent?.querySelector(
-                      ".fallback-hash-icon",
-                    );
-                    if (fallbackIcon) {
-                      (fallbackIcon as HTMLElement).style.display =
-                        "inline-block";
-                    }
-                  }}
-                />
-              ) : null}
+              {(() => {
+                const avatarUrl = getChannelAvatarUrl(
+                  selectedChannel.metadata,
+                  50,
+                );
+                const selectedServer = servers.find(
+                  (s) => s.id === selectedServerId,
+                );
+                const isFilehostAvatar =
+                  avatarUrl &&
+                  selectedServer?.filehost &&
+                  isUrlFromFilehost(avatarUrl, selectedServer.filehost);
+                const shouldShowAvatar =
+                  avatarUrl &&
+                  ((isFilehostAvatar && showSafeMedia) || showExternalContent);
+
+                return shouldShowAvatar ? (
+                  <img
+                    src={avatarUrl}
+                    alt={selectedChannel.name}
+                    className="w-12 h-12 rounded-full object-cover mr-2 flex-shrink-0"
+                    onError={(e) => {
+                      // Fallback to # icon on error
+                      e.currentTarget.style.display = "none";
+                      const parent = e.currentTarget.parentElement;
+                      const fallbackIcon = parent?.querySelector(
+                        ".fallback-hash-icon",
+                      );
+                      if (fallbackIcon) {
+                        (fallbackIcon as HTMLElement).style.display =
+                          "inline-block";
+                      }
+                    }}
+                  />
+                ) : null;
+              })()}
               <FaHashtag
                 className="text-discord-text-muted mr-2 fallback-hash-icon flex-shrink-0 text-3xl"
                 style={{
-                  display: getChannelAvatarUrl(selectedChannel.metadata, 50)
-                    ? "none"
-                    : "inline-block",
+                  display: (() => {
+                    const avatarUrl = getChannelAvatarUrl(
+                      selectedChannel.metadata,
+                      50,
+                    );
+                    const selectedServer = servers.find(
+                      (s) => s.id === selectedServerId,
+                    );
+                    const isFilehostAvatar =
+                      avatarUrl &&
+                      selectedServer?.filehost &&
+                      isUrlFromFilehost(avatarUrl, selectedServer.filehost);
+                    const shouldShowAvatar =
+                      avatarUrl &&
+                      ((isFilehostAvatar && showSafeMedia) ||
+                        showExternalContent);
+                    return shouldShowAvatar ? "none" : "inline-block";
+                  })(),
                 }}
               />
               <h2 className="font-bold text-white mr-4 truncate">
@@ -259,18 +297,33 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <div className="flex items-center gap-3">
             {/* User avatar */}
             <div className="relative w-10 h-10 flex-shrink-0">
-              {privateChatAvatar && !avatarLoadFailed ? (
-                <img
-                  src={privateChatAvatar}
-                  alt={selectedPrivateChat.username}
-                  className="w-full h-full rounded-full object-cover"
-                  onError={() => setAvatarLoadFailed(true)}
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-discord-dark-400 flex items-center justify-center">
-                  <FaUser className="text-discord-text-muted text-xl" />
-                </div>
-              )}
+              {(() => {
+                const selectedServer = servers.find(
+                  (s) => s.id === selectedServerId,
+                );
+                const isFilehostAvatar =
+                  privateChatAvatar &&
+                  selectedServer?.filehost &&
+                  isUrlFromFilehost(privateChatAvatar, selectedServer.filehost);
+                const shouldShowAvatar =
+                  privateChatAvatar &&
+                  ((isFilehostAvatar && showSafeMedia) ||
+                    showExternalContent) &&
+                  !avatarLoadFailed;
+
+                return shouldShowAvatar ? (
+                  <img
+                    src={privateChatAvatar}
+                    alt={selectedPrivateChat.username}
+                    className="w-full h-full rounded-full object-cover"
+                    onError={() => setAvatarLoadFailed(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-full bg-discord-dark-400 flex items-center justify-center">
+                    <FaUser className="text-discord-text-muted text-xl" />
+                  </div>
+                );
+              })()}
               {/* Status indicator */}
               <span
                 className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-discord-dark-200 ${

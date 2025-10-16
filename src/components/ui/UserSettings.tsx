@@ -5,14 +5,27 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { FaBell, FaCog, FaServer, FaTimes, FaUser } from "react-icons/fa";
+import {
+  FaBell,
+  FaCog,
+  FaImage,
+  FaServer,
+  FaTimes,
+  FaUser,
+} from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isValidIgnorePattern } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
 import useStore, { serverSupportsMetadata } from "../../store";
+import AvatarUpload from "./AvatarUpload";
 import UserProfileModal from "./UserProfileModal";
 
-type SettingsCategory = "profile" | "notifications" | "preferences" | "account";
+type SettingsCategory =
+  | "profile"
+  | "notifications"
+  | "preferences"
+  | "media"
+  | "account";
 
 // Component for displaying setting fields
 const SettingField: React.FC<{
@@ -249,6 +262,9 @@ const UserSettings: React.FC = React.memo(() => {
       enableMultilineInput: globalEnableMultilineInput,
       multilineOnShiftEnter: globalMultilineOnShiftEnter,
       autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
+      showSafeMedia: globalShowSafeMedia,
+      showExternalContent: globalShowExternalContent,
+      enableMarkdownRendering: globalEnableMarkdownRendering,
     },
     updateGlobalSettings,
     addToIgnoreList,
@@ -297,6 +313,8 @@ const UserSettings: React.FC = React.memo(() => {
   // User Profile Modal state
   const [viewProfileModalOpen, setViewProfileModalOpen] = useState(false);
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
+  const [showExternalContentWarning, setShowExternalContentWarning] =
+    useState(false);
 
   // Profile metadata state
   const [avatar, setAvatar] = useState("");
@@ -321,6 +339,15 @@ const UserSettings: React.FC = React.memo(() => {
   );
   const [sendTypingNotifications, setSendTypingNotifications] = useState(
     globalSendTypingNotifications,
+  );
+
+  // Media settings state
+  const [showSafeMedia, setShowSafeMedia] = useState(globalShowSafeMedia);
+  const [showExternalContent, setShowExternalContent] = useState(
+    globalShowExternalContent,
+  );
+  const [enableMarkdownRendering, setEnableMarkdownRendering] = useState(
+    globalEnableMarkdownRendering,
   );
 
   // Account state (for hosted chat mode)
@@ -348,6 +375,17 @@ const UserSettings: React.FC = React.memo(() => {
     nickname: string;
     accountName: string;
     accountPassword: string;
+    showSafeMedia: boolean;
+    showExternalContent: boolean;
+    enableMarkdownRendering: boolean;
+    showEvents: boolean;
+    showNickChanges: boolean;
+    showJoinsParts: boolean;
+    showQuits: boolean;
+    showKicks: boolean;
+    enableMultilineInput: boolean;
+    multilineOnShiftEnter: boolean;
+    autoFallbackToSingleLine: boolean;
   } | null>(null);
 
   // Track if there are unsaved changes
@@ -367,7 +405,19 @@ const UserSettings: React.FC = React.memo(() => {
       sendTypingNotifications !== originalValues.sendTypingNotifications ||
       nickname !== originalValues.nickname ||
       accountName !== originalValues.accountName ||
-      accountPassword !== originalValues.accountPassword);
+      accountPassword !== originalValues.accountPassword ||
+      showSafeMedia !== originalValues.showSafeMedia ||
+      showExternalContent !== originalValues.showExternalContent ||
+      enableMarkdownRendering !== originalValues.enableMarkdownRendering ||
+      globalShowEvents !== originalValues.showEvents ||
+      globalShowNickChanges !== originalValues.showNickChanges ||
+      globalShowJoinsParts !== originalValues.showJoinsParts ||
+      globalShowQuits !== originalValues.showQuits ||
+      globalShowKicks !== originalValues.showKicks ||
+      globalEnableMultilineInput !== originalValues.enableMultilineInput ||
+      globalMultilineOnShiftEnter !== originalValues.multilineOnShiftEnter ||
+      globalAutoFallbackToSingleLine !==
+        originalValues.autoFallbackToSingleLine);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -417,6 +467,10 @@ const UserSettings: React.FC = React.memo(() => {
     },
     [],
   );
+
+  const handleAvatarUrlChange = useCallback((url: string) => {
+    setAvatar(url);
+  }, []);
 
   const handleHomepageChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -630,6 +684,17 @@ const UserSettings: React.FC = React.memo(() => {
         nickname: globalNickname || currentUser?.username || "",
         accountName: globalAccountName,
         accountPassword: globalAccountPassword,
+        showSafeMedia: globalShowSafeMedia,
+        showExternalContent: globalShowExternalContent,
+        enableMarkdownRendering: globalEnableMarkdownRendering,
+        showEvents: globalShowEvents,
+        showNickChanges: globalShowNickChanges,
+        showJoinsParts: globalShowJoinsParts,
+        showQuits: globalShowQuits,
+        showKicks: globalShowKicks,
+        enableMultilineInput: globalEnableMultilineInput,
+        multilineOnShiftEnter: globalMultilineOnShiftEnter,
+        autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
       });
     }
   }, [
@@ -649,9 +714,20 @@ const UserSettings: React.FC = React.memo(() => {
     globalNickname,
     globalNotificationSound,
     globalSendTypingNotifications,
+    globalShowSafeMedia,
+    globalShowExternalContent,
     currentUser,
     originalValues,
     updateGlobalSettings,
+    globalAutoFallbackToSingleLine,
+    globalEnableMarkdownRendering,
+    globalEnableMultilineInput,
+    globalMultilineOnShiftEnter,
+    globalShowEvents,
+    globalShowJoinsParts,
+    globalShowKicks,
+    globalShowNickChanges,
+    globalShowQuits,
   ]); // Only depend on user ID - removed all other dependencies
 
   const handleSaveMetadata = (key: string, value: string) => {
@@ -767,6 +843,42 @@ const UserSettings: React.FC = React.memo(() => {
     if (sendTypingNotifications !== originalValues.sendTypingNotifications) {
       globalSettingsUpdates.sendTypingNotifications = sendTypingNotifications;
     }
+    if (showSafeMedia !== originalValues.showSafeMedia) {
+      globalSettingsUpdates.showSafeMedia = showSafeMedia;
+    }
+    if (showExternalContent !== originalValues.showExternalContent) {
+      globalSettingsUpdates.showExternalContent = showExternalContent;
+    }
+    if (enableMarkdownRendering !== originalValues.enableMarkdownRendering) {
+      globalSettingsUpdates.enableMarkdownRendering = enableMarkdownRendering;
+    }
+    if (globalShowEvents !== originalValues.showEvents) {
+      globalSettingsUpdates.showEvents = globalShowEvents;
+    }
+    if (globalShowNickChanges !== originalValues.showNickChanges) {
+      globalSettingsUpdates.showNickChanges = globalShowNickChanges;
+    }
+    if (globalShowJoinsParts !== originalValues.showJoinsParts) {
+      globalSettingsUpdates.showJoinsParts = globalShowJoinsParts;
+    }
+    if (globalShowQuits !== originalValues.showQuits) {
+      globalSettingsUpdates.showQuits = globalShowQuits;
+    }
+    if (globalShowKicks !== originalValues.showKicks) {
+      globalSettingsUpdates.showKicks = globalShowKicks;
+    }
+    if (globalEnableMultilineInput !== originalValues.enableMultilineInput) {
+      globalSettingsUpdates.enableMultilineInput = globalEnableMultilineInput;
+    }
+    if (globalMultilineOnShiftEnter !== originalValues.multilineOnShiftEnter) {
+      globalSettingsUpdates.multilineOnShiftEnter = globalMultilineOnShiftEnter;
+    }
+    if (
+      globalAutoFallbackToSingleLine !== originalValues.autoFallbackToSingleLine
+    ) {
+      globalSettingsUpdates.autoFallbackToSingleLine =
+        globalAutoFallbackToSingleLine;
+    }
 
     if (isHostedChatMode) {
       if (nickname !== originalValues.nickname) {
@@ -794,6 +906,7 @@ const UserSettings: React.FC = React.memo(() => {
     { id: "profile" as const, name: "Profile", icon: FaUser },
     { id: "notifications" as const, name: "Notifications", icon: FaBell },
     { id: "preferences" as const, name: "Preferences", icon: FaCog },
+    { id: "media" as const, name: "Media", icon: FaImage },
     ...(isHostedChatMode
       ? [{ id: "account" as const, name: "Account", icon: FaServer }]
       : []),
@@ -869,18 +982,26 @@ const UserSettings: React.FC = React.memo(() => {
           </SettingField>
 
           <SettingField
-            label="Avatar URL"
-            description="A link to your profile picture (supports common image formats)"
+            label="Avatar"
+            description="Your profile picture (upload an image or provide a URL)"
           >
-            <input
-              key="avatar-input"
-              ref={avatarInputRef}
-              type="url"
-              value={avatar}
-              onChange={handleAvatarChange}
-              placeholder="https://example.com/avatar.jpg"
-              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-            />
+            {currentServer?.filehost ? (
+              <AvatarUpload
+                currentAvatarUrl={avatar}
+                onAvatarUrlChange={handleAvatarUrlChange}
+                serverId={currentServer.id}
+              />
+            ) : (
+              <input
+                key="avatar-input"
+                ref={avatarInputRef}
+                type="url"
+                value={avatar}
+                onChange={handleAvatarChange}
+                placeholder="https://example.com/avatar.jpg"
+                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+              />
+            )}
           </SettingField>
 
           <SettingField
@@ -1348,6 +1469,74 @@ const UserSettings: React.FC = React.memo(() => {
     </div>
   );
 
+  const renderMediaSettings = () => (
+    <div className="space-y-6">
+      <SettingField
+        label="Show Safe Media"
+        description="Automatically display images and media from trusted sources"
+      >
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={showSafeMedia}
+            onChange={(e) => setShowSafeMedia(e.target.checked)}
+            className="mr-3 accent-discord-primary"
+          />
+          <span className="text-discord-text-normal">
+            Enable safe media display
+          </span>
+        </label>
+      </SettingField>
+
+      <SettingField
+        label="Show External Content"
+        description="Display media from external links (may reveal your IP address to external servers)"
+      >
+        <div className="space-y-3">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={showExternalContent}
+              onChange={(e) => {
+                if (!e.target.checked) {
+                  setShowExternalContent(false);
+                } else {
+                  // Show warning modal before enabling
+                  setShowExternalContentWarning(true);
+                }
+              }}
+              className="mr-3 accent-discord-primary"
+            />
+            <span className="text-discord-text-normal">
+              Enable external content display
+            </span>
+          </label>
+          <p className="text-discord-text-muted text-sm ml-6">
+            ⚠️ Warning: Enabling this will load content from external servers and
+            may reveal your IP address.
+          </p>
+        </div>
+      </SettingField>
+
+      <SettingField
+        label="Enable Markdown Rendering"
+        description="Render markdown syntax in messages (headings, bold, italic, code blocks, etc.)"
+      >
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={enableMarkdownRendering}
+            onChange={(e) => setEnableMarkdownRendering(e.target.checked)}
+            className="mr-3 accent-discord-primary"
+          />
+          <span className="text-discord-text-normal">
+            Enable markdown rendering in messages
+          </span>
+        </label>
+      </SettingField>
+    </div>
+  );
+
   const renderActiveCategory = () => {
     switch (activeCategory) {
       case "profile":
@@ -1356,6 +1545,8 @@ const UserSettings: React.FC = React.memo(() => {
         return renderNotificationSettings();
       case "preferences":
         return renderPreferencesSettings();
+      case "media":
+        return renderMediaSettings();
       case "account":
         return renderAccountSettings();
       default:
@@ -1502,6 +1693,47 @@ const UserSettings: React.FC = React.memo(() => {
                   className="px-4 py-2 bg-[#5865F2] text-white rounded font-medium hover:bg-[#4752C4] transition-colors"
                 >
                   Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* External Content Warning Modal */}
+      {showExternalContentWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-discord-dark-300 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-white text-xl font-semibold mb-4">
+                ⚠️ External Content Warning
+              </h3>
+              <p className="text-discord-text-normal mb-4">
+                Enabling external content display will load images and media
+                from external servers. This may reveal your IP address to those
+                servers.
+              </p>
+              <p className="text-discord-text-muted text-sm mb-6">
+                Only enable this if you understand the privacy implications and
+                trust the content sources.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowExternalContentWarning(false);
+                  }}
+                  className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowExternalContentWarning(false);
+                    setShowExternalContent(true);
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700 transition-colors"
+                >
+                  Enable Anyway
                 </button>
               </div>
             </div>

@@ -86,6 +86,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const joinChannel = useStore((state) => state.joinChannel);
   const selectChannel = useStore((state) => state.selectChannel);
   const openPrivateChat = useStore((state) => state.openPrivateChat);
+  const selectPrivateChat = useStore((state) => state.selectPrivateChat);
   const toggleUserProfileModal = useStore(
     (state) => state.toggleUserProfileModal,
   );
@@ -625,6 +626,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   onClick={() => {
                     openPrivateChat(serverId, username);
+                    // Find and select the private chat
+                    const server = servers.find((s) => s.id === serverId);
+                    const privateChat = server?.privateChats?.find(
+                      (pc) => pc.username === username,
+                    );
+                    if (privateChat) {
+                      selectPrivateChat(privateChat.id);
+                    }
                     onClose();
                   }}
                   className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-green-600/20 flex items-center gap-2"

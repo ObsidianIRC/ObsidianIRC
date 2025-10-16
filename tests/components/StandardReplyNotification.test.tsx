@@ -5,6 +5,7 @@ import { StandardReplyNotification } from "../../src/components/ui/StandardReply
 // Mock the IRC utilities
 vi.mock("../../src/lib/ircUtils", () => ({
   mircToHtml: vi.fn((text: string) => `<span>${text}</span>`),
+  processMarkdownInText: vi.fn((text: string) => `<span>${text}</span>`),
 }));
 
 // Mock the LinkWrapper component
