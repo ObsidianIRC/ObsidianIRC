@@ -240,6 +240,9 @@ export function renderMarkdown(
     return `<a href="${sanitizedHref}"${titleAttr} target="_blank" rel="noopener noreferrer" class="${linkClass}">${text}</a>`;
   };
 
+  // Strip all HTML tags from input before markdown processing
+  const textWithoutHtml = text.replace(/<[^>]*>/g, "");
+
   marked.setOptions({
     breaks: true,
     gfm: true,
@@ -247,7 +250,7 @@ export function renderMarkdown(
   });
 
   // Parse markdown to HTML
-  const html = marked.parse(text) as string;
+  const html = marked.parse(textWithoutHtml) as string;
 
   // Additional security: only allow specific markdown-related HTML tags
   // Define allowed HTML tags for markdown rendering
