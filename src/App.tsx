@@ -141,7 +141,11 @@ const App: React.FC = () => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);
     // Auto-reconnect to saved servers on app startup
     connectToSavedServers();
-  }, [toggleAddServerModal, joinChannel, connectToSavedServers]);
+  }, [
+    toggleAddServerModal,
+    joinChannel, // Auto-reconnect to saved servers on app startup
+    connectToSavedServers,
+  ]); // Removed connectToSavedServers from dependencies
 
   return (
     <div className="h-screen overflow-hidden">

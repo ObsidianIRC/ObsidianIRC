@@ -378,7 +378,9 @@ export class IRCClient {
         concatFlags?: boolean[];
         sender?: string;
         messageIds?: string[];
+        timestamps?: Date[];
         batchMsgId?: string;
+        batchTime?: Date;
       }
     >
   > = new Map(); // Track active batches per server
@@ -1456,21 +1458,21 @@ export class IRCClient {
             }
 
             // Track message IDs for redaction
-            if (!batch.messageIds) {
-              batch.messageIds = [];
-            }
-            if (mtags?.msgid) {
+            if (mtags?.msgid && batch.messageIds) {
               batch.messageIds.push(mtags.msgid);
-            } else {
+            }
+
+            // Track timestamps for proper ordering
+            if (batch.timestamps) {
+              batch.timestamps.push(getTimestampFromTags(mtags));
             }
 
             // Track if this message has the concat flag
-            if (!batch.concatFlags) {
-              batch.concatFlags = [];
-            }
             const hasMultilineConcat =
               mtags && mtags["draft/multiline-concat"] !== undefined;
-            batch.concatFlags.push(!!hasMultilineConcat);
+            if (batch.concatFlags) {
+              batch.concatFlags.push(!!hasMultilineConcat);
+            }
 
             return; // Don't trigger individual message event, wait for batch completion
           }
@@ -1678,7 +1680,11 @@ export class IRCClient {
             type: batchType,
             parameters,
             messages: [],
+            timestamps: [],
+            concatFlags: [],
+            messageIds: [],
             batchMsgId: mtags?.msgid, // Store the msgid from the BATCH command itself
+            batchTime: mtags?.time ? new Date(mtags.time) : undefined, // Store the time from the BATCH command
           });
 
           this.triggerEvent("BATCH_START", {
@@ -1731,7 +1737,10 @@ export class IRCClient {
               message: combinedMessage,
               lines: batch.messages,
               messageIds: batch.messageIds || [],
-              timestamp: getTimestampFromTags(mtags),
+              timestamp: batch.batchTime || 
+                (batch.timestamps && batch.timestamps.length > 0 
+                  ? new Date(Math.min(...batch.timestamps.map(t => t.getTime())))
+                  : getTimestampFromTags(mtags)),
             });
           }
 

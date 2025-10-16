@@ -509,6 +509,8 @@ export interface AppState {
   channelOrder: ChannelOrderMap; // serverId -> ordered array of channel names
   // Message deduplication tracking
   processedMessageIds: Set<string>; // Set of msgid values that have already been processed
+  // Auto-connect prevention
+  hasConnectedToSavedServers: boolean;
   // UI state
   ui: UIState;
   globalSettings: GlobalSettings;
@@ -723,6 +725,7 @@ const useStore = create<AppState>((set, get) => ({
   pendingRegistration: null,
   channelOrder: loadChannelOrder(),
   processedMessageIds: new Set<string>(),
+  hasConnectedToSavedServers: false,
   selectedServerId: null,
 
   // UI state
@@ -1248,6 +1251,20 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const channelKey = `${message.serverId}-${message.channelId}`;
       const currentMessages = state.messages[channelKey] || [];
+
+      // Check for duplicate messages (same id, or same content/timestamp/user)
+      const isDuplicate = currentMessages.some((existingMessage) => {
+        return (
+          existingMessage.id === message.id ||
+          (existingMessage.content === message.content &&
+           existingMessage.timestamp === message.timestamp &&
+           existingMessage.userId === message.userId)
+        );
+      });
+
+      if (isDuplicate) {
+        return state; // Don't add duplicate message
+      }
 
       // Add message and sort chronologically by timestamp
       const updatedMessages = [...currentMessages, message].sort((a, b) => {
@@ -1953,6 +1970,13 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   connectToSavedServers: async () => {
+    const state = get();
+    if (state.hasConnectedToSavedServers) {
+      return; // Already connected, don't do it again
+    }
+
+    set({ hasConnectedToSavedServers: true });
+
     const savedServers = loadSavedServers();
     for (const savedServer of savedServers) {
       const {
@@ -7442,42 +7466,49 @@ ircClient.on(
     const serverData = state.servers.find((s) => s.id === serverId);
     if (!serverData) return;
 
-    // Update private chat with account and realname information
+    // Determine flags once
+    const isBotFromFlags = flags.includes("B");
+    const isIrcOpFromFlags = flags.includes("*");
+    const accountValue = account === "0" ? undefined : account;
+
     useStore.setState((state) => {
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
-          const updatedPrivateChats = s.privateChats?.map((pm) => {
-            if (pm.username.toLowerCase() === nick.toLowerCase()) {
-              // Determine bot status from flags (B flag indicates bot)
-              // Preserve existing bot flag if it was already set (don't overwrite)
-              const isBotFromFlags = flags.includes("B");
-              const isIrcOpFromFlags = flags.includes("*");
-              const isBot = pm.isBot || isBotFromFlags;
+          let updatedPrivateChats = s.privateChats || [];
+          let updatedChannels = s.channels;
 
-              return {
-                ...pm,
+          // Update private chat with account and realname information
+          const privateChatIndex = updatedPrivateChats.findIndex(
+            (pm) => pm.username.toLowerCase() === nick.toLowerCase(),
+          );
+          if (privateChatIndex !== -1) {
+            const existingPm = updatedPrivateChats[privateChatIndex];
+            const isBot = existingPm.isBot || isBotFromFlags;
+
+            // Only update if something actually changed
+            if (
+              existingPm.realname !== realname ||
+              existingPm.account !== accountValue ||
+              existingPm.isOnline !== true ||
+              existingPm.isAway !== isAway ||
+              existingPm.isBot !== isBot ||
+              existingPm.isIrcOp !== isIrcOpFromFlags
+            ) {
+              updatedPrivateChats = [...updatedPrivateChats];
+              updatedPrivateChats[privateChatIndex] = {
+                ...existingPm,
                 realname: realname,
-                account: account === "0" ? undefined : account, // "0" means not logged in
-                isOnline: true, // If we got a WHOX reply, they're online
+                account: accountValue,
+                isOnline: true,
                 isAway: isAway,
                 isBot: isBot,
                 isIrcOp: isIrcOpFromFlags,
               };
             }
-            return pm;
-          });
-          return { ...s, privateChats: updatedPrivateChats };
-        }
-        return s;
-      });
-      return { servers: updatedServers };
-    });
+          }
 
-    // Also update/add channel users from WHOX response
-    useStore.setState((state) => {
-      const updatedServers = state.servers.map((s) => {
-        if (s.id === serverId) {
-          const updatedChannels = s.channels.map((ch) => {
+          // Update/add channel users from WHOX response
+          updatedChannels = updatedChannels.map((ch) => {
             // Only update the specific channel from the WHOX response
             if (ch.name === channel) {
               // Check if user already exists in this channel
@@ -7485,47 +7516,56 @@ ircClient.on(
                 (user) => user.username.toLowerCase() === nick.toLowerCase(),
               );
 
-              // Determine bot status from flags (B flag indicates bot)
-              const isBotFromFlags = flags.includes("B");
-              const isIrcOpFromFlags = flags.includes("*");
-
               if (existingUserIndex !== -1) {
                 // Update existing user
                 const existingUser = ch.users[existingUserIndex];
                 const isBot = existingUser.isBot || isBotFromFlags;
 
-                const updatedUsers = [...ch.users];
-                updatedUsers[existingUserIndex] = {
-                  ...existingUser,
+                // Only update if something actually changed
+                if (
+                  existingUser.hostname !== host ||
+                  existingUser.realname !== realname ||
+                  existingUser.account !== accountValue ||
+                  existingUser.isAway !== isAway ||
+                  existingUser.isBot !== isBot ||
+                  existingUser.isIrcOp !== isIrcOpFromFlags ||
+                  existingUser.status !== (opLevel || existingUser.status)
+                ) {
+                  const updatedUsers = [...ch.users];
+                  updatedUsers[existingUserIndex] = {
+                    ...existingUser,
+                    hostname: host,
+                    realname: realname,
+                    account: accountValue,
+                    isAway: isAway,
+                    isBot: isBot,
+                    isIrcOp: isIrcOpFromFlags,
+                    status: opLevel || existingUser.status,
+                  };
+                  return { ...ch, users: updatedUsers };
+                }
+              } else {
+                // Add new user to channel
+                const newUser: User = {
+                  id: `${nick}-${serverId}`,
+                  username: nick,
                   hostname: host,
                   realname: realname,
-                  account: account === "0" ? undefined : account, // "0" means not logged in
+                  account: accountValue,
+                  isOnline: true,
                   isAway: isAway,
-                  isBot: isBot,
+                  isBot: isBotFromFlags,
                   isIrcOp: isIrcOpFromFlags,
-                  status: opLevel || existingUser.status, // Update status with op level from WHOX
+                  status: opLevel,
+                  metadata: {},
                 };
-                return { ...ch, users: updatedUsers };
+                return { ...ch, users: [...ch.users, newUser] };
               }
-              // Add new user to channel
-              const newUser: User = {
-                id: `${nick}-${serverId}`,
-                username: nick,
-                hostname: host,
-                realname: realname,
-                account: account === "0" ? undefined : account,
-                isOnline: true,
-                isAway: isAway,
-                isBot: isBotFromFlags,
-                isIrcOp: isIrcOpFromFlags,
-                status: opLevel, // Set status from op level in WHOX
-                metadata: {},
-              };
-              return { ...ch, users: [...ch.users, newUser] };
             }
             return ch;
           });
-          return { ...s, channels: updatedChannels };
+
+          return { ...s, privateChats: updatedPrivateChats, channels: updatedChannels };
         }
         return s;
       });

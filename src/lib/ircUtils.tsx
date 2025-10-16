@@ -280,6 +280,8 @@ export function processMarkdownInText(
     /^> /m, // Blockquotes
     /\[.*?\]\(.*?\)/, // Links [text](url)
     /!\[.*?\]\(.*?\)/, // Images ![alt](url)
+    /^\|.*\|.*$/m, // Table rows
+    /^[\s]*\|[\s]*:?-+:?[\s]*\|.*$/m, // Table separators
   ];
 
   const hasMarkdown = markdownPatterns.some((pattern) => pattern.test(text));
