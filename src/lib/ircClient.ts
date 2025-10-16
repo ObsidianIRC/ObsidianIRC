@@ -661,7 +661,7 @@ export class IRCClient {
     // Calculate delay based on attempt count
     let delay = 0;
     if (attempts === 0) {
-      delay = 30000; // 30 seconds for first retry after disconnection
+      delay = 0; // Immediate retry for testing
     } else if (attempts === 1) {
       delay = 15000; // 15 seconds
     } else if (attempts === 2) {
