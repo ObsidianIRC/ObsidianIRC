@@ -18,7 +18,7 @@ import ircClient from "../../lib/ircClient";
 import {
   getChannelAvatarUrl,
   getChannelDisplayName,
-  mircToHtml,
+  processMarkdownInText,
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
@@ -72,7 +72,7 @@ export const ChannelList: React.FC<{
     const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
     if (!ircCurrentUser) return null;
 
-    // First, check if we have a global current user with metadata for this username
+    // If we have a currentUser in the store that matches this server's current user, use it (it has modes)
     if (
       state.currentUser &&
       state.currentUser.username === ircCurrentUser.username
@@ -80,22 +80,33 @@ export const ChannelList: React.FC<{
       return state.currentUser;
     }
 
-    // Find the current user in the server's channel data to get metadata
+    // Otherwise, try to find user in channels for metadata and merge with store currentUser if available
     const selectedServer = state.servers.find((s) => s.id === selectedServerId);
-    if (!selectedServer) return ircCurrentUser;
+    if (!selectedServer) return state.currentUser || ircCurrentUser;
 
-    // Look for the user in any channel to get their metadata
+    // Look for the user in any channel
     for (const channel of selectedServer.channels) {
       const userWithMetadata = channel.users.find(
         (u) => u.username === ircCurrentUser.username,
       );
       if (userWithMetadata) {
+        // If we have currentUser in store, merge its modes and IRC op status with the channel user's metadata
+        if (
+          state.currentUser &&
+          state.currentUser.username === userWithMetadata.username
+        ) {
+          return {
+            ...userWithMetadata,
+            modes: state.currentUser.modes,
+            isIrcOp: state.currentUser.isIrcOp,
+          };
+        }
         return userWithMetadata;
       }
     }
 
-    // If not found in channels, return the basic IRC user
-    return ircCurrentUser;
+    // If not found in channels, return store currentUser or IRC user
+    return state.currentUser || ircCurrentUser;
   });
 
   const servers = useStore((state) => state.servers);
@@ -134,6 +145,11 @@ export const ChannelList: React.FC<{
     }
     return "online";
   }, [selectedServer]);
+
+  // Check if current user is an IRC operator
+  // Check both the computed currentUser and the store's currentUser for IRC operator status
+  const storeCurrentUser = useStore((state) => state.currentUser);
+  const isIrcOp = currentUser?.isIrcOp || storeCurrentUser?.isIrcOp || false;
 
   // Get channel order from store
   const channelOrder = useStore((state) => state.channelOrder);
@@ -229,6 +245,7 @@ export const ChannelList: React.FC<{
       privateChat?.isBot ||
       user?.isBot ||
       user?.metadata?.bot?.value === "true";
+    const isIrcOp = user?.isIrcOp || false;
 
     const isVerified =
       showVerified &&
@@ -236,7 +253,7 @@ export const ChannelList: React.FC<{
       account !== "0" &&
       username.toLowerCase() === account.toLowerCase();
 
-    if (!isVerified && !isBot) return null;
+    if (!isVerified && !isBot && !isIrcOp) return null;
 
     return (
       <>
@@ -254,6 +271,15 @@ export const ChannelList: React.FC<{
             title="Bot"
           >
             🤖
+          </span>
+        )}
+        {isIrcOp && (
+          <span
+            className="inline ml-0.5"
+            style={{ fontSize: "0.9em" }}
+            title="IRC Operator"
+          >
+            🔑
           </span>
         )}
       </>
@@ -1027,7 +1053,8 @@ export const ChannelList: React.FC<{
                                     privateChat.realname || user?.realname;
                                   if (realname) {
                                     // Parse IRC colors/formatting in realname
-                                    secondPart = mircToHtml(realname);
+                                    secondPart =
+                                      processMarkdownInText(realname);
                                   }
                                 }
 
@@ -1265,8 +1292,16 @@ export const ChannelList: React.FC<{
               />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-discord-channels-active font-medium text-sm truncate">
-                {currentUser?.username || "User"}
+              <div className="text-discord-channels-active font-medium text-sm truncate flex items-center gap-1">
+                <span>{currentUser?.username || "User"}</span>
+                {isIrcOp && (
+                  <span
+                    className="bg-blue-600 text-white px-1 py-0.5 rounded text-xs font-bold flex-shrink-0"
+                    title="You are an IRC Operator"
+                  >
+                    🔑
+                  </span>
+                )}
               </div>
               <div className="text-xs text-discord-channels-default truncate">
                 {userStatus === "online"

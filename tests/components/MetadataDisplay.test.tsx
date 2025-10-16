@@ -134,6 +134,8 @@ describe("Metadata Display Features", () => {
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,
+        isEditServerModalOpen: false,
+        editServerId: null,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,
@@ -183,6 +185,7 @@ describe("Metadata Display Features", () => {
         autoFallbackToSingleLine: true,
         showSafeMedia: true,
         showExternalContent: true,
+        enableMarkdownRendering: false,
       },
     });
 

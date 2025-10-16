@@ -189,6 +189,9 @@ export interface EventMap {
     nick: string;
     awayMessage: string;
   };
+  RPL_YOUREOPER: BaseIRCEvent & {
+    message: string;
+  };
   MONONLINE: BaseIRCEvent & {
     targets: Array<{ nick: string; user?: string; host?: string }>;
   };
@@ -649,7 +652,7 @@ export class IRCClient {
     // Calculate delay based on attempt count
     let delay = 0;
     if (attempts === 0) {
-      delay = 0; // Immediate retry
+      delay = 30000; // 30 seconds for first retry after disconnection
     } else if (attempts === 1) {
       delay = 15000; // 15 seconds
     } else if (attempts === 2) {
@@ -1566,6 +1569,13 @@ export class IRCClient {
           serverId,
           channelName,
           users: newUsers,
+        });
+      } else if (command === "381") {
+        // RPL_YOUREOPER - You are now an IRC Operator
+        const message = parv.slice(1).join(" ");
+        this.triggerEvent("RPL_YOUREOPER", {
+          serverId,
+          message,
         });
       } else if (command === "CAP") {
         console.log(

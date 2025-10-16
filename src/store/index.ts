@@ -378,6 +378,8 @@ interface UIState {
     }
   >;
   isAddServerModalOpen: boolean | undefined;
+  isEditServerModalOpen: boolean;
+  editServerId: string | null;
   isSettingsModalOpen: boolean;
   isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
@@ -436,6 +438,8 @@ export interface GlobalSettings {
   // Media settings
   showSafeMedia: boolean;
   showExternalContent: boolean;
+  // Markdown settings
+  enableMarkdownRendering: boolean;
 }
 
 export interface AppState {
@@ -602,12 +606,14 @@ export interface AppState {
   connectToSavedServers: () => void; // New action to load servers from localStorage
   reconnectServer: (serverId: string) => Promise<void>; // Reconnect to an existing server
   deleteServer: (serverId: string) => void; // New action to delete a server
+  updateServer: (serverId: string, config: Partial<ServerConfig>) => void; // Update server configuration
   capAck: (serverId: string, key: string, capabilities: string) => void; // Handle CAP ACK
   // UI actions
   toggleAddServerModal: (
     isOpen?: boolean,
     prefillDetails?: ConnectionDetails | null,
   ) => void;
+  toggleEditServerModal: (isOpen?: boolean, serverId?: string | null) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
   setProfileViewRequest: (serverId: string, username: string) => void;
@@ -724,6 +730,8 @@ const useStore = create<AppState>((set, get) => ({
     selectedServerId: null,
     perServerSelections: {},
     isAddServerModalOpen: false,
+    isEditServerModalOpen: false,
+    editServerId: null,
     isSettingsModalOpen: false,
     isUserProfileModalOpen: false,
     isDarkMode: true, // Discord-like default is dark mode
@@ -779,6 +787,8 @@ const useStore = create<AppState>((set, get) => ({
     // Media settings
     showSafeMedia: true,
     showExternalContent: false,
+    // Markdown settings
+    enableMarkdownRendering: false,
     ...loadSavedGlobalSettings(), // Load saved settings from localStorage
   },
 
@@ -847,7 +857,10 @@ const useStore = create<AppState>((set, get) => ({
         channels: channelsToJoin,
         saslAccountName,
         saslPassword,
-        // Preserve warning preferences
+        // Preserve existing oper credentials and warning preferences
+        operUsername: savedServer?.operUsername,
+        operPassword: savedServer?.operPassword,
+        operOnConnect: savedServer?.operOnConnect,
         skipLocalhostWarning: savedServer?.skipLocalhostWarning,
         skipLinkSecurityWarning: savedServer?.skipLinkSecurityWarning,
       });
@@ -2092,6 +2105,16 @@ const useStore = create<AppState>((set, get) => ({
     ircClient.disconnect(serverId);
   },
 
+  updateServer: (serverId, config) => {
+    const savedServers = loadSavedServers();
+    const serverIndex = savedServers.findIndex((s) => s.id === serverId);
+
+    if (serverIndex !== -1) {
+      savedServers[serverIndex] = { ...savedServers[serverIndex], ...config };
+      saveServersToLocalStorage(savedServers);
+    }
+  },
+
   // UI actions
   toggleAddServerModal: (isOpen, prefillDetails = null) => {
     set((state) => ({
@@ -2099,6 +2122,16 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isAddServerModalOpen: isOpen,
         prefillServerDetails: prefillDetails,
+      },
+    }));
+  },
+
+  toggleEditServerModal: (isOpen, serverId = null) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isEditServerModalOpen: isOpen ?? false,
+        editServerId: serverId,
       },
     }));
   },
@@ -4381,6 +4414,32 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
   const savedServer = savedServers.find((s) => s.id === serverId);
 
   if (savedServer) {
+    // Send OPER command if oper on connect is enabled
+    if (
+      savedServer.operOnConnect &&
+      savedServer.operUsername &&
+      savedServer.operPassword
+    ) {
+      try {
+        const decodedPassword = atob(savedServer.operPassword);
+        useStore
+          .getState()
+          .sendRaw(
+            serverId,
+            `OPER ${savedServer.operUsername} ${decodedPassword}`,
+          );
+      } catch (error) {
+        console.error("Failed to decode operator password:", error);
+        // Fall back to using the password as-is if decoding fails
+        useStore
+          .getState()
+          .sendRaw(
+            serverId,
+            `OPER ${savedServer.operUsername} ${savedServer.operPassword}`,
+          );
+      }
+    }
+
     // Get the saved channel order for this server
     const savedChannelOrder = useStore.getState().channelOrder[serverId];
 
@@ -4655,6 +4714,71 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
       });
       return { servers: updatedServers };
     });
+  } else {
+    // This is a user mode change
+    useStore.setState((state) => {
+      // Check if this is the current user
+      const currentUser = state.currentUser;
+      if (
+        currentUser &&
+        currentUser.username.toLowerCase() === target.toLowerCase()
+      ) {
+        // Check if this is an IRC operator mode change
+        const isIrcOp = modestring.includes("o");
+        // Update current user's modes and IRC operator status
+        return {
+          currentUser: {
+            ...currentUser,
+            modes: modestring,
+            isIrcOp: isIrcOp,
+          },
+        };
+      }
+
+      // If no currentUser in store, check if this MODE is for the IRC current user
+      const ircCurrentUser = ircClient.getCurrentUser(serverId);
+      if (
+        !currentUser &&
+        ircCurrentUser &&
+        ircCurrentUser.username.toLowerCase() === target.toLowerCase()
+      ) {
+        // Check if this is an IRC operator mode change
+        const isIrcOp = modestring.includes("o");
+        // Set the current user with modes and IRC operator status
+        return {
+          currentUser: {
+            ...ircCurrentUser,
+            modes: modestring,
+            isIrcOp: isIrcOp,
+          },
+        };
+      }
+
+      // Update user in server users list
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          const updatedUsers = server.users.map((user) => {
+            if (user.username.toLowerCase() === target.toLowerCase()) {
+              console.log(
+                "Updated user",
+                user.username,
+                "modes to",
+                modestring,
+              );
+              return {
+                ...user,
+                modes: modestring,
+              };
+            }
+            return user;
+          });
+          return { ...server, users: updatedUsers };
+        }
+        return server;
+      });
+
+      return { servers: updatedServers };
+    });
   }
 });
 
@@ -4782,9 +4906,15 @@ ircClient.on("RPL_ENDOFINVITELIST", ({ serverId, channel }) => {
   console.log(`Invite list loaded for ${channel} on server ${serverId}`);
 });
 
-ircClient.on("RPL_ENDOFEXCEPTLIST", ({ serverId, channel }) => {
-  // Exception list loading is complete - could trigger UI updates if needed
-  console.log(`Exception list loaded for ${channel} on server ${serverId}`);
+ircClient.on("RPL_YOUREOPER", ({ serverId, message }) => {
+  // Show notification that user is now an IRC operator
+  useStore.getState().addGlobalNotification({
+    type: "note",
+    command: "Oper",
+    code: "OPER",
+    message: "You are an IRC Operator",
+    serverId,
+  });
 });
 
 // Topic handlers
@@ -6262,7 +6392,13 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
         } else {
           delete metadata[key];
         }
-        updatedCurrentUser = { ...currentUserForServer, metadata };
+        // Preserve existing isIrcOp and modes when updating currentUser
+        updatedCurrentUser = {
+          ...currentUserForServer,
+          metadata,
+          isIrcOp: state.currentUser?.isIrcOp,
+          modes: state.currentUser?.modes,
+        };
       }
       // If there's already a current user but it's for a different server,
       // still update if this is the selected server or if there's no current user
@@ -6276,7 +6412,13 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
         } else {
           delete metadata[key];
         }
-        updatedCurrentUser = { ...state.currentUser, metadata };
+        // Preserve existing isIrcOp and modes when updating currentUser
+        updatedCurrentUser = {
+          ...state.currentUser,
+          metadata,
+          isIrcOp: state.currentUser.isIrcOp,
+          modes: state.currentUser.modes,
+        };
       }
     }
 
@@ -7079,10 +7221,10 @@ ircClient.on(
       isOnline: true,
       isAway: isAway,
       isBot: false,
+      isIrcOp: flags ? flags.includes("*") : false, // Check for IRC operator flag
       status: channelStatus, // Set the channel status here
       metadata: {},
     };
-
     // Check for bot flags if bot mode is enabled
     if (serverData.botMode) {
       const botFlag = serverData.botMode;
@@ -7247,6 +7389,7 @@ ircClient.on(
               // Determine bot status from flags (B flag indicates bot)
               // Preserve existing bot flag if it was already set (don't overwrite)
               const isBotFromFlags = flags.includes("B");
+              const isIrcOpFromFlags = flags.includes("*");
               const isBot = pm.isBot || isBotFromFlags;
 
               return {
@@ -7256,6 +7399,7 @@ ircClient.on(
                 isOnline: true, // If we got a WHOX reply, they're online
                 isAway: isAway,
                 isBot: isBot,
+                isIrcOp: isIrcOpFromFlags,
               };
             }
             return pm;
@@ -7281,6 +7425,7 @@ ircClient.on(
 
               // Determine bot status from flags (B flag indicates bot)
               const isBotFromFlags = flags.includes("B");
+              const isIrcOpFromFlags = flags.includes("*");
 
               if (existingUserIndex !== -1) {
                 // Update existing user
@@ -7295,6 +7440,7 @@ ircClient.on(
                   account: account === "0" ? undefined : account, // "0" means not logged in
                   isAway: isAway,
                   isBot: isBot,
+                  isIrcOp: isIrcOpFromFlags,
                   status: opLevel || existingUser.status, // Update status with op level from WHOX
                 };
                 return { ...ch, users: updatedUsers };
@@ -7309,6 +7455,7 @@ ircClient.on(
                 isOnline: true,
                 isAway: isAway,
                 isBot: isBotFromFlags,
+                isIrcOp: isIrcOpFromFlags,
                 status: opLevel, // Set status from op level in WHOX
                 metadata: {},
               };
@@ -7322,6 +7469,18 @@ ircClient.on(
       });
       return { servers: updatedServers };
     });
+
+    // Update currentUser if this WHOX reply is for the current user
+    // NOTE: We parse IRC op flags from WHO responses about ourselves for logging,
+    // but don't update our own state from WHO replies - that should come from MODE events
+    const currentUser = state.currentUser;
+    if (
+      currentUser &&
+      currentUser.username.toLowerCase() === nick.toLowerCase()
+    ) {
+      // Don't update currentUser from WHO replies - only from authoritative MODE events
+      return;
+    }
 
     // If user is away and we have a pinned PM with them, send WHOIS to get away message
     const privateChat = serverData.privateChats?.find(
@@ -7690,6 +7849,35 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
             useStore.getState().metadataList(serverId, user.username);
           }
         });
+      }
+    }
+
+    // Check if current user has operator status in this channel and update their modes
+    const currentUser = state.currentUser;
+    if (currentUser) {
+      const currentUserInChannel = users.find(
+        (user) =>
+          user.username.toLowerCase() === currentUser.username.toLowerCase(),
+      );
+      if (currentUserInChannel?.status) {
+        // Check if user has operator status (contains '@' or other operator prefixes)
+        const hasOperatorStatus =
+          currentUserInChannel.status.includes("@") ||
+          currentUserInChannel.status.includes("~") ||
+          currentUserInChannel.status.includes("&");
+        if (
+          hasOperatorStatus &&
+          (!currentUser.modes || !currentUser.modes.includes("o"))
+        ) {
+          // Update currentUser with operator modes
+          return {
+            servers: updatedServers,
+            currentUser: {
+              ...currentUser,
+              modes: currentUser.modes ? `${currentUser.modes}o` : "o",
+            },
+          };
+        }
       }
     }
 

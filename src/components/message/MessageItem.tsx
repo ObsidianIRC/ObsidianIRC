@@ -1,8 +1,8 @@
 import exifr from "exifr";
-import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import React from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ircClient from "../../lib/ircClient";
-import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
+import { isUserVerified, processMarkdownInText } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { MessageType } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
@@ -343,7 +343,7 @@ interface MessageItemProps {
   onRedactMessage?: (message: MessageType) => void;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({
+export const MessageItem: React.FC<MessageItemProps> = React.memo(({
   message,
   showDate,
   showHeader,
@@ -364,7 +364,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isCurrentUser = ircCurrentUser?.username === message.userId;
 
   // Get the user for this message using reactive selector
-  const messageUser = useStore((state) => {
+  const rawMessageUser = useStore((state) => {
     if (!serverId) return undefined;
 
     // For private chats, check private chats
@@ -412,6 +412,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     );
   });
 
+  // Memoize the messageUser to prevent infinite re-renders
+  const messageUser = useMemo(() => rawMessageUser, [rawMessageUser]);
+
   const avatarUrl = messageUser?.metadata?.avatar?.value;
   const displayName = messageUser?.metadata?.["display-name"]?.value;
   const userColor = messageUser?.metadata?.color?.value;
@@ -422,14 +425,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     messageUser?.metadata?.bot?.value === "true" ||
     message.tags?.bot === "";
   const isVerified = isUserVerified(message.userId, message.tags);
+  const isIrcOp = messageUser?.isIrcOp || false;
 
   // Check if message redaction is supported and possible
-  const server = useStore
-    .getState()
-    .servers.find((s) => s.id === message.serverId);
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const server = useStore((state) =>
+    state.servers.find((s) => s.id === message.serverId),
   );
+  const showSafeMedia = useStore((state) => state.globalSettings.showSafeMedia);
+  const showExternalContent = useStore((state) => state.globalSettings.showExternalContent);
+  const enableMarkdownRendering = useStore((state) => state.globalSettings.enableMarkdownRendering);
   const canRedact =
     !isSystem &&
     isCurrentUser &&
@@ -437,8 +441,64 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     !!server?.capabilities?.includes("draft/message-redaction") &&
     !!onRedactMessage;
 
+  // Get the channel messages to handle multiline message content
+  const rawChannelMessages = useStore((state) => {
+    if (!serverId || !channelId) return [];
+    const server = state.servers.find((s) => s.id === serverId);
+    const channel = server?.channels.find((c) => c.id === channelId);
+    return channel?.messages ?? [];
+  });
+
+  // Memoize channelMessages to prevent infinite re-renders
+  const channelMessages = useMemo(() => rawChannelMessages, [rawChannelMessages]);
+
+  // For multiline messages, combine content from all messages in the group
+  const getMessageContent = () => {
+    if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
+      // Find all messages that are part of this multiline group
+      const multilineMessages = channelMessages.filter((m) =>
+        message.multilineMessageIds?.includes(m.id),
+      );
+
+      // Sort by timestamp to maintain order
+      multilineMessages.sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
+
+      // Only the first message in the group should display content
+      if (multilineMessages[0]?.id !== message.id) {
+        return ""; // Don't display content for subsequent messages in multiline group
+      }
+
+      // Combine content with newlines
+      return multilineMessages.map((m) => m.content).join("\n");
+    }
+    return message.content;
+  };
+
+  const messageContent = getMessageContent();
+
+  // If this is a multiline message and not the first one, don't render anything
+  if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
+    const multilineMessages = channelMessages.filter((m) =>
+      message.multilineMessageIds?.includes(m.id),
+    );
+    multilineMessages.sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+    if (multilineMessages[0]?.id !== message.id) {
+      return null; // Don't render subsequent messages in multiline group
+    }
+  }
+
   // Convert message content to React elements
-  const htmlContent = mircToHtml(message.content);
+  const htmlContent = processMarkdownInText(
+    messageContent,
+    showExternalContent,
+    enableMarkdownRendering,
+  );
   const theme = localStorage.getItem("theme") || "discord";
   const username = message.userId.split("-")[0];
 
@@ -714,6 +774,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               onClick={handleUsernameClick}
               isBot={isBot}
               isVerified={isVerified}
+              isIrcOp={isIrcOp}
             />
           )}
 
@@ -785,4 +846,4 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       </div>
     </div>
   );
-};
+});

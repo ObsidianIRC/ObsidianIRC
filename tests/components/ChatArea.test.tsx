@@ -72,6 +72,8 @@ describe("ChatArea Tab Completion Integration", () => {
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,
+        isEditServerModalOpen: false,
+        editServerId: null,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,

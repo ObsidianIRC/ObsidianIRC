@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { FaEllipsisH, FaRedo, FaTrash } from "react-icons/fa";
+import { FaEllipsisH, FaPencilAlt, FaRedo, FaTrash } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Server } from "../../types";
@@ -14,6 +14,7 @@ export const ServerList: React.FC = () => {
     deleteServer, // Add deleteServer action
     toggleChannelListModal, // Add toggleChannelListModal action
     reconnectServer, // Add reconnectServer action
+    toggleEditServerModal, // Add toggleEditServerModal action
   } = useStore();
 
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
@@ -179,7 +180,17 @@ export const ServerList: React.FC = () => {
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-discord-dark-600" />
               )}
               {selectedServerId === server.id && (
-                <div className="absolute -bottom-1 -right-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
+                <div className="absolute -bottom-1 -right-1 flex space-x-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
+                  <button
+                    className="w-5 h-5 bg-discord-dark-300 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-xs shadow-md"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleEditServerModal(true, server.id);
+                    }}
+                    title="Edit Server"
+                  >
+                    <FaPencilAlt />
+                  </button>
                   <button
                     className="w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
                     onClick={(e) => {

@@ -264,6 +264,7 @@ const UserSettings: React.FC = React.memo(() => {
       autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
       showSafeMedia: globalShowSafeMedia,
       showExternalContent: globalShowExternalContent,
+      enableMarkdownRendering: globalEnableMarkdownRendering,
     },
     updateGlobalSettings,
     addToIgnoreList,
@@ -345,6 +346,9 @@ const UserSettings: React.FC = React.memo(() => {
   const [showExternalContent, setShowExternalContent] = useState(
     globalShowExternalContent,
   );
+  const [enableMarkdownRendering, setEnableMarkdownRendering] = useState(
+    globalEnableMarkdownRendering,
+  );
 
   // Account state (for hosted chat mode)
   const [nickname, setNickname] = useState(
@@ -373,6 +377,15 @@ const UserSettings: React.FC = React.memo(() => {
     accountPassword: string;
     showSafeMedia: boolean;
     showExternalContent: boolean;
+    enableMarkdownRendering: boolean;
+    showEvents: boolean;
+    showNickChanges: boolean;
+    showJoinsParts: boolean;
+    showQuits: boolean;
+    showKicks: boolean;
+    enableMultilineInput: boolean;
+    multilineOnShiftEnter: boolean;
+    autoFallbackToSingleLine: boolean;
   } | null>(null);
 
   // Track if there are unsaved changes
@@ -394,7 +407,17 @@ const UserSettings: React.FC = React.memo(() => {
       accountName !== originalValues.accountName ||
       accountPassword !== originalValues.accountPassword ||
       showSafeMedia !== originalValues.showSafeMedia ||
-      showExternalContent !== originalValues.showExternalContent);
+      showExternalContent !== originalValues.showExternalContent ||
+      enableMarkdownRendering !== originalValues.enableMarkdownRendering ||
+      globalShowEvents !== originalValues.showEvents ||
+      globalShowNickChanges !== originalValues.showNickChanges ||
+      globalShowJoinsParts !== originalValues.showJoinsParts ||
+      globalShowQuits !== originalValues.showQuits ||
+      globalShowKicks !== originalValues.showKicks ||
+      globalEnableMultilineInput !== originalValues.enableMultilineInput ||
+      globalMultilineOnShiftEnter !== originalValues.multilineOnShiftEnter ||
+      globalAutoFallbackToSingleLine !==
+        originalValues.autoFallbackToSingleLine);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -663,6 +686,15 @@ const UserSettings: React.FC = React.memo(() => {
         accountPassword: globalAccountPassword,
         showSafeMedia: globalShowSafeMedia,
         showExternalContent: globalShowExternalContent,
+        enableMarkdownRendering: globalEnableMarkdownRendering,
+        showEvents: globalShowEvents,
+        showNickChanges: globalShowNickChanges,
+        showJoinsParts: globalShowJoinsParts,
+        showQuits: globalShowQuits,
+        showKicks: globalShowKicks,
+        enableMultilineInput: globalEnableMultilineInput,
+        multilineOnShiftEnter: globalMultilineOnShiftEnter,
+        autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
       });
     }
   }, [
@@ -687,6 +719,15 @@ const UserSettings: React.FC = React.memo(() => {
     currentUser,
     originalValues,
     updateGlobalSettings,
+    globalAutoFallbackToSingleLine,
+    globalEnableMarkdownRendering,
+    globalEnableMultilineInput,
+    globalMultilineOnShiftEnter,
+    globalShowEvents,
+    globalShowJoinsParts,
+    globalShowKicks,
+    globalShowNickChanges,
+    globalShowQuits,
   ]); // Only depend on user ID - removed all other dependencies
 
   const handleSaveMetadata = (key: string, value: string) => {
@@ -807,6 +848,36 @@ const UserSettings: React.FC = React.memo(() => {
     }
     if (showExternalContent !== originalValues.showExternalContent) {
       globalSettingsUpdates.showExternalContent = showExternalContent;
+    }
+    if (enableMarkdownRendering !== originalValues.enableMarkdownRendering) {
+      globalSettingsUpdates.enableMarkdownRendering = enableMarkdownRendering;
+    }
+    if (globalShowEvents !== originalValues.showEvents) {
+      globalSettingsUpdates.showEvents = globalShowEvents;
+    }
+    if (globalShowNickChanges !== originalValues.showNickChanges) {
+      globalSettingsUpdates.showNickChanges = globalShowNickChanges;
+    }
+    if (globalShowJoinsParts !== originalValues.showJoinsParts) {
+      globalSettingsUpdates.showJoinsParts = globalShowJoinsParts;
+    }
+    if (globalShowQuits !== originalValues.showQuits) {
+      globalSettingsUpdates.showQuits = globalShowQuits;
+    }
+    if (globalShowKicks !== originalValues.showKicks) {
+      globalSettingsUpdates.showKicks = globalShowKicks;
+    }
+    if (globalEnableMultilineInput !== originalValues.enableMultilineInput) {
+      globalSettingsUpdates.enableMultilineInput = globalEnableMultilineInput;
+    }
+    if (globalMultilineOnShiftEnter !== originalValues.multilineOnShiftEnter) {
+      globalSettingsUpdates.multilineOnShiftEnter = globalMultilineOnShiftEnter;
+    }
+    if (
+      globalAutoFallbackToSingleLine !== originalValues.autoFallbackToSingleLine
+    ) {
+      globalSettingsUpdates.autoFallbackToSingleLine =
+        globalAutoFallbackToSingleLine;
     }
 
     if (isHostedChatMode) {
@@ -1445,6 +1516,23 @@ const UserSettings: React.FC = React.memo(() => {
             may reveal your IP address.
           </p>
         </div>
+      </SettingField>
+
+      <SettingField
+        label="Enable Markdown Rendering"
+        description="Render markdown syntax in messages (headings, bold, italic, code blocks, etc.)"
+      >
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={enableMarkdownRendering}
+            onChange={(e) => setEnableMarkdownRendering(e.target.checked)}
+            className="mr-3 accent-discord-primary"
+          />
+          <span className="text-discord-text-normal">
+            Enable markdown rendering in messages
+          </span>
+        </label>
       </SettingField>
     </div>
   );

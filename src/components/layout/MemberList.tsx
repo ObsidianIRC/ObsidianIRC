@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
-import { getColorStyle, mircToHtml } from "../../lib/ircUtils";
+import { getColorStyle, processMarkdownInText } from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
@@ -51,6 +51,43 @@ const getStatusPriority = (status?: string): number => {
   return maxPriority;
 };
 
+const getStatusTitle = (status?: string): string => {
+  if (!status) return "";
+  let highestPriority = 0;
+  let title = "";
+  for (const char of status) {
+    let priority = 0;
+    let charTitle = "";
+    switch (char) {
+      case "~":
+        priority = 6;
+        charTitle = "Channel Owner";
+        break;
+      case "&":
+        priority = 5;
+        charTitle = "Channel Admin";
+        break;
+      case "@":
+        priority = 4;
+        charTitle = "Channel Operator";
+        break;
+      case "%":
+        priority = 3;
+        charTitle = "Channel Half Operator";
+        break;
+      case "+":
+        priority = 2;
+        charTitle = "Voiced User";
+        break;
+    }
+    if (priority > highestPriority) {
+      highestPriority = priority;
+      title = charTitle;
+    }
+  }
+  return title;
+};
+
 const UserItem: React.FC<{
   user: User;
   serverId: string;
@@ -84,6 +121,10 @@ const UserItem: React.FC<{
   const displayName = user.metadata?.["display-name"]?.value;
   const isBot = user.isBot || user.metadata?.bot?.value === "true";
   const botInfo = user.metadata?.bot?.value; // Bot software info for tooltip
+
+  // Check if user is an IRC operator
+  const isOperator = user.modes?.includes("o") || false;
+  const isIrcOp = user.isIrcOp || false;
 
   // Check if user is verified (account matches nickname)
   const isVerified =
@@ -152,8 +193,19 @@ const UserItem: React.FC<{
       <div className="flex flex-col truncate min-w-0 flex-1">
         {/* Display name or username with badges */}
         <div className="flex items-center gap-1">
+          {!displayName && isIrcOp && (
+            <span
+              className="inline-flex items-center justify-center p-2.5 w-4 h-4 text-xs text-white bg-blue-500 rounded font-bold"
+              title="IRC Operator"
+            >
+              🔑
+            </span>
+          )}
           {user.status && (
-            <span className="shrink-0 bg-blue-600 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-sm">
+            <span
+              className="shrink-0 bg-blue-600 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-sm"
+              title={getStatusTitle(user.status)}
+            >
               {user.status}
             </span>
           )}
@@ -169,6 +221,14 @@ const UserItem: React.FC<{
                 style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
                 title="Verified account"
               />
+            )}
+            {!displayName && isOperator && (
+              <span
+                className="inline ml-1 bg-red-600 text-white px-3 py-0.5 rounded text-xs font-bold"
+                title="IRC Operator"
+              >
+                🔑
+              </span>
             )}
             {!displayName && isBot && (
               <span className="ml-1 group relative">
@@ -198,6 +258,14 @@ const UserItem: React.FC<{
                     title="Verified account"
                   />
                 )}
+                {(isIrcOp || isOperator) && (
+                  <span
+                    className="ml-0.5 inline-flex items-center justify-center w-3 h-3 text-xs text-white bg-blue-500 rounded"
+                    title="IRC Operator"
+                  >
+                    🔑
+                  </span>
+                )}
                 {isBot && <span className="ml-0.5">🤖</span>}
               </span>
               {(user.realname || metadataStatus || website) && (
@@ -207,7 +275,7 @@ const UserItem: React.FC<{
           )}
           {user.realname && (
             <span className="truncate text-discord-text-muted">
-              {mircToHtml(user.realname)}
+              {processMarkdownInText(user.realname)}
             </span>
           )}
           {user.realname && metadataStatus && (
@@ -215,7 +283,7 @@ const UserItem: React.FC<{
           )}
           {metadataStatus && (
             <span className="truncate text-discord-text-muted">
-              {mircToHtml(metadataStatus)}
+              {processMarkdownInText(metadataStatus)}
             </span>
           )}
           {(user.realname || metadataStatus) && website && (

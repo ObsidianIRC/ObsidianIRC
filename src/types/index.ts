@@ -11,6 +11,8 @@ export interface User {
   awayMessage?: string; // Away message if user is away
   status?: string;
   isBot?: boolean; // Bot detection from WHO response
+  isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
+  modes?: string; // User modes (e.g., "o" for operator)
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
@@ -56,6 +58,9 @@ export interface ServerConfig {
   saslEnabled: boolean;
   skipLinkSecurityWarning?: boolean;
   skipLocalhostWarning?: boolean;
+  operUsername?: string;
+  operPassword?: string;
+  operOnConnect?: boolean;
 }
 
 export interface Channel {

@@ -11,6 +11,7 @@ interface MessageHeaderProps {
   onClick?: (e: React.MouseEvent) => void;
   isBot?: boolean;
   isVerified?: boolean;
+  isIrcOp?: boolean;
 }
 
 export const MessageHeader: React.FC<MessageHeaderProps> = ({
@@ -23,6 +24,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
   onClick,
   isBot = false,
   isVerified = false,
+  isIrcOp = false,
 }) => {
   const username = userId.split("-")[0];
   const isSystem = userId === "system";
@@ -49,6 +51,14 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
             title="User is authenticated"
           >
             ✓
+          </span>
+        )}
+        {isIrcOp && (
+          <span
+            className="ml-1 inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-blue-500 rounded"
+            title="IRC Operator"
+          >
+            🔑
           </span>
         )}
         {displayName && (
