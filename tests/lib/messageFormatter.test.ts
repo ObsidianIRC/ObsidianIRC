@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { renderMarkdown } from "../../src/lib/ircUtils";
 import {
   applyIrcFormatting,
   type FormattingType,
@@ -9,7 +10,6 @@ import {
   isValidFormattingType,
   type MessageFormatting,
 } from "../../src/lib/messageFormatter";
-import { renderMarkdown } from "../../src/lib/ircUtils";
 
 describe("messageFormatter", () => {
   describe("getIrcColorCode", () => {
@@ -322,7 +322,7 @@ describe("messageFormatter", () => {
     });
 
     it("should render markdown while escaping HTML", () => {
-      const input = '**bold** <em>not html</em> *italic*';
+      const input = "**bold** <em>not html</em> *italic*";
       const result = renderMarkdown(input);
 
       expect(result).toBeDefined();
