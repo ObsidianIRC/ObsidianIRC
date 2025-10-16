@@ -33,6 +33,7 @@ export function useReactions({
   currentUser,
 }: UseReactionsOptions): UseReactionsReturn {
   const { servers } = useStore();
+  const set = useStore.setState;
 
   const [reactionModal, setReactionModal] = useState<ReactionModalState>({
     isOpen: false,
@@ -63,7 +64,9 @@ export function useReactions({
    * Find server and target for a message (channel name or username for private)
    */
   const findServerAndTarget = useCallback(
-    (message: Message): { server: Server | undefined; target: string | undefined } => {
+    (
+      message: Message,
+    ): { server: Server | undefined; target: string | undefined } => {
       const server = servers.find((s) => s.id === message.serverId);
       if (!server) return { server: undefined, target: undefined };
 
@@ -71,9 +74,11 @@ export function useReactions({
         const channel = server.channels.find((c) => c.id === message.channelId);
         return { server, target: channel?.name };
       }
-        // Private message
-        const privateChat = server.privateChats?.find((pc) => pc.username === message.userId.split("-")[0]);
-        return { server, target: privateChat?.username };
+      // Private message
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.username === message.userId.split("-")[0],
+      );
+      return { server, target: privateChat?.username };
     },
     [servers],
   );
@@ -105,6 +110,45 @@ export function useReactions({
           const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
           ircClient.sendRaw(server.id, tagMsg);
         }
+
+        // Optimistically update the message
+        if (reactionModal.message) {
+          const message = reactionModal.message;
+          set((state) => {
+            const key = `${message.serverId}-${message.channelId}`;
+            const messages = state.messages[key];
+            if (messages) {
+              const msgIndex = messages.findIndex((m) => m.id === message.id);
+              if (msgIndex !== -1) {
+                const updatedMessage = { ...messages[msgIndex] };
+                if (existingReaction) {
+                  // Remove the reaction
+                  updatedMessage.reactions = updatedMessage.reactions.filter(
+                    (r) => !(r.emoji === emoji && r.userId === currentUser?.username),
+                  );
+                } else {
+                  // Add the reaction
+                  updatedMessage.reactions = [
+                    ...updatedMessage.reactions,
+                    { emoji, userId: currentUser?.username || "" },
+                  ];
+                }
+                return {
+                  messages: {
+                    ...state.messages,
+                    [key]: [
+                      ...messages.slice(0, msgIndex),
+                      updatedMessage,
+                      ...messages.slice(msgIndex + 1),
+                    ],
+                  },
+                };
+              }
+            }
+            return state;
+          });
+        }
+
       }
 
       closeReactionModal();
@@ -114,6 +158,7 @@ export function useReactions({
       currentUser,
       findServerAndTarget,
       closeReactionModal,
+      set,
     ],
   );
 
@@ -129,9 +174,42 @@ export function useReactions({
       if (server && target) {
         const tagMsg = `@+draft/react=${emoji};+draft/reply=${message.msgid} TAGMSG ${target}`;
         ircClient.sendRaw(server.id, tagMsg);
+
+        // Optimistically update the message
+        set((state) => {
+          const key = `${message.serverId}-${message.channelId}`;
+          const messages = state.messages[key];
+          if (messages) {
+            const msgIndex = messages.findIndex((m) => m.id === message.id);
+            if (msgIndex !== -1) {
+              const updatedMessage = { ...messages[msgIndex] };
+              // Check if user already reacted
+              const existingReactionIndex = updatedMessage.reactions.findIndex(
+                (r) => r.emoji === emoji && r.userId === currentUser?.username,
+              );
+              if (existingReactionIndex === -1) {
+                updatedMessage.reactions = [
+                  ...updatedMessage.reactions,
+                  { emoji, userId: currentUser?.username || "" },
+                ];
+                return {
+                  messages: {
+                    ...state.messages,
+                    [key]: [
+                      ...messages.slice(0, msgIndex),
+                      updatedMessage,
+                      ...messages.slice(msgIndex + 1),
+                    ],
+                  },
+                };
+              }
+            }
+          }
+          return state;
+        });
       }
     },
-    [selectedServerId, findServerAndTarget],
+    [selectedServerId, findServerAndTarget, currentUser, set],
   );
 
   /**
@@ -146,9 +224,36 @@ export function useReactions({
       if (server && target) {
         const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${message.msgid} TAGMSG ${target}`;
         ircClient.sendRaw(server.id, tagMsg);
+
+        // Optimistically update the message
+        set((state) => {
+          const key = `${message.serverId}-${message.channelId}`;
+          const messages = state.messages[key];
+          if (messages) {
+            const msgIndex = messages.findIndex((m) => m.id === message.id);
+            if (msgIndex !== -1) {
+              const updatedMessage = { ...messages[msgIndex] };
+              // Remove the reaction
+              updatedMessage.reactions = updatedMessage.reactions.filter(
+                (r) => !(r.emoji === emoji && r.userId === currentUser?.username),
+              );
+              return {
+                messages: {
+                  ...state.messages,
+                  [key]: [
+                    ...messages.slice(0, msgIndex),
+                    updatedMessage,
+                    ...messages.slice(msgIndex + 1),
+                  ],
+                },
+              };
+            }
+          }
+          return state;
+        });
       }
     },
-    [selectedServerId, findServerAndTarget],
+    [selectedServerId, findServerAndTarget, currentUser, set],
   );
 
   return {
