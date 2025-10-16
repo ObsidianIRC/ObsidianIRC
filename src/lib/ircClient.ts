@@ -1737,9 +1737,12 @@ export class IRCClient {
               message: combinedMessage,
               lines: batch.messages,
               messageIds: batch.messageIds || [],
-              timestamp: batch.batchTime || 
-                (batch.timestamps && batch.timestamps.length > 0 
-                  ? new Date(Math.min(...batch.timestamps.map(t => t.getTime())))
+              timestamp:
+                batch.batchTime ||
+                (batch.timestamps && batch.timestamps.length > 0
+                  ? new Date(
+                      Math.min(...batch.timestamps.map((t) => t.getTime())),
+                    )
                   : getTimestampFromTags(mtags)),
             });
           }
