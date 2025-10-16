@@ -1257,8 +1257,8 @@ const useStore = create<AppState>((set, get) => ({
         return (
           existingMessage.id === message.id ||
           (existingMessage.content === message.content &&
-           existingMessage.timestamp === message.timestamp &&
-           existingMessage.userId === message.userId)
+            existingMessage.timestamp === message.timestamp &&
+            existingMessage.userId === message.userId)
         );
       });
 
@@ -7565,7 +7565,11 @@ ircClient.on(
             return ch;
           });
 
-          return { ...s, privateChats: updatedPrivateChats, channels: updatedChannels };
+          return {
+            ...s,
+            privateChats: updatedPrivateChats,
+            channels: updatedChannels,
+          };
         }
         return s;
       });
