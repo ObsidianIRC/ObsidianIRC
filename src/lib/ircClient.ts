@@ -687,7 +687,9 @@ export class IRCClient {
     this.reconnectionTimeouts.set(
       serverId,
       setTimeout(() => {
-        console.log(`Reconnection timeout fired for server ${serverId}, attempting reconnection`);
+        console.log(
+          `Reconnection timeout fired for server ${serverId}, attempting reconnection`,
+        );
         this.attemptReconnection(
           serverId,
           name,
@@ -712,6 +714,7 @@ export class IRCClient {
     saslAccountName?: string,
     saslPassword?: string,
   ): Promise<void> {
+    console.log(`Attempting reconnection for server ${serverId}`);
     const server = this.servers.get(serverId);
     if (!server) return;
 
@@ -731,10 +734,12 @@ export class IRCClient {
         saslPassword,
         serverId,
       );
+      console.log(`Reconnection successful for server ${serverId}`);
       // Success - reset reconnection attempts
       this.reconnectionAttempts.delete(serverId);
       this.reconnectionTimeouts.delete(serverId);
     } catch (error) {
+      console.log(`Reconnection failed for server ${serverId}:`, error);
       // Failed - try again
       this.startReconnection(
         serverId,
