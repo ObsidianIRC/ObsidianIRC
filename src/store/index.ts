@@ -5794,6 +5794,10 @@ ircClient.on("TAGMSG", (response) => {
     const emoji = mtags["+draft/react"];
     const replyMessageId = mtags["+draft/reply"];
 
+    // Skip processing our own reactions since we handle them optimistically
+    const currentUser = ircClient.getCurrentUser(response.serverId);
+    if (sender === currentUser?.username) return;
+
     const server = useStore
       .getState()
       .servers.find((s) => s.id === response.serverId);
@@ -5852,6 +5856,10 @@ ircClient.on("TAGMSG", (response) => {
   if (mtags?.["+draft/unreact"] && mtags["+draft/reply"]) {
     const emoji = mtags["+draft/unreact"];
     const replyMessageId = mtags["+draft/reply"];
+
+    // Skip processing our own unreacts since we handle them optimistically
+    const currentUser = ircClient.getCurrentUser(response.serverId);
+    if (sender === currentUser?.username) return;
 
     const server = useStore
       .getState()
