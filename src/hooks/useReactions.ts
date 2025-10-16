@@ -124,7 +124,10 @@ export function useReactions({
                 if (existingReaction) {
                   // Remove the reaction
                   updatedMessage.reactions = updatedMessage.reactions.filter(
-                    (r) => !(r.emoji === emoji && r.userId === currentUser?.username),
+                    (r) =>
+                      !(
+                        r.emoji === emoji && r.userId === currentUser?.username
+                      ),
                   );
                 } else {
                   // Add the reaction
@@ -148,7 +151,6 @@ export function useReactions({
             return state;
           });
         }
-
       }
 
       closeReactionModal();
@@ -235,7 +237,8 @@ export function useReactions({
               const updatedMessage = { ...messages[msgIndex] };
               // Remove the reaction
               updatedMessage.reactions = updatedMessage.reactions.filter(
-                (r) => !(r.emoji === emoji && r.userId === currentUser?.username),
+                (r) =>
+                  !(r.emoji === emoji && r.userId === currentUser?.username),
               );
               return {
                 messages: {

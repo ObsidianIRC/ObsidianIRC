@@ -1348,11 +1348,15 @@ export const ChatArea: React.FC<{
 
         let target: string | undefined;
         if (message.channelId) {
-          const channel = server.channels.find((c) => c.id === message.channelId);
+          const channel = server.channels.find(
+            (c) => c.id === message.channelId,
+          );
           target = channel?.name;
         } else {
           // Private message, find by userId
-          const privateChat = server.privateChats?.find((pc) => pc.username === message.userId.split("-")[0]);
+          const privateChat = server.privateChats?.find(
+            (pc) => pc.username === message.userId.split("-")[0],
+          );
           target = privateChat?.username;
         }
 
