@@ -1,3 +1,4 @@
+import { marked } from "marked";
 import type React from "react";
 /* eslint-disable no-control-regex */
 import type { User } from "../types";
@@ -189,7 +190,116 @@ export const ircColors = [
   "inherit", // 99 - Default (not universally supported)
 ];
 
-export function mircToHtml(text: string): React.ReactNode[] {
+export function renderMarkdown(
+  text: string,
+  showExternalContent = true,
+): React.ReactNode {
+  // Basic input validation and sanitization
+  if (!text || typeof text !== "string") {
+    return <span>{text || ""}</span>;
+  }
+
+  // Limit input length to prevent DoS
+  const maxLength = 10000;
+  if (text.length > maxLength) {
+    return <span>{text.substring(0, maxLength)}...</span>;
+  }
+
+  // Configure marked for safe rendering with custom renderer
+  const renderer = new marked.Renderer();
+
+  // Custom image renderer that respects external content settings
+  renderer.image = ({ href, title, text }) => {
+    // Sanitize URL to prevent javascript: and other malicious protocols
+    const sanitizedHref = href.replace(/^(javascript|data|vbscript):/i, "#");
+
+    if (!showExternalContent) {
+      // Return a placeholder or link instead of the image
+      return `<a href="${sanitizedHref}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 underline">[Image: ${text || sanitizedHref}]</a>`;
+    }
+    // Allow the image to render normally
+    const titleAttr = title ? ` title="${title.replace(/"/g, "&quot;")}"` : "";
+    const altAttr = ` alt="${(text || "").replace(/"/g, "&quot;")}"`;
+    return `<img src="${sanitizedHref}"${altAttr}${titleAttr} class="max-w-full h-auto rounded-lg" style="max-height: 150px;" />`;
+  };
+
+  // Custom link renderer to sanitize URLs
+  renderer.link = ({ href, title, text }) => {
+    // Sanitize URL to prevent javascript: and other malicious protocols
+    const sanitizedHref = href.replace(/^(javascript|data|vbscript):/i, "#");
+    const titleAttr = title ? ` title="${title.replace(/"/g, "&quot;")}"` : "";
+
+    // Add special class for external links that need security warnings
+    const isExternalLink =
+      sanitizedHref.startsWith("http://") ||
+      sanitizedHref.startsWith("https://");
+    const linkClass = isExternalLink
+      ? "text-blue-500 hover:text-blue-700 underline external-link-security"
+      : "text-blue-500 hover:text-blue-700 underline";
+
+    return `<a href="${sanitizedHref}"${titleAttr} target="_blank" rel="noopener noreferrer" class="${linkClass}">${text}</a>`;
+  };
+
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+    renderer: renderer,
+  });
+
+  // Parse markdown to HTML
+  const html = marked.parse(text) as string;
+
+  // Additional security: remove any remaining script tags or dangerous content that might have slipped through
+  const sanitizedHtml = html
+    .replace(/<script[^>]*>.*?<\/script>/gi, "")
+    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, "")
+    .replace(/<object[^>]*>.*?<\/object>/gi, "")
+    .replace(/<embed[^>]*>.*?<\/embed>/gi, "")
+    .replace(/on\w+="[^"]*"/gi, "") // Remove event handlers
+    .replace(/javascript:/gi, "#");
+
+  // Return a div with dangerouslySetInnerHTML
+  return (
+    <div
+      className="markdown-content"
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML is sanitized above
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+    />
+  );
+}
+
+export function processMarkdownInText(
+  text: string,
+  showExternalContent = true,
+  enableMarkdown = false,
+): React.ReactNode {
+  // Check if text contains markdown syntax patterns
+  const markdownPatterns = [
+    /^#{1,6}/m, // Headers (# ## ### etc.)
+    /\*\*.*?\*\*/, // Bold (**text**)
+    /\*.*?\*/, // Italic (*text*) or (*text*) but not single * at word boundaries
+    /_.*?_/, // Italic (_text_)
+    /`.*?`/, // Inline code
+    /```[\s\S]*?```/, // Code blocks
+    /^\* /m, // Unordered lists
+    /^\d+\. /m, // Ordered lists
+    /^> /m, // Blockquotes
+    /\[.*?\]\(.*?\)/, // Links [text](url)
+    /!\[.*?\]\(.*?\)/, // Images ![alt](url)
+  ];
+
+  const hasMarkdown = markdownPatterns.some((pattern) => pattern.test(text));
+
+  if (hasMarkdown && enableMarkdown) {
+    console.log("Detected markdown in:", text);
+    // If markdown syntax is detected and markdown is enabled, render the entire text as markdown
+    return renderMarkdown(text, showExternalContent);
+  }
+  // Otherwise, use the existing IRC formatting
+  return mircToHtml(text);
+}
+
+export function mircToHtml(text: string): React.ReactNode {
   const state = {
     bold: false,
     underline: false,
@@ -300,7 +410,7 @@ export function mircToHtml(text: string): React.ReactNode[] {
     );
   }
 
-  return result;
+  return <>{result}</>;
 }
 
 // Utility function to get color style from metadata color value
@@ -376,4 +486,32 @@ export function hasOpPermission(userStatus?: string): boolean {
     userStatus.includes("&") ||
     userStatus.includes("~")
   );
+}
+
+/**
+ * Check if a URL is from a specific filehost using proper URL parsing
+ * This is safer than using string.startsWith() as it properly handles URL components
+ */
+export function isUrlFromFilehost(
+  avatarUrl: string,
+  filehost: string,
+): boolean {
+  if (!avatarUrl || !filehost) return false;
+
+  try {
+    const avatarUrlObj = new URL(avatarUrl);
+    const filehostUrl = new URL(filehost);
+
+    // Check if origins match (protocol + host + port)
+    if (avatarUrlObj.origin !== filehostUrl.origin) {
+      return false;
+    }
+
+    // Check if the pathname starts with the filehost pathname
+    // This handles cases where filehost might be a subdirectory
+    return avatarUrlObj.pathname.startsWith(filehostUrl.pathname);
+  } catch {
+    // If URL parsing fails, fall back to false
+    return false;
+  }
 }

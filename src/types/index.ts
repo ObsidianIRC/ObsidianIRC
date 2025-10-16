@@ -11,8 +11,16 @@ export interface User {
   awayMessage?: string; // Away message if user is away
   status?: string;
   isBot?: boolean; // Bot detection from WHO response
+  isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
+  modes?: string; // User modes (e.g., "o" for operator)
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
+
+export type ConnectionState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
 
 export interface Server {
   id: string;
@@ -24,6 +32,7 @@ export interface Server {
   privateChats: PrivateChat[];
   icon?: string;
   isConnected: boolean;
+  connectionState?: ConnectionState;
   isAway?: boolean; // Whether we are marked as away on this server
   awayMessage?: string; // Our away message on this server
   users: User[];
@@ -49,6 +58,9 @@ export interface ServerConfig {
   saslEnabled: boolean;
   skipLinkSecurityWarning?: boolean;
   skipLocalhostWarning?: boolean;
+  operUsername?: string;
+  operPassword?: string;
+  operOnConnect?: boolean;
 }
 
 export interface Channel {

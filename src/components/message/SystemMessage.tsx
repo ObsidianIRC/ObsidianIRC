@@ -1,5 +1,5 @@
 import type React from "react";
-import { mircToHtml } from "../../lib/ircUtils";
+import { processMarkdownInText } from "../../lib/ircUtils";
 import type { MessageType } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 
@@ -19,7 +19,7 @@ export const SystemMessage: React.FC<SystemMessageProps> = ({
     }).format(date);
   };
 
-  const htmlContent = mircToHtml(message.content);
+  const htmlContent = processMarkdownInText(message.content);
 
   return (
     <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">

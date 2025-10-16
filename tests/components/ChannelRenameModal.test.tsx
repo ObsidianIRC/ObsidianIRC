@@ -18,7 +18,12 @@ vi.mock("../../src/store", () => ({
     ui: {
       showChannelRenameModal: true,
       selectedServerId: "server1",
-      selectedChannelId: "channel1",
+      perServerSelections: {
+        server1: {
+          selectedChannelId: "channel1",
+          selectedPrivateChatId: null,
+        },
+      },
     },
     selectedServerId: "server1",
     renameChannel: vi.fn(),

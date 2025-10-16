@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaCheckCircle,
   FaChevronDown,
@@ -18,7 +18,8 @@ import ircClient from "../../lib/ircClient";
 import {
   getChannelAvatarUrl,
   getChannelDisplayName,
-  mircToHtml,
+  isUrlFromFilehost,
+  processMarkdownInText,
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
@@ -43,10 +44,20 @@ export const ChannelList: React.FC<{
   } = useStore();
 
   const selectedServerId = useStore((state) => state.ui.selectedServerId);
-  const selectedChannelId = useStore((state) => state.ui.selectedChannelId);
-  const selectedPrivateChatId = useStore(
-    (state) => state.ui.selectedPrivateChatId,
-  );
+  const selectedChannelId = useStore((state) => {
+    if (!state.ui.selectedServerId) return null;
+    return (
+      state.ui.perServerSelections[state.ui.selectedServerId]
+        ?.selectedChannelId || null
+    );
+  });
+  const selectedPrivateChatId = useStore((state) => {
+    if (!state.ui.selectedServerId) return null;
+    return (
+      state.ui.perServerSelections[state.ui.selectedServerId]
+        ?.selectedPrivateChatId || null
+    );
+  });
 
   // Get global settings for media controls
   const { showSafeMedia, showExternalContent } = useStore(
@@ -62,7 +73,7 @@ export const ChannelList: React.FC<{
     const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
     if (!ircCurrentUser) return null;
 
-    // First, check if we have a global current user with metadata for this username
+    // If we have a currentUser in the store that matches this server's current user, use it (it has modes)
     if (
       state.currentUser &&
       state.currentUser.username === ircCurrentUser.username
@@ -70,22 +81,33 @@ export const ChannelList: React.FC<{
       return state.currentUser;
     }
 
-    // Find the current user in the server's channel data to get metadata
+    // Otherwise, try to find user in channels for metadata and merge with store currentUser if available
     const selectedServer = state.servers.find((s) => s.id === selectedServerId);
-    if (!selectedServer) return ircCurrentUser;
+    if (!selectedServer) return state.currentUser || ircCurrentUser;
 
-    // Look for the user in any channel to get their metadata
+    // Look for the user in any channel
     for (const channel of selectedServer.channels) {
       const userWithMetadata = channel.users.find(
         (u) => u.username === ircCurrentUser.username,
       );
       if (userWithMetadata) {
+        // If we have currentUser in store, merge its modes and IRC op status with the channel user's metadata
+        if (
+          state.currentUser &&
+          state.currentUser.username === userWithMetadata.username
+        ) {
+          return {
+            ...userWithMetadata,
+            modes: state.currentUser.modes,
+            isIrcOp: state.currentUser.isIrcOp,
+          };
+        }
         return userWithMetadata;
       }
     }
 
-    // If not found in channels, return the basic IRC user
-    return ircCurrentUser;
+    // If not found in channels, return store currentUser or IRC user
+    return state.currentUser || ircCurrentUser;
   });
 
   const servers = useStore((state) => state.servers);
@@ -97,6 +119,8 @@ export const ChannelList: React.FC<{
   const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
     useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [clickedPM, setClickedPM] = useState<string | null>(null);
+  const lastSelectedPM = useRef<string | null>(null);
   const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
   const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(
     null,
@@ -124,6 +148,11 @@ export const ChannelList: React.FC<{
     }
     return "online";
   }, [selectedServer]);
+
+  // Check if current user is an IRC operator
+  // Check both the computed currentUser and the store's currentUser for IRC operator status
+  const storeCurrentUser = useStore((state) => state.currentUser);
+  const isIrcOp = currentUser?.isIrcOp || storeCurrentUser?.isIrcOp || false;
 
   // Get channel order from store
   const channelOrder = useStore((state) => state.channelOrder);
@@ -160,6 +189,11 @@ export const ChannelList: React.FC<{
 
     return sorted;
   }, [selectedServer, selectedServerId, channelOrder]);
+
+  useEffect(() => {
+    setClickedPM(null);
+    lastSelectedPM.current = null;
+  });
 
   // Helper function to get user metadata for a private chat
   const getUserMetadata = (username: string) => {
@@ -219,6 +253,7 @@ export const ChannelList: React.FC<{
       privateChat?.isBot ||
       user?.isBot ||
       user?.metadata?.bot?.value === "true";
+    const isIrcOp = user?.isIrcOp || false;
 
     const isVerified =
       showVerified &&
@@ -226,7 +261,7 @@ export const ChannelList: React.FC<{
       account !== "0" &&
       username.toLowerCase() === account.toLowerCase();
 
-    if (!isVerified && !isBot) return null;
+    if (!isVerified && !isBot && !isIrcOp) return null;
 
     return (
       <>
@@ -244,6 +279,15 @@ export const ChannelList: React.FC<{
             title="Bot"
           >
             🤖
+          </span>
+        )}
+        {isIrcOp && (
+          <span
+            className="inline ml-0.5"
+            style={{ fontSize: "0.9em" }}
+            title="IRC Operator"
+          >
+            🔑
           </span>
         )}
       </>
@@ -556,7 +600,7 @@ export const ChannelList: React.FC<{
                           onDrop={(e) => handleDrop(e, channel.id)}
                           onDragEnd={handleDragEnd}
                           className={`
-                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer max-w-full
+                          px-2 py-1 mb-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full
                           transition-all duration-200 ease-in-out
                           shadow-sm
                           ${
@@ -582,7 +626,10 @@ export const ChannelList: React.FC<{
                                 const isFilehostAvatar =
                                   avatarUrl &&
                                   selectedServer?.filehost &&
-                                  avatarUrl.startsWith(selectedServer.filehost);
+                                  isUrlFromFilehost(
+                                    avatarUrl,
+                                    selectedServer.filehost,
+                                  );
                                 const shouldShowAvatar =
                                   avatarUrl &&
                                   ((isFilehostAvatar && showSafeMedia) ||
@@ -848,7 +895,7 @@ export const ChannelList: React.FC<{
                         onDrop={(e) => handlePMDrop(e, privateChat.id)}
                         onDragEnd={handlePMDragEnd}
                         className={`
-                          px-2 py-1 mb-1 rounded flex items-center justify-between group cursor-pointer max-w-full
+                          px-2 py-1 mb-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full
                           ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                           ${draggedPMId === privateChat.id ? "opacity-50" : ""}
                           ${dragOverPMId === privateChat.id && draggedPMId !== privateChat.id ? "border-t-2 border-discord-blurple" : ""}
@@ -865,7 +912,11 @@ export const ChannelList: React.FC<{
                                 : "rgba(107, 114, 128, 0.08)" // gray tint
                               : undefined,
                         }}
-                        onClick={() => selectPrivateChat(privateChat.id)}
+                        onClick={() => {
+                          if (lastSelectedPM.current === privateChat.id) return;
+                          lastSelectedPM.current = privateChat.id;
+                          selectPrivateChat(privateChat.id);
+                        }}
                       >
                         <div className="flex items-center gap-2 truncate">
                           {/* User avatar with status indicator */}
@@ -881,7 +932,10 @@ export const ChannelList: React.FC<{
                               const isFilehostAvatar =
                                 avatarUrl &&
                                 selectedServer?.filehost &&
-                                avatarUrl.startsWith(selectedServer.filehost);
+                                isUrlFromFilehost(
+                                  avatarUrl,
+                                  selectedServer.filehost,
+                                );
                               const shouldShowAvatar =
                                 avatarUrl &&
                                 ((isFilehostAvatar && showSafeMedia) ||
@@ -933,7 +987,10 @@ export const ChannelList: React.FC<{
                               const isFilehostAvatar =
                                 avatarUrl &&
                                 selectedServer?.filehost &&
-                                avatarUrl.startsWith(selectedServer.filehost);
+                                isUrlFromFilehost(
+                                  avatarUrl,
+                                  selectedServer.filehost,
+                                );
                               const shouldShowAvatar =
                                 avatarUrl &&
                                 ((isFilehostAvatar && showSafeMedia) ||
@@ -1017,7 +1074,8 @@ export const ChannelList: React.FC<{
                                     privateChat.realname || user?.realname;
                                   if (realname) {
                                     // Parse IRC colors/formatting in realname
-                                    secondPart = mircToHtml(realname);
+                                    secondPart =
+                                      processMarkdownInText(realname);
                                   }
                                 }
 
@@ -1191,7 +1249,7 @@ export const ChannelList: React.FC<{
               <div>
                 <div
                   className={`
-                    px-2 py-1 mb-1 rounded flex items-center cursor-pointer
+                    px-2 py-1 mb-1 rounded-md flex items-center cursor-pointer
                     transition-all duration-200 ease-in-out
                     ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                   `}
@@ -1211,68 +1269,78 @@ export const ChannelList: React.FC<{
           </>
         )}
       </div>
-      <div
-        className="mt-auto h-14 bg-discord-dark-400 px-2 flex items-center cursor-pointer"
-        onClick={() => toggleUserProfileModal(true)}
-      >
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-100 flex items-center justify-center">
-              {(() => {
-                const avatarUrl = currentUser?.metadata?.avatar?.value;
-                const selectedServer = servers.find(
-                  (s) => s.id === selectedServerId,
-                );
-                const isFilehostAvatar =
-                  avatarUrl &&
-                  selectedServer?.filehost &&
-                  avatarUrl.startsWith(selectedServer.filehost);
-                const shouldShowAvatar =
-                  avatarUrl &&
-                  ((isFilehostAvatar && showSafeMedia) ||
-                    showExternalContent) &&
-                  !avatarLoadFailed;
+      <div className="mt-auto mb-2 px-2">
+        <div
+          className="py-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full transition-all duration-200 ease-in-out shadow-sm bg-discord-dark-400/50 hover:bg-discord-primary/70"
+          onClick={() => toggleUserProfileModal(true)}
+        >
+          <div className="flex items-center gap-2 ml-2 flex-1 min-w-0">
+            <div className="relative flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-discord-dark-100 flex items-center justify-center">
+                {(() => {
+                  const avatarUrl = currentUser?.metadata?.avatar?.value;
+                  const selectedServer = servers.find(
+                    (s) => s.id === selectedServerId,
+                  );
+                  const isFilehostAvatar =
+                    avatarUrl &&
+                    selectedServer?.filehost &&
+                    isUrlFromFilehost(avatarUrl, selectedServer.filehost);
+                  const shouldShowAvatar =
+                    avatarUrl &&
+                    ((isFilehostAvatar && showSafeMedia) ||
+                      showExternalContent) &&
+                    !avatarLoadFailed;
 
-                return shouldShowAvatar ? (
-                  <img
-                    src={avatarUrl}
-                    alt={currentUser.username}
-                    className="w-8 h-8 rounded-full object-cover"
-                    onError={() => {
-                      setAvatarLoadFailed(true);
-                    }}
-                  />
-                ) : (
-                  <span className="text-white">
-                    {currentUser?.username?.charAt(0)?.toUpperCase()}
+                  return shouldShowAvatar ? (
+                    <img
+                      src={avatarUrl}
+                      alt={currentUser.username}
+                      className="w-8 h-8 rounded-full object-cover"
+                      onError={() => {
+                        setAvatarLoadFailed(true);
+                      }}
+                    />
+                  ) : (
+                    <span className="text-white">
+                      {currentUser?.username?.charAt(0)?.toUpperCase()}
+                    </span>
+                  );
+                })()}
+              </div>
+              <div
+                className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${userStatus === "online" ? "bg-discord-green" : userStatus === "away" ? "bg-discord-yellow" : "bg-discord-dark-500"}`}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-discord-channels-active font-medium text-sm truncate flex items-center gap-1">
+                <span>{currentUser?.username || "User"}</span>
+                {isIrcOp && (
+                  <span
+                    className="bg-blue-600 text-white px-1 py-0.5 rounded text-xs font-bold flex-shrink-0"
+                    title="You are an IRC Operator"
+                  >
+                    🔑
                   </span>
-                );
-              })()}
-            </div>
-            <div
-              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-discord-dark-400 ${userStatus === "online" ? "bg-discord-green" : userStatus === "away" ? "bg-discord-yellow" : "bg-discord-dark-500"}`}
-            />
-          </div>
-          <div>
-            <div className="text-white font-medium text-sm">
-              {currentUser?.username || "User"}
-            </div>
-            <div className="text-xs text-discord-channels-default">
-              {userStatus === "online"
-                ? "Online"
-                : userStatus === "away"
-                  ? selectedServer?.awayMessage || "Away"
-                  : "Offline"}
+                )}
+              </div>
+              <div className="text-xs text-discord-channels-default truncate">
+                {userStatus === "online"
+                  ? "Online"
+                  : userStatus === "away"
+                    ? selectedServer?.awayMessage || "Away"
+                    : "Offline"}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="ml-auto flex gap-2 text-discord-dark-500">
-          <button
-            className="hover:text-white"
-            data-testid="user-settings-button"
-          >
-            <FaCog />
-          </button>
+          <div className="ml-auto flex gap-2 text-discord-dark-500 flex-shrink-0">
+            <button
+              className="hover:text-white"
+              data-testid="user-settings-button"
+            >
+              <FaCog className="mr-2" />
+            </button>
+          </div>
         </div>
       </div>
 

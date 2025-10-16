@@ -1,10 +1,14 @@
 import exifr from "exifr";
-import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import * as React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ircClient from "../../lib/ircClient";
-import { isUserVerified, mircToHtml } from "../../lib/ircUtils";
+import {
+  isUrlFromFilehost,
+  isUserVerified,
+  processMarkdownInText,
+} from "../../lib/ircUtils";
 import useStore from "../../store";
-import type { MessageType } from "../../types";
+import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import { InviteMessage } from "./InviteMessage";
 import {
@@ -343,446 +347,578 @@ interface MessageItemProps {
   onRedactMessage?: (message: MessageType) => void;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({
-  message,
-  showDate,
-  showHeader,
-  setReplyTo,
-  onUsernameContextMenu,
-  onOpenProfile,
-  onIrcLinkClick,
-  onReactClick,
-  joinChannel,
-  onReactionUnreact,
-  onOpenReactionModal,
-  onDirectReaction,
-  serverId,
-  channelId,
-  onRedactMessage,
-}) => {
-  const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
-  const isCurrentUser = ircCurrentUser?.username === message.userId;
+export const MessageItem = React.memo(
+  (props: MessageItemProps) => {
+    const {
+      message,
+      showDate,
+      showHeader,
+      setReplyTo,
+      onUsernameContextMenu,
+      onOpenProfile,
+      onIrcLinkClick,
+      onReactClick,
+      joinChannel,
+      onReactionUnreact,
+      onOpenReactionModal,
+      onDirectReaction,
+      serverId,
+      channelId,
+      onRedactMessage,
+    } = props;
+    const pmUserCache = useRef(new Map<string, User>());
+    const EMPTY_MESSAGES = useRef<MessageType[]>([]).current;
 
-  // Get the user for this message using reactive selector
-  const messageUser = useStore((state) => {
-    if (!serverId) return undefined;
+    const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
+    const isCurrentUser = ircCurrentUser?.username === message.userId;
 
-    // For private chats, check private chats
-    if (!channelId) {
-      const privateChat = state.servers
-        .find((s) => s.id === serverId)
-        ?.privateChats?.find(
-          (pc) => pc.username === message.userId.split("-")[0],
-        );
-      if (privateChat) {
-        // For private chats, get metadata from the user in channels or saved metadata
-        const server = state.servers.find((s) => s.id === serverId);
-        if (server) {
-          for (const channel of server.channels) {
-            const user = channel.users.find(
-              (u) =>
-                u.username.toLowerCase() === privateChat.username.toLowerCase(),
-            );
-            if (user?.metadata && Object.keys(user.metadata).length > 0) {
-              return user;
+    // Get the user key using reactive selector
+    const userKey = useStore(
+      useCallback(
+        (state) => {
+          if (!serverId) return "none";
+
+          // For private chats, check private chats
+          if (!channelId) {
+            const privateChat = state.servers
+              .find((s) => s.id === serverId)
+              ?.privateChats?.find(
+                (pc) => pc.username === message.userId.split("-")[0],
+              );
+            if (privateChat) {
+              // Check if user is in any channel
+              const server = state.servers.find((s) => s.id === serverId);
+              if (server) {
+                const user = server.channels
+                  .flatMap((c) => c.users)
+                  .find(
+                    (u) =>
+                      u.username.toLowerCase() ===
+                      privateChat.username.toLowerCase(),
+                  );
+                if (user) {
+                  return `channel-${user.id}`;
+                }
+              }
+              return `pm-${privateChat.id}`;
             }
+            return "none";
           }
+
+          // For channels, find the user in the channel
+          const server = state.servers.find((s) => s.id === serverId);
+          const channel = server?.channels.find((c) => c.id === channelId);
+          const user = channel?.users.find(
+            (user) => user.username === message.userId.split("-")[0],
+          );
+          return user ? `channel-${user.id}` : "none";
+        },
+        [serverId, channelId, message.userId],
+      ),
+    );
+
+    const rawMessageUser = useMemo(() => {
+      if (userKey === "none") return undefined;
+
+      if (userKey.startsWith("pm-")) {
+        const privateChatId = userKey.slice(3);
+        const state = useStore.getState();
+        const privateChat = state.servers
+          .find((s) => s.id === serverId)
+          ?.privateChats?.find((pc) => pc.id === privateChatId);
+        if (privateChat) {
+          const key = `${serverId}-${message.userId}`;
+          let user = pmUserCache.current.get(key);
+          if (!user) {
+            user = {
+              id: privateChat.id,
+              username: privateChat.username,
+              realname: "",
+              account: "",
+              isOnline: true,
+              isAway: false,
+              status: "",
+              isBot: false,
+              metadata: {},
+            };
+            pmUserCache.current.set(key, user);
+          }
+          return user;
         }
-        // Return a basic user object for private chat
-        return {
-          id: privateChat.id,
-          username: privateChat.username,
-          realname: "",
-          account: "",
-          isOnline: true,
-          isAway: false,
-          status: "",
-          isBot: false,
-          metadata: {},
-        };
+      } else if (userKey.startsWith("channel-")) {
+        const userId = userKey.slice(8);
+        const state = useStore.getState();
+        const server = state.servers.find((s) => s.id === serverId);
+        const channel = server?.channels.find((c) => c.id === channelId);
+        return channel?.users.find((user) => user.id === userId);
       }
+
       return undefined;
+    }, [userKey, serverId, channelId, message.userId]);
+
+    const messageUser = rawMessageUser;
+
+    const avatarUrl = messageUser?.metadata?.avatar?.value;
+    const displayName = messageUser?.metadata?.["display-name"]?.value;
+    const userColor = messageUser?.metadata?.color?.value;
+    const userStatus = messageUser?.metadata?.status?.value;
+    const isSystem = message.type === "system";
+    const isBot =
+      messageUser?.isBot ||
+      messageUser?.metadata?.bot?.value === "true" ||
+      message.tags?.bot === "";
+    const isVerified = isUserVerified(message.userId, message.tags);
+    const isIrcOp = messageUser?.isIrcOp || false;
+
+    // Check if message redaction is supported and possible
+    const server = useStore(
+      useCallback(
+        (state) => state.servers.find((s) => s.id === message.serverId),
+        [message.serverId],
+      ),
+    );
+    const showSafeMedia = useStore(
+      useCallback((state) => state.globalSettings.showSafeMedia, []),
+    );
+    const showExternalContent = useStore(
+      useCallback((state) => state.globalSettings.showExternalContent, []),
+    );
+    const enableMarkdownRendering = useStore(
+      useCallback((state) => state.globalSettings.enableMarkdownRendering, []),
+    );
+    const canRedact =
+      !isSystem &&
+      isCurrentUser &&
+      !!message.msgid &&
+      !!server?.capabilities?.includes("draft/message-redaction") &&
+      !!onRedactMessage;
+
+    // Get the channel messages to handle multiline message content
+    const rawChannelMessages = useStore(
+      useCallback(
+        (state) => {
+          if (!serverId || !channelId) return EMPTY_MESSAGES;
+          const server = state.servers.find((s) => s.id === serverId);
+          const channel = server?.channels.find((c) => c.id === channelId);
+          return channel?.messages ?? EMPTY_MESSAGES;
+        },
+        [serverId, channelId, EMPTY_MESSAGES],
+      ),
+    );
+
+    const channelMessages = rawChannelMessages;
+
+    // For multiline messages, combine content from all messages in the group
+    const getMessageContent = () => {
+      if (
+        message.multilineMessageIds &&
+        message.multilineMessageIds.length > 0
+      ) {
+        // Find all messages that are part of this multiline group
+        const multilineMessages = channelMessages.filter((m) =>
+          message.multilineMessageIds?.includes(m.id),
+        );
+
+        // Sort by timestamp to maintain order
+        multilineMessages.sort(
+          (a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+        );
+
+        // Only the first message in the group should display content
+        if (multilineMessages[0]?.id !== message.id) {
+          return ""; // Don't display content for subsequent messages in multiline group
+        }
+
+        // Combine content with newlines
+        return multilineMessages.map((m) => m.content).join("\n");
+      }
+      return message.content;
+    };
+
+    const messageContent = getMessageContent();
+
+    // If this is a multiline message and not the first one, don't render anything
+    if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
+      const multilineMessages = channelMessages.filter((m) =>
+        message.multilineMessageIds?.includes(m.id),
+      );
+      multilineMessages.sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
+      if (multilineMessages[0]?.id !== message.id) {
+        return null; // Don't render subsequent messages in multiline group
+      }
     }
 
-    // For channels, find the user in the channel
-    const server = state.servers.find((s) => s.id === serverId);
-    const channel = server?.channels.find((c) => c.id === channelId);
-    return channel?.users.find(
-      (user) => user.username === message.userId.split("-")[0],
+    // Convert message content to React elements
+    const htmlContent = processMarkdownInText(
+      messageContent,
+      showExternalContent,
+      enableMarkdownRendering,
     );
-  });
+    const theme = localStorage.getItem("theme") || "discord";
+    const username = message.userId.split("-")[0];
 
-  const avatarUrl = messageUser?.metadata?.avatar?.value;
-  const displayName = messageUser?.metadata?.["display-name"]?.value;
-  const userColor = messageUser?.metadata?.color?.value;
-  const userStatus = messageUser?.metadata?.status?.value;
-  const isSystem = message.type === "system";
-  const isBot =
-    messageUser?.isBot ||
-    messageUser?.metadata?.bot?.value === "true" ||
-    message.tags?.bot === "";
-  const isVerified = isUserVerified(message.userId, message.tags);
+    // Check if message is just an image URL from our filehost
+    const isImageUrl =
+      !!server?.filehost &&
+      message.content.trim() === message.content &&
+      isUrlFromFilehost(message.content, server.filehost) &&
+      (!!message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+        message.content.includes("/images/")); // check for backend upload URLs
 
-  // Check if message redaction is supported and possible
-  const server = useStore
-    .getState()
-    .servers.find((s) => s.id === message.serverId);
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
-  );
-  const canRedact =
-    !isSystem &&
-    isCurrentUser &&
-    !!message.msgid &&
-    !!server?.capabilities?.includes("draft/message-redaction") &&
-    !!onRedactMessage;
+    // Check if message is just a GIF URL from GIPHY or Tenor
+    const isGifUrl =
+      message.content.trim() === message.content &&
+      (message.content.match(/media\d*\.giphy\.com\/media\//) ||
+        message.content.includes("media.tenor.com/") ||
+        message.content.includes("tenor.googleapis.com/") ||
+        message.content.match(/tenor\.com\/view\//)) &&
+      (message.content.match(/\.(gif)$/i) ||
+        message.content.includes("/giphy.gif") ||
+        message.content.includes("/tinygif") ||
+        message.content.match(/tenor\.com\/view\//));
 
-  // Convert message content to React elements
-  const htmlContent = mircToHtml(message.content);
-  const theme = localStorage.getItem("theme") || "discord";
-  const username = message.userId.split("-")[0];
+    // Check if message is just an external image URL (not from filehost)
+    const isExternalImageUrl =
+      message.content.trim() === message.content &&
+      !isImageUrl && // Not a filehost image
+      !isGifUrl && // Not a GIF from specific services
+      (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+        message.content.includes("/images/")) &&
+      (message.content.startsWith("http://") ||
+        message.content.startsWith("https://"));
 
-  // Check if message is just an image URL from our filehost
-  const isImageUrl =
-    !!server?.filehost &&
-    message.content.trim() === message.content &&
-    message.content.startsWith(server.filehost) &&
-    (!!message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")); // check for backend upload URLs
+    // Handle system messages
+    if (isSystem) {
+      return (
+        <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />
+      );
+    }
 
-  // Check if message is just a GIF URL from GIPHY or Tenor
-  const isGifUrl =
-    message.content.trim() === message.content &&
-    (message.content.match(/media\d*\.giphy\.com\/media\//) ||
-      message.content.includes("media.tenor.com/") ||
-      message.content.includes("tenor.googleapis.com/") ||
-      message.content.match(/tenor\.com\/view\//)) &&
-    (message.content.match(/\.(gif)$/i) ||
-      message.content.includes("/giphy.gif") ||
-      message.content.includes("/tinygif") ||
-      message.content.match(/tenor\.com\/view\//));
-
-  // Check if message is just an external image URL (not from filehost)
-  const isExternalImageUrl =
-    message.content.trim() === message.content &&
-    !isImageUrl && // Not a filehost image
-    !isGifUrl && // Not a GIF from specific services
-    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")) &&
-    (message.content.startsWith("http://") ||
-      message.content.startsWith("https://"));
-
-  // Handle system messages
-  if (isSystem) {
-    return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
-  }
-
-  // Handle whisper messages (messages with draft/channel-context tag)
-  // Note: Client tags use + prefix
-  if (
-    message.tags?.["draft/channel-context"] ||
-    message.tags?.["+draft/channel-context"]
-  ) {
-    return (
-      <>
-        {showDate && (
-          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
-        )}
-        <WhisperMessage
-          message={message}
-          showDate={showDate}
-          showHeader={showHeader}
-          messageUser={messageUser}
-          setReplyTo={setReplyTo}
-          onUsernameContextMenu={onUsernameContextMenu}
-          onIrcLinkClick={onIrcLinkClick}
-          onReactClick={onReactClick}
-          onReactionUnreact={onReactionUnreact}
-          onDirectReaction={onDirectReaction}
-          onRedactMessage={onRedactMessage}
-          canRedact={canRedact}
-          ircCurrentUser={ircCurrentUser || undefined}
-        />
-      </>
-    );
-  }
-
-  // Handle event messages (join, part, quit, nick, mode, kick)
-  if (["join", "part", "quit", "nick", "mode", "kick"].includes(message.type)) {
-    return (
-      <>
-        {showDate && (
-          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
-        )}
-        <EventMessage
-          message={message}
-          messageUser={messageUser}
-          showDate={showDate}
-          onUsernameContextMenu={onUsernameContextMenu}
-        />
-      </>
-    );
-  }
-
-  // Handle invite messages
-  if (message.type === "invite") {
-    return (
-      <>
-        {showDate && (
-          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
-        )}
-        <InviteMessage
-          message={message}
-          messageUser={messageUser}
-          onUsernameContextMenu={onUsernameContextMenu}
-          joinChannel={joinChannel}
-        />
-      </>
-    );
-  }
-
-  // Handle standard reply messages
-  if (message.type === "standard-reply") {
-    // Ensure all required standard reply properties are present
+    // Handle whisper messages (messages with draft/channel-context tag)
+    // Note: Client tags use + prefix
     if (
-      message.standardReplyType &&
-      message.standardReplyCommand &&
-      message.standardReplyCode &&
-      message.standardReplyMessage
+      message.tags?.["draft/channel-context"] ||
+      message.tags?.["+draft/channel-context"]
     ) {
       return (
         <>
           {showDate && (
             <DateSeparator date={new Date(message.timestamp)} theme={theme} />
           )}
-          <StandardReplyNotification
-            type={message.standardReplyType}
-            command={message.standardReplyCommand}
-            code={message.standardReplyCode}
-            message={message.standardReplyMessage}
-            target={message.standardReplyTarget}
-            timestamp={new Date(message.timestamp)}
+          <WhisperMessage
+            message={message}
+            showDate={showDate}
+            showHeader={showHeader}
+            messageUser={messageUser}
+            setReplyTo={setReplyTo}
+            onUsernameContextMenu={onUsernameContextMenu}
             onIrcLinkClick={onIrcLinkClick}
+            onReactClick={onReactClick}
+            onReactionUnreact={onReactionUnreact}
+            onDirectReaction={onDirectReaction}
+            onRedactMessage={onRedactMessage}
+            canRedact={canRedact}
+            ircCurrentUser={ircCurrentUser || undefined}
           />
         </>
       );
     }
-  }
 
-  // Handle ACTION messages
-  if (message.content.substring(0, 7) === "\u0001ACTION") {
-    return (
-      <>
-        {showDate && (
-          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
-        )}
-        <ActionMessage
+    // Handle event messages (join, part, quit, nick, mode, kick)
+    if (
+      ["join", "part", "quit", "nick", "mode", "kick"].includes(message.type)
+    ) {
+      return (
+        <>
+          {showDate && (
+            <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+          )}
+          <EventMessage
+            message={message}
+            messageUser={messageUser}
+            showDate={showDate}
+            onUsernameContextMenu={onUsernameContextMenu}
+          />
+        </>
+      );
+    }
+
+    // Handle invite messages
+    if (message.type === "invite") {
+      return (
+        <>
+          {showDate && (
+            <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+          )}
+          <InviteMessage
+            message={message}
+            messageUser={messageUser}
+            onUsernameContextMenu={onUsernameContextMenu}
+            joinChannel={joinChannel}
+          />
+        </>
+      );
+    }
+
+    // Handle standard reply messages
+    if (message.type === "standard-reply") {
+      // Ensure all required standard reply properties are present
+      if (
+        message.standardReplyType &&
+        message.standardReplyCommand &&
+        message.standardReplyCode &&
+        message.standardReplyMessage
+      ) {
+        return (
+          <>
+            {showDate && (
+              <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+            )}
+            <StandardReplyNotification
+              type={message.standardReplyType}
+              command={message.standardReplyCommand}
+              code={message.standardReplyCode}
+              message={message.standardReplyMessage}
+              target={message.standardReplyTarget}
+              timestamp={new Date(message.timestamp)}
+              onIrcLinkClick={onIrcLinkClick}
+            />
+          </>
+        );
+      }
+    }
+
+    // Handle ACTION messages
+    if (message.content.substring(0, 7) === "\u0001ACTION") {
+      return (
+        <>
+          {showDate && (
+            <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+          )}
+          <ActionMessage
+            message={message}
+            showDate={showDate}
+            messageUser={messageUser}
+            onUsernameContextMenu={onUsernameContextMenu}
+          />
+        </>
+      );
+    }
+
+    // Handle JSON log notices
+    if (message.type === "notice" && message.jsonLogData) {
+      return (
+        <JsonLogMessage
           message={message}
           showDate={showDate}
           messageUser={messageUser}
           onUsernameContextMenu={onUsernameContextMenu}
+          onIrcLinkClick={onIrcLinkClick}
+          joinChannel={joinChannel}
         />
-      </>
-    );
-  }
+      );
+    }
 
-  // Handle JSON log notices
-  if (message.type === "notice" && message.jsonLogData) {
+    // Handle regular messages
+    const handleReactionClick = (
+      emoji: string,
+      currentUserReacted: boolean,
+    ) => {
+      if (currentUserReacted) {
+        onReactionUnreact(emoji, message);
+      } else {
+        onDirectReaction(emoji, message);
+      }
+    };
+
+    const handleAvatarClick = (e: React.MouseEvent) => {
+      if (message.userId !== "system") {
+        onUsernameContextMenu(
+          e,
+          username,
+          message.serverId,
+          message.channelId,
+          e.currentTarget,
+        );
+      }
+    };
+
+    const handleUsernameClick = (e: React.MouseEvent) => {
+      if (message.userId !== "system") {
+        // Find the avatar element to position menu over it
+        const messageElement = e.currentTarget.closest(".flex");
+        const avatarElement = messageElement?.querySelector(".mr-4");
+        onUsernameContextMenu(
+          e,
+          username,
+          message.serverId,
+          message.channelId,
+          avatarElement,
+        );
+      }
+    };
+
+    const handleReplyUsernameClick = (e: React.MouseEvent) => {
+      if (message.replyMessage) {
+        // Find the avatar element to position menu over it
+        const messageElement = e.currentTarget.closest(".flex");
+        const avatarElement = messageElement?.querySelector(".mr-4");
+        onUsernameContextMenu(
+          e,
+          message.replyMessage.userId.split("-")[0],
+          message.serverId,
+          message.channelId,
+          avatarElement,
+        );
+      }
+    };
+
+    const handleScrollToReply = () => {
+      if (!message.replyMessage?.id) return;
+
+      const targetElement = document.querySelector(
+        `[data-message-id="${message.replyMessage.id}"]`,
+      );
+
+      if (targetElement) {
+        // Scroll to the message
+        targetElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+
+        // Add flash animation
+        targetElement.classList.add("message-flash");
+
+        // Remove the class after animation completes
+        setTimeout(() => {
+          targetElement.classList.remove("message-flash");
+        }, 2000);
+      }
+    };
+
+    const isClickable =
+      message.userId !== "system" && ircCurrentUser?.username !== username;
+
     return (
-      <JsonLogMessage
-        message={message}
-        showDate={showDate}
-        messageUser={messageUser}
-        onUsernameContextMenu={onUsernameContextMenu}
-        onIrcLinkClick={onIrcLinkClick}
-        joinChannel={joinChannel}
-      />
-    );
-  }
+      <div
+        data-message-id={message.id}
+        className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
+          showHeader ? "py-2 mt-2" : "py-0.5"
+        }`}
+      >
+        {showDate && (
+          <DateSeparator date={new Date(message.timestamp)} theme={theme} />
+        )}
 
-  // Handle regular messages
-  const handleReactionClick = (emoji: string, currentUserReacted: boolean) => {
-    if (currentUserReacted) {
-      onReactionUnreact(emoji, message);
-    } else {
-      onDirectReaction(emoji, message);
-    }
-  };
+        <div className="flex">
+          <MessageAvatar
+            userId={message.userId}
+            avatarUrl={avatarUrl}
+            userStatus={userStatus}
+            isAway={messageUser?.isAway}
+            theme={theme}
+            showHeader={showHeader}
+            onClick={handleAvatarClick}
+            isClickable={isClickable}
+            serverId={message.serverId}
+          />
 
-  const handleAvatarClick = (e: React.MouseEvent) => {
-    if (message.userId !== "system") {
-      onUsernameContextMenu(
-        e,
-        username,
-        message.serverId,
-        message.channelId,
-        e.currentTarget,
-      );
-    }
-  };
-
-  const handleUsernameClick = (e: React.MouseEvent) => {
-    if (message.userId !== "system") {
-      // Find the avatar element to position menu over it
-      const messageElement = e.currentTarget.closest(".flex");
-      const avatarElement = messageElement?.querySelector(".mr-4");
-      onUsernameContextMenu(
-        e,
-        username,
-        message.serverId,
-        message.channelId,
-        avatarElement,
-      );
-    }
-  };
-
-  const handleReplyUsernameClick = (e: React.MouseEvent) => {
-    if (message.replyMessage) {
-      // Find the avatar element to position menu over it
-      const messageElement = e.currentTarget.closest(".flex");
-      const avatarElement = messageElement?.querySelector(".mr-4");
-      onUsernameContextMenu(
-        e,
-        message.replyMessage.userId.split("-")[0],
-        message.serverId,
-        message.channelId,
-        avatarElement,
-      );
-    }
-  };
-
-  const handleScrollToReply = () => {
-    if (!message.replyMessage?.id) return;
-
-    const targetElement = document.querySelector(
-      `[data-message-id="${message.replyMessage.id}"]`,
-    );
-
-    if (targetElement) {
-      // Scroll to the message
-      targetElement.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-
-      // Add flash animation
-      targetElement.classList.add("message-flash");
-
-      // Remove the class after animation completes
-      setTimeout(() => {
-        targetElement.classList.remove("message-flash");
-      }, 2000);
-    }
-  };
-
-  const isClickable =
-    message.userId !== "system" && ircCurrentUser?.username !== username;
-
-  return (
-    <div
-      data-message-id={message.id}
-      className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
-        showHeader ? "py-2 mt-2" : "py-0.5"
-      }`}
-    >
-      {showDate && (
-        <DateSeparator date={new Date(message.timestamp)} theme={theme} />
-      )}
-
-      <div className="flex">
-        <MessageAvatar
-          userId={message.userId}
-          avatarUrl={avatarUrl}
-          userStatus={userStatus}
-          isAway={messageUser?.isAway}
-          theme={theme}
-          showHeader={showHeader}
-          onClick={handleAvatarClick}
-          isClickable={isClickable}
-          serverId={message.serverId}
-        />
-
-        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
-          {showHeader && (
-            <MessageHeader
-              userId={message.userId}
-              displayName={displayName}
-              userColor={userColor}
-              timestamp={new Date(message.timestamp)}
-              theme={theme}
-              isClickable={isClickable}
-              onClick={handleUsernameClick}
-              isBot={isBot}
-              isVerified={isVerified}
-            />
-          )}
-
-          <div className="relative">
-            {message.replyMessage && (
-              <MessageReply
-                replyMessage={message.replyMessage}
+          <div
+            className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}
+          >
+            {showHeader && (
+              <MessageHeader
+                userId={message.userId}
+                displayName={displayName}
+                userColor={userColor}
+                timestamp={new Date(message.timestamp)}
                 theme={theme}
-                onUsernameClick={handleReplyUsernameClick}
-                onIrcLinkClick={onIrcLinkClick}
-                onReplyClick={handleScrollToReply}
+                isClickable={isClickable}
+                onClick={handleUsernameClick}
+                isBot={isBot}
+                isVerified={isVerified}
+                isIrcOp={isIrcOp}
               />
             )}
 
-            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {(isImageUrl && showSafeMedia) ||
-              (isGifUrl && showExternalContent) ||
-              (isExternalImageUrl && showExternalContent) ? (
-                <ImageWithFallback
-                  url={message.content}
-                  isFilehostImage={isImageUrl}
-                  serverId={message.serverId}
-                  onOpenProfile={onOpenProfile}
+            <div className="relative">
+              {message.replyMessage && (
+                <MessageReply
+                  replyMessage={message.replyMessage}
+                  theme={theme}
+                  onUsernameClick={handleReplyUsernameClick}
+                  onIrcLinkClick={onIrcLinkClick}
+                  onReplyClick={handleScrollToReply}
                 />
-              ) : (
-                <div
-                  className="overflow-hidden"
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "break-word",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {htmlContent}
-                </div>
               )}
-            </EnhancedLinkWrapper>
 
-            {/* Render link preview if available */}
-            {(message.linkPreviewTitle ||
-              message.linkPreviewSnippet ||
-              message.linkPreviewMeta) && (
-              <LinkPreview
-                title={message.linkPreviewTitle}
-                snippet={message.linkPreviewSnippet}
-                imageUrl={message.linkPreviewMeta}
-                theme={theme}
-                messageContent={message.content}
-              />
-            )}
+              <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+                {(isImageUrl && showSafeMedia) ||
+                (isGifUrl && showExternalContent) ||
+                (isExternalImageUrl && showExternalContent) ? (
+                  <ImageWithFallback
+                    url={message.content}
+                    isFilehostImage={isImageUrl}
+                    serverId={message.serverId}
+                    onOpenProfile={onOpenProfile}
+                  />
+                ) : (
+                  <div
+                    className="overflow-hidden"
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "break-word",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {htmlContent}
+                  </div>
+                )}
+              </EnhancedLinkWrapper>
+
+              {/* Render link preview if available */}
+              {(message.linkPreviewTitle ||
+                message.linkPreviewSnippet ||
+                message.linkPreviewMeta) && (
+                <LinkPreview
+                  title={message.linkPreviewTitle}
+                  snippet={message.linkPreviewSnippet}
+                  imageUrl={message.linkPreviewMeta}
+                  theme={theme}
+                  messageContent={message.content}
+                />
+              )}
+            </div>
+
+            <MessageReactions
+              reactions={message.reactions}
+              currentUserUsername={ircCurrentUser?.username}
+              onReactionClick={handleReactionClick}
+            />
           </div>
 
-          <MessageReactions
-            reactions={message.reactions}
-            currentUserUsername={ircCurrentUser?.username}
-            onReactionClick={handleReactionClick}
+          <MessageActions
+            message={message}
+            onReplyClick={() => setReplyTo(message)}
+            onReactClick={(buttonElement) =>
+              onReactClick(message, buttonElement)
+            }
+            onRedactClick={
+              canRedact ? () => onRedactMessage?.(message) : undefined
+            }
+            canRedact={canRedact}
           />
         </div>
-
-        <MessageActions
-          message={message}
-          onReplyClick={() => setReplyTo(message)}
-          onReactClick={(buttonElement) => onReactClick(message, buttonElement)}
-          onRedactClick={
-            canRedact ? () => onRedactMessage?.(message) : undefined
-          }
-          canRedact={canRedact}
-        />
       </div>
-    </div>
-  );
-};
+    );
+  },
+  (prev: MessageItemProps, next: MessageItemProps) =>
+    prev.message === next.message &&
+    prev.serverId === next.serverId &&
+    prev.channelId === next.channelId,
+);

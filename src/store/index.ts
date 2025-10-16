@@ -369,9 +369,17 @@ function fetchChannelMetadata(serverId: string, channelNames: string[]) {
 
 interface UIState {
   selectedServerId: string | null;
-  selectedChannelId: string | null;
-  selectedPrivateChatId: string | null;
+  // Per-server tab selections - remembers what was selected in each server
+  perServerSelections: Record<
+    string,
+    {
+      selectedChannelId: string | null;
+      selectedPrivateChatId: string | null;
+    }
+  >;
   isAddServerModalOpen: boolean | undefined;
+  isEditServerModalOpen: boolean;
+  editServerId: string | null;
   isSettingsModalOpen: boolean;
   isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
@@ -398,6 +406,8 @@ interface UIState {
   serverNoticesPopupMinimized: boolean;
   // Profile view request - set when we want to open a user profile after closing settings
   profileViewRequest: { serverId: string; username: string } | null;
+  // Shimmer effect for newly connected servers
+  serverShimmer?: Set<string>; // Set of server IDs that should show shimmer
 }
 
 export interface GlobalSettings {
@@ -428,6 +438,8 @@ export interface GlobalSettings {
   // Media settings
   showSafeMedia: boolean;
   showExternalContent: boolean;
+  // Markdown settings
+  enableMarkdownRendering: boolean;
 }
 
 export interface AppState {
@@ -592,13 +604,16 @@ export interface AppState {
   markChannelAsRead: (serverId: string, channelId: string) => void;
   reorderChannels: (serverId: string, channelIds: string[]) => void;
   connectToSavedServers: () => void; // New action to load servers from localStorage
+  reconnectServer: (serverId: string) => Promise<void>; // Reconnect to an existing server
   deleteServer: (serverId: string) => void; // New action to delete a server
+  updateServer: (serverId: string, config: Partial<ServerConfig>) => void; // Update server configuration
   capAck: (serverId: string, key: string, capabilities: string) => void; // Handle CAP ACK
   // UI actions
   toggleAddServerModal: (
     isOpen?: boolean,
     prefillDetails?: ConnectionDetails | null,
   ) => void;
+  toggleEditServerModal: (isOpen?: boolean, serverId?: string | null) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
   setProfileViewRequest: (serverId: string, username: string) => void;
@@ -621,6 +636,9 @@ export interface AppState {
   // Server notices popup actions
   toggleServerNoticesPopup: (isOpen?: boolean) => void;
   minimizeServerNoticesPopup: (isMinimized?: boolean) => void;
+  // Shimmer actions
+  triggerServerShimmer: (serverId: string) => void;
+  clearServerShimmer: (serverId: string) => void;
   // Settings actions
   updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
   // Ignore list actions
@@ -647,6 +665,40 @@ export interface AppState {
   metadataSync: (serverId: string, target: string) => void;
   sendRaw: (serverId: string, command: string) => void;
 }
+
+// Helper functions for per-server tab selections
+const getServerSelection = (state: AppState, serverId: string) => {
+  return (
+    state.ui.perServerSelections[serverId] || {
+      selectedChannelId: null,
+      selectedPrivateChatId: null,
+    }
+  );
+};
+
+const setServerSelection = (
+  state: AppState,
+  serverId: string,
+  selection: {
+    selectedChannelId: string | null;
+    selectedPrivateChatId: string | null;
+  },
+) => {
+  return {
+    ...state.ui.perServerSelections,
+    [serverId]: selection,
+  };
+};
+
+const getCurrentSelection = (state: AppState) => {
+  if (!state.ui.selectedServerId) {
+    return {
+      selectedChannelId: null,
+      selectedPrivateChatId: null,
+    };
+  }
+  return getServerSelection(state, state.ui.selectedServerId);
+};
 
 // Create store with Zustand
 const useStore = create<AppState>((set, get) => ({
@@ -676,9 +728,10 @@ const useStore = create<AppState>((set, get) => ({
   // UI state
   ui: {
     selectedServerId: null,
-    selectedChannelId: null,
-    selectedPrivateChatId: null,
+    perServerSelections: {},
     isAddServerModalOpen: false,
+    isEditServerModalOpen: false,
+    editServerId: null,
     isSettingsModalOpen: false,
     isUserProfileModalOpen: false,
     isDarkMode: true, // Discord-like default is dark mode
@@ -734,6 +787,8 @@ const useStore = create<AppState>((set, get) => ({
     // Media settings
     showSafeMedia: true,
     showExternalContent: false,
+    // Markdown settings
+    enableMarkdownRendering: false,
     ...loadSavedGlobalSettings(), // Load saved settings from localStorage
   },
 
@@ -802,18 +857,30 @@ const useStore = create<AppState>((set, get) => ({
         channels: channelsToJoin,
         saslAccountName,
         saslPassword,
-        // Preserve warning preferences
+        // Preserve existing oper credentials and warning preferences
+        operUsername: savedServer?.operUsername,
+        operPassword: savedServer?.operPassword,
+        operOnConnect: savedServer?.operOnConnect,
         skipLocalhostWarning: savedServer?.skipLocalhostWarning,
         skipLinkSecurityWarning: savedServer?.skipLinkSecurityWarning,
       });
       saveServersToLocalStorage(updatedServers);
 
       set((state) => {
-        const alreadyExists = state.servers.some(
+        const existingServerIndex = state.servers.findIndex(
           (s) => s.host === host && s.port === port,
         );
-        if (alreadyExists) {
+        if (existingServerIndex !== -1) {
+          // Update existing server properties
+          const updatedServers = [...state.servers];
+          const existingServer = updatedServers[existingServerIndex];
+          updatedServers[existingServerIndex] = {
+            ...existingServer,
+            ...server,
+            id: existingServer.id, // Keep the original ID
+          };
           return {
+            servers: updatedServers,
             isConnecting: false,
           };
         }
@@ -864,11 +931,47 @@ const useStore = create<AppState>((set, get) => ({
 
       return server;
     } catch (error) {
-      set({
-        isConnecting: false,
-        connectionError:
-          error instanceof Error ? error.message : "Unknown error",
+      // Even if connection fails, add the server to the store as disconnected
+      // so it appears in the UI and can be reconnected later
+      const disconnectedServer: Server = {
+        id: uuidv4(),
+        name: name || host,
+        host,
+        port,
+        channels: [],
+        privateChats: [],
+        isConnected: false,
+        connectionState: "disconnected",
+        users: [],
+      };
+
+      set((state) => {
+        const existingServerIndex = state.servers.findIndex(
+          (s) => s.host === host && s.port === port,
+        );
+        if (existingServerIndex !== -1) {
+          // Update existing server to disconnected
+          const updatedServers = [...state.servers];
+          updatedServers[existingServerIndex] = {
+            ...updatedServers[existingServerIndex],
+            isConnected: false,
+            connectionState: "disconnected",
+          };
+          return {
+            servers: updatedServers,
+            isConnecting: false,
+            connectionError:
+              error instanceof Error ? error.message : "Unknown error",
+          };
+        }
+        return {
+          servers: [...state.servers, disconnectedServer],
+          isConnecting: false,
+          connectionError:
+            error instanceof Error ? error.message : "Unknown error",
+        };
       });
+
       throw error;
     }
   },
@@ -880,7 +983,11 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
-          return { ...server, isConnected: false };
+          return {
+            ...server,
+            isConnected: false,
+            connectionState: "disconnected" as const,
+          };
         }
         return server;
       });
@@ -892,11 +999,24 @@ const useStore = create<AppState>((set, get) => ({
         const nextServer = updatedServers.find(
           (s) => s.isConnected && s.id !== serverId,
         );
-        newUi = {
-          ...newUi,
-          selectedServerId: nextServer?.id || null,
-          selectedChannelId: nextServer?.channels[0]?.id || null,
-        };
+        if (nextServer) {
+          // Restore the previously selected tab for the new server
+          const serverSelection = getServerSelection(state, nextServer.id);
+          newUi = {
+            ...newUi,
+            selectedServerId: nextServer.id,
+            perServerSelections: setServerSelection(
+              state,
+              nextServer.id,
+              serverSelection,
+            ),
+          };
+        } else {
+          newUi = {
+            ...newUi,
+            selectedServerId: null,
+          };
+        }
       }
 
       return {
@@ -957,9 +1077,11 @@ const useStore = create<AppState>((set, get) => ({
             channelOrder: newChannelOrder,
             ui: {
               ...state.ui,
-              selectedChannelId: isCurrentServer
-                ? channel.id
-                : state.ui.selectedChannelId,
+              perServerSelections: setServerSelection(state, serverId, {
+                selectedChannelId: getCurrentSelection(state).selectedChannelId,
+                selectedPrivateChatId:
+                  getCurrentSelection(state).selectedPrivateChatId,
+              }),
             },
           };
         }
@@ -971,9 +1093,13 @@ const useStore = create<AppState>((set, get) => ({
           servers: updatedServers,
           ui: {
             ...state.ui,
-            selectedChannelId: isCurrentServer
-              ? channel.id
-              : state.ui.selectedChannelId,
+            perServerSelections: setServerSelection(state, serverId, {
+              selectedChannelId: isCurrentServer
+                ? channel.id
+                : getCurrentSelection(state).selectedChannelId,
+              selectedPrivateChatId:
+                getCurrentSelection(state).selectedPrivateChatId,
+            }),
           },
         };
       });
@@ -1187,17 +1313,51 @@ const useStore = create<AppState>((set, get) => ({
 
   selectServer: (serverId) => {
     set((state) => {
+      // If selecting null (no server), just update the selectedServerId
+      if (serverId === null) {
+        return {
+          ui: {
+            ...state.ui,
+            selectedServerId: null,
+            isMobileMenuOpen: false,
+          },
+        };
+      }
+
       // Find the server
       const server = state.servers.find((s) => s.id === serverId);
-      // If server exists, select its first channel, otherwise set to null
-      const channelId = server?.channels[0]?.id || null;
+
+      // Get the previously selected tab for this server, or default to first channel
+      const serverSelection = getServerSelection(state, serverId);
+      let selectedChannelId = serverSelection.selectedChannelId;
+      let selectedPrivateChatId = serverSelection.selectedPrivateChatId;
+
+      // If no previous selection or the selected items no longer exist, default to first channel
+      if (server) {
+        const channelExists =
+          selectedChannelId &&
+          server.channels.some((c) => c.id === selectedChannelId);
+        const privateChatExists =
+          selectedPrivateChatId &&
+          server.privateChats?.some((pc) => pc.id === selectedPrivateChatId);
+
+        if (!channelExists && !privateChatExists) {
+          selectedChannelId = server.channels[0]?.id || null;
+          selectedPrivateChatId = null;
+        }
+      }
 
       return {
         ui: {
           ...state.ui,
           selectedServerId: serverId,
-          selectedChannelId: channelId,
-          selectedPrivateChatId: null, // Clear private chat selection
+          perServerSelections: {
+            ...state.ui.perServerSelections,
+            [serverId]: {
+              selectedChannelId,
+              selectedPrivateChatId,
+            },
+          },
           isMobileMenuOpen: false,
         },
       };
@@ -1211,8 +1371,14 @@ const useStore = create<AppState>((set, get) => ({
         return {
           ui: {
             ...state.ui,
-            selectedChannelId: channelId,
-            selectedPrivateChatId: null, // Clear private chat selection
+            perServerSelections: setServerSelection(
+              state,
+              state.ui.selectedServerId || "",
+              {
+                selectedChannelId: channelId,
+                selectedPrivateChatId: null,
+              },
+            ),
             isMobileMenuOpen: false,
             mobileViewActiveColumn: "chatView",
           },
@@ -1263,8 +1429,10 @@ const useStore = create<AppState>((set, get) => ({
           ui: {
             ...state.ui,
             selectedServerId: serverId,
-            selectedChannelId: channelId,
-            selectedPrivateChatId: null, // Clear private chat selection
+            perServerSelections: setServerSelection(state, serverId, {
+              selectedChannelId: channelId,
+              selectedPrivateChatId: null,
+            }),
             isMobileMenuOpen: false,
             mobileViewActiveColumn: "chatView",
           },
@@ -1274,8 +1442,14 @@ const useStore = create<AppState>((set, get) => ({
       return {
         ui: {
           ...state.ui,
-          selectedChannelId: channelId,
-          selectedPrivateChatId: null, // Clear private chat selection
+          perServerSelections: setServerSelection(
+            state,
+            state.ui.selectedServerId || "",
+            {
+              selectedChannelId: channelId,
+              selectedPrivateChatId: null,
+            },
+          ),
           isMobileMenuOpen: false,
           mobileViewActiveColumn: "chatView",
         },
@@ -1369,6 +1543,15 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
 
+      // If already selected, do nothing
+      if (
+        serverId &&
+        state.ui.perServerSelections[serverId]?.selectedPrivateChatId ===
+          privateChatId
+      ) {
+        return state;
+      }
+
       // Mark private chat as read
       if (serverId && privateChatId) {
         const updatedServers = state.servers.map((server) => {
@@ -1398,8 +1581,10 @@ const useStore = create<AppState>((set, get) => ({
           ui: {
             ...state.ui,
             selectedServerId: serverId,
-            selectedChannelId: null, // Clear channel selection
-            selectedPrivateChatId: privateChatId,
+            perServerSelections: setServerSelection(state, serverId, {
+              selectedChannelId: null,
+              selectedPrivateChatId: privateChatId,
+            }),
             isMobileMenuOpen: false,
             mobileViewActiveColumn: "chatView",
           },
@@ -1409,8 +1594,14 @@ const useStore = create<AppState>((set, get) => ({
       return {
         ui: {
           ...state.ui,
-          selectedChannelId: null, // Clear channel selection
-          selectedPrivateChatId: privateChatId,
+          perServerSelections: setServerSelection(
+            state,
+            state.ui.selectedServerId || "",
+            {
+              selectedChannelId: null,
+              selectedPrivateChatId: privateChatId,
+            },
+          ),
           isMobileMenuOpen: false,
           mobileViewActiveColumn: "chatView",
         },
@@ -1440,9 +1631,11 @@ const useStore = create<AppState>((set, get) => ({
         ircClient.monitorAdd(serverId, [username]);
 
         // Request chathistory for this PM (if server supports it)
-        setTimeout(() => {
-          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 50`);
-        }, 50);
+        if (server.capabilities?.includes("draft/chathistory")) {
+          setTimeout(() => {
+            ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 50`);
+          }, 50);
+        }
 
         // Check if we already have user info from channels
         let hasUserInfo = false;
@@ -1483,7 +1676,7 @@ const useStore = create<AppState>((set, get) => ({
           // Request WHO to get current status using WHOX to also get account
           // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
           setTimeout(() => {
-            ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+            ircClient.sendRaw(serverId, `WHO ${username} %cuhnfrao`);
           }, 100);
         }
 
@@ -1495,11 +1688,11 @@ const useStore = create<AppState>((set, get) => ({
         return {
           ui: {
             ...state.ui,
-            selectedServerId: serverId,
-            selectedChannelId: null,
-            selectedPrivateChatId: existingChat.id,
-            isMobileMenuOpen: false,
-            mobileViewActiveColumn: "chatView",
+            perServerSelections: setServerSelection(state, serverId, {
+              selectedChannelId: getCurrentSelection(state).selectedChannelId,
+              selectedPrivateChatId:
+                getCurrentSelection(state).selectedPrivateChatId,
+            }),
           },
         };
       }
@@ -1546,16 +1739,18 @@ const useStore = create<AppState>((set, get) => ({
       ircClient.monitorAdd(serverId, [username]);
 
       // Request chathistory for this new PM (if server supports it)
-      setTimeout(() => {
-        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 50`);
-      }, 50);
+      if (server.capabilities?.includes("draft/chathistory")) {
+        setTimeout(() => {
+          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${username} * 50`);
+        }, 50);
+      }
 
       // Only request WHO if we don't already have complete user info
       if (!hasUserInfo) {
         // Request WHO to get their current status (H=here/green, G=gone/yellow) using WHOX to also get account
         // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
         setTimeout(() => {
-          ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+          ircClient.sendRaw(serverId, `WHO ${username} %cuhnfrao`);
         }, 100);
       }
 
@@ -1567,11 +1762,11 @@ const useStore = create<AppState>((set, get) => ({
         servers: updatedServers,
         ui: {
           ...state.ui,
-          selectedServerId: serverId,
-          selectedChannelId: null,
-          selectedPrivateChatId: newPrivateChat.id,
-          isMobileMenuOpen: false,
-          mobileViewActiveColumn: "chatView",
+          perServerSelections: setServerSelection(state, serverId, {
+            selectedChannelId: getCurrentSelection(state).selectedChannelId,
+            selectedPrivateChatId:
+              getCurrentSelection(state).selectedPrivateChatId,
+          }),
         },
       };
     });
@@ -1607,11 +1802,13 @@ const useStore = create<AppState>((set, get) => ({
         servers: updatedServers,
       };
 
-      if (state.ui.selectedPrivateChatId === privateChatId) {
+      if (getCurrentSelection(state).selectedPrivateChatId === privateChatId) {
         newState.ui = {
           ...state.ui,
-          selectedPrivateChatId: null,
-          selectedChannelId: null,
+          perServerSelections: setServerSelection(state, serverId, {
+            selectedChannelId: getCurrentSelection(state).selectedChannelId,
+            selectedPrivateChatId: null,
+          }),
         };
       }
 
@@ -1757,20 +1954,47 @@ const useStore = create<AppState>((set, get) => ({
 
   connectToSavedServers: async () => {
     const savedServers = loadSavedServers();
-    for (const {
-      name,
-      host,
-      port,
-      nickname,
-      password,
-      channels,
-      saslEnabled,
-      saslAccountName,
-      saslPassword,
-    } of savedServers) {
+    for (const savedServer of savedServers) {
+      const {
+        id,
+        name,
+        host,
+        port,
+        nickname,
+        password,
+        channels,
+        saslEnabled,
+        saslAccountName,
+        saslPassword,
+      } = savedServer;
+
+      // Check if server already exists in store
+      const existingServer = get().servers.find(
+        (s) => s.host === host && s.port === port,
+      );
+
+      if (!existingServer) {
+        // Add server to store with connecting state
+        const connectingServer: Server = {
+          id,
+          name: name || host,
+          host,
+          port,
+          channels: [],
+          privateChats: [],
+          isConnected: false,
+          connectionState: "connecting",
+          users: [],
+        };
+
+        set((state) => ({
+          servers: [...state.servers, connectingServer],
+        }));
+      }
+
       try {
-        const server = await get().connect(
-          name || host, // Use saved name, default to host
+        await get().connect(
+          name || host,
           host,
           port,
           nickname,
@@ -1781,7 +2005,71 @@ const useStore = create<AppState>((set, get) => ({
         );
       } catch (error) {
         console.error(`Failed to reconnect to server ${host}:${port}`, error);
+        // Update server state to disconnected
+        set((state) => ({
+          servers: state.servers.map((s) =>
+            s.host === host && s.port === port
+              ? { ...s, connectionState: "disconnected" as const }
+              : s,
+          ),
+        }));
       }
+    }
+  },
+
+  reconnectServer: async (serverId: string) => {
+    const state = get();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) {
+      console.error(`Server ${serverId} not found`);
+      return;
+    }
+
+    // Update server state to connecting
+    set((state) => ({
+      servers: state.servers.map((s) =>
+        s.id === serverId
+          ? { ...s, connectionState: "connecting" as const }
+          : s,
+      ),
+    }));
+
+    try {
+      // Get saved server config to get credentials
+      const savedServers = loadSavedServers();
+      const savedServer = savedServers.find(
+        (s) => s.host === server.host && s.port === server.port,
+      );
+
+      if (!savedServer) {
+        console.error(`No saved configuration found for server ${serverId}`, {
+          host: server.host,
+          port: server.port,
+          savedServers,
+        });
+        throw new Error(`No saved configuration found for server ${serverId}`);
+      }
+
+      await get().connect(
+        savedServer.name || savedServer.host,
+        savedServer.host,
+        savedServer.port,
+        savedServer.nickname,
+        savedServer.saslEnabled,
+        savedServer.password,
+        savedServer.saslAccountName,
+        savedServer.saslPassword,
+      );
+    } catch (error) {
+      console.error(`Failed to reconnect to server ${serverId}`, error);
+      // Update server state back to disconnected
+      set((state) => ({
+        servers: state.servers.map((s) =>
+          s.id === serverId
+            ? { ...s, connectionState: "disconnected" as const }
+            : s,
+        ),
+      }));
     }
   },
 
@@ -1826,6 +2114,16 @@ const useStore = create<AppState>((set, get) => ({
     ircClient.disconnect(serverId);
   },
 
+  updateServer: (serverId, config) => {
+    const savedServers = loadSavedServers();
+    const serverIndex = savedServers.findIndex((s) => s.id === serverId);
+
+    if (serverIndex !== -1) {
+      savedServers[serverIndex] = { ...savedServers[serverIndex], ...config };
+      saveServersToLocalStorage(savedServers);
+    }
+  },
+
   // UI actions
   toggleAddServerModal: (isOpen, prefillDetails = null) => {
     set((state) => ({
@@ -1833,6 +2131,16 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isAddServerModalOpen: isOpen,
         prefillServerDetails: prefillDetails,
+      },
+    }));
+  },
+
+  toggleEditServerModal: (isOpen, serverId = null) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isEditServerModalOpen: isOpen ?? false,
+        editServerId: serverId,
       },
     }));
   },
@@ -2022,6 +2330,36 @@ const useStore = create<AppState>((set, get) => ({
             : !state.ui.serverNoticesPopupMinimized,
       },
     }));
+  },
+
+  triggerServerShimmer: (serverId) => {
+    set((state) => {
+      const newShimmer = new Set(state.ui.serverShimmer);
+      newShimmer.add(serverId);
+      return {
+        ui: {
+          ...state.ui,
+          serverShimmer: newShimmer,
+        },
+      };
+    });
+    // Clear shimmer after animation duration (e.g., 2 seconds)
+    setTimeout(() => {
+      get().clearServerShimmer(serverId);
+    }, 2000);
+  },
+
+  clearServerShimmer: (serverId) => {
+    set((state) => {
+      const newShimmer = new Set(state.ui.serverShimmer);
+      newShimmer.delete(serverId);
+      return {
+        ui: {
+          ...state.ui,
+          serverShimmer: newShimmer,
+        },
+      };
+    });
   },
 
   // Settings actions
@@ -2282,6 +2620,44 @@ registerAllProtocolHandlers(ircClient, useStore);
 //   }
 // });
 
+ircClient.on("connectionStateChange", ({ serverId, connectionState }) => {
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) =>
+      server.id === serverId
+        ? {
+            ...server,
+            connectionState,
+            isConnected: connectionState === "connected",
+          }
+        : server,
+    );
+
+    // If a server just connected and we have no selected server (showing welcome screen),
+    // switch back to this server to maintain continuity during reconnection
+    let newUi = { ...state.ui };
+    if (connectionState === "connected" && state.ui.selectedServerId === null) {
+      const reconnectedServer = updatedServers.find((s) => s.id === serverId);
+      if (reconnectedServer) {
+        const serverSelection = getServerSelection(state, serverId);
+        newUi = {
+          ...newUi,
+          selectedServerId: serverId,
+          perServerSelections: setServerSelection(
+            state,
+            serverId,
+            serverSelection,
+          ),
+        };
+      }
+    }
+
+    return {
+      servers: updatedServers,
+      ui: newUi,
+    };
+  });
+});
+
 ircClient.on("CHANMSG", (response) => {
   const { mtags, channelName, message, timestamp } = response;
 
@@ -2365,7 +2741,7 @@ ircClient.on("CHANMSG", (response) => {
 
       // Update channel unread count and mention flag if not the active channel
       const isActiveChannel =
-        currentState.ui.selectedChannelId === channel.id &&
+        getCurrentSelection(currentState).selectedChannelId === channel.id &&
         currentState.ui.selectedServerId === server.id;
 
       // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
@@ -2964,7 +3340,8 @@ ircClient.on("USERMSG", (response) => {
             const updatedPrivateChats =
               s.privateChats?.map((pc) => {
                 if (pc.id === privateChat.id) {
-                  const isActive = state.ui.selectedPrivateChatId === pc.id;
+                  const isActive =
+                    getCurrentSelection(state).selectedPrivateChatId === pc.id;
                   return {
                     ...pc,
                     lastActivity: new Date(),
@@ -2985,7 +3362,8 @@ ircClient.on("USERMSG", (response) => {
       // Show browser notification for private messages
       const currentState = useStore.getState();
       const isActiveChat =
-        currentState.ui.selectedPrivateChatId === privateChat.id;
+        getCurrentSelection(currentState).selectedPrivateChatId ===
+        privateChat.id;
       if (
         !isActiveChat &&
         !isHistoricalMessage &&
@@ -3384,7 +3762,8 @@ ircClient.on("USERNOTICE", (response) => {
           const updatedPrivateChats =
             s.privateChats?.map((pc) => {
               if (pc.id === privateChat.id) {
-                const isActive = state.ui.selectedPrivateChatId === pc.id;
+                const isActive =
+                  getCurrentSelection(state).selectedPrivateChatId === pc.id;
                 return {
                   ...pc,
                   lastActivity: new Date(),
@@ -3557,15 +3936,40 @@ ircClient.on(
           }),
         }));
 
-        // Request CHATHISTORY for the new channel
-        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
+        // Request CHATHISTORY for the new channel if server supports it
+        if (serverData?.capabilities?.includes("draft/chathistory")) {
+          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
 
-        // Trigger event to notify store that history loading started
-        ircClient.triggerEvent("CHATHISTORY_LOADING", {
-          serverId,
-          channelName,
-          isLoading: true,
-        });
+          // Trigger event to notify store that history loading started
+          ircClient.triggerEvent("CHATHISTORY_LOADING", {
+            serverId,
+            channelName,
+            isLoading: true,
+          });
+        } else {
+          // Server doesn't support CHATHISTORY, mark as not requested and not loading
+          useStore.setState((state) => ({
+            servers: state.servers.map((server) => {
+              if (server.id === serverId) {
+                return {
+                  ...server,
+                  channels: server.channels.map((channel) => {
+                    if (channel.name === channelName) {
+                      return {
+                        ...channel,
+                        chathistoryRequested: false,
+                        isLoadingHistory: false,
+                        needsWhoRequest: true,
+                      };
+                    }
+                    return channel;
+                  }),
+                };
+              }
+              return server;
+            }),
+          }));
+        }
       } else if (!channelData.chathistoryRequested) {
         // Channel exists but CHATHISTORY hasn't been requested yet, request it
         useStore.setState((state) => ({
@@ -3590,15 +3994,40 @@ ircClient.on(
           }),
         }));
 
-        // Request CHATHISTORY for the existing channel
-        ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
+        // Request CHATHISTORY for the existing channel if server supports it
+        if (serverData?.capabilities?.includes("draft/chathistory")) {
+          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
 
-        // Trigger event to notify store that history loading started
-        ircClient.triggerEvent("CHATHISTORY_LOADING", {
-          serverId,
-          channelName,
-          isLoading: true,
-        });
+          // Trigger event to notify store that history loading started
+          ircClient.triggerEvent("CHATHISTORY_LOADING", {
+            serverId,
+            channelName,
+            isLoading: true,
+          });
+        } else {
+          // Server doesn't support CHATHISTORY, don't set loading state
+          useStore.setState((state) => ({
+            servers: state.servers.map((server) => {
+              if (server.id === serverId) {
+                return {
+                  ...server,
+                  channels: server.channels.map((channel) => {
+                    if (channel.name === channelName) {
+                      return {
+                        ...channel,
+                        chathistoryRequested: false,
+                        isLoadingHistory: false,
+                        needsWhoRequest: true,
+                      };
+                    }
+                    return channel;
+                  }),
+                };
+              }
+              return server;
+            }),
+          }));
+        }
       }
     }
 
@@ -4018,6 +4447,32 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
   const savedServer = savedServers.find((s) => s.id === serverId);
 
   if (savedServer) {
+    // Send OPER command if oper on connect is enabled
+    if (
+      savedServer.operOnConnect &&
+      savedServer.operUsername &&
+      savedServer.operPassword
+    ) {
+      try {
+        const decodedPassword = atob(savedServer.operPassword);
+        useStore
+          .getState()
+          .sendRaw(
+            serverId,
+            `OPER ${savedServer.operUsername} ${decodedPassword}`,
+          );
+      } catch (error) {
+        console.error("Failed to decode operator password:", error);
+        // Fall back to using the password as-is if decoding fails
+        useStore
+          .getState()
+          .sendRaw(
+            serverId,
+            `OPER ${savedServer.operUsername} ${savedServer.operPassword}`,
+          );
+      }
+    }
+
     // Get the saved channel order for this server
     const savedChannelOrder = useStore.getState().channelOrder[serverId];
 
@@ -4080,9 +4535,30 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
 
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
+          // Merge existing private chats with restored pinned chats, deduplicating by username
+          const existingChats = s.privateChats || [];
+          const mergedPrivateChats = [...existingChats];
+
+          for (const restoredChat of restoredPrivateChats) {
+            const existingIndex = mergedPrivateChats.findIndex(
+              (pc) => pc.username === restoredChat.username,
+            );
+            if (existingIndex === -1) {
+              // Chat doesn't exist, add it
+              mergedPrivateChats.push(restoredChat);
+            } else {
+              // Chat exists, ensure it's marked as pinned with correct order
+              mergedPrivateChats[existingIndex] = {
+                ...mergedPrivateChats[existingIndex],
+                isPinned: true,
+                order: restoredChat.order,
+              };
+            }
+          }
+
           return {
             ...s,
-            privateChats: [...(s.privateChats || []), ...restoredPrivateChats],
+            privateChats: mergedPrivateChats,
           };
         }
         return s;
@@ -4147,7 +4623,7 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
         if (!hasUserInfo) {
           // Request WHO to get current status using WHOX to also get account
           // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
-          ircClient.sendRaw(serverId, `WHO ${username} %uhnfra`);
+          ircClient.sendRaw(serverId, `WHO ${username} %cuhnfrao`);
         }
       }
     }, 100);
@@ -4292,6 +4768,71 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
       });
       return { servers: updatedServers };
     });
+  } else {
+    // This is a user mode change
+    useStore.setState((state) => {
+      // Check if this is the current user
+      const currentUser = state.currentUser;
+      if (
+        currentUser &&
+        currentUser.username.toLowerCase() === target.toLowerCase()
+      ) {
+        // Check if this is an IRC operator mode change
+        const isIrcOp = modestring.includes("o");
+        // Update current user's modes and IRC operator status
+        return {
+          currentUser: {
+            ...currentUser,
+            modes: modestring,
+            isIrcOp: isIrcOp,
+          },
+        };
+      }
+
+      // If no currentUser in store, check if this MODE is for the IRC current user
+      const ircCurrentUser = ircClient.getCurrentUser(serverId);
+      if (
+        !currentUser &&
+        ircCurrentUser &&
+        ircCurrentUser.username.toLowerCase() === target.toLowerCase()
+      ) {
+        // Check if this is an IRC operator mode change
+        const isIrcOp = modestring.includes("o");
+        // Set the current user with modes and IRC operator status
+        return {
+          currentUser: {
+            ...ircCurrentUser,
+            modes: modestring,
+            isIrcOp: isIrcOp,
+          },
+        };
+      }
+
+      // Update user in server users list
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          const updatedUsers = server.users.map((user) => {
+            if (user.username.toLowerCase() === target.toLowerCase()) {
+              console.log(
+                "Updated user",
+                user.username,
+                "modes to",
+                modestring,
+              );
+              return {
+                ...user,
+                modes: modestring,
+              };
+            }
+            return user;
+          });
+          return { ...server, users: updatedUsers };
+        }
+        return server;
+      });
+
+      return { servers: updatedServers };
+    });
   }
 });
 
@@ -4419,9 +4960,15 @@ ircClient.on("RPL_ENDOFINVITELIST", ({ serverId, channel }) => {
   console.log(`Invite list loaded for ${channel} on server ${serverId}`);
 });
 
-ircClient.on("RPL_ENDOFEXCEPTLIST", ({ serverId, channel }) => {
-  // Exception list loading is complete - could trigger UI updates if needed
-  console.log(`Exception list loaded for ${channel} on server ${serverId}`);
+ircClient.on("RPL_YOUREOPER", ({ serverId, message }) => {
+  // Show notification that user is now an IRC operator
+  useStore.getState().addGlobalNotification({
+    type: "note",
+    command: "Oper",
+    code: "OPER",
+    message: "You are an IRC Operator",
+    serverId,
+  });
 });
 
 // Topic handlers
@@ -4823,17 +5370,18 @@ ircClient.on("INVITE", ({ serverId, inviter, target, channel }) => {
 
   // If we're on this server and have a selected channel, use that
   if (state.ui.selectedServerId === serverId) {
-    if (state.ui.selectedChannelId) {
+    const currentSelection = getCurrentSelection(state);
+    if (currentSelection.selectedChannelId) {
       const selectedChannel = server.channels.find(
-        (c) => c.id === state.ui.selectedChannelId,
+        (c) => c.id === currentSelection.selectedChannelId,
       );
       if (selectedChannel) {
         targetChannelId = selectedChannel.id;
         targetChannelName = selectedChannel.name;
       }
-    } else if (state.ui.selectedPrivateChatId) {
+    } else if (currentSelection.selectedPrivateChatId) {
       // For private chats, we'll show it there
-      targetChannelId = state.ui.selectedPrivateChatId;
+      targetChannelId = currentSelection.selectedPrivateChatId;
     }
   }
 
@@ -4924,6 +5472,9 @@ ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
 ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
   if (param !== "+") return;
 
+  // Don't respond to AUTHENTICATE if CAP negotiation is already complete
+  if (ircClient.isCapNegotiationComplete(serverId)) return;
+
   let user: string | undefined;
   let pass: string | undefined;
   const servers = loadSavedServers();
@@ -4943,8 +5494,9 @@ ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
     serverId,
     `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
   );
-  ircClient.sendRaw(serverId, "CAP END");
-  ircClient.userOnConnect(serverId);
+  // Note: CAP END will be sent by the IRC client when SASL authentication completes (903/904-907 responses)
+  // ircClient.sendRaw(serverId, "CAP END");
+  // ircClient.userOnConnect(serverId);
 });
 
 // Handle CAP LS to get informational capabilities like unrealircd.org/link-security
@@ -5287,6 +5839,10 @@ ircClient.on("TAGMSG", (response) => {
     const emoji = mtags["+draft/react"];
     const replyMessageId = mtags["+draft/reply"];
 
+    // Skip processing our own reactions since we handle them optimistically
+    const currentUser = ircClient.getCurrentUser(response.serverId);
+    if (sender === currentUser?.username) return;
+
     const server = useStore
       .getState()
       .servers.find((s) => s.id === response.serverId);
@@ -5345,6 +5901,10 @@ ircClient.on("TAGMSG", (response) => {
   if (mtags?.["+draft/unreact"] && mtags["+draft/reply"]) {
     const emoji = mtags["+draft/unreact"];
     const replyMessageId = mtags["+draft/reply"];
+
+    // Skip processing our own unreacts since we handle them optimistically
+    const currentUser = ircClient.getCurrentUser(response.serverId);
+    if (sender === currentUser?.username) return;
 
     const server = useStore
       .getState()
@@ -5535,9 +6095,9 @@ ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
     // Add a system message about the retry
     const state = useStore.getState();
     const server = state.servers.find((s) => s.id === serverId);
-    if (server && state.ui.selectedChannelId) {
+    if (server && getCurrentSelection(state).selectedChannelId) {
       const channel = server.channels.find(
-        (c) => c.id === state.ui.selectedChannelId,
+        (c) => c.id === getCurrentSelection(state).selectedChannelId,
       );
       if (channel) {
         const retryMessage: Message = {
@@ -5580,9 +6140,9 @@ ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
 
   // Also add a system message to the current channel
   const server = state.servers.find((s) => s.id === serverId);
-  if (server && state.ui.selectedChannelId) {
+  if (server && getCurrentSelection(state).selectedChannelId) {
     const channel = server.channels.find(
-      (c) => c.id === state.ui.selectedChannelId,
+      (c) => c.id === getCurrentSelection(state).selectedChannelId,
     );
     if (channel) {
       const errorMessage: Message = {
@@ -5629,7 +6189,7 @@ ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
   if (server) {
     // Try to add to the currently selected channel first, fallback to first channel
     let channel = server.channels.find(
-      (c) => c.id === state.ui.selectedChannelId,
+      (c) => c.id === getCurrentSelection(state).selectedChannelId,
     );
     if (!channel) {
       channel = server.channels[0];
@@ -5670,7 +6230,7 @@ ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
   if (server) {
     // Try to add to the currently selected channel first, fallback to first channel
     let channel = server.channels.find(
-      (c) => c.id === state.ui.selectedChannelId,
+      (c) => c.id === getCurrentSelection(state).selectedChannelId,
     );
     if (!channel) {
       channel = server.channels[0];
@@ -5894,7 +6454,13 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
         } else {
           delete metadata[key];
         }
-        updatedCurrentUser = { ...currentUserForServer, metadata };
+        // Preserve existing isIrcOp and modes when updating currentUser
+        updatedCurrentUser = {
+          ...currentUserForServer,
+          metadata,
+          isIrcOp: state.currentUser?.isIrcOp,
+          modes: state.currentUser?.modes,
+        };
       }
       // If there's already a current user but it's for a different server,
       // still update if this is the selected server or if there's no current user
@@ -5908,7 +6474,13 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
         } else {
           delete metadata[key];
         }
-        updatedCurrentUser = { ...state.currentUser, metadata };
+        // Preserve existing isIrcOp and modes when updating currentUser
+        updatedCurrentUser = {
+          ...state.currentUser,
+          metadata,
+          isIrcOp: state.currentUser.isIrcOp,
+          modes: state.currentUser.modes,
+        };
       }
     }
 
@@ -6711,10 +7283,10 @@ ircClient.on(
       isOnline: true,
       isAway: isAway,
       isBot: false,
+      isIrcOp: flags ? flags.includes("*") : false, // Check for IRC operator flag
       status: channelStatus, // Set the channel status here
       metadata: {},
     };
-
     // Check for bot flags if bot mode is enabled
     if (serverData.botMode) {
       const botFlag = serverData.botMode;
@@ -6879,6 +7451,7 @@ ircClient.on(
               // Determine bot status from flags (B flag indicates bot)
               // Preserve existing bot flag if it was already set (don't overwrite)
               const isBotFromFlags = flags.includes("B");
+              const isIrcOpFromFlags = flags.includes("*");
               const isBot = pm.isBot || isBotFromFlags;
 
               return {
@@ -6888,6 +7461,7 @@ ircClient.on(
                 isOnline: true, // If we got a WHOX reply, they're online
                 isAway: isAway,
                 isBot: isBot,
+                isIrcOp: isIrcOpFromFlags,
               };
             }
             return pm;
@@ -6913,6 +7487,7 @@ ircClient.on(
 
               // Determine bot status from flags (B flag indicates bot)
               const isBotFromFlags = flags.includes("B");
+              const isIrcOpFromFlags = flags.includes("*");
 
               if (existingUserIndex !== -1) {
                 // Update existing user
@@ -6927,6 +7502,7 @@ ircClient.on(
                   account: account === "0" ? undefined : account, // "0" means not logged in
                   isAway: isAway,
                   isBot: isBot,
+                  isIrcOp: isIrcOpFromFlags,
                   status: opLevel || existingUser.status, // Update status with op level from WHOX
                 };
                 return { ...ch, users: updatedUsers };
@@ -6941,6 +7517,7 @@ ircClient.on(
                 isOnline: true,
                 isAway: isAway,
                 isBot: isBotFromFlags,
+                isIrcOp: isIrcOpFromFlags,
                 status: opLevel, // Set status from op level in WHOX
                 metadata: {},
               };
@@ -6954,6 +7531,18 @@ ircClient.on(
       });
       return { servers: updatedServers };
     });
+
+    // Update currentUser if this WHOX reply is for the current user
+    // NOTE: We parse IRC op flags from WHO responses about ourselves for logging,
+    // but don't update our own state from WHO replies - that should come from MODE events
+    const currentUser = state.currentUser;
+    if (
+      currentUser &&
+      currentUser.username.toLowerCase() === nick.toLowerCase()
+    ) {
+      // Don't update currentUser from WHO replies - only from authoritative MODE events
+      return;
+    }
 
     // If user is away and we have a pinned PM with them, send WHOIS to get away message
     const privateChat = serverData.privateChats?.find(
@@ -7322,6 +7911,35 @@ ircClient.on("NAMES", ({ serverId, channelName, users }) => {
             useStore.getState().metadataList(serverId, user.username);
           }
         });
+      }
+    }
+
+    // Check if current user has operator status in this channel and update their modes
+    const currentUser = state.currentUser;
+    if (currentUser) {
+      const currentUserInChannel = users.find(
+        (user) =>
+          user.username.toLowerCase() === currentUser.username.toLowerCase(),
+      );
+      if (currentUserInChannel?.status) {
+        // Check if user has operator status (contains '@' or other operator prefixes)
+        const hasOperatorStatus =
+          currentUserInChannel.status.includes("@") ||
+          currentUserInChannel.status.includes("~") ||
+          currentUserInChannel.status.includes("&");
+        if (
+          hasOperatorStatus &&
+          (!currentUser.modes || !currentUser.modes.includes("o"))
+        ) {
+          // Update currentUser with operator modes
+          return {
+            servers: updatedServers,
+            currentUser: {
+              ...currentUser,
+              modes: currentUser.modes ? `${currentUser.modes}o` : "o",
+            },
+          };
+        }
       }
     }
 

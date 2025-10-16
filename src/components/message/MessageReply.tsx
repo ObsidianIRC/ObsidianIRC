@@ -1,5 +1,5 @@
 import type React from "react";
-import { mircToHtml } from "../../lib/ircUtils";
+import { processMarkdownInText } from "../../lib/ircUtils";
 import type { MessageType } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 
@@ -39,7 +39,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
         :
       </strong>{" "}
       <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-        {mircToHtml(replyMessage.content)}
+        {processMarkdownInText(replyMessage.content)}
       </EnhancedLinkWrapper>
     </div>
   );

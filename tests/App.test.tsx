@@ -8,7 +8,7 @@ import useStore from "../src/store";
 // Mock IRC client
 vi.mock("../src/lib/ircClient", () => ({
   default: {
-    connect: vi.fn(),
+    connect: vi.fn().mockRejectedValue(new Error("Mock connection failed")),
     sendRaw: vi.fn(),
     joinChannel: vi.fn(),
     leaveChannel: vi.fn(),
@@ -41,9 +41,10 @@ describe("App", () => {
       typingUsers: {},
       ui: {
         selectedServerId: null,
-        selectedChannelId: null,
-        selectedPrivateChatId: null,
+        perServerSelections: {},
         isAddServerModalOpen: false,
+        isEditServerModalOpen: false,
+        editServerId: null,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,
@@ -92,6 +93,7 @@ describe("App", () => {
         autoFallbackToSingleLine: true,
         showSafeMedia: true,
         showExternalContent: false,
+        enableMarkdownRendering: false,
       },
     });
   });

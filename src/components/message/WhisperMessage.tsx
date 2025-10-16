@@ -1,5 +1,5 @@
 import type React from "react";
-import { mircToHtml } from "../../lib/ircUtils";
+import { processMarkdownInText } from "../../lib/ircUtils";
 import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import { MessageActions } from "./MessageActions";
@@ -52,9 +52,10 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
     messageUser?.isBot ||
     messageUser?.metadata?.bot?.value === "true" ||
     message.tags?.bot === "";
+  const isIrcOp = messageUser?.isIrcOp || false;
 
   const theme = localStorage.getItem("theme") || "discord";
-  const htmlContent = mircToHtml(message.content);
+  const htmlContent = processMarkdownInText(message.content);
 
   const handleReactionClick = (emoji: string, currentUserReacted: boolean) => {
     if (currentUserReacted) {
@@ -146,6 +147,7 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
                 onClick={handleUsernameClick}
                 isBot={isBot}
                 isVerified={false}
+                isIrcOp={isIrcOp}
               />
             )}
 
