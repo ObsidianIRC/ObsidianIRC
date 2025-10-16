@@ -1233,17 +1233,11 @@ export class IRCClient {
           this.pongTimeouts.delete(serverId);
         }
       } else if (command === "ERROR") {
-        // Server is closing the connection - close the socket and let onclose handler handle reconnection
+        // Server is closing the connection - let onclose handler handle reconnection
         const errorMessage = parv.join(" ");
         console.log(`IRC ERROR from server ${serverId}: ${errorMessage}`);
 
-        const socket = this.sockets.get(serverId);
-        if (socket) {
-          console.log(
-            `ERROR handler: Closing socket for server ${serverId} due to ERROR message`,
-          );
-          socket.close(1000, "Server sent ERROR");
-        }
+        // Don't close the socket here, let the server close it and onclose handle reconnection
       } else if (command === "001") {
         const serverName = source;
         const nickname = parv[0]; // Our actual nick as assigned by the server
