@@ -255,6 +255,9 @@ export function renderMarkdown(
     .replace(/<iframe[^>]*>.*?<\/iframe>/gi, "")
     .replace(/<object[^>]*>.*?<\/object>/gi, "")
     .replace(/<embed[^>]*>.*?<\/embed>/gi, "")
+    .replace(/<style[^>]*>.*?<\/style>/gi, "")
+    .replace(/<link[^>]*\/?>/gi, "")
+    .replace(/<meta[^>]*\/?>/gi, "")
     .replace(/on\w+="[^"]*"/gi, "") // Remove event handlers
     .replace(/javascript:/gi, "#");
 
