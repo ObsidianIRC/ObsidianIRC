@@ -477,6 +477,8 @@ export class IRCClient {
           // Update connection state
           server.connectionState = "connecting";
           server.isConnected = false;
+          // Reset CAP negotiation state for reconnection
+          this.capNegotiationComplete.delete(serverId);
         } else {
           throw new Error(`Server ${serverId} not found despite has() check`);
         }

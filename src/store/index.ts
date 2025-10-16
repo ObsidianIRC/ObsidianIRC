@@ -2621,8 +2621,8 @@ registerAllProtocolHandlers(ircClient, useStore);
 // });
 
 ircClient.on("connectionStateChange", ({ serverId, connectionState }) => {
-  useStore.setState((state) => ({
-    servers: state.servers.map((server) =>
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) =>
       server.id === serverId
         ? {
             ...server,
@@ -2630,8 +2630,28 @@ ircClient.on("connectionStateChange", ({ serverId, connectionState }) => {
             isConnected: connectionState === "connected",
           }
         : server,
-    ),
-  }));
+    );
+
+    // If a server just connected and we have no selected server (showing welcome screen),
+    // switch back to this server to maintain continuity during reconnection
+    let newUi = { ...state.ui };
+    if (connectionState === "connected" && state.ui.selectedServerId === null) {
+      const reconnectedServer = updatedServers.find(s => s.id === serverId);
+      if (reconnectedServer) {
+        const serverSelection = getServerSelection(state, serverId);
+        newUi = {
+          ...newUi,
+          selectedServerId: serverId,
+          perServerSelections: setServerSelection(state, serverId, serverSelection),
+        };
+      }
+    }
+
+    return {
+      servers: updatedServers,
+      ui: newUi,
+    };
+  });
 });
 
 ircClient.on("CHANMSG", (response) => {
