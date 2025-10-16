@@ -21,6 +21,7 @@ import {
   getChannelAvatarUrl,
   getChannelDisplayName,
   hasOpPermission,
+  isUrlFromFilehost,
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
@@ -156,7 +157,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 const isFilehostAvatar =
                   avatarUrl &&
                   selectedServer?.filehost &&
-                  avatarUrl.startsWith(selectedServer.filehost);
+                  isUrlFromFilehost(avatarUrl, selectedServer.filehost);
                 const shouldShowAvatar =
                   avatarUrl &&
                   ((isFilehostAvatar && showSafeMedia) || showExternalContent);
@@ -195,7 +196,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     const isFilehostAvatar =
                       avatarUrl &&
                       selectedServer?.filehost &&
-                      avatarUrl.startsWith(selectedServer.filehost);
+                      isUrlFromFilehost(avatarUrl, selectedServer.filehost);
                     const shouldShowAvatar =
                       avatarUrl &&
                       ((isFilehostAvatar && showSafeMedia) ||
@@ -303,7 +304,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 const isFilehostAvatar =
                   privateChatAvatar &&
                   selectedServer?.filehost &&
-                  privateChatAvatar.startsWith(selectedServer.filehost);
+                  isUrlFromFilehost(privateChatAvatar, selectedServer.filehost);
                 const shouldShowAvatar =
                   privateChatAvatar &&
                   ((isFilehostAvatar && showSafeMedia) ||

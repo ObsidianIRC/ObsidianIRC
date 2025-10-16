@@ -487,3 +487,31 @@ export function hasOpPermission(userStatus?: string): boolean {
     userStatus.includes("~")
   );
 }
+
+/**
+ * Check if a URL is from a specific filehost using proper URL parsing
+ * This is safer than using string.startsWith() as it properly handles URL components
+ */
+export function isUrlFromFilehost(
+  avatarUrl: string,
+  filehost: string,
+): boolean {
+  if (!avatarUrl || !filehost) return false;
+
+  try {
+    const avatarUrlObj = new URL(avatarUrl);
+    const filehostUrl = new URL(filehost);
+
+    // Check if origins match (protocol + host + port)
+    if (avatarUrlObj.origin !== filehostUrl.origin) {
+      return false;
+    }
+
+    // Check if the pathname starts with the filehost pathname
+    // This handles cases where filehost might be a subdirectory
+    return avatarUrlObj.pathname.startsWith(filehostUrl.pathname);
+  } catch {
+    // If URL parsing fails, fall back to false
+    return false;
+  }
+}

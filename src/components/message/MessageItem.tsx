@@ -2,7 +2,11 @@ import exifr from "exifr";
 import * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ircClient from "../../lib/ircClient";
-import { isUserVerified, processMarkdownInText } from "../../lib/ircUtils";
+import {
+  isUrlFromFilehost,
+  isUserVerified,
+  processMarkdownInText,
+} from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
@@ -561,7 +565,7 @@ export const MessageItem = React.memo(
     const isImageUrl =
       !!server?.filehost &&
       message.content.trim() === message.content &&
-      message.content.startsWith(server.filehost) &&
+      isUrlFromFilehost(message.content, server.filehost) &&
       (!!message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
         message.content.includes("/images/")); // check for backend upload URLs
 

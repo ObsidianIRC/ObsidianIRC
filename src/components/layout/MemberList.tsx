@@ -3,7 +3,11 @@ import { useEffect, useState } from "react";
 import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
-import { getColorStyle, processMarkdownInText } from "../../lib/ircUtils";
+import {
+  getColorStyle,
+  isUrlFromFilehost,
+  processMarkdownInText,
+} from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
@@ -136,18 +140,7 @@ const UserItem: React.FC<{
   const isFilehostAvatar =
     avatarUrl &&
     server?.filehost &&
-    (() => {
-      try {
-        const avatarUrlObj = new URL(avatarUrl);
-        const filehostUrl = new URL(server.filehost);
-        if (avatarUrlObj.origin !== filehostUrl.origin) {
-          return false;
-        }
-        return avatarUrlObj.pathname.startsWith(filehostUrl.pathname);
-      } catch {
-        return false;
-      }
-    })();
+    isUrlFromFilehost(avatarUrl, server.filehost);
   const shouldShowAvatar =
     avatarUrl &&
     ((isFilehostAvatar && showSafeMedia) || showExternalContent) &&
