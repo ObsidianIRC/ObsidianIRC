@@ -252,9 +252,35 @@ export function renderMarkdown(
   // Additional security: only allow specific markdown-related HTML tags
   // Define allowed HTML tags for markdown rendering
   const allowedTags = new Set([
-    'p', 'br', 'strong', 'b', 'em', 'i', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'img', 'hr',
-    'table', 'thead', 'tbody', 'tr', 'th', 'td', 'del', 'ins'
+    "p",
+    "br",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "code",
+    "pre",
+    "a",
+    "img",
+    "hr",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "del",
+    "ins",
   ]);
 
   // Remove dangerous content first
@@ -270,20 +296,23 @@ export function renderMarkdown(
     .replace(/javascript:/gi, "#");
 
   // Remove any HTML tags that are not in the allowed list
-  sanitizedHtml = sanitizedHtml.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)(?:\s[^>]*)?>/g, (match, tagName) => {
-    return allowedTags.has(tagName.toLowerCase()) ? match : '';
-  });
+  sanitizedHtml = sanitizedHtml.replace(
+    /<\/?([a-zA-Z][a-zA-Z0-9]*)(?:\s[^>]*)?>/g,
+    (match, tagName) => {
+      return allowedTags.has(tagName.toLowerCase()) ? match : "";
+    },
+  );
 
   // Remove all style attributes from allowed tags and ensure img tags have controlled styling
   sanitizedHtml = sanitizedHtml.replace(/<([^>]+)>/g, (match, content) => {
     // For img tags, ensure they have our controlled style
-    if (content.trim().startsWith('img')) {
+    if (content.trim().startsWith("img")) {
       // Remove any existing style and add our controlled one
-      const withoutStyle = content.replace(/\s+style="[^"]*"/gi, '');
+      const withoutStyle = content.replace(/\s+style="[^"]*"/gi, "");
       return `<${withoutStyle} style="max-height: 150px;">`;
     }
     // Remove style attributes from all other tags
-    return `<${content.replace(/\s+style="[^"]*"/gi, '')}>`;
+    return `<${content.replace(/\s+style="[^"]*"/gi, "")}>`;
   });
 
   // Return a div with dangerouslySetInnerHTML
