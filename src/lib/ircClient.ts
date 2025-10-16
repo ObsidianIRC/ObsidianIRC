@@ -534,6 +534,13 @@ export class IRCClient {
           connectionState: "connected",
         });
 
+        // Rejoin channels if this is a reconnection
+        if (server.channels.length > 0) {
+          for (const channel of server.channels) {
+            this.sendRaw(serverId, `JOIN ${channel.name}`);
+          }
+        }
+
         // Start WebSocket ping timer for keepalive
         this.startWebSocketPing(server.id);
 
