@@ -1543,6 +1543,15 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
 
+      // If already selected, do nothing
+      if (
+        serverId &&
+        state.ui.perServerSelections[serverId]?.selectedPrivateChatId ===
+          privateChatId
+      ) {
+        return state;
+      }
+
       // Mark private chat as read
       if (serverId && privateChatId) {
         const updatedServers = state.servers.map((server) => {
@@ -1667,7 +1676,7 @@ const useStore = create<AppState>((set, get) => ({
           // Request WHO to get current status using WHOX to also get account
           // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
           setTimeout(() => {
-            ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+            ircClient.sendRaw(serverId, `WHO ${username} %cuhnfrao`);
           }, 100);
         }
 
@@ -1741,7 +1750,7 @@ const useStore = create<AppState>((set, get) => ({
         // Request WHO to get their current status (H=here/green, G=gone/yellow) using WHOX to also get account
         // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
         setTimeout(() => {
-          ircClient.sendRaw(serverId, `WHO ${username} %uhnafr`);
+          ircClient.sendRaw(serverId, `WHO ${username} %cuhnfrao`);
         }, 100);
       }
 
@@ -4569,7 +4578,7 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
         if (!hasUserInfo) {
           // Request WHO to get current status using WHOX to also get account
           // Fields: u=username, h=hostname, n=nickname, f=flags, a=account, r=realname
-          ircClient.sendRaw(serverId, `WHO ${username} %uhnfra`);
+          ircClient.sendRaw(serverId, `WHO ${username} %cuhnfrao`);
         }
       }
     }, 100);

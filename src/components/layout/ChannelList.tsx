@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaCheckCircle,
   FaChevronDown,
@@ -118,6 +118,8 @@ export const ChannelList: React.FC<{
   const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
     useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [clickedPM, setClickedPM] = useState<string | null>(null);
+  const lastSelectedPM = useRef<string | null>(null);
   const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
   const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(
     null,
@@ -186,6 +188,11 @@ export const ChannelList: React.FC<{
 
     return sorted;
   }, [selectedServer, selectedServerId, channelOrder]);
+
+  useEffect(() => {
+    setClickedPM(null);
+    lastSelectedPM.current = null;
+  });
 
   // Helper function to get user metadata for a private chat
   const getUserMetadata = (username: string) => {
@@ -901,7 +908,11 @@ export const ChannelList: React.FC<{
                                 : "rgba(107, 114, 128, 0.08)" // gray tint
                               : undefined,
                         }}
-                        onClick={() => selectPrivateChat(privateChat.id)}
+                        onClick={() => {
+                          if (lastSelectedPM.current === privateChat.id) return;
+                          lastSelectedPM.current = privateChat.id;
+                          selectPrivateChat(privateChat.id);
+                        }}
                       >
                         <div className="flex items-center gap-2 truncate">
                           {/* User avatar with status indicator */}

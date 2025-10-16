@@ -159,23 +159,21 @@ export const ChatArea: React.FC<{
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const {
-    servers,
-    ui,
-    toggleMemberList,
-    openPrivateChat,
-    selectPrivateChat,
-    messages,
-    connect,
-    joinChannel,
-    toggleAddServerModal,
-    redactMessage,
-    globalSettings,
-    warnUser,
-    kickUser,
-    banUserByNick,
-    banUserByHostmask,
-  } = useStore();
+  const servers = useStore((state) => state.servers);
+  const ui = useStore((state) => state.ui);
+  const globalSettings = useStore((state) => state.globalSettings);
+  const messages = useStore((state) => state.messages);
+  const toggleMemberList = useStore((state) => state.toggleMemberList);
+  const openPrivateChat = useStore((state) => state.openPrivateChat);
+  const selectPrivateChat = useStore((state) => state.selectPrivateChat);
+  const connect = useStore((state) => state.connect);
+  const joinChannel = useStore((state) => state.joinChannel);
+  const toggleAddServerModal = useStore((state) => state.toggleAddServerModal);
+  const redactMessage = useStore((state) => state.redactMessage);
+  const warnUser = useStore((state) => state.warnUser);
+  const kickUser = useStore((state) => state.kickUser);
+  const banUserByNick = useStore((state) => state.banUserByNick);
+  const banUserByHostmask = useStore((state) => state.banUserByHostmask);
 
   const selectedServerId = ui.selectedServerId;
   const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
