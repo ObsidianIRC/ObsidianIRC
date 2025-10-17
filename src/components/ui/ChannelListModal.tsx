@@ -38,8 +38,36 @@ const ChannelListModal: React.FC = () => {
   const [maxTopicTime, setMaxTopicTime] = useState<number>(0);
   const [mask, setMask] = useState<string>("");
   const [notMask, setNotMask] = useState<string>("");
+  const [displayedChannelsCount, setDisplayedChannelsCountState] =
+    useState<number>(50); // Start with 50 channels initially
+  const [loadingMore, setLoadingMoreState] = useState<boolean>(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const channelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevFilteredLengthRef = useRef<number>(0);
+  const loadingMoreRef = useRef<boolean>(false);
+  const displayedCountRef = useRef<number>(50);
+
+  // Custom setters that update both state and refs
+  const setLoadingMore = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      const newValue =
+        typeof value === "function" ? value(loadingMoreRef.current) : value;
+      loadingMoreRef.current = newValue;
+      setLoadingMoreState(newValue);
+    },
+    [],
+  );
+
+  const setDisplayedChannelsCount = useCallback(
+    (value: number | ((prev: number) => number)) => {
+      const newValue =
+        typeof value === "function" ? value(displayedCountRef.current) : value;
+      displayedCountRef.current = newValue;
+      setDisplayedChannelsCountState(newValue);
+    },
+    [],
+  );
 
   const filteredChannels = rawChannels
     .filter((channel) =>
@@ -164,6 +192,45 @@ const ChannelListModal: React.FC = () => {
     }
   }, [selectedServerId, channelListFilters]);
 
+  // Scroll detection for lazy loading
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100; // 100px threshold
+
+      if (
+        isNearBottom &&
+        !loadingMoreRef.current &&
+        displayedCountRef.current < filteredChannels.length
+      ) {
+        setLoadingMore(true);
+        // Load next 50 channels
+        setTimeout(() => {
+          setDisplayedChannelsCount((prev) =>
+            Math.min(prev + 50, filteredChannels.length),
+          );
+          setLoadingMore(false);
+        }, 200); // Small delay for smooth UX
+      }
+    };
+
+    scrollContainer.addEventListener("scroll", handleScroll);
+    return () => scrollContainer.removeEventListener("scroll", handleScroll);
+  }, [filteredChannels.length, setDisplayedChannelsCount, setLoadingMore]); // Only depend on filteredChannels.length to avoid recreating listener too often
+
+  // Reset displayed count when filtered channels change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (prevFilteredLengthRef.current !== filteredChannels.length) {
+      setDisplayedChannelsCount(50); // Reset to initial count when filters change
+      prevFilteredLengthRef.current = filteredChannels.length;
+    }
+  }, [filteredChannels.length, setDisplayedChannelsCount]);
+
   const applyFilters = () => {
     if (!selectedServerId) return;
 
@@ -211,7 +278,10 @@ const ChannelListModal: React.FC = () => {
       >
         <div className="flex justify-between items-center mb-4 flex-shrink-0">
           <h2 className="text-white text-xl font-bold">
-            Channel List - {selectedServer?.name || "Unknown Server"}
+            Channels on{" "}
+            {selectedServer?.networkName ||
+              selectedServer?.name ||
+              "Unknown Network"}
           </h2>
           <button
             onClick={() => toggleChannelListModal(false)}
@@ -220,6 +290,12 @@ const ChannelListModal: React.FC = () => {
           >
             <FaTimes size={20} />
           </button>
+        </div>
+
+        <div className="mb-4 flex-shrink-0">
+          <span className="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg font-semibold shadow-sm">
+            Total: {filteredChannels.length}
+          </span>
         </div>
 
         <div className="mb-4 flex gap-4 items-center flex-shrink-0">
@@ -424,85 +500,109 @@ const ChannelListModal: React.FC = () => {
           </p>
         )}
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto min-h-0"
+        >
           <div className="space-y-2">
             {filteredChannels.length === 0 &&
               !(selectedServerId && listingInProgress[selectedServerId]) && (
                 <p className="text-gray-400">No channels found.</p>
               )}
-            {filteredChannels.map((channel) => {
-              const metadata = metadataCache[channel.channel];
-              const avatarUrl = metadata?.avatar
-                ? getChannelAvatarUrl(
-                    {
-                      avatar: { value: metadata.avatar, visibility: "public" },
-                    },
-                    32,
-                  )
-                : null;
-              const displayName = metadata?.displayName;
-              const hasMetadata = !!(avatarUrl || displayName);
+            {filteredChannels
+              .slice(0, displayedChannelsCount)
+              .map((channel) => {
+                const metadata = metadataCache[channel.channel];
+                const avatarUrl = metadata?.avatar
+                  ? getChannelAvatarUrl(
+                      {
+                        avatar: {
+                          value: metadata.avatar,
+                          visibility: "public",
+                        },
+                      },
+                      32,
+                    )
+                  : null;
+                const displayName = metadata?.displayName;
+                const hasMetadata = !!(avatarUrl || displayName);
 
-              return (
-                <div
-                  key={channel.channel}
-                  ref={(el) => setChannelRef(channel.channel, el)}
-                  data-channel={channel.channel}
-                  className="bg-discord-dark-300 p-3 rounded flex justify-between items-center cursor-pointer hover:bg-discord-dark-400"
-                  onClick={() => handleJoinChannel(channel.channel)}
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    {/* Channel icon */}
-                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt={channel.channel}
-                          className="w-8 h-8 rounded-full object-cover"
-                          onError={(e) => {
-                            // Fallback to # icon if image fails to load
-                            e.currentTarget.style.display = "none";
-                            const fallback = e.currentTarget
-                              .nextElementSibling as HTMLElement;
-                            if (fallback) fallback.style.display = "block";
-                          }}
-                        />
-                      ) : null}
-                      <span
-                        className="text-gray-400 text-xl font-bold"
-                        style={{ display: avatarUrl ? "none" : "block" }}
-                      >
-                        #
-                      </span>
-                    </div>
-
-                    {/* Channel name and topic */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white font-medium">
-                          {displayName ||
-                            getChannelDisplayName(channel.channel, {})}
+                return (
+                  <div
+                    key={channel.channel}
+                    ref={(el) => setChannelRef(channel.channel, el)}
+                    data-channel={channel.channel}
+                    className="bg-discord-dark-300 p-3 rounded flex justify-between items-center cursor-pointer hover:bg-discord-dark-400"
+                    onClick={() => handleJoinChannel(channel.channel)}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      {/* Channel icon */}
+                      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={channel.channel}
+                            className="w-8 h-8 rounded-full object-cover"
+                            onError={(e) => {
+                              // Fallback to # icon if image fails to load
+                              e.currentTarget.style.display = "none";
+                              const fallback = e.currentTarget
+                                .nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = "block";
+                            }}
+                          />
+                        ) : null}
+                        <span
+                          className="text-gray-400 text-xl font-bold"
+                          style={{ display: avatarUrl ? "none" : "block" }}
+                        >
+                          #
                         </span>
-                        {hasMetadata &&
-                          displayName &&
-                          displayName !== channel.channel.substring(1) && (
-                            <span className="text-xs bg-discord-dark-400 text-gray-300 px-2 py-0.5 rounded">
-                              {channel.channel}
-                            </span>
-                          )}
                       </div>
-                      <p className="text-gray-400 text-sm">
-                        {channel.topic || "No topic"}
-                      </p>
-                    </div>
-                  </div>
 
-                  <span className="bg-discord-primary text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
-                    {channel.userCount}
-                  </span>
+                      {/* Channel name and topic */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-white font-medium">
+                            {displayName ||
+                              getChannelDisplayName(channel.channel, {})}
+                          </span>
+                          {hasMetadata &&
+                            displayName &&
+                            displayName !== channel.channel.substring(1) && (
+                              <span className="text-xs bg-discord-dark-400 text-gray-300 px-2 py-0.5 rounded">
+                                {channel.channel}
+                              </span>
+                            )}
+                        </div>
+                        <p className="text-gray-400 text-sm">
+                          {channel.topic || "No topic"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="bg-discord-primary text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
+                      {channel.userCount}
+                    </span>
+                  </div>
+                );
+              })}
+            {loadingMore && (
+              <div className="text-center py-4">
+                <p className="text-gray-400 text-sm">
+                  Loading more channels...
+                </p>
+              </div>
+            )}
+            {displayedChannelsCount < filteredChannels.length &&
+              !loadingMore && (
+                <div className="text-center py-4">
+                  <p className="text-gray-500 text-xs">
+                    Showing {displayedChannelsCount} of{" "}
+                    {filteredChannels.length} channels
+                  </p>
                 </div>
-              );
-            })}
+              )}
           </div>
         </div>
       </div>
