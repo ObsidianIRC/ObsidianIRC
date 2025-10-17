@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FaTimes } from "react-icons/fa";
+import { FaTimes, FaUsers } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
 import useStore from "../../store";
@@ -504,16 +504,6 @@ const ChannelListModal: React.FC = () => {
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto min-h-0"
         >
-          {/* Column headers */}
-          <div className="flex justify-between items-center px-3 py-2 border-b border-discord-dark-400 mb-2">
-            <span className="text-gray-300 font-semibold text-sm flex-1">
-              Channel Name
-            </span>
-            <span className="text-gray-300 font-semibold text-sm flex-shrink-0 ml-2">
-              Users
-            </span>
-          </div>
-
           <div className="space-y-2">
             {filteredChannels.length === 0 &&
               !(selectedServerId && listingInProgress[selectedServerId]) && (
@@ -591,7 +581,8 @@ const ChannelListModal: React.FC = () => {
                       </div>
                     </div>
 
-                    <span className="bg-discord-primary text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
+                    <span className="text-gray-400 text-sm flex-shrink-0 ml-2 flex items-center gap-1">
+                      <FaUsers size={12} />
                       {channel.userCount}
                     </span>
                   </div>
