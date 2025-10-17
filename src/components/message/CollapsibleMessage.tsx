@@ -59,7 +59,7 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
         {content}
       </div>
       {needsCollapsing && (
-        <div className="mt-1">
+        <div className="mt-1 text-center">
           <button
             onClick={toggleExpanded}
             className="ml-1 text-blue-500 hover:text-blue-600 text-xs font-medium cursor-pointer border border-blue-500 rounded-full py-0 px-1"
