@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   FaBell,
   FaBellSlash,
+  FaCheckCircle,
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
@@ -114,6 +115,106 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
     return null;
   }, [selectedPrivateChat, selectedServerId, servers]);
+
+  // Helper function to get user metadata
+  const getUserMetadata = (username: string) => {
+    if (!selectedServerId) return null;
+
+    // First check localStorage for saved metadata
+    const savedMetadata = loadSavedMetadata();
+    const serverMetadata = savedMetadata[selectedServerId];
+    if (serverMetadata?.[username]) {
+      return serverMetadata[username];
+    }
+
+    // If not in localStorage, check if user is in any shared channels
+    const server = servers.find((s) => s.id === selectedServerId);
+    if (!server) return null;
+
+    // Search through all channels for this user
+    for (const channel of server.channels) {
+      const user = channel.users.find(
+        (u) => u.username.toLowerCase() === username.toLowerCase(),
+      );
+      if (user?.metadata && Object.keys(user.metadata).length > 0) {
+        return user.metadata;
+      }
+    }
+
+    return null;
+  };
+
+  // Helper function to get full user object from shared channels
+  const getUserFromChannels = (username: string) => {
+    const server = servers.find((s) => s.id === selectedServerId);
+    if (!server) return null;
+
+    // Search through all channels for this user
+    for (const channel of server.channels) {
+      const user = channel.users.find(
+        (u) => u.username.toLowerCase() === username.toLowerCase(),
+      );
+      if (user) {
+        return user;
+      }
+    }
+
+    return null;
+  };
+
+  // Helper function to render verification and bot badges
+  const renderUserBadges = (
+    username: string,
+    privateChat: PrivateChat | undefined,
+    user: User | null,
+    showVerified = true,
+  ) => {
+    // Get account and bot info from privateChat first, fall back to channel user
+    const account = privateChat?.account || user?.account;
+    const isBot =
+      privateChat?.isBot ||
+      user?.isBot ||
+      user?.metadata?.bot?.value === "true";
+    const isIrcOp = user?.isIrcOp || false;
+
+    const isVerified =
+      showVerified &&
+      account &&
+      account !== "0" &&
+      username.toLowerCase() === account.toLowerCase();
+
+    if (!isVerified && !isBot && !isIrcOp) return null;
+
+    return (
+      <>
+        {isVerified && (
+          <FaCheckCircle
+            className="inline ml-0.5 text-green-500"
+            style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
+            title="Verified account"
+          />
+        )}
+        {isBot && (
+          <span
+            className="inline ml-0.5"
+            style={{ fontSize: "0.9em" }}
+            title="Bot"
+          >
+            🤖
+          </span>
+        )}
+        {isIrcOp && (
+          <span
+            className="inline ml-0.5"
+            style={{ fontSize: "0.9em" }}
+            title="IRC Operator"
+          >
+            🔑
+          </span>
+        )}
+      </>
+    );
+  };
 
   const privateChatAvatar = privateChatUserMetadata?.avatar?.value;
 
@@ -345,13 +446,58 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             {/* Username and status */}
             <div className="flex flex-col">
               <h2 className="font-bold text-white">
-                {selectedPrivateChat.username}
+                {(() => {
+                  const userMetadata = getUserMetadata(
+                    selectedPrivateChat.username,
+                  );
+                  const displayName = userMetadata?.["display-name"]?.value;
+                  const user = getUserFromChannels(
+                    selectedPrivateChat.username,
+                  );
+                  return (
+                    <>
+                      {displayName || selectedPrivateChat.username}
+                      {/* Only show verified badge if NO display-name (showing username directly) */}
+                      {renderUserBadges(
+                        selectedPrivateChat.username,
+                        selectedPrivateChat,
+                        user,
+                        !displayName,
+                      )}
+                    </>
+                  );
+                })()}
               </h2>
-              {privateChatUserMetadata?.status?.value && (
-                <span className="text-xs text-discord-text-muted">
-                  {privateChatUserMetadata.status.value}
-                </span>
-              )}
+              {(() => {
+                const userMetadata = getUserMetadata(
+                  selectedPrivateChat.username,
+                );
+                const displayName = userMetadata?.["display-name"]?.value;
+                const user = getUserFromChannels(selectedPrivateChat.username);
+
+                // Show username in badge if display-name exists
+                if (displayName) {
+                  return (
+                    <div className="flex items-center gap-1.5 text-xs truncate mt-0.5">
+                      <span className="bg-gray-300 text-black px-1 py-0 rounded font-bold whitespace-nowrap text-[10px]">
+                        {selectedPrivateChat.username}
+                        {renderUserBadges(
+                          selectedPrivateChat.username,
+                          selectedPrivateChat,
+                          user,
+                        )}
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Show status if no display-name (status was already shown above when display-name exists)
+                return privateChatUserMetadata?.status?.value ? (
+                  <span className="text-xs text-discord-text-muted">
+                    {privateChatUserMetadata.status.value}
+                  </span>
+                ) : null;
+              })()}
             </div>
             {/* Pin/Unpin button */}
             {selectedServerId && (
