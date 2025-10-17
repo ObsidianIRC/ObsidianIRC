@@ -68,6 +68,22 @@ vi.mock("../../src/store", () => ({
     changeNick: vi.fn(),
   })),
   serverSupportsMetadata: vi.fn(() => true),
+  loadSavedServers: vi.fn(() => [
+    {
+      id: "server1",
+      name: "Test Server",
+      host: "irc.example.com",
+      port: 6667,
+      nickname: "testuser",
+      channels: ["#test"],
+      saslAccountName: "",
+      saslPassword: "",
+      saslEnabled: false,
+      operUsername: "",
+      operPassword: "",
+      operOnConnect: false,
+    },
+  ]),
 }));
 
 // Mock ircClient
