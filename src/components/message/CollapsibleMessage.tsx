@@ -16,6 +16,17 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const animationTimeoutRef = useRef<number | null>(null);
+
+  // Cleanup timeout on unmount
+  useLayoutEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!contentRef.current) return;
@@ -39,8 +50,17 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
     setIsExpanding(willExpand);
     setIsAnimating(true);
     setIsExpanded(willExpand);
+
+    // Clear any existing timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+
     // Reset animation after it completes
-    setTimeout(() => setIsAnimating(false), 600);
+    animationTimeoutRef.current = window.setTimeout(() => {
+      setIsAnimating(false);
+      animationTimeoutRef.current = null;
+    }, 600);
   };
 
   return (

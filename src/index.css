@@ -264,7 +264,7 @@ body {
 }
 
 .dark .markdown-content code {
-  background-color: black;
+  background-color: rgb(31 41 55);;
 }
 
 .markdown-content pre {
@@ -277,7 +277,7 @@ body {
 }
 
 .dark .markdown-content pre {
-  background-color: black;
+  background-color: rgb(31 41 55);;
 }
 
 .markdown-content pre code {

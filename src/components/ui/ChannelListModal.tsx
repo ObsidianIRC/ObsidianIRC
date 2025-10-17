@@ -20,6 +20,7 @@ const ChannelListModal: React.FC = () => {
   } = useStore();
 
   const selectedServer = servers.find((s) => s.id === selectedServerId);
+  const elist = (selectedServer?.elist || "").toUpperCase();
   const rawChannels = selectedServerId
     ? channelList[selectedServerId] || []
     : [];
@@ -329,7 +330,7 @@ const ChannelListModal: React.FC = () => {
             <div className="bg-discord-dark-300 p-3 rounded space-y-3">
               <div className="grid grid-cols-1 gap-3">
                 {/* User Count Filtering (U extension) */}
-                {selectedServer?.elist?.toUpperCase().includes("U") && (
+                {elist.includes("U") && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
@@ -365,7 +366,7 @@ const ChannelListModal: React.FC = () => {
                 )}
 
                 {/* Creation Time Filtering (C extension) */}
-                {selectedServer?.elist?.toUpperCase().includes("C") && (
+                {elist.includes("C") && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
@@ -405,7 +406,7 @@ const ChannelListModal: React.FC = () => {
                 )}
 
                 {/* Topic Time Filtering (T extension) */}
-                {selectedServer?.elist?.toUpperCase().includes("T") && (
+                {elist.includes("T") && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
@@ -445,7 +446,7 @@ const ChannelListModal: React.FC = () => {
                 )}
 
                 {/* Mask Filtering (M extension) */}
-                {selectedServer?.elist?.toUpperCase().includes("M") && (
+                {elist.includes("M") && (
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       Channel Name Mask
@@ -461,7 +462,7 @@ const ChannelListModal: React.FC = () => {
                 )}
 
                 {/* Non-matching Mask Filtering (N extension) */}
-                {selectedServer?.elist?.toUpperCase().includes("N") && (
+                {elist.includes("N") && (
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       Exclude Channel Name Mask
@@ -476,8 +477,7 @@ const ChannelListModal: React.FC = () => {
                   </div>
                 )}
 
-                {(!selectedServer?.elist ||
-                  selectedServer.elist.length === 0) && (
+                {elist.length === 0 && (
                   <div className="text-sm text-gray-400 text-center py-2">
                     Server doesn't support advanced LIST filtering
                   </div>
