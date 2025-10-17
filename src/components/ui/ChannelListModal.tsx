@@ -504,6 +504,16 @@ const ChannelListModal: React.FC = () => {
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto min-h-0"
         >
+          {/* Column headers */}
+          <div className="flex justify-between items-center px-3 py-2 border-b border-discord-dark-400 mb-2">
+            <span className="text-gray-300 font-semibold text-sm flex-1">
+              Channel Name
+            </span>
+            <span className="text-gray-300 font-semibold text-sm flex-shrink-0 ml-2">
+              Users
+            </span>
+          </div>
+
           <div className="space-y-2">
             {filteredChannels.length === 0 &&
               !(selectedServerId && listingInProgress[selectedServerId]) && (
