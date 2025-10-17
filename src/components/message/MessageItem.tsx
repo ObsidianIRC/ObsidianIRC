@@ -13,6 +13,7 @@ import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import { InviteMessage } from "./InviteMessage";
 import {
   ActionMessage,
+  CollapsibleMessage,
   DateSeparator,
   EventMessage,
   JsonLogMessage,
@@ -558,6 +559,10 @@ export const MessageItem = React.memo(
       showExternalContent,
       enableMarkdownRendering,
     );
+
+    // Create collapsible content wrapper
+    const collapsibleContent = <CollapsibleMessage content={htmlContent} />;
+
     const theme = localStorage.getItem("theme") || "discord";
     const username = message.userId.split("-")[0];
 
@@ -876,7 +881,7 @@ export const MessageItem = React.memo(
                       wordBreak: "break-word",
                     }}
                   >
-                    {htmlContent}
+                    {collapsibleContent}
                   </div>
                 )}
               </EnhancedLinkWrapper>
