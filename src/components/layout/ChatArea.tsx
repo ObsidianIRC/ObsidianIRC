@@ -83,6 +83,7 @@ export const ChatArea: React.FC<{
     FormattingType[]
   >([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const wasAtBottomRef = useRef(true); // Track if user was at bottom before new messages
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -477,7 +478,9 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
-    // Reset visible message count and search when changing channels
+    // Reset scroll state and visible message count when changing channels
+    setIsScrolledUp(false);
+    wasAtBottomRef.current = true;
     setVisibleMessageCount(100);
     setSearchQuery("");
   }, [selectedServerId, selectedChannelId]);
@@ -485,8 +488,10 @@ export const ChatArea: React.FC<{
   // Auto scroll to bottom on new messages
   // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
   useEffect(() => {
-    if (isScrolledUp) return;
-    scrollDown();
+    // Only auto-scroll if user was at the bottom before new messages arrived
+    if (wasAtBottomRef.current) {
+      scrollDown();
+    }
   }, [displayedMessages]);
 
   // Check if scrolled away from bottom
@@ -499,6 +504,7 @@ export const ChatArea: React.FC<{
         container.scrollHeight - container.scrollTop - container.clientHeight <
         30;
       setIsScrolledUp(!atBottom);
+      wasAtBottomRef.current = atBottom;
     };
 
     container.addEventListener("scroll", checkIfScrolledToBottom);
@@ -543,12 +549,6 @@ export const ChatArea: React.FC<{
           inputRef.current.style.height = `${scrollHeight}px`;
         }
       }, 0);
-    }
-
-    // Send typing done notification
-    const target = selectedChannel?.name ?? selectedPrivateChat?.username;
-    if (target) {
-      typingNotification.notifyTypingDone(target);
     }
   };
 

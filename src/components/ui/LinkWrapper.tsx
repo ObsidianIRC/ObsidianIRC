@@ -26,12 +26,18 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
   useEffect(() => {
     const handleExternalLinkClick = (e: Event) => {
       const target = e.target as HTMLElement;
-      if (target?.classList.contains("external-link-security")) {
-        e.preventDefault();
-        const url = target.getAttribute("href");
-        if (url) {
-          setPendingUrl(url);
+      // Check if the target or any of its parents have the external-link-security class
+      let element: HTMLElement | null = target;
+      while (element) {
+        if (element.classList.contains("external-link-security")) {
+          e.preventDefault();
+          const url = element.getAttribute("href");
+          if (url) {
+            setPendingUrl(url);
+          }
+          break;
         }
+        element = element.parentElement;
       }
     };
 

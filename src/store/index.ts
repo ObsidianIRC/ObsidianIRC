@@ -465,6 +465,23 @@ export interface AppState {
     string,
     { channel: string; userCount: number; topic: string }[]
   >; // serverId -> channels
+  channelListBuffer: Record<
+    string,
+    { channel: string; userCount: number; topic: string }[]
+  >; // serverId -> channels (temporary buffer during listing)
+  channelListFilters: Record<
+    string,
+    {
+      minUsers?: number;
+      maxUsers?: number;
+      minCreationTime?: number; // minutes ago
+      maxCreationTime?: number; // minutes ago
+      minTopicTime?: number; // minutes ago
+      maxTopicTime?: number; // minutes ago
+      mask?: string;
+      notMask?: string;
+    }
+  >; // serverId -> filter settings
   listingInProgress: Record<string, boolean>; // serverId -> is listing
   // Channel metadata cache for /LIST
   channelMetadataCache: Record<
@@ -496,6 +513,7 @@ export interface AppState {
   activeBatches: Record<string, Record<string, BatchInfo>>; // serverId -> batchId -> batch info
   metadataFetchInProgress: Record<string, boolean>; // serverId -> is fetching own metadata
   userMetadataRequested: Record<string, Set<string>>; // serverId -> Set of usernames we've requested metadata for
+  metadataChangeCounter: number; // Counter incremented on metadata changes for reactivity
   // WHOIS data cache
   whoisData: Record<string, Record<string, WhoisData>>; // serverId -> nickname -> whois data
   // Account registration state
@@ -575,7 +593,32 @@ export interface AppState {
     username: string,
     reason: string,
   ) => void;
-  listChannels: (serverId: string) => void;
+  listChannels: (
+    serverId: string,
+    filters?: {
+      minUsers?: number;
+      maxUsers?: number;
+      minCreationTime?: number; // minutes ago
+      maxCreationTime?: number; // minutes ago
+      minTopicTime?: number; // minutes ago
+      maxTopicTime?: number; // minutes ago
+      mask?: string;
+      notMask?: string;
+    },
+  ) => void;
+  updateChannelListFilters: (
+    serverId: string,
+    filters: {
+      minUsers?: number;
+      maxUsers?: number;
+      minCreationTime?: number; // minutes ago
+      maxCreationTime?: number; // minutes ago
+      minTopicTime?: number; // minutes ago
+      maxTopicTime?: number; // minutes ago
+      mask?: string;
+      notMask?: string;
+    },
+  ) => void;
   renameChannel: (
     serverId: string,
     oldName: string,
@@ -713,6 +756,8 @@ const useStore = create<AppState>((set, get) => ({
   typingTimers: {},
   globalNotifications: [],
   channelList: {},
+  channelListBuffer: {},
+  channelListFilters: {},
   listingInProgress: {},
   channelMetadataCache: {},
   channelMetadataFetchQueue: {},
@@ -721,6 +766,7 @@ const useStore = create<AppState>((set, get) => ({
   activeBatches: {},
   metadataFetchInProgress: {},
   userMetadataRequested: {},
+  metadataChangeCounter: 0,
   whoisData: {},
   pendingRegistration: null,
   channelOrder: loadChannelOrder(),
@@ -1215,16 +1261,27 @@ const useStore = create<AppState>((set, get) => ({
     ircClient.sendRaw(serverId, `KICK ${channelName} ${username} :${reason}`);
   },
 
-  listChannels: (serverId) => {
+  listChannels: (serverId, filters?) => {
     const state = get();
     if (state.listingInProgress[serverId]) {
       // Already listing, ignore
       return;
     }
-    // Clear the channel list before starting a new list
+    // Find the server to check for ELIST support
+    const server = state.servers.find((s) => s.id === serverId);
+    const elist = server?.elist;
+
+    // Use provided filters or get stored filters
+    const filterSettings = filters || state.channelListFilters[serverId] || {};
+
+    // Clear the channel list and buffer before starting a new list
     set((state) => ({
       channelList: {
         ...state.channelList,
+        [serverId]: [],
+      },
+      channelListBuffer: {
+        ...state.channelListBuffer,
         [serverId]: [],
       },
       listingInProgress: {
@@ -1232,7 +1289,16 @@ const useStore = create<AppState>((set, get) => ({
         [serverId]: true,
       },
     }));
-    ircClient.listChannels(serverId);
+    ircClient.listChannels(serverId, elist, filterSettings);
+  },
+
+  updateChannelListFilters: (serverId, filters) => {
+    set((state) => ({
+      channelListFilters: {
+        ...state.channelListFilters,
+        [serverId]: filters,
+      },
+    }));
   },
 
   renameChannel: (serverId, oldName, newName, reason) => {
@@ -4995,6 +5061,18 @@ ircClient.on("RPL_YOUREOPER", ({ serverId, message }) => {
   });
 });
 
+ircClient.on("RPL_YOURHOST", ({ serverId, serverName, version }) => {
+  // Check if the server is running UnrealIRCd
+  const isUnrealIRCd = version.includes("UnrealIRCd");
+
+  // Update the server with the UnrealIRCd information
+  useStore.setState((state) => ({
+    servers: state.servers.map((server) =>
+      server.id === serverId ? { ...server, isUnrealIRCd } : server,
+    ),
+  }));
+});
+
 // Topic handlers
 ircClient.on("TOPIC", ({ serverId, channelName, topic, sender }) => {
   useStore.setState((state) => {
@@ -5680,20 +5758,28 @@ ircClient.on("LIST_CHANNEL", ({ serverId, channel, userCount, topic }) => {
       // Not currently listing, ignore
       return {};
     }
-    const currentList = state.channelList[serverId] || [];
-    const updatedList = [...currentList, { channel, userCount, topic }];
+    const currentBuffer = state.channelListBuffer[serverId] || [];
+    const updatedBuffer = [...currentBuffer, { channel, userCount, topic }];
     return {
-      channelList: {
-        ...state.channelList,
-        [serverId]: updatedList,
+      channelListBuffer: {
+        ...state.channelListBuffer,
+        [serverId]: updatedBuffer,
       },
     };
   });
 });
 
 ircClient.on("LIST_END", ({ serverId }) => {
-  // Set listing as complete
+  // Move buffered channels to the main list and set listing as complete
   useStore.setState((state) => ({
+    channelList: {
+      ...state.channelList,
+      [serverId]: state.channelListBuffer[serverId] || [],
+    },
+    channelListBuffer: {
+      ...state.channelListBuffer,
+      [serverId]: [],
+    },
     listingInProgress: {
       ...state.listingInProgress,
       [serverId]: false,
@@ -6568,7 +6654,11 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
       };
     }
 
-    return { servers: updatedServers, currentUser: updatedCurrentUser };
+    return {
+      servers: updatedServers,
+      currentUser: updatedCurrentUser,
+      metadataChangeCounter: state.metadataChangeCounter + 1,
+    };
   });
 });
 
@@ -6727,6 +6817,7 @@ ircClient.on(
               ...state.channelMetadataFetchQueue,
               [serverId]: newQueue,
             },
+            metadataChangeCounter: state.metadataChangeCounter + 1,
           };
         }
 
@@ -6734,10 +6825,15 @@ ircClient.on(
           servers: updatedServers,
           currentUser: updatedCurrentUser,
           channelMetadataCache: updatedCache,
+          metadataChangeCounter: state.metadataChangeCounter + 1,
         };
       }
 
-      return { servers: updatedServers, currentUser: updatedCurrentUser };
+      return {
+        servers: updatedServers,
+        currentUser: updatedCurrentUser,
+        metadataChangeCounter: state.metadataChangeCounter + 1,
+      };
     });
   },
 );

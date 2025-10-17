@@ -19,7 +19,12 @@ export const SystemMessage: React.FC<SystemMessageProps> = ({
     }).format(date);
   };
 
-  const htmlContent = processMarkdownInText(message.content);
+  const htmlContent = processMarkdownInText(
+    message.content,
+    true,
+    false,
+    message.id || message.msgid || "system",
+  );
 
   return (
     <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">

@@ -192,6 +192,10 @@ export interface EventMap {
   RPL_YOUREOPER: BaseIRCEvent & {
     message: string;
   };
+  RPL_YOURHOST: BaseIRCEvent & {
+    serverName: string;
+    version: string;
+  };
   MONONLINE: BaseIRCEvent & {
     targets: Array<{ nick: string; user?: string; host?: string }>;
   };
@@ -1011,8 +1015,73 @@ export class IRCClient {
     this.sendRaw(serverId, `VERIFY ${account} ${code}`);
   }
 
-  listChannels(serverId: string): void {
-    this.sendRaw(serverId, "LIST");
+  listChannels(
+    serverId: string,
+    elist?: string,
+    filters?: {
+      minUsers?: number;
+      maxUsers?: number;
+      minCreationTime?: number; // minutes ago
+      maxCreationTime?: number; // minutes ago
+      minTopicTime?: number; // minutes ago
+      maxTopicTime?: number; // minutes ago
+      mask?: string;
+      notMask?: string;
+    },
+  ): void {
+    let command = "LIST";
+
+    if (elist && filters) {
+      // Build LIST parameters based on filters and available ELIST capabilities
+      const elistTokens = elist.toUpperCase().split("");
+      const params: string[] = [];
+
+      // User count filtering (U extension)
+      if (elistTokens.includes("U")) {
+        if (filters.minUsers && filters.minUsers > 0) {
+          params.push(`>${filters.minUsers}`);
+        }
+        if (filters.maxUsers && filters.maxUsers > 0) {
+          params.push(`<${filters.maxUsers}`);
+        }
+      }
+
+      // Creation time filtering (C extension)
+      if (elistTokens.includes("C")) {
+        if (filters.minCreationTime && filters.minCreationTime > 0) {
+          params.push(`C>${filters.minCreationTime}`);
+        }
+        if (filters.maxCreationTime && filters.maxCreationTime > 0) {
+          params.push(`C<${filters.maxCreationTime}`);
+        }
+      }
+
+      // Topic time filtering (T extension)
+      if (elistTokens.includes("T")) {
+        if (filters.minTopicTime && filters.minTopicTime > 0) {
+          params.push(`T>${filters.minTopicTime}`);
+        }
+        if (filters.maxTopicTime && filters.maxTopicTime > 0) {
+          params.push(`T<${filters.maxTopicTime}`);
+        }
+      }
+
+      // Mask filtering (M extension)
+      if (elistTokens.includes("M") && filters.mask) {
+        params.push(filters.mask);
+      }
+
+      // Non-matching mask filtering (N extension)
+      if (elistTokens.includes("N") && filters.notMask) {
+        params.push(`!${filters.notMask}`);
+      }
+
+      if (params.length > 0) {
+        command = `LIST ${params.join(" ")}`;
+      }
+    }
+
+    this.sendRaw(serverId, command);
   }
 
   renameChannel(
@@ -1592,6 +1661,22 @@ export class IRCClient {
           serverId,
           message,
         });
+      } else if (command === "002") {
+        // RPL_YOURHOST - Your host is <servername>, running version <version>
+        const message = parv.slice(1).join(" ");
+        // Parse the message: "Your host is <servername>, running version <version>"
+        const match = message.match(
+          /Your host is ([^,]+), running version (.+)/,
+        );
+        if (match) {
+          const serverName = match[1];
+          const version = match[2];
+          this.triggerEvent("RPL_YOURHOST", {
+            serverId,
+            serverName,
+            version,
+          });
+        }
       } else if (command === "CAP") {
         console.log(
           `[CAP] Processing CAP command, parv: ${JSON.stringify(parv)}, trailing: "${trailing}"`,

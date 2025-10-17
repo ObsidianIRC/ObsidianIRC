@@ -16,7 +16,11 @@ import {
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isValidIgnorePattern } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
-import useStore, { serverSupportsMetadata } from "../../store";
+import useStore, {
+  loadSavedServers,
+  serverSupportsMetadata,
+} from "../../store";
+import type { ServerConfig } from "../../types";
 import AvatarUpload from "./AvatarUpload";
 import UserProfileModal from "./UserProfileModal";
 
@@ -240,10 +244,12 @@ const UserSettings: React.FC = React.memo(() => {
     setProfileViewRequest,
     servers,
     ui,
+    isConnecting,
     metadataSet,
     sendRaw,
     setName,
     changeNick,
+    updateServer,
     globalSettings: {
       enableNotificationSounds: globalEnableNotificationSounds,
       notificationSound: globalNotificationSound,
@@ -276,6 +282,9 @@ const UserSettings: React.FC = React.memo(() => {
     () => servers.find((s) => s.id === ui.selectedServerId),
     [servers, ui.selectedServerId],
   );
+
+  const savedServers = loadSavedServers();
+  const serverConfig = savedServers.find((s) => s.id === ui.selectedServerId);
 
   // Get the current user for the selected server with metadata from store
   const currentUser = useMemo(() => {
@@ -358,6 +367,13 @@ const UserSettings: React.FC = React.memo(() => {
   const [accountName, setAccountName] = useState(globalAccountName);
   const [accountPassword, setAccountPassword] = useState(globalAccountPassword);
 
+  // IRC Operator state (for hosted chat mode)
+  const [operName, setOperName] = useState(serverConfig?.operUsername || "");
+  const [operPassword, setOperPassword] = useState("");
+  const [operOnConnect, setOperOnConnect] = useState(
+    serverConfig?.operOnConnect || false,
+  );
+
   // Original values for change tracking
   const [originalValues, setOriginalValues] = useState<{
     avatar: string;
@@ -375,6 +391,9 @@ const UserSettings: React.FC = React.memo(() => {
     nickname: string;
     accountName: string;
     accountPassword: string;
+    operName: string;
+    operPassword: string;
+    operOnConnect: boolean;
     showSafeMedia: boolean;
     showExternalContent: boolean;
     enableMarkdownRendering: boolean;
@@ -406,6 +425,9 @@ const UserSettings: React.FC = React.memo(() => {
       nickname !== originalValues.nickname ||
       accountName !== originalValues.accountName ||
       accountPassword !== originalValues.accountPassword ||
+      operName !== originalValues.operName ||
+      operPassword !== originalValues.operPassword ||
+      operOnConnect !== originalValues.operOnConnect ||
       showSafeMedia !== originalValues.showSafeMedia ||
       showExternalContent !== originalValues.showExternalContent ||
       enableMarkdownRendering !== originalValues.enableMarkdownRendering ||
@@ -547,6 +569,15 @@ const UserSettings: React.FC = React.memo(() => {
     },
     [],
   );
+
+  const handleOperUp = () => {
+    if (operName.trim() && operPassword.trim() && currentServer) {
+      sendRaw(
+        currentServer.id,
+        `OPER ${operName.trim()} ${operPassword.trim()}`,
+      );
+    }
+  };
 
   // Function to handle closing with unsaved changes warning
   const handleClose = () => {
@@ -695,6 +726,9 @@ const UserSettings: React.FC = React.memo(() => {
         enableMultilineInput: globalEnableMultilineInput,
         multilineOnShiftEnter: globalMultilineOnShiftEnter,
         autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
+        operName: operName,
+        operPassword: operPassword,
+        operOnConnect: operOnConnect,
       });
     }
   }, [
@@ -728,6 +762,9 @@ const UserSettings: React.FC = React.memo(() => {
     globalShowKicks,
     globalShowNickChanges,
     globalShowQuits,
+    operName,
+    operPassword,
+    operOnConnect,
   ]); // Only depend on user ID - removed all other dependencies
 
   const handleSaveMetadata = (key: string, value: string) => {
@@ -889,6 +926,23 @@ const UserSettings: React.FC = React.memo(() => {
       }
       if (accountPassword !== originalValues.accountPassword) {
         globalSettingsUpdates.accountPassword = accountPassword;
+      }
+    }
+
+    // Save oper settings to server config if changed
+    if (currentServer) {
+      const serverConfigUpdates: Partial<ServerConfig> = {};
+      if (operName !== originalValues.operName) {
+        serverConfigUpdates.operUsername = operName || undefined;
+      }
+      if (operPassword !== originalValues.operPassword) {
+        serverConfigUpdates.operPassword = operPassword || undefined;
+      }
+      if (operOnConnect !== originalValues.operOnConnect) {
+        serverConfigUpdates.operOnConnect = operOnConnect;
+      }
+      if (Object.keys(serverConfigUpdates).length > 0) {
+        updateServer(currentServer.id, serverConfigUpdates);
       }
     }
 
@@ -1466,6 +1520,71 @@ const UserSettings: React.FC = React.memo(() => {
           className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
         />
       </SettingField>
+
+      <SettingField
+        label="IRC Operator Name"
+        description="Your IRC operator username (if you have operator privileges)"
+      >
+        <input
+          type="text"
+          value={operName}
+          onChange={(e) => setOperName(e.target.value)}
+          placeholder="Operator username"
+          className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+        />
+      </SettingField>
+
+      <SettingField
+        label="IRC Operator Password"
+        description="Your IRC operator password (stored locally)"
+      >
+        <input
+          type="password"
+          value={operPassword}
+          onChange={(e) => setOperPassword(e.target.value)}
+          placeholder="Operator password"
+          className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+        />
+      </SettingField>
+
+      <SettingField
+        label="Oper on Connect"
+        description="Automatically attempt to gain operator status when connecting"
+      >
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={operOnConnect}
+            onChange={(e) => setOperOnConnect(e.target.checked)}
+            className="mr-3 accent-discord-primary"
+          />
+          <span className="text-discord-text-normal">
+            Enable automatic oper on connect
+          </span>
+        </label>
+      </SettingField>
+
+      {operName && (
+        <div className="flex gap-2">
+          <button
+            onClick={handleOperUp}
+            disabled={!currentServer || isConnecting}
+            className="px-4 py-2 bg-discord-primary text-white rounded hover:bg-discord-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Oper Up
+          </button>
+          <button
+            onClick={() => {
+              setOperName("");
+              setOperPassword("");
+              setOperOnConnect(false);
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Forget Credentials
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -1558,7 +1677,7 @@ const UserSettings: React.FC = React.memo(() => {
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-4xl h-[80vh] flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-64 bg-discord-dark-300 flex flex-col">
+        <div className="bg-discord-dark-300 flex flex-col">
           <div className="p-4 border-b border-discord-dark-500 flex justify-center">
             {isMobile ? (
               <FaCog className="text-white text-xl" />
@@ -1574,7 +1693,7 @@ const UserSettings: React.FC = React.memo(() => {
                   <button
                     key={category.id}
                     onClick={() => setActiveCategory(category.id)}
-                    className={`w-full flex items-center ${isMobile ? "justify-center px-2" : "px-3"} py-2 mb-1 rounded text-left transition-colors ${
+                    className={`flex items-center ${isMobile ? "justify-center px-2" : "w-full px-3 text-left"} py-2 mb-1 rounded transition-colors overflow-hidden min-w-0 ${
                       activeCategory === category.id
                         ? "bg-discord-primary text-white"
                         : "text-discord-text-muted hover:text-white hover:bg-discord-dark-400"
@@ -1583,7 +1702,9 @@ const UserSettings: React.FC = React.memo(() => {
                     <Icon
                       className={`${isMobile ? "text-lg" : "mr-3 text-sm"}`}
                     />
-                    {!isMobile && category.name}
+                    <span className={`${isMobile ? "hidden" : ""}`}>
+                      {category.name}
+                    </span>
                   </button>
                 );
               })}

@@ -43,6 +43,8 @@ export interface Server {
   filehost?: string;
   linkSecurity?: number; // Link security level from unrealircd.org/link-security
   jwtToken?: string; // JWT token for filehost authentication
+  isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
+  elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
 }
 
 export interface ServerConfig {

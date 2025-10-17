@@ -55,7 +55,12 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
   const isIrcOp = messageUser?.isIrcOp || false;
 
   const theme = localStorage.getItem("theme") || "discord";
-  const htmlContent = processMarkdownInText(message.content);
+  const htmlContent = processMarkdownInText(
+    message.content,
+    true,
+    false,
+    message.id || message.msgid || "whisper",
+  );
 
   const handleReactionClick = (emoji: string, currentUserReacted: boolean) => {
     if (currentUserReacted) {

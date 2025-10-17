@@ -1074,8 +1074,12 @@ export const ChannelList: React.FC<{
                                     privateChat.realname || user?.realname;
                                   if (realname) {
                                     // Parse IRC colors/formatting in realname
-                                    secondPart =
-                                      processMarkdownInText(realname);
+                                    secondPart = processMarkdownInText(
+                                      realname,
+                                      true,
+                                      false,
+                                      `privatechat-${privateChat.id}-realname`,
+                                    );
                                   }
                                 }
 
@@ -1337,6 +1341,7 @@ export const ChannelList: React.FC<{
             <button
               className="hover:text-white"
               data-testid="user-settings-button"
+              onClick={() => toggleUserProfileModal(true)}
             >
               <FaCog className="mr-2" />
             </button>

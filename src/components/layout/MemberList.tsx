@@ -268,7 +268,12 @@ const UserItem: React.FC<{
           )}
           {user.realname && (
             <span className="truncate text-discord-text-muted">
-              {processMarkdownInText(user.realname)}
+              {processMarkdownInText(
+                user.realname,
+                true,
+                false,
+                `member-${user.id}-realname`,
+              )}
             </span>
           )}
           {user.realname && metadataStatus && (
@@ -276,7 +281,12 @@ const UserItem: React.FC<{
           )}
           {metadataStatus && (
             <span className="truncate text-discord-text-muted">
-              {processMarkdownInText(metadataStatus)}
+              {processMarkdownInText(
+                metadataStatus,
+                true,
+                false,
+                `member-${user.id}-status`,
+              )}
             </span>
           )}
           {(user.realname || metadataStatus) && website && (

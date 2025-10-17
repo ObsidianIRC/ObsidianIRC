@@ -39,7 +39,12 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
         :
       </strong>{" "}
       <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-        {processMarkdownInText(replyMessage.content)}
+        {processMarkdownInText(
+          replyMessage.content,
+          true,
+          false,
+          `reply-${replyMessage.id || replyMessage.msgid || "unknown"}`,
+        )}
       </EnhancedLinkWrapper>
     </div>
   );

@@ -25,6 +25,12 @@ vi.mock("../../src/store", () => ({
         { channel: "#channel3", userCount: 5, topic: "Topic 3" },
       ],
     },
+    channelListBuffer: {
+      server1: [],
+    },
+    channelListFilters: {
+      server1: {},
+    },
     channelMetadataCache: {
       server1: {},
     },
@@ -34,6 +40,7 @@ vi.mock("../../src/store", () => ({
     selectedServerId: "server1",
     joinChannel: vi.fn(),
     listChannels: vi.fn(),
+    updateChannelListFilters: vi.fn(),
     toggleChannelListModal: vi.fn(),
   })),
 }));
@@ -46,7 +53,7 @@ describe("ChannelListModal", () => {
   test("renders channel list modal", () => {
     render(<ChannelListModal />);
 
-    expect(screen.getByText("Channel List - Test Server")).toBeInTheDocument();
+    expect(screen.getByText("Channels on Test Server")).toBeInTheDocument();
     expect(screen.getByText("channel1")).toBeInTheDocument();
     expect(screen.getByText("channel2")).toBeInTheDocument();
     expect(screen.getByText("channel3")).toBeInTheDocument();
@@ -55,9 +62,9 @@ describe("ChannelListModal", () => {
   test("displays channel information correctly", () => {
     render(<ChannelListModal />);
 
-    expect(screen.getByText("10 users")).toBeInTheDocument();
-    expect(screen.getByText("20 users")).toBeInTheDocument();
-    expect(screen.getByText("5 users")).toBeInTheDocument();
+    expect(screen.getByText("10")).toBeInTheDocument();
+    expect(screen.getByText("20")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
     expect(screen.getByText("Topic 1")).toBeInTheDocument();
     expect(screen.getByText("Topic 2")).toBeInTheDocument();
     expect(screen.getByText("Topic 3")).toBeInTheDocument();
@@ -109,7 +116,7 @@ describe("ChannelListModal", () => {
   test("closes modal when close button is clicked", () => {
     render(<ChannelListModal />);
 
-    const closeButton = screen.getByRole("button");
+    const closeButton = screen.getByLabelText("Close");
     fireEvent.click(closeButton);
 
     // Modal should be closable
