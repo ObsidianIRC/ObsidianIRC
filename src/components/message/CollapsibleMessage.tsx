@@ -59,24 +59,28 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
         {content}
       </div>
       {needsCollapsing && (
-        <div className="mt-1 text-center">
-          <button
-            onClick={toggleExpanded}
-            className="ml-1 text-blue-500 hover:text-blue-600 text-xs font-medium cursor-pointer border border-blue-500 rounded-full py-0 px-1"
-            style={{ textDecoration: "none" }}
-          >
-            {isExpanded ? "Show less " : "Show more "}
-            <span
-              className={`inline-block ${isAnimating ? (isExpanding ? "arrow-flip-expand" : "arrow-flip-collapse") : ""}`}
-              style={
-                !isAnimating && isExpanded
-                  ? { transform: "rotateX(180deg)" }
-                  : undefined
-              }
+        <div className="truncation-container">
+          <div className="truncation-line" />
+          <div className="mt-1 text-center">
+            <button
+              onClick={toggleExpanded}
+              className="text-blue-500 hover:text-blue-600 text-xs font-medium cursor-pointer border border-blue-500 rounded-full py-0 px-1"
+              style={{ textDecoration: "none" }}
             >
-              ↓
-            </span>
-          </button>
+              {isExpanded ? "Show less " : "Show more "}
+              <span
+                className={`inline-block ${isAnimating ? (isExpanding ? "arrow-flip-expand" : "arrow-flip-collapse") : ""}`}
+                style={
+                  !isAnimating && isExpanded
+                    ? { transform: "rotateX(180deg)" }
+                    : undefined
+                }
+              >
+                ↓
+              </span>
+            </button>
+          </div>
+          <div className="truncation-line" />
         </div>
       )}
     </div>
