@@ -1,9 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
 import ircClient from "../src/lib/ircClient";
-import useStore from "../src/store";
 
 // Mock IRC client
 vi.mock("../src/lib/ircClient", () => ({
@@ -70,11 +69,13 @@ const mockStoreState = {
   connectToSavedServers: vi.fn(),
   toggleMemberList: vi.fn(),
   toggleAddServerModal: vi.fn((open?: boolean) => {
-    mockStoreState.ui.isAddServerModalOpen = open ?? !mockStoreState.ui.isAddServerModalOpen;
+    mockStoreState.ui.isAddServerModalOpen =
+      open ?? !mockStoreState.ui.isAddServerModalOpen;
     storeVersion++;
   }),
   toggleSettingsModal: vi.fn((open?: boolean) => {
-    mockStoreState.ui.isSettingsModalOpen = open ?? !mockStoreState.ui.isSettingsModalOpen;
+    mockStoreState.ui.isSettingsModalOpen =
+      open ?? !mockStoreState.ui.isSettingsModalOpen;
     storeVersion++;
   }),
 };
@@ -113,7 +114,7 @@ describe("App", () => {
       // Open modal
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
-      
+
       // Check that toggleAddServerModal was called with true
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
     });
@@ -185,7 +186,7 @@ describe("App", () => {
 
       // Open settings
       await user.click(screen.getByTestId("user-settings-button"));
-      
+
       // Check that toggleUserProfileModal was called
       expect(mockStoreState.toggleUserProfileModal).toHaveBeenCalledWith(true);
     });
