@@ -25,7 +25,7 @@ const ChannelListModal: React.FC = () => {
     : {};
 
   const [isLoading, setIsLoading] = useState(false);
-  const [sortBy, setSortBy] = useState<"alpha" | "users">("alpha");
+  const [sortBy, setSortBy] = useState<"alpha" | "users">("users");
   const [filter, setFilter] = useState("");
   const observerRef = useRef<IntersectionObserver | null>(null);
   const channelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -164,9 +164,15 @@ const ChannelListModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-discord-dark-200 rounded-lg w-full max-w-2xl p-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+      onClick={() => toggleChannelListModal(false)}
+    >
+      <div 
+        className="bg-discord-dark-200 rounded-lg w-full max-w-2xl p-5 max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4 flex-shrink-0">
           <h2 className="text-white text-xl font-bold">
             Channel List - {selectedServer?.name || "Unknown Server"}
           </h2>
@@ -178,7 +184,7 @@ const ChannelListModal: React.FC = () => {
           </button>
         </div>
 
-        <div className="mb-4 flex gap-4 items-center">
+        <div className="mb-4 flex gap-4 items-center flex-shrink-0">
           <input
             type="text"
             placeholder="Filter channels..."
@@ -196,9 +202,10 @@ const ChannelListModal: React.FC = () => {
           </select>
         </div>
 
-        {isLoading && <p className="text-gray-400 mb-4">Loading channels...</p>}
+        {isLoading && <p className="text-gray-400 mb-4 flex-shrink-0">Loading channels...</p>}
 
-        <div className="space-y-2">
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="space-y-2">
           {filteredChannels.length === 0 && !isLoading && (
             <p className="text-gray-400">No channels found.</p>
           )}
@@ -267,12 +274,13 @@ const ChannelListModal: React.FC = () => {
                   </div>
                 </div>
 
-                <span className="text-gray-400 text-sm flex-shrink-0 ml-2">
-                  {channel.userCount} users
+                <span className="bg-discord-primary text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
+                  {channel.userCount}
                 </span>
               </div>
             );
           })}
+        </div>
         </div>
       </div>
     </div>
