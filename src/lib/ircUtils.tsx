@@ -1,3 +1,4 @@
+import hljs from "highlight.js";
 import { marked } from "marked";
 import type React from "react";
 /* eslint-disable no-control-regex */
@@ -217,10 +218,18 @@ export function renderMarkdown(
       // Return a placeholder or link instead of the image
       return `<a href="${sanitizedHref}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 underline">[Image: ${text || sanitizedHref}]</a>`;
     }
-    // Allow the image to render normally
+    // Allow the image to render normally, but make it clickable
     const titleAttr = title ? ` title="${title.replace(/"/g, "&quot;")}"` : "";
     const altAttr = ` alt="${(text || "").replace(/"/g, "&quot;")}"`;
-    return `<img src="${sanitizedHref}"${altAttr}${titleAttr} class="max-w-full h-auto rounded-lg" style="max-height: 150px;" />`;
+    const imageHtml = `<img src="${sanitizedHref}"${altAttr}${titleAttr} class="max-w-full h-auto rounded-lg cursor-pointer" style="max-height: 150px;" />`;
+
+    // Add special class for external links that need security warnings
+    const isExternalLink =
+      sanitizedHref.startsWith("http://") ||
+      sanitizedHref.startsWith("https://");
+    const linkClass = isExternalLink ? "external-link-security" : "";
+
+    return `<a href="${sanitizedHref}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${imageHtml}</a>`;
   };
 
   // Custom link renderer to sanitize URLs
@@ -240,8 +249,89 @@ export function renderMarkdown(
     return `<a href="${sanitizedHref}"${titleAttr} target="_blank" rel="noopener noreferrer" class="${linkClass}">${text}</a>`;
   };
 
+  // Custom code renderer for inline code
+  renderer.codespan = ({ text }) => {
+    const codeId = `inline-code-${Math.random().toString(36).substr(2, 9)}`;
+    return `<span class="inline-code-container"><code id="${codeId}" class="inline-code">${text}</code><button class="inline-copy-button" data-code-id="${codeId}" title="Copy to clipboard">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    </button></span>`;
+  };
+
+  // Custom code block renderer
+  renderer.code = ({ text, lang, escaped }) => {
+    // Trim trailing whitespace/newlines that might be part of markdown formatting
+    const trimmedText = text.trimEnd();
+    let highlightedCode = trimmedText;
+    let language = lang;
+
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        const result = hljs.highlight(text, { language: lang });
+        highlightedCode = result.value;
+        language = result.language;
+      } catch (err) {
+        // Fallback to auto-detection if specific language fails
+        try {
+          const result = hljs.highlightAuto(text);
+          highlightedCode = result.value;
+          language = result.language;
+        } catch (autoErr) {
+          // If highlighting fails, use the original text
+          highlightedCode = escaped
+            ? text
+            : text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+      }
+    } else if (lang) {
+      // Language specified but not supported, still escape HTML
+      highlightedCode = escaped
+        ? text
+        : text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    } else {
+      // No language specified, try auto-detection
+      try {
+        const result = hljs.highlightAuto(text);
+        highlightedCode = result.value;
+        language = result.language;
+      } catch (autoErr) {
+        // If auto-detection fails, just escape HTML
+        highlightedCode = escaped
+          ? text
+          : text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+    }
+
+    const languageClass = language ? ` class="language-${language}"` : "";
+    return `<pre><code${languageClass}>${highlightedCode}</code></pre>`;
+  };
+
+  // Temporarily replace blockquote markers to preserve them during HTML escaping
+  const blockquotePlaceholder = "__BLOCKQUOTE_MARKER__";
+  const textWithPlaceholders = text.replace(
+    /^> /gm,
+    `${blockquotePlaceholder} `,
+  );
+
+  // Escape single-line tilde fenced code blocks (~~~lang code~~~) so they don't render as code
+  const processedText = textWithPlaceholders.replace(
+    /^~~~.*~~~$/gm,
+    (match) => {
+      // Escape the tildes so they render as literal text
+      return match.replace(/~/g, "\\~");
+    },
+  );
+
   // Escape HTML tags in input so they render as text
-  const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const escapedText = processedText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // Restore blockquote markers
+  const finalText = escapedText.replace(
+    new RegExp(blockquotePlaceholder, "g"),
+    ">",
+  );
 
   marked.setOptions({
     breaks: true,
@@ -250,14 +340,76 @@ export function renderMarkdown(
   });
 
   // Parse markdown to HTML
-  const html = marked.parse(escapedText) as string;
+  const html = marked.parse(finalText) as string;
+
+  // Post-process HTML to add copy buttons to code blocks
+  const processedHtml = html.replace(
+    /<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g,
+    (match, attrs, content) => {
+      const codeId = `code-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Extract language from class attribute (e.g., class="language-javascript")
+      const languageMatch = attrs.match(/class="[^"]*language-([^"\s]+)/);
+      const language = languageMatch ? languageMatch[1] : "text";
+      const displayLanguage = language === "text" ? "plain text" : language;
+
+      return `<div class="code-block-container"><div class="code-block-header">${displayLanguage}<button class="copy-button" data-code-id="${codeId}" title="Copy to clipboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><pre><code id="${codeId}"${attrs}>${content}</code></pre></div>`;
+    },
+  );
 
   // Return a div with dangerouslySetInnerHTML
   return (
     <div
       className="markdown-content"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML is sanitized above
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: processedHtml }}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        const button =
+          (target.closest(".copy-button") as HTMLButtonElement) ||
+          (target.closest(".inline-copy-button") as HTMLButtonElement);
+        if (button) {
+          const codeId = button.getAttribute("data-code-id");
+          if (codeId) {
+            const codeElement = document.getElementById(codeId);
+            if (codeElement) {
+              const textToCopy = codeElement.textContent || "";
+              navigator.clipboard
+                .writeText(textToCopy)
+                .then(() => {
+                  // Show success feedback
+                  const originalText = button.innerHTML;
+                  button.innerHTML = `
+                  <svg width="${button.classList.contains("inline-copy-button") ? "12" : "16"}" height="${button.classList.contains("inline-copy-button") ? "12" : "16"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20,6 9,17 4,12"></polyline>
+                  </svg>
+                `;
+                  button.style.color = "#10b981";
+                  setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.color = "";
+                  }, 2000);
+                })
+                .catch((err) => {
+                  console.error("Failed to copy text: ", err);
+                  // Show error feedback
+                  const originalText = button.innerHTML;
+                  button.innerHTML = `
+                  <svg width="${button.classList.contains("inline-copy-button") ? "12" : "16"}" height="${button.classList.contains("inline-copy-button") ? "12" : "16"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                `;
+                  button.style.color = "#ef4444";
+                  setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.color = "";
+                  }, 2000);
+                });
+            }
+          }
+        }
+      }}
     />
   );
 }
@@ -275,6 +427,8 @@ export function processMarkdownInText(
     /_.*?_/, // Italic (_text_)
     /`.*?`/, // Inline code
     /```[\s\S]*?```/, // Code blocks
+    /~~~[\s\S]*?~~~/, // Tilde fenced code blocks
+    /~~.*?~~/, // Strikethrough (~~text~~)
     /^\* /m, // Unordered lists
     /^\d+\. /m, // Ordered lists
     /^> /m, // Blockquotes

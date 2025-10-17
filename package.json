@@ -60,6 +60,7 @@
     "@vitest/ui": "^3.1.2",
     "autoprefixer": "^10.4.20",
     "globals": "^15.14.0",
+    "highlight.js": "^11.11.1",
     "jsdom": "^26.1.0",
     "lefthook": "^1.11.10",
     "postcss": "^8.5.1",

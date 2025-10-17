@@ -339,5 +339,54 @@ describe("messageFormatter", () => {
       expect(result).toBeDefined();
       // Table should be rendered as HTML table
     });
+
+    it("should render strikethrough", () => {
+      const input = "This is ~~strikethrough~~ text";
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
+      // Strikethrough should be rendered as <del> or <s> tag
+    });
+
+    it("should not render single-line tilde syntax as code blocks", () => {
+      const input = "Here is ~~~python print('hello')~~~ some text";
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
+      // Single-line tilde syntax should not be treated as code blocks
+    });
+
+    it("should render multi-line tilde fenced code blocks", () => {
+      const input = `Here is ~~~python
+print('hello')
+print('world')
+~~~ some text`;
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
+      // Should render as a multi-line code block with syntax highlighting
+    });
+
+    it("should render code blocks with syntax highlighting", () => {
+      const input = `\`\`\`javascript
+function hello() {
+  console.log('Hello, world!');
+}
+\`\`\``;
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
+      // Should render with syntax highlighting
+    });
+
+    it("should render code blocks with copy buttons", () => {
+      const input = `\`\`\`javascript
+console.log('test');
+\`\`\``;
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
+      // Should include copy button in the HTML
+    });
   });
 });

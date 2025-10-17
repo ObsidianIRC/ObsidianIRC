@@ -53,7 +53,7 @@ describe("ChannelListModal", () => {
   test("renders channel list modal", () => {
     render(<ChannelListModal />);
 
-    expect(screen.getByText("Channel List - Test Server")).toBeInTheDocument();
+    expect(screen.getByText("Channels on Test Server")).toBeInTheDocument();
     expect(screen.getByText("channel1")).toBeInTheDocument();
     expect(screen.getByText("channel2")).toBeInTheDocument();
     expect(screen.getByText("channel3")).toBeInTheDocument();
