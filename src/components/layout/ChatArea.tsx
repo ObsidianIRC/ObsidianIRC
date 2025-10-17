@@ -550,12 +550,6 @@ export const ChatArea: React.FC<{
         }
       }, 0);
     }
-
-    // Send typing done notification
-    const target = selectedChannel?.name ?? selectedPrivateChat?.username;
-    if (target) {
-      typingNotification.notifyTypingDone(target);
-    }
   };
 
   const handleImageUpload = async (file: File) => {
