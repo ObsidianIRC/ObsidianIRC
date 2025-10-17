@@ -1337,6 +1337,7 @@ export const ChannelList: React.FC<{
             <button
               className="hover:text-white"
               data-testid="user-settings-button"
+              onClick={() => toggleUserProfileModal(true)}
             >
               <FaCog className="mr-2" />
             </button>
