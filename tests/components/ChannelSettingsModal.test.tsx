@@ -73,6 +73,8 @@ describe("ChannelSettingsModal", () => {
     typingUsers: {},
     globalNotifications: [],
     channelList: {},
+    channelListBuffer: {},
+    channelListFilters: {},
     listingInProgress: {},
     metadataSubscriptions: {},
     metadataBatches: {},

@@ -1,7 +1,7 @@
 import { marked } from "marked";
 import type React from "react";
 /* eslint-disable no-control-regex */
-import type { User } from "../types";
+import type { Server, User } from "../types";
 
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
@@ -510,4 +510,13 @@ export function isUrlFromFilehost(
     // If URL parsing fails, fall back to false
     return false;
   }
+}
+
+/**
+ * Checks if a server is running UnrealIRCd based on the RPL_YOURHOST response
+ * @param server The server object to check
+ * @returns true if the server is running UnrealIRCd, false otherwise
+ */
+export function isUnrealIRCd(server: Server): boolean {
+  return server.isUnrealIRCd === true;
 }

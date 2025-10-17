@@ -116,6 +116,8 @@ describe("LinkSecurityWarningModal", () => {
       typingUsers: {},
       globalNotifications: [],
       channelList: {},
+      channelListBuffer: {},
+      channelListFilters: {},
       listingInProgress: {},
       metadataSubscriptions: {},
       metadataBatches: {},

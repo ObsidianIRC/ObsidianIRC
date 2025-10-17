@@ -11,7 +11,10 @@ const ChannelListModal: React.FC = () => {
     ui: { selectedServerId },
     channelList,
     channelMetadataCache,
+    listingInProgress,
+    channelListFilters,
     listChannels,
+    updateChannelListFilters,
     toggleChannelListModal,
     joinChannel,
   } = useStore();
@@ -24,9 +27,17 @@ const ChannelListModal: React.FC = () => {
     ? channelMetadataCache[selectedServerId] || {}
     : {};
 
-  const [isLoading, setIsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<"alpha" | "users">("users");
   const [filter, setFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [minUsers, setMinUsers] = useState<number>(0);
+  const [maxUsers, setMaxUsers] = useState<number>(0);
+  const [minCreationTime, setMinCreationTime] = useState<number>(0);
+  const [maxCreationTime, setMaxCreationTime] = useState<number>(0);
+  const [minTopicTime, setMinTopicTime] = useState<number>(0);
+  const [maxTopicTime, setMaxTopicTime] = useState<number>(0);
+  const [mask, setMask] = useState<string>("");
+  const [notMask, setNotMask] = useState<string>("");
   const observerRef = useRef<IntersectionObserver | null>(null);
   const channelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -134,16 +145,42 @@ const ChannelListModal: React.FC = () => {
 
   useEffect(() => {
     if (selectedServerId) {
-      setIsLoading(true);
       listChannels(selectedServerId);
     }
   }, [selectedServerId, listChannels]);
 
+  // Sync filter state with store
   useEffect(() => {
-    if (rawChannels.length > 0) {
-      setIsLoading(false);
+    if (selectedServerId && channelListFilters[selectedServerId]) {
+      const filters = channelListFilters[selectedServerId];
+      setMinUsers(filters.minUsers || 0);
+      setMaxUsers(filters.maxUsers || 0);
+      setMinCreationTime(filters.minCreationTime || 0);
+      setMaxCreationTime(filters.maxCreationTime || 0);
+      setMinTopicTime(filters.minTopicTime || 0);
+      setMaxTopicTime(filters.maxTopicTime || 0);
+      setMask(filters.mask || "");
+      setNotMask(filters.notMask || "");
     }
-  }, [rawChannels]);
+  }, [selectedServerId, channelListFilters]);
+
+  const applyFilters = () => {
+    if (!selectedServerId) return;
+
+    const filters = {
+      minUsers: minUsers > 0 ? minUsers : undefined,
+      maxUsers: maxUsers > 0 ? maxUsers : undefined,
+      minCreationTime: minCreationTime > 0 ? minCreationTime : undefined,
+      maxCreationTime: maxCreationTime > 0 ? maxCreationTime : undefined,
+      minTopicTime: minTopicTime > 0 ? minTopicTime : undefined,
+      maxTopicTime: maxTopicTime > 0 ? maxTopicTime : undefined,
+      mask: mask.trim() || undefined,
+      notMask: notMask.trim() || undefined,
+    };
+
+    updateChannelListFilters(selectedServerId, filters);
+    listChannels(selectedServerId, filters);
+  };
 
   const handleJoinChannel = (channelName: string) => {
     if (selectedServerId) {
@@ -164,11 +201,11 @@ const ChannelListModal: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
       onClick={() => toggleChannelListModal(false)}
     >
-      <div 
+      <div
         className="bg-discord-dark-200 rounded-lg w-full max-w-2xl p-5 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
@@ -179,6 +216,7 @@ const ChannelListModal: React.FC = () => {
           <button
             onClick={() => toggleChannelListModal(false)}
             className="text-gray-400 hover:text-white"
+            aria-label="Close"
           >
             <FaTimes size={20} />
           </button>
@@ -202,85 +240,270 @@ const ChannelListModal: React.FC = () => {
           </select>
         </div>
 
-        {isLoading && <p className="text-gray-400 mb-4 flex-shrink-0">Loading channels...</p>}
+        {/* Advanced Filters */}
+        <div className="mb-4 flex-shrink-0">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="text-gray-300 hover:text-white text-sm mb-2 flex items-center gap-2"
+          >
+            <span>{showFilters ? "▼" : "▶"} Advanced Filters</span>
+          </button>
+
+          {showFilters && (
+            <div className="bg-discord-dark-300 p-3 rounded space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                {/* User Count Filtering (U extension) */}
+                {selectedServer?.elist?.toUpperCase().includes("U") && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        Min Users
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={minUsers}
+                        onChange={(e) =>
+                          setMinUsers(Number.parseInt(e.target.value, 10) || 0)
+                        }
+                        className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        Max Users
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={maxUsers}
+                        onChange={(e) =>
+                          setMaxUsers(Number.parseInt(e.target.value, 10) || 0)
+                        }
+                        className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Creation Time Filtering (C extension) */}
+                {selectedServer?.elist?.toUpperCase().includes("C") && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        Created After (min ago)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={minCreationTime}
+                        onChange={(e) =>
+                          setMinCreationTime(
+                            Number.parseInt(e.target.value, 10) || 0,
+                          )
+                        }
+                        className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        Created Before (min ago)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={maxCreationTime}
+                        onChange={(e) =>
+                          setMaxCreationTime(
+                            Number.parseInt(e.target.value, 10) || 0,
+                          )
+                        }
+                        className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Topic Time Filtering (T extension) */}
+                {selectedServer?.elist?.toUpperCase().includes("T") && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        Topic Set After (min ago)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={minTopicTime}
+                        onChange={(e) =>
+                          setMinTopicTime(
+                            Number.parseInt(e.target.value, 10) || 0,
+                          )
+                        }
+                        className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        Topic Set Before (min ago)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={maxTopicTime}
+                        onChange={(e) =>
+                          setMaxTopicTime(
+                            Number.parseInt(e.target.value, 10) || 0,
+                          )
+                        }
+                        className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Mask Filtering (M extension) */}
+                {selectedServer?.elist?.toUpperCase().includes("M") && (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      Channel Name Mask
+                    </label>
+                    <input
+                      type="text"
+                      value={mask}
+                      onChange={(e) => setMask(e.target.value)}
+                      className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                      placeholder="*channel*"
+                    />
+                  </div>
+                )}
+
+                {/* Non-matching Mask Filtering (N extension) */}
+                {selectedServer?.elist?.toUpperCase().includes("N") && (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      Exclude Channel Name Mask
+                    </label>
+                    <input
+                      type="text"
+                      value={notMask}
+                      onChange={(e) => setNotMask(e.target.value)}
+                      className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
+                      placeholder="*spam*"
+                    />
+                  </div>
+                )}
+
+                {(!selectedServer?.elist ||
+                  selectedServer.elist.length === 0) && (
+                  <div className="text-sm text-gray-400 text-center py-2">
+                    Server doesn't support advanced LIST filtering
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={applyFilters}
+                className="w-full bg-discord-primary hover:bg-discord-primary-hover text-white py-2 px-4 rounded text-sm font-medium"
+              >
+                Apply Filters & Refresh
+              </button>
+            </div>
+          )}
+        </div>
+
+        {selectedServerId && listingInProgress[selectedServerId] && (
+          <p className="text-gray-400 mb-4 flex-shrink-0">
+            Loading channels...
+          </p>
+        )}
 
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="space-y-2">
-          {filteredChannels.length === 0 && !isLoading && (
-            <p className="text-gray-400">No channels found.</p>
-          )}
-          {filteredChannels.map((channel) => {
-            const metadata = metadataCache[channel.channel];
-            const avatarUrl = metadata?.avatar
-              ? getChannelAvatarUrl(
-                  { avatar: { value: metadata.avatar, visibility: "public" } },
-                  32,
-                )
-              : null;
-            const displayName = metadata?.displayName;
-            const hasMetadata = !!(avatarUrl || displayName);
+            {filteredChannels.length === 0 &&
+              !(selectedServerId && listingInProgress[selectedServerId]) && (
+                <p className="text-gray-400">No channels found.</p>
+              )}
+            {filteredChannels.map((channel) => {
+              const metadata = metadataCache[channel.channel];
+              const avatarUrl = metadata?.avatar
+                ? getChannelAvatarUrl(
+                    {
+                      avatar: { value: metadata.avatar, visibility: "public" },
+                    },
+                    32,
+                  )
+                : null;
+              const displayName = metadata?.displayName;
+              const hasMetadata = !!(avatarUrl || displayName);
 
-            return (
-              <div
-                key={channel.channel}
-                ref={(el) => setChannelRef(channel.channel, el)}
-                data-channel={channel.channel}
-                className="bg-discord-dark-300 p-3 rounded flex justify-between items-center cursor-pointer hover:bg-discord-dark-400"
-                onClick={() => handleJoinChannel(channel.channel)}
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  {/* Channel icon */}
-                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt={channel.channel}
-                        className="w-8 h-8 rounded-full object-cover"
-                        onError={(e) => {
-                          // Fallback to # icon if image fails to load
-                          e.currentTarget.style.display = "none";
-                          const fallback = e.currentTarget
-                            .nextElementSibling as HTMLElement;
-                          if (fallback) fallback.style.display = "block";
-                        }}
-                      />
-                    ) : null}
-                    <span
-                      className="text-gray-400 text-xl font-bold"
-                      style={{ display: avatarUrl ? "none" : "block" }}
-                    >
-                      #
-                    </span>
-                  </div>
-
-                  {/* Channel name and topic */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-white font-medium">
-                        {displayName ||
-                          getChannelDisplayName(channel.channel, {})}
+              return (
+                <div
+                  key={channel.channel}
+                  ref={(el) => setChannelRef(channel.channel, el)}
+                  data-channel={channel.channel}
+                  className="bg-discord-dark-300 p-3 rounded flex justify-between items-center cursor-pointer hover:bg-discord-dark-400"
+                  onClick={() => handleJoinChannel(channel.channel)}
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    {/* Channel icon */}
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={channel.channel}
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={(e) => {
+                            // Fallback to # icon if image fails to load
+                            e.currentTarget.style.display = "none";
+                            const fallback = e.currentTarget
+                              .nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = "block";
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className="text-gray-400 text-xl font-bold"
+                        style={{ display: avatarUrl ? "none" : "block" }}
+                      >
+                        #
                       </span>
-                      {hasMetadata &&
-                        displayName &&
-                        displayName !== channel.channel.substring(1) && (
-                          <span className="text-xs bg-discord-dark-400 text-gray-300 px-2 py-0.5 rounded">
-                            {channel.channel}
-                          </span>
-                        )}
                     </div>
-                    <p className="text-gray-400 text-sm">
-                      {channel.topic || "No topic"}
-                    </p>
-                  </div>
-                </div>
 
-                <span className="bg-discord-primary text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
-                  {channel.userCount}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                    {/* Channel name and topic */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-medium">
+                          {displayName ||
+                            getChannelDisplayName(channel.channel, {})}
+                        </span>
+                        {hasMetadata &&
+                          displayName &&
+                          displayName !== channel.channel.substring(1) && (
+                            <span className="text-xs bg-discord-dark-400 text-gray-300 px-2 py-0.5 rounded">
+                              {channel.channel}
+                            </span>
+                          )}
+                      </div>
+                      <p className="text-gray-400 text-sm">
+                        {channel.topic || "No topic"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="bg-discord-primary text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ml-2">
+                    {channel.userCount}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
