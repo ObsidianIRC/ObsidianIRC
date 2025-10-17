@@ -1074,8 +1074,12 @@ export const ChannelList: React.FC<{
                                     privateChat.realname || user?.realname;
                                   if (realname) {
                                     // Parse IRC colors/formatting in realname
-                                    secondPart =
-                                      processMarkdownInText(realname);
+                                    secondPart = processMarkdownInText(
+                                      realname,
+                                      true,
+                                      false,
+                                      `privatechat-${privateChat.id}-realname`,
+                                    );
                                   }
                                 }
 

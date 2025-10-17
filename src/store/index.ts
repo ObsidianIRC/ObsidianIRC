@@ -513,6 +513,7 @@ export interface AppState {
   activeBatches: Record<string, Record<string, BatchInfo>>; // serverId -> batchId -> batch info
   metadataFetchInProgress: Record<string, boolean>; // serverId -> is fetching own metadata
   userMetadataRequested: Record<string, Set<string>>; // serverId -> Set of usernames we've requested metadata for
+  metadataChangeCounter: number; // Counter incremented on metadata changes for reactivity
   // WHOIS data cache
   whoisData: Record<string, Record<string, WhoisData>>; // serverId -> nickname -> whois data
   // Account registration state
@@ -765,6 +766,7 @@ const useStore = create<AppState>((set, get) => ({
   activeBatches: {},
   metadataFetchInProgress: {},
   userMetadataRequested: {},
+  metadataChangeCounter: 0,
   whoisData: {},
   pendingRegistration: null,
   channelOrder: loadChannelOrder(),
@@ -6652,7 +6654,11 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
       };
     }
 
-    return { servers: updatedServers, currentUser: updatedCurrentUser };
+    return {
+      servers: updatedServers,
+      currentUser: updatedCurrentUser,
+      metadataChangeCounter: state.metadataChangeCounter + 1,
+    };
   });
 });
 
@@ -6811,6 +6817,7 @@ ircClient.on(
               ...state.channelMetadataFetchQueue,
               [serverId]: newQueue,
             },
+            metadataChangeCounter: state.metadataChangeCounter + 1,
           };
         }
 
@@ -6818,10 +6825,15 @@ ircClient.on(
           servers: updatedServers,
           currentUser: updatedCurrentUser,
           channelMetadataCache: updatedCache,
+          metadataChangeCounter: state.metadataChangeCounter + 1,
         };
       }
 
-      return { servers: updatedServers, currentUser: updatedCurrentUser };
+      return {
+        servers: updatedServers,
+        currentUser: updatedCurrentUser,
+        metadataChangeCounter: state.metadataChangeCounter + 1,
+      };
     });
   },
 );

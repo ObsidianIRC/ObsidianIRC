@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderMarkdown } from "../../src/lib/ircUtils";
+import { mircToHtml, renderMarkdown } from "../../src/lib/ircUtils";
 import {
   applyIrcFormatting,
   type FormattingType,
@@ -387,6 +387,52 @@ console.log('test');
 
       expect(result).toBeDefined();
       // Should include copy button in the HTML
+    });
+  });
+
+  describe("mircToHtml", () => {
+    it("should render plain text without formatting", () => {
+      const result = mircToHtml("Hello world");
+      expect(result).toBeDefined();
+    });
+
+    it("should detect and render URLs as clickable links", () => {
+      const result = mircToHtml("Check out https://example.com for more info");
+      expect(result).toBeDefined();
+      // The result should contain an <a> tag with the URL
+      const resultString = JSON.stringify(result);
+      expect(resultString).toContain("https://example.com");
+      expect(resultString).toContain('"target":"_blank"');
+      expect(resultString).toContain('"rel":"noopener noreferrer"');
+    });
+
+    it("should handle www. URLs by adding https protocol", () => {
+      const result = mircToHtml("Visit www.example.com");
+      expect(result).toBeDefined();
+      const resultString = JSON.stringify(result);
+      expect(resultString).toContain("https://www.example.com");
+    });
+
+    it("should truncate long URLs for display", () => {
+      const longUrl =
+        "https://very-long-domain-name-that-should-be-truncated.example.com/path/to/some/very/long/resource";
+      const result = mircToHtml(`Check ${longUrl}`);
+      expect(result).toBeDefined();
+      const resultString = JSON.stringify(result);
+      // Should contain truncated display text but full URL in href
+      expect(resultString).toContain(
+        "https://very-long-domain-name-that-should-be-tr...",
+      );
+      expect(resultString).toContain(longUrl);
+    });
+
+    it("should preserve IRC color formatting with URLs", () => {
+      const result = mircToHtml("\x0304Check https://example.com\x0f for more");
+      expect(result).toBeDefined();
+      const resultString = JSON.stringify(result);
+      expect(resultString).toContain("https://example.com");
+      // Should have color styling
+      expect(resultString).toContain("color");
     });
   });
 });

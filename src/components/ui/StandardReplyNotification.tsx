@@ -68,7 +68,12 @@ export const StandardReplyNotification: React.FC<
     }
   };
 
-  const htmlContent = processMarkdownInText(message);
+  const htmlContent = processMarkdownInText(
+    message,
+    true,
+    false,
+    `standard-reply-${command}-${code}-${timestamp.getTime()}`,
+  );
 
   return (
     <div

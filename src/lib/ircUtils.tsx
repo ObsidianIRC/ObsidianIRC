@@ -1,6 +1,6 @@
 import hljs from "highlight.js";
 import { marked } from "marked";
-import type React from "react";
+import React from "react";
 /* eslint-disable no-control-regex */
 import type { Server, User } from "../types";
 
@@ -418,6 +418,7 @@ export function processMarkdownInText(
   text: string,
   showExternalContent = true,
   enableMarkdown = false,
+  keyPrefix = "",
 ): React.ReactNode {
   // Check if text contains markdown syntax patterns
   const markdownPatterns = [
@@ -446,10 +447,10 @@ export function processMarkdownInText(
     return renderMarkdown(text, showExternalContent);
   }
   // Otherwise, use the existing IRC formatting
-  return mircToHtml(text);
+  return mircToHtml(text, keyPrefix);
 }
 
-export function mircToHtml(text: string): React.ReactNode {
+export function mircToHtml(text: string, keyPrefix = ""): React.ReactNode {
   const state = {
     bold: false,
     underline: false,
@@ -560,7 +561,106 @@ export function mircToHtml(text: string): React.ReactNode {
     );
   }
 
-  return <>{result}</>;
+  // Process URLs in the result
+  const processedResult: React.ReactNode[] = [];
+  const elementIndexRef = { current: 0 };
+  result.forEach((node, index) => {
+    if (React.isValidElement(node) && node.type === "span") {
+      const textContent = node.props.children;
+      if (typeof textContent === "string") {
+        const urlProcessed = processUrlsInText(
+          textContent,
+          node.props.style,
+          keyPrefix,
+          elementIndexRef,
+        );
+        processedResult.push(...urlProcessed);
+      } else {
+        processedResult.push(node);
+      }
+    } else {
+      processedResult.push(node);
+    }
+  });
+
+  return <>{processedResult}</>;
+}
+
+// Helper function to detect and render URLs in text
+function processUrlsInText(
+  text: string,
+  style?: React.CSSProperties,
+  keyPrefix = "",
+  elementIndexRef?: { current: number },
+): React.ReactNode[] {
+  // URL regex pattern - matches http://, https://, and www. URLs
+  const urlRegex =
+    /(https?:\/\/[^\s<>"{}|\\^`[\]]+|www\.[^\s<>"{}|\\^`[\]]+)/gi;
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let elementIndex = elementIndexRef ? elementIndexRef.current : 0;
+  let match: RegExpExecArray | null = urlRegex.exec(text);
+
+  while (match !== null) {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`${keyPrefix}text-${elementIndex++}`} style={style}>
+          {text.slice(lastIndex, match.index)}
+        </span>,
+      );
+    }
+
+    const url = match[0];
+    // Ensure URL has protocol
+    const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+
+    // Truncate long URLs for display
+    const displayText = url.length > 50 ? `${url.slice(0, 47)}...` : url;
+
+    parts.push(
+      <a
+        key={`${keyPrefix}url-${elementIndex++}`}
+        href={fullUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 hover:text-blue-700 underline"
+        style={style}
+        title={url}
+      >
+        {displayText}
+      </a>,
+    );
+
+    lastIndex = match.index + match[0].length;
+    match = urlRegex.exec(text);
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(
+      <span key={`${keyPrefix}text-${elementIndex++}`} style={style}>
+        {text.slice(lastIndex)}
+      </span>,
+    );
+  }
+
+  // Update the shared elementIndex if provided
+  if (elementIndexRef) {
+    elementIndexRef.current = elementIndex;
+  }
+
+  return parts.length > 0
+    ? parts
+    : [
+        <span
+          key={`${keyPrefix}text-${elementIndexRef ? elementIndexRef.current++ : 0}`}
+          style={style}
+        >
+          {text}
+        </span>,
+      ];
 }
 
 // Utility function to get color style from metadata color value
