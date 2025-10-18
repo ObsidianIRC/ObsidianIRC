@@ -74,17 +74,22 @@ module.exports = {
           "dark-500": "#4F545C", // icons
           "dark-600": "#2F3136", // server member list
           // Message colors
-          "message-hover": "#32353B",
+          "message-hover": "#2A2D33",
           // Text colors
           "text-normal": "#DCDDDE",
           "text-muted": "#A3A6AA",
           "text-link": "#00AFF4",
           "channels-default": "#8E9297",
           "channels-active": "#FFFFFF",
+          // Button colors
+          "button-success-default": "#57F287",
+          "button-success-hover": "#4CAF50",
+          "button-secondary-default": "#4F545C",
         },
       },
       fontFamily: {
-        sans: ["Whitney", "Helvetica Neue", "Helvetica", "Arial", "sans-serif"],
+        sans: ["Roboto Mono", "monospace"],
+        mono: ["Roboto Mono", "monospace"],
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",

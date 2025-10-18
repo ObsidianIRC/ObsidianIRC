@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+/// <reference types="@testing-library/jest-dom" />
 
 import { defineConfig, loadEnv } from 'vite';
 import react from "@vitejs/plugin-react";
@@ -24,12 +25,14 @@ export default defineConfig(({ mode }) => {
       '__DEFAULT_IRC_SERVER_NAME__': JSON.stringify(process.env.VITE_DEFAULT_IRC_SERVER_NAME),
       '__DEFAULT_IRC_CHANNELS__': process.env.VITE_DEFAULT_IRC_CHANNELS ? process.env.VITE_DEFAULT_IRC_CHANNELS.replace(/^['"]|['"]$/g, '').split(',').map(ch => ch.trim()) : [],
       '__HIDE_SERVER_LIST__': process.env.VITE_HIDE_SERVER_LIST === 'true',
+      '__BACKEND_URL__': JSON.stringify(process.env.VITE_BACKEND_URL || 'http://localhost:8080'),
     },
     // prevent vite from obscuring rust errors
     clearScreen: false,
     // Tauri expects a fixed port, fail if that port is not available
     server: {
       strictPort: true,
+      cors: true,
     },
     // to access the Tauri environment variables set by the CLI with information about the current target
     envPrefix: ['VITE_', 'TAURI_PLATFORM', 'TAURI_ARCH', 'TAURI_FAMILY', 'TAURI_PLATFORM_VERSION', 'TAURI_PLATFORM_TYPE', 'TAURI_DEBUG'],

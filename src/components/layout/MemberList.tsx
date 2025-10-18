@@ -1,11 +1,18 @@
 import type React from "react";
-import { useState } from "react";
-import { FaChevronLeft } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { getColorStyle } from "../../lib/ircUtils";
+import ircClient from "../../lib/ircClient";
+import {
+  getColorStyle,
+  isUrlFromFilehost,
+  processMarkdownInText,
+} from "../../lib/ircUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
+import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import UserContextMenu from "../ui/UserContextMenu";
+import UserProfileModal from "../ui/UserProfileModal";
 
 const StatusIndicator: React.FC<{ status?: string }> = ({ status }) => {
   let bgColor = "bg-discord-dark-500"; // Default/offline
@@ -48,87 +55,249 @@ const getStatusPriority = (status?: string): number => {
   return maxPriority;
 };
 
+const getStatusTitle = (status?: string): string => {
+  if (!status) return "";
+  let highestPriority = 0;
+  let title = "";
+  for (const char of status) {
+    let priority = 0;
+    let charTitle = "";
+    switch (char) {
+      case "~":
+        priority = 6;
+        charTitle = "Channel Owner";
+        break;
+      case "&":
+        priority = 5;
+        charTitle = "Channel Admin";
+        break;
+      case "@":
+        priority = 4;
+        charTitle = "Channel Operator";
+        break;
+      case "%":
+        priority = 3;
+        charTitle = "Channel Half Operator";
+        break;
+      case "+":
+        priority = 2;
+        charTitle = "Voiced User";
+        break;
+    }
+    if (priority > highestPriority) {
+      highestPriority = priority;
+      title = charTitle;
+    }
+  }
+  return title;
+};
+
 const UserItem: React.FC<{
   user: User;
   serverId: string;
+  channelId: string;
   currentUser: User | null;
   onContextMenu: (
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => void;
-}> = ({ user, serverId, currentUser, onContextMenu }) => {
+}> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
+  // Get global settings for media controls
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
+
+  // Get server for filehost detection
+  const server = useStore((state) =>
+    state.servers.find((s) => s.id === serverId),
+  );
+
   // Display metadata like website or status
   const website = user.metadata?.url?.value || user.metadata?.website?.value;
-  const status = user.metadata?.status?.value;
+  const metadataStatus = user.metadata?.status?.value; // Metadata status message
   const avatarUrl = user.metadata?.avatar?.value;
   const color = user.metadata?.color?.value;
+  const displayName = user.metadata?.["display-name"]?.value;
+  const isBot = user.isBot || user.metadata?.bot?.value === "true";
+  const botInfo = user.metadata?.bot?.value; // Bot software info for tooltip
+
+  // Check if user is an IRC operator
+  const isOperator = user.modes?.includes("o") || false;
+  const isIrcOp = user.isIrcOp || false;
+
+  // Check if user is verified (account matches nickname)
+  const isVerified =
+    user.account &&
+    user.account !== "0" &&
+    user.username.toLowerCase() === user.account.toLowerCase();
+
+  // Determine if avatar should be shown based on media controls
+  const isFilehostAvatar =
+    avatarUrl &&
+    server?.filehost &&
+    isUrlFromFilehost(avatarUrl, server.filehost);
+  const shouldShowAvatar =
+    avatarUrl &&
+    ((isFilehostAvatar && showSafeMedia) || showExternalContent) &&
+    !avatarLoadFailed;
+  // Reset avatar load failed state when avatar URL changes
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, []);
 
   return (
     <div
-      className={`flex items-center py-2 px-3 mx-2 rounded cursor-pointer ${
-        currentUser?.username !== user.username
-          ? "hover:bg-discord-dark-400"
-          : "opacity-60 hover:bg-discord-dark-400"
-      }`}
+      className="flex items-center gap-3 py-2 px-3 mx-2 mb-1 rounded cursor-pointer bg-discord-dark-400/30 hover:bg-discord-dark-400/50 transition-colors"
       onClick={(e) => {
         const avatarElement = e.currentTarget.querySelector(".w-10.h-10");
-        onContextMenu(e, user.username, serverId, avatarElement);
+        onContextMenu(e, user.username, serverId, channelId, avatarElement);
       }}
     >
-      <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold relative">
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={user.username}
-            className="w-10 h-10 rounded-full object-cover"
-            onError={(e) => {
-              // Fallback to initial if image fails to load
-              e.currentTarget.style.display = "none";
-              const parent = e.currentTarget.parentElement;
-              if (parent) {
-                parent.textContent = user.username.charAt(0).toUpperCase();
-              }
-            }}
-          />
-        ) : (
-          user.username.charAt(0).toUpperCase()
-        )}
-        {status && (
-          <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
-            <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-              <span className="text-xs">💡</span>
-            </div>
-            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
-              <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                {status}
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Avatar with status indicator */}
+      <div className="relative shrink-0">
+        <div className="w-10 h-10 rounded-full bg-discord-dark-400 flex items-center justify-center text-white text-lg font-bold overflow-hidden">
+          {shouldShowAvatar ? (
+            <img
+              src={avatarUrl}
+              alt={user.username}
+              className="w-full h-full object-cover"
+              onError={() => {
+                setAvatarLoadFailed(true);
+              }}
+            />
+          ) : (
+            user.username.charAt(0).toUpperCase()
+          )}
+        </div>
+        {/* Status indicator overlay */}
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-discord-dark-200 ${
+            user.isAway ? "bg-yellow-500" : "bg-green-500"
+          }`}
+        />
       </div>
-      <div className="ml-3 flex-1 min-w-0">
-        <div className="flex items-center">
+
+      {/* User info */}
+      <div className="flex flex-col truncate min-w-0 flex-1">
+        {/* Display name or username with badges */}
+        <div className="flex items-center gap-1">
+          {!displayName && isIrcOp && (
+            <span
+              className="inline-flex items-center justify-center p-2.5 w-4 h-4 text-xs text-white bg-blue-500 rounded font-bold"
+              title="IRC Operator"
+            >
+              🔑
+            </span>
+          )}
           {user.status && (
-            <span className="inline-block bg-discord-dark-600 text-white px-1 rounded text-xs mr-1">
+            <span
+              className="shrink-0 bg-blue-600 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-sm"
+              title={getStatusTitle(user.status)}
+            >
               {user.status}
             </span>
           )}
-          <span className="truncate" style={getColorStyle(color)}>
-            {user.username}
+          <span
+            className="truncate text-discord-text-normal"
+            style={getColorStyle(color)}
+          >
+            {displayName || user.username}
+            {/* Only show verified badge if NO display-name (showing username directly) */}
+            {!displayName && isVerified && (
+              <FaCheckCircle
+                className="inline ml-1 text-green-500"
+                style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
+                title="Verified account"
+              />
+            )}
+            {!displayName && isOperator && (
+              <span
+                className="inline ml-1 bg-red-600 text-white px-3 py-0.5 rounded text-xs font-bold"
+                title="IRC Operator"
+              >
+                🔑
+              </span>
+            )}
+            {!displayName && isBot && (
+              <span className="ml-1 group relative">
+                🤖
+                {botInfo && botInfo !== "true" && (
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
+                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      {botInfo}
+                    </div>
+                  </div>
+                )}
+              </span>
+            )}
           </span>
         </div>
-        {status && (
-          <div className="text-xs text-discord-text-muted truncate">
-            {status}
-          </div>
-        )}
-        {website && (
-          <div className="text-xs text-discord-text-muted truncate">
-            🌐 {website}
-          </div>
-        )}
+
+        {/* Secondary info - username badge (if display-name exists), realname, status, website */}
+        <div className="flex items-center gap-1.5 text-xs truncate mt-0.5">
+          {displayName && (
+            <>
+              <span className="bg-gray-300 text-black px-1 py-0 rounded font-bold whitespace-nowrap text-[10px]">
+                {user.username}
+                {isVerified && (
+                  <FaCheckCircle
+                    className="inline ml-0.5 text-green-600"
+                    style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
+                    title="Verified account"
+                  />
+                )}
+                {(isIrcOp || isOperator) && (
+                  <span
+                    className="ml-0.5 inline-flex items-center justify-center w-3 h-3 text-xs text-white bg-blue-500 rounded"
+                    title="IRC Operator"
+                  >
+                    🔑
+                  </span>
+                )}
+                {isBot && <span className="ml-0.5">🤖</span>}
+              </span>
+              {(user.realname || metadataStatus || website) && (
+                <span className="text-discord-text-muted opacity-50">•</span>
+              )}
+            </>
+          )}
+          {user.realname && (
+            <span className="truncate text-discord-text-muted">
+              {processMarkdownInText(
+                user.realname,
+                true,
+                false,
+                `member-${user.id}-realname`,
+              )}
+            </span>
+          )}
+          {user.realname && metadataStatus && (
+            <span className="text-discord-text-muted opacity-50">•</span>
+          )}
+          {metadataStatus && (
+            <span className="truncate text-discord-text-muted">
+              {processMarkdownInText(
+                metadataStatus,
+                true,
+                false,
+                `member-${user.id}-status`,
+              )}
+            </span>
+          )}
+          {(user.realname || metadataStatus) && website && (
+            <span className="text-discord-text-muted opacity-50">•</span>
+          )}
+          {website && (
+            <span className="truncate text-discord-text-muted">
+              🌐 {website}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -137,13 +306,23 @@ const UserItem: React.FC<{
 export const MemberList: React.FC = () => {
   const {
     servers,
-    ui: { selectedServerId, selectedChannelId },
+    ui,
     currentUser,
     toggleMemberList,
     openPrivateChat,
+    selectPrivateChat,
+    warnUser,
     kickUser,
-    banUser,
+    banUserByNick,
+    banUserByHostmask,
   } = useStore();
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
+    selectedChannelId: null,
+    selectedPrivateChatId: null,
+  };
+  const { selectedChannelId } = currentSelection;
 
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
@@ -151,26 +330,67 @@ export const MemberList: React.FC = () => {
     y: number;
     username: string;
     serverId: string;
+    channelId: string;
+    userStatusInChannel?: string;
   }>({
     isOpen: false,
     x: 0,
     y: 0,
     username: "",
     serverId: "",
+    channelId: "",
   });
+  const [moderationModal, setModerationModal] = useState<{
+    isOpen: boolean;
+    action: ModerationAction;
+    username: string;
+  }>({
+    isOpen: false,
+    action: "warn",
+    username: "",
+  });
+
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
   );
+
   const selectedChannel = selectedServer?.channels.find(
     (channel) => channel.id === selectedChannelId,
   );
 
-  // Get current user's status in the channel
-  const currentUserInChannel = selectedChannel?.users.find(
-    (user) => user.username === currentUser?.username,
-  );
-  const currentUserStatus = currentUserInChannel?.status;
+  // Update currentUser.status from server.users if available, and ensure current user is in channel.users
+  useEffect(() => {
+    if (selectedServer && currentUser && selectedChannel) {
+      // Try to sync status from server.users
+      const userInServer = selectedServer.users.find(
+        (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
+      );
+      if (userInServer?.status && userInServer.status !== currentUser.status) {
+        console.log(
+          "MemberList - updating currentUser.status from server.users:",
+          userInServer.status,
+        );
+        useStore.setState((state) => ({
+          ...state,
+          currentUser: {
+            ...currentUser,
+            status: userInServer.status,
+          },
+        }));
+        // Also update in channel.users
+        const userInChannel = selectedChannel.users.find(
+          (u) =>
+            u.username.toLowerCase() === currentUser.username.toLowerCase(),
+        );
+        if (userInChannel) {
+          userInChannel.status = userInServer.status;
+        }
+      }
+    }
+  }, [selectedServer, currentUser, selectedChannel]);
 
   // Sort users by status priority (descending), then alphabetically by username
   const sortedUsers = selectedChannel?.users.slice().sort((a, b) => {
@@ -186,6 +406,7 @@ export const MemberList: React.FC = () => {
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => {
     e.preventDefault();
@@ -206,12 +427,69 @@ export const MemberList: React.FC = () => {
       y = rect.top - 5; // Position above the avatar with small gap
     }
 
+    // Calculate user's status in the specific channel
+    console.log("MemberList handleUsernameClick - status check:", {
+      serverId,
+      channelId,
+      currentUser: currentUser
+        ? { username: currentUser.username, status: currentUser.status }
+        : null,
+    });
+
+    let userStatusInChannel: string | undefined;
+    if (channelId && channelId !== "server-notices") {
+      const selectedServer = servers.find((s) => s.id === serverId);
+      console.log("MemberList - server lookup:", {
+        serverId,
+        serverFound: !!selectedServer,
+        serverName: selectedServer?.name,
+      });
+
+      const channel = selectedServer?.channels.find((c) => c.id === channelId);
+      console.log("MemberList - channel lookup:", {
+        channelId,
+        channelFound: !!channel,
+        channelName: channel?.name,
+        usersCount: channel?.users?.length,
+      });
+
+      if (channel && currentUser) {
+        const serverCurrentUser = ircClient.getCurrentUser(serverId);
+        const userInChannel = channel.users.find(
+          (u) =>
+            u.username.toLowerCase() ===
+            serverCurrentUser?.username.toLowerCase(),
+        );
+        console.log("MemberList - user lookup in channel:", {
+          currentUsername: serverCurrentUser?.username,
+          userFound: !!userInChannel,
+          userStatus: userInChannel?.status,
+          allUsernames: channel.users.map((u) => u.username),
+        });
+
+        userStatusInChannel = userInChannel?.status;
+        console.log("MemberList - final status:", userStatusInChannel);
+      } else {
+        console.log("MemberList - missing data:", {
+          hasChannel: !!channel,
+          hasCurrentUser: !!currentUser,
+        });
+      }
+    } else {
+      console.log("MemberList - skipping status check:", {
+        channelId,
+        isServerNotices: channelId === "server-notices",
+      });
+    }
+
     setUserContextMenu({
       isOpen: true,
       x,
       y,
       username,
       serverId,
+      channelId,
+      userStatusInChannel,
     });
   };
 
@@ -222,18 +500,33 @@ export const MemberList: React.FC = () => {
       y: 0,
       username: "",
       serverId: "",
+      channelId: "",
+      userStatusInChannel: undefined,
     });
   };
 
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
+      // Find and select the private chat
+      const server = servers.find((s) => s.id === selectedServerId);
+      const privateChat = server?.privateChats?.find(
+        (pc) => pc.username === username,
+      );
+      if (privateChat) {
+        selectPrivateChat(privateChat.id);
+      }
     }
+  };
+
+  const handleOpenProfile = (username: string) => {
+    setSelectedProfileUsername(username);
+    setUserProfileModalOpen(true);
   };
 
   const isMobileView = useMediaQuery();
   return (
-    <div className="p-3 h-full overflow-y-auto">
+    <div className="px-1 py-3 h-full overflow-y-auto">
       {isMobileView && (
         <button
           onClick={() => toggleMemberList(false)}
@@ -250,6 +543,7 @@ export const MemberList: React.FC = () => {
           key={user.id}
           user={user}
           serverId={selectedServerId || ""}
+          channelId={selectedChannelId || ""}
           currentUser={currentUser}
           onContextMenu={handleUsernameClick}
         />
@@ -261,21 +555,86 @@ export const MemberList: React.FC = () => {
         y={userContextMenu.y}
         username={userContextMenu.username}
         serverId={userContextMenu.serverId}
+        channelId={userContextMenu.channelId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
-        currentUserStatus={currentUserStatus}
-        currentUsername={currentUser?.username}
-        onKickUser={(username, reason) => {
-          if (selectedServerId && selectedChannel?.name) {
-            kickUser(selectedServerId, selectedChannel.name, username, reason);
-          }
-        }}
-        onBanUser={(username, reason) => {
-          if (selectedServerId && selectedChannel?.name) {
-            banUser(selectedServerId, selectedChannel.name, username, reason);
-          }
+        onOpenProfile={handleOpenProfile}
+        currentUserStatus={userContextMenu.userStatusInChannel}
+        currentUsername={
+          ircClient.getCurrentUser(userContextMenu.serverId)?.username
+        }
+        onOpenModerationModal={(action) => {
+          setModerationModal({
+            isOpen: true,
+            action,
+            username: userContextMenu.username,
+          });
         }}
       />
+
+      <ModerationModal
+        isOpen={moderationModal.isOpen}
+        onClose={() =>
+          setModerationModal({ isOpen: false, action: "warn", username: "" })
+        }
+        onConfirm={(action, reason) => {
+          const { username } = moderationModal;
+          switch (action) {
+            case "warn":
+              if (selectedServerId && selectedChannel?.name) {
+                warnUser(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+            case "kick":
+              if (selectedServerId && selectedChannel?.name) {
+                kickUser(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+            case "ban-nick":
+              if (selectedServerId && selectedChannel?.name) {
+                banUserByNick(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+            case "ban-hostmask":
+              if (selectedServerId && selectedChannel?.name) {
+                banUserByHostmask(
+                  selectedServerId,
+                  selectedChannel.name,
+                  username,
+                  reason,
+                );
+              }
+              break;
+          }
+          setModerationModal({ isOpen: false, action: "warn", username: "" });
+        }}
+        username={moderationModal.username}
+        action={moderationModal.action}
+      />
+
+      {selectedServerId && (
+        <UserProfileModal
+          isOpen={userProfileModalOpen}
+          onClose={() => setUserProfileModalOpen(false)}
+          serverId={selectedServerId}
+          username={selectedProfileUsername}
+        />
+      )}
     </div>
   );
 };

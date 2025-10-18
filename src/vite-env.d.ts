@@ -6,3 +6,4 @@ declare const __DEFAULT_IRC_SERVER__: string;
 declare const __DEFAULT_IRC_SERVER_NAME__: string;
 declare const __DEFAULT_IRC_CHANNELS__: string[];
 declare const __HIDE_SERVER_LIST__: boolean;
+declare const __BACKEND_URL__: string;

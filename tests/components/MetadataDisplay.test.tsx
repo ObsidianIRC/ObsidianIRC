@@ -11,6 +11,8 @@ vi.mock("../../src/lib/ircClient", () => ({
     sendRaw: vi.fn(),
     sendTyping: vi.fn(),
     on: vi.fn(),
+    getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
+    getNick: vi.fn(() => "tester"),
     version: "1.0.0",
   },
 }));
@@ -69,19 +71,25 @@ const mockChannel: Channel = {
       id: "msg1",
       userId: "alice-server1",
       content: "Hello everyone!",
-      timestamp: new Date().toISOString(),
-      type: "message",
+      timestamp: new Date(),
+      type: "message" as const,
       serverId: "server1",
       channelId: "channel1",
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
     },
     {
       id: "msg2",
       userId: "bob-server1",
       content: "Hi Alice!",
-      timestamp: new Date().toISOString(),
-      type: "message",
+      timestamp: new Date(),
+      type: "message" as const,
       serverId: "server1",
       channelId: "channel1",
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
     },
   ],
   users: mockUsersWithMetadata,
@@ -117,15 +125,24 @@ describe("Metadata Display Features", () => {
       },
       ui: {
         selectedServerId: "server1",
-        selectedChannelId: "channel1",
-        selectedPrivateChatId: null,
+        perServerSelections: {
+          server1: {
+            selectedChannelId: "channel1",
+            selectedPrivateChatId: null,
+          },
+        },
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,
+        isEditServerModalOpen: false,
+        editServerId: null,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
+        isChannelListModalOpen: false,
+        isChannelRenameModalOpen: false,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {
@@ -136,11 +153,40 @@ describe("Metadata Display Features", () => {
           itemId: null,
         },
         prefillServerDetails: null,
+        inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       messages: {
         "server1-channel1": mockChannel.messages,
       },
       typingUsers: {},
+      globalSettings: {
+        enableNotifications: true,
+        notificationSound: "pop",
+        notificationVolume: 0.8,
+        enableNotificationSounds: true,
+        enableHighlights: true,
+        sendTypingNotifications: true,
+        showEvents: true,
+        showNickChanges: true,
+        showJoinsParts: true,
+        showQuits: true,
+        showKicks: true,
+        customMentions: [],
+        ignoreList: ["HistServ!*@*"],
+        nickname: "",
+        accountName: "",
+        accountPassword: "",
+        enableMultilineInput: true,
+        multilineOnShiftEnter: true,
+        autoFallbackToSingleLine: true,
+        showSafeMedia: true,
+        showExternalContent: true,
+        enableMarkdownRendering: false,
+      },
     });
 
     vi.clearAllMocks();
@@ -150,11 +196,11 @@ describe("Metadata Display Features", () => {
     it("should display colored usernames", () => {
       render(<MemberList />);
 
-      // Alice should have red color (#ff0000)
-      const aliceElement = screen.getByText("alice");
+      // Alice should have red color (rgb(255, 0, 0)) - display name is shown
+      const aliceElement = screen.getByText("Alice Wonderland");
       expect(aliceElement).toHaveStyle({ color: "#ff0000" });
 
-      // Bob should have blue color
+      // Bob should have blue color - username is shown since no display name
       const bobElement = screen.getByText("bob");
       expect(bobElement).toHaveStyle({ color: "rgb(0, 0, 255)" });
     });
@@ -174,12 +220,16 @@ describe("Metadata Display Features", () => {
       );
     });
 
-    it("should display status lightbulb for users with status", () => {
+    it("should display status text for users with status", () => {
       render(<MemberList />);
 
-      // Alice and Charlie should have status lightbulbs
-      const lightbulbIcons = screen.getAllByText("💡");
-      expect(lightbulbIcons.length).toBe(2); // Alice and Charlie
+      // Alice should have status text "Working on something cool!"
+      expect(
+        screen.getByText("Working on something cool!"),
+      ).toBeInTheDocument();
+
+      // Charlie should have status text "Away from keyboard"
+      expect(screen.getByText("Away from keyboard")).toBeInTheDocument();
     });
 
     it("should show status tooltip on hover", async () => {
@@ -313,10 +363,13 @@ describe("Metadata Display Features", () => {
         id: "msg3",
         userId: "alice-server1",
         content: "\u0001ACTION waves hello\u0001",
-        timestamp: new Date().toISOString(),
-        type: "message",
+        timestamp: new Date(),
+        type: "message" as const,
         serverId: "server1",
         channelId: "channel1",
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
       };
 
       useStore.setState((state) => ({

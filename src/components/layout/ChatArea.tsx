@@ -1,73 +1,50 @@
-import { UsersIcon } from "@heroicons/react/24/solid";
 import { platform } from "@tauri-apps/plugin-os";
+import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
-import {
-  Children,
-  cloneElement,
-  Fragment,
-  isValidElement,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
-  FaArrowDown,
-  FaAt,
-  FaBell,
-  FaChevronLeft,
-  FaChevronRight,
-  FaGrinAlt,
-  FaHashtag,
-  FaPenAlt,
-  FaPlus,
-  FaReply,
-  FaSearch,
-  FaTimes,
-  FaUserPlus,
-} from "react-icons/fa";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { FaGift, FaList, FaPlus, FaTimes } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
+import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useMessageHistory } from "../../hooks/useMessageHistory";
+import { useMessageSending } from "../../hooks/useMessageSending";
+import { useReactions } from "../../hooks/useReactions";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
+import { useTypingNotification } from "../../hooks/useTypingNotification";
+import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
-import { getColorStyle, ircColors, mircToHtml } from "../../lib/ircUtils";
+import { parseIrcUrl } from "../../lib/ircUrlParser";
+import {
+  type FormattingType,
+  getPreviewStyles,
+  isValidFormattingType,
+} from "../../lib/messageFormatter";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
+import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
+import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
+import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 import ColorPicker from "../ui/ColorPicker";
-import EmojiSelector from "../ui/EmojiSelector";
+import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
+import { EmojiPickerModal } from "../ui/EmojiPickerModal";
+import GifSelector from "../ui/GifSelector";
 import DiscoverGrid from "../ui/HomeScreen";
+import { ImagePreviewModal } from "../ui/ImagePreviewModal";
+import { InputToolbar } from "../ui/InputToolbar";
+import InviteUserModal from "../ui/InviteUserModal";
+import LoadingSpinner from "../ui/LoadingSpinner";
+import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
+import { ReplyBadge } from "../ui/ReplyBadge";
+import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import UserContextMenu from "../ui/UserContextMenu";
+import UserProfileModal from "../ui/UserProfileModal";
+import { ChatHeader } from "./ChatHeader";
 
 const EMPTY_ARRAY: User[] = [];
-let lastTypingTime = 0;
-
-export const OptionsDropdown: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-}> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="absolute right-0 mt-2 w-48 bg-discord-dark-300 rounded-md shadow-xl z-10 border border-discord-dark-500">
-      <div className="py-1">
-        <button
-          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
-          onClick={onClose}
-        >
-          Option 1
-        </button>
-        <button
-          className="block px-4 py-2 text-sm text-discord-text-muted hover:bg-discord-dark-200 hover:text-white w-full text-left transition-colors duration-150"
-          onClick={onClose}
-        >
-          Option 2
-        </button>
-      </div>
-    </div>
-  );
-};
 
 export const TypingIndicator: React.FC<{
   serverId: string;
@@ -93,492 +70,6 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
-const EnhancedLinkWrapper: React.FC<{
-  children: React.ReactNode;
-  onIrcLinkClick?: (url: string) => void;
-}> = ({ children, onIrcLinkClick }) => {
-  // Regular expression to detect HTTP and HTTPS links
-  const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
-  const parseContent = (content: string): React.ReactNode[] => {
-    // Split the content based on the URL regex
-    const parts = content.split(urlRegex);
-    const matches = content.match(urlRegex) || [];
-
-    return parts.map((part, index) => {
-      // Generate stable keys based on content and position
-      const partKey = `text-${part}-${index}`;
-      const textPart = <span key={partKey}>{part}</span>;
-
-      // If there's a matching link for this part, render it
-      if (index < matches.length) {
-        const fragmentKey = `fragment-${matches[index]}-${index}`;
-        return (
-          <Fragment key={fragmentKey}>
-            {textPart}
-            <a
-              href={matches[index]}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-discord-text-link underline hover:text-blue-700"
-              onClick={(e) => {
-                if (
-                  (matches[index].startsWith("ircs://") ||
-                    matches[index].startsWith("irc://")) &&
-                  onIrcLinkClick
-                ) {
-                  e.preventDefault();
-                  onIrcLinkClick(matches[index]);
-                }
-              }}
-            >
-              {matches[index]}
-            </a>
-          </Fragment>
-        );
-      }
-
-      return textPart;
-    });
-  };
-
-  // Since children can be React nodes, we need to process them
-  const processChildren = (node: React.ReactNode): React.ReactNode[] => {
-    return (
-      Children.map(node, (child) => {
-        if (typeof child === "string") {
-          return parseContent(child); // Process string content
-        }
-        if (isValidElement(child)) {
-          // Skip already-linkified anchors to avoid nested <a>
-          if ((child as React.ReactElement).type === "a") {
-            return child;
-          }
-          // Directly process the children of the React element
-          const processed = processChildren(
-            (child as React.ReactElement).props?.children,
-          );
-          return cloneElement(
-            child as React.ReactElement,
-            undefined,
-            processed,
-          );
-        }
-        // For other types of children, return them as is
-        return child as React.ReactNode;
-      }) ?? []
-    );
-  };
-  return <>{processChildren(children)}</>;
-};
-
-const MessageItem: React.FC<{
-  message: MessageType;
-  showDate: boolean;
-  showHeader: boolean;
-  setReplyTo: (msg: MessageType) => void;
-  onUsernameContextMenu: (
-    e: React.MouseEvent,
-    username: string,
-    serverId: string,
-    avatarElement?: Element | null,
-  ) => void;
-  onIrcLinkClick?: (url: string) => void;
-  onReactClick: (message: MessageType, buttonElement: Element) => void;
-  selectedServerId: string | null;
-  onReactionUnreact: (emoji: string, message: MessageType) => void;
-  onOpenReactionModal: (
-    message: MessageType,
-    position: { x: number; y: number },
-  ) => void;
-  users: User[];
-}> = ({
-  message,
-  showDate,
-  showHeader,
-  setReplyTo,
-  onUsernameContextMenu,
-  onIrcLinkClick,
-  onReactClick,
-  selectedServerId,
-  onReactionUnreact,
-  onOpenReactionModal,
-  users,
-}) => {
-  const { currentUser } = useStore();
-  const isCurrentUser = currentUser?.id === message.userId;
-  // Find the user for this message
-  const messageUser = users.find(
-    (user) => user.username === message.userId.split("-")[0],
-  );
-  const avatarUrl = messageUser?.metadata?.avatar?.value;
-  const displayName = messageUser?.metadata?.["display-name"]?.value;
-  const userColor = messageUser?.metadata?.color?.value;
-  const userStatus = messageUser?.metadata?.status?.value;
-  const isSystem = message.type === "system";
-  // Convert message content to React elements
-  const htmlContent = mircToHtml(message.content);
-  // Format timestamp
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  };
-
-  // Format date for message groups
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    }).format(date);
-  };
-
-  if (isSystem) {
-    return (
-      <div className="px-4 py-1 text-discord-text-muted text-sm opacity-80">
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-1 rounded-full bg-discord-text-muted" />
-          <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-            {htmlContent}
-          </EnhancedLinkWrapper>
-          <div className="text-xs opacity-70">
-            {formatTime(new Date(message.timestamp))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const theme = localStorage.getItem("theme") || "discord";
-  if (message.content.substring(0, 7) === "\u0001ACTION") {
-    return (
-      <div className="px-4 py-1 hover:bg-discord-message-hover group">
-        {showDate && (
-          <div className="flex items-center text-xs text-discord-text-muted mb-2">
-            <div className="flex-grow border-t border-discord-dark-400" />
-            <div className="px-2">
-              {formatDate(new Date(message.timestamp))}
-            </div>
-            <div className="flex-grow border-t border-discord-dark-400" />
-          </div>
-        )}
-        <div className="flex">
-          <div className="mr-4">
-            <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-white relative">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={message.userId.split("-")[0]}
-                  className="w-8 h-8 rounded-full object-cover"
-                  onError={(e) => {
-                    // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      parent.textContent = message.userId
-                        .charAt(0)
-                        .toUpperCase();
-                    }
-                  }}
-                />
-              ) : (
-                message.userId.charAt(0).toUpperCase()
-              )}
-              {userStatus && (
-                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-                    <span className="text-xs">💡</span>
-                  </div>
-                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
-                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                      {userStatus}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className={`flex-1 ${isCurrentUser ? "text-white" : ""}`}>
-            <div className="flex items-center">
-              <span className="ml-2 text-xs text-discord-text-muted">
-                {formatTime(new Date(message.timestamp))}
-              </span>
-            </div>
-            <span className="italic text-white">
-              {message.userId === "system"
-                ? "System"
-                : (displayName || message.userId.split("-")[0]) +
-                  (displayName ? ` (${message.userId.split("-")[0]})` : "") +
-                  message.content.substring(7, message.content.length - 1)}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className={`px-4 py-1 hover:bg-${theme}-message-hover group relative`}>
-      {showDate && (
-        <div
-          className={`flex items-center text-xs text-${theme}-text-muted mb-2`}
-        >
-          <div className={`flex-grow border-t border-${theme}-dark-400`} />
-          <div className="px-2">{formatDate(new Date(message.timestamp))}</div>
-          <div className={`flex-grow border-t border-${theme}-dark-400`} />
-        </div>
-      )}
-      <div className="flex">
-        {showHeader && (
-          <div
-            className={`mr-4 ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
-            onClick={(e) => {
-              if (message.userId !== "system") {
-                onUsernameContextMenu(
-                  e,
-                  message.userId.split("-")[0],
-                  message.serverId,
-                  e.currentTarget,
-                );
-              }
-            }}
-          >
-            <div
-              className={`w-8 h-8 rounded-full bg-${theme}-dark-400 flex items-center justify-center text-white relative`}
-            >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={message.userId.split("-")[0]}
-                  className="w-8 h-8 rounded-full object-cover"
-                  onError={(e) => {
-                    // Fallback to initial if image fails to load
-                    e.currentTarget.style.display = "none";
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      parent.textContent = message.userId
-                        .charAt(0)
-                        .toUpperCase();
-                    }
-                  }}
-                />
-              ) : (
-                message.userId.charAt(0).toUpperCase()
-              )}
-              {userStatus && (
-                <div className="absolute -bottom-1 -left-1 bg-discord-dark-600 rounded-full p-1 group">
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-                    <span className="text-xs">💡</span>
-                  </div>
-                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block">
-                    <div className="bg-discord-dark-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                      {userStatus}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {!showHeader && (
-          <div className="mr-4">
-            <div className="w-8" />
-          </div>
-        )}
-        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
-          {showHeader && (
-            <div className="flex items-center">
-              <span
-                className={`font-bold text-white ${message.userId !== "system" && currentUser?.username !== message.userId.split("-")[0] ? "cursor-pointer" : ""}`}
-                style={getColorStyle(userColor)}
-                onClick={(e) => {
-                  if (message.userId !== "system") {
-                    // Find the avatar element to position menu over it
-                    const messageElement = e.currentTarget.closest(".flex");
-                    const avatarElement =
-                      messageElement?.querySelector(".mr-4");
-                    onUsernameContextMenu(
-                      e,
-                      message.userId.split("-")[0],
-                      message.serverId,
-                      avatarElement,
-                    );
-                  }
-                }}
-              >
-                {message.userId === "system"
-                  ? "System"
-                  : displayName || message.userId.split("-")[0]}
-                {displayName && (
-                  <span className="ml-2 text-xs bg-discord-dark-600 px-1 py-0.5 rounded">
-                    {message.userId.split("-")[0]}
-                  </span>
-                )}
-              </span>
-              <span className={`ml-2 text-xs text-${theme}-text-muted`}>
-                {formatTime(new Date(message.timestamp))}
-              </span>
-            </div>
-          )}
-          <div className="relative">
-            {message.replyMessage && (
-              <div
-                className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2`}
-              >
-                ┌ Replying to{" "}
-                <strong>
-                  <span
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      // Find the avatar element to position menu over it
-                      const messageElement = e.currentTarget.closest(".flex");
-                      const avatarElement =
-                        messageElement?.querySelector(".mr-4");
-                      onUsernameContextMenu(
-                        e,
-                        message.replyMessage?.userId.split("-")[0] || "",
-                        message.serverId,
-                        avatarElement,
-                      );
-                    }}
-                  >
-                    {message.replyMessage?.userId.split("-")[0] || ""}
-                  </span>
-                  :
-                </strong>{" "}
-                <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-                  {mircToHtml(message.replyMessage.content)}
-                </EnhancedLinkWrapper>
-              </div>
-            )}
-            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {htmlContent}
-            </EnhancedLinkWrapper>
-          </div>
-          {/* Reactions positioned below message content */}
-          {message.reactions && message.reactions.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {Object.entries(
-                message.reactions.reduce(
-                  (
-                    acc: Record<
-                      string,
-                      {
-                        count: number;
-                        users: string[];
-                        currentUserReacted: boolean;
-                      }
-                    >,
-                    reaction: { emoji: string; userId: string },
-                  ) => {
-                    if (!acc[reaction.emoji]) {
-                      acc[reaction.emoji] = {
-                        count: 0,
-                        users: [],
-                        currentUserReacted: false,
-                      };
-                    }
-                    acc[reaction.emoji].count++;
-                    acc[reaction.emoji].users.push(reaction.userId);
-                    // Check if current user reacted with this emoji
-                    if (reaction.userId === currentUser?.username) {
-                      acc[reaction.emoji].currentUserReacted = true;
-                    }
-                    return acc;
-                  },
-                  {} as Record<
-                    string,
-                    {
-                      count: number;
-                      users: string[];
-                      currentUserReacted: boolean;
-                    }
-                  >,
-                ),
-              ).map(([emoji, data]) => (
-                <div
-                  key={emoji}
-                  className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer group"
-                  title={`${emoji} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count} ${(data as { count: number; users: string[]; currentUserReacted: boolean }).count === 1 ? "reaction" : "reactions"} by ${(data as { count: number; users: string[]; currentUserReacted: boolean }).users.join(", ")}`}
-                  onClick={(e) => {
-                    // If current user has reacted, clicking removes the reaction
-                    if (
-                      (
-                        data as {
-                          count: number;
-                          users: string[];
-                          currentUserReacted: boolean;
-                        }
-                      ).currentUserReacted
-                    ) {
-                      onReactionUnreact(emoji, message);
-                    } else {
-                      // Otherwise, add the reaction
-                      onOpenReactionModal(message, {
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    }
-                  }}
-                >
-                  <span>{emoji}</span>
-                  <span className="text-xs font-medium">
-                    {
-                      (
-                        data as {
-                          count: number;
-                          users: string[];
-                          currentUserReacted: boolean;
-                        }
-                      ).count
-                    }
-                  </span>
-                  {/* Show X button if current user reacted */}
-                  {(
-                    data as {
-                      count: number;
-                      users: string[];
-                      currentUserReacted: boolean;
-                    }
-                  ).currentUserReacted && (
-                    <button
-                      className="ml-1 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onReactionUnreact(emoji, message);
-                      }}
-                      title="Remove reaction"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Hover buttons */}
-        <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-          <button
-            className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-            onClick={() => setReplyTo(message)}
-          >
-            <FaReply />
-          </button>
-          {message.msgid && (
-            <button
-              className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-              onClick={(e) => onReactClick(message, e.currentTarget)}
-            >
-              <FaGrinAlt />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const ChatArea: React.FC<{
   onToggleChanList: () => void;
   isChanListVisible: boolean;
@@ -588,97 +79,242 @@ export const ChatArea: React.FC<{
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedFormatting, setSelectedFormatting] = useState<string[]>([]);
+  const [selectedFormatting, setSelectedFormatting] = useState<
+    FormattingType[]
+  >([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const wasAtBottomRef = useRef(true); // Track if user was at bottom before new messages
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
+  const [showMembersDropdown, setShowMembersDropdown] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [isGifSelectorOpen, setIsGifSelectorOpen] = useState(false);
+  const [imagePreview, setImagePreview] = useState<{
+    isOpen: boolean;
+    file: File | null;
+    previewUrl: string | null;
+  }>({
+    isOpen: false,
+    file: null,
+    previewUrl: null,
+  });
+  const [isServerNoticesPoppedOut, setIsServerNoticesPoppedOut] =
+    useState(false);
+  const [serverNoticesPopupPosition, setServerNoticesPopupPosition] = useState({
+    x: 16,
+    y: 16,
+  }); // 1rem = 16px
+  const serverNoticesScrollRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScrollServerNotices, setShouldAutoScrollServerNotices] =
+    useState(true);
+
+  const handleServerNoticesScroll = () => {
+    if (serverNoticesScrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        serverNoticesScrollRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+      setShouldAutoScrollServerNotices(isAtBottom);
+    }
+  };
+  const [isDraggingServerNotices, setIsDraggingServerNotices] = useState(false);
+  const [serverNoticesDragStart, setServerNoticesDragStart] = useState({
+    x: 0,
+    y: 0,
+  });
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
     x: number;
     y: number;
     username: string;
     serverId: string;
+    channelId: string;
+    userStatusInChannel?: string;
   }>({
     isOpen: false,
     x: 0,
     y: 0,
     username: "",
     serverId: "",
+    channelId: "",
+    userStatusInChannel: undefined,
   });
-  const [reactionModal, setReactionModal] = useState<{
+  const [moderationModal, setModerationModal] = useState<{
     isOpen: boolean;
-    message: MessageType | null;
+    action: ModerationAction;
+    username: string;
   }>({
     isOpen: false,
-    message: null,
+    action: "warn",
+    username: "",
   });
+  const [channelSettingsModalOpen, setChannelSettingsModalOpen] =
+    useState(false);
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [inviteUserModalOpen, setInviteUserModalOpen] = useState(false);
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleMessageCount, setVisibleMessageCount] = useState(100);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { currentUser } = useStore();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const servers = useStore((state) => state.servers);
+  const ui = useStore((state) => state.ui);
+  const globalSettings = useStore((state) => state.globalSettings);
+  const messages = useStore((state) => state.messages);
+  const toggleMemberList = useStore((state) => state.toggleMemberList);
+  const openPrivateChat = useStore((state) => state.openPrivateChat);
+  const selectPrivateChat = useStore((state) => state.selectPrivateChat);
+  const connect = useStore((state) => state.connect);
+  const joinChannel = useStore((state) => state.joinChannel);
+  const toggleAddServerModal = useStore((state) => state.toggleAddServerModal);
+  const redactMessage = useStore((state) => state.redactMessage);
+  const warnUser = useStore((state) => state.warnUser);
+  const kickUser = useStore((state) => state.kickUser);
+  const banUserByNick = useStore((state) => state.banUserByNick);
+  const banUserByHostmask = useStore((state) => state.banUserByHostmask);
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
+    selectedChannelId: null,
+    selectedPrivateChatId: null,
+  };
+  const { selectedChannelId, selectedPrivateChatId } = currentSelection;
   const {
-    servers,
-    ui: {
-      selectedServerId,
-      selectedChannelId,
-      selectedPrivateChatId,
-      isMemberListVisible,
-    },
-    toggleMemberList,
-    openPrivateChat,
-    messages,
-    connect,
-    joinChannel,
-    toggleAddServerModal,
-  } = useStore();
+    isMemberListVisible,
+    isSettingsModalOpen,
+    isUserProfileModalOpen,
+    isAddServerModalOpen,
+    isChannelListModalOpen,
+    isChannelRenameModalOpen,
+    isServerNoticesPopupOpen,
+  } = ui;
+
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Get the current user for the selected server with metadata from store
+  const currentUser = useMemo(() => {
+    if (!selectedServerId) return null;
+
+    // Get the current user's username from IRCClient
+    const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
+    if (!ircCurrentUser) return null;
+
+    // Find the current user in the server's channel data to get metadata
+    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    if (!selectedServer) return ircCurrentUser;
+
+    // Look for the user in any channel to get their metadata
+    for (const channel of selectedServer.channels) {
+      const userWithMetadata = channel.users.find(
+        (u) => u.username === ircCurrentUser.username,
+      );
+      if (userWithMetadata) {
+        return userWithMetadata;
+      }
+    }
+
+    // If not found in channels, return the basic IRC user
+    return ircCurrentUser;
+  }, [selectedServerId, servers]);
+
+  // Auto-scroll server notices popup when new messages arrive
+  useEffect(() => {
+    if (shouldAutoScrollServerNotices && serverNoticesScrollRef.current) {
+      serverNoticesScrollRef.current.scrollTop =
+        serverNoticesScrollRef.current.scrollHeight;
+    }
+  }, [shouldAutoScrollServerNotices]);
+
+  // Scroll to bottom when popup is first opened
+  useEffect(() => {
+    if (isServerNoticesPoppedOut && serverNoticesScrollRef.current) {
+      serverNoticesScrollRef.current.scrollTop =
+        serverNoticesScrollRef.current.scrollHeight;
+      setShouldAutoScrollServerNotices(true); // Enable auto-scroll for future messages
+    }
+  }, [isServerNoticesPoppedOut]);
+
+  // Get current user's status in the selected channel
+  const currentUserStatus = useMemo(() => {
+    if (!selectedServerId || !selectedChannelId) return undefined;
+
+    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    const selectedChannel = selectedServer?.channels.find(
+      (c) => c.id === selectedChannelId,
+    );
+
+    if (!selectedChannel || !currentUser) return undefined;
+
+    const userInChannel = selectedChannel.users.find(
+      (u) => u.username === currentUser.username,
+    );
+
+    return userInChannel?.status;
+  }, [selectedServerId, selectedChannelId, servers, currentUser]);
 
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
+  // Emoji completion hook
+  const emojiCompletion = useEmojiCompletion();
+
+  // Typing notification hook
+  const typingNotification = useTypingNotification({
+    serverId: selectedServerId,
+    enabled: globalSettings.sendTypingNotifications,
+  });
+
+  // Media query hook
+  const isNarrowView = useMediaQuery();
+
   const handleIrcLinkClick = (rawUrl: string) => {
-    // Tolerate trailing punctuation in chat text
-    const sanitized = rawUrl.trim().replace(/[),.;:]+$/, "");
-    const urlObj = new URL(sanitized);
-    const host = urlObj.hostname;
-    const scheme = urlObj.protocol.replace(":", "");
-    const port = urlObj.port
-      ? Number.parseInt(urlObj.port, 10)
-      : scheme === "ircs"
-        ? 443
-        : 8000;
-
-    // Channels may be in pathname (/chan1,chan2) or in hash (#chan1,chan2)
-    const rawChannelStr =
-      urlObj.pathname.length > 1
-        ? urlObj.pathname.slice(1)
-        : urlObj.hash.startsWith("#")
-          ? urlObj.hash.slice(1)
-          : "";
-    const channels = rawChannelStr
-      .split(",")
-      .filter(Boolean)
-      .map((c) => decodeURIComponent(c))
-      .map((c) =>
-        c.startsWith("#") ||
-        c.startsWith("&") ||
-        c.startsWith("+") ||
-        c.startsWith("!")
-          ? c
-          : `#${c}`,
-      );
-
-    const nick =
-      urlObj.searchParams.get("nick") || currentUser?.username || "user";
-    const password = urlObj.searchParams.get("password") || undefined;
+    const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
 
     // Open the connect modal with pre-filled server details
     toggleAddServerModal(true, {
-      name: host,
-      host: host,
-      port: port.toString(),
-      nickname: nick,
+      name: parsed.host,
+      host: parsed.host,
+      port: parsed.port.toString(),
+      nickname: parsed.nick || "user",
     });
+  };
+
+  // Handle setting reply and focusing input
+  const handleSetReplyTo = (message: MessageType | null) => {
+    setLocalReplyTo(message);
+    // Focus the input after setting reply
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 0);
+  };
+
+  // Toggle notification sound volume
+  const handleToggleNotificationVolume = async () => {
+    const currentVolume = globalSettings.notificationVolume;
+    const newVolume = currentVolume > 0 ? 0 : 0.4; // Toggle between 0 (muted) and 0.4 (40%)
+
+    useStore.getState().updateGlobalSettings({
+      notificationVolume: newVolume,
+    });
+
+    // Play test sound when enabling (not when disabling)
+    if (newVolume > 0) {
+      try {
+        const audio = new Audio();
+        audio.volume = newVolume;
+        audio.src = "/sounds/notif2.mp3";
+        // Wait for the audio to be loaded before playing
+        audio.load();
+        await audio.play();
+      } catch (error) {
+        console.error("Failed to play notification sound:", error);
+      }
+    }
   };
 
   // Load saved settings from local storage on mount
@@ -694,8 +330,11 @@ export const ChatArea: React.FC<{
       try {
         const parsedFormatting = JSON.parse(savedFormatting);
         if (Array.isArray(parsedFormatting)) {
-          console.log("Parsed formatting:", parsedFormatting);
-          setSelectedFormatting(parsedFormatting); // Apply the saved formatting
+          // Validate that all items are valid formatting types
+          const validFormatting = parsedFormatting.filter(
+            isValidFormattingType,
+          );
+          setSelectedFormatting(validFormatting); // Apply the saved formatting
           setIsFormattingInitialized(true); // Mark formatting as initialized
         }
       } catch (error) {
@@ -718,7 +357,6 @@ export const ChatArea: React.FC<{
   // Save selectedFormatting to local storage whenever it changes
   useEffect(() => {
     if (isFormattingInitialized) {
-      console.log("Saving formatting to localStorage:", selectedFormatting);
       localStorage.setItem(
         "selectedFormatting",
         JSON.stringify(selectedFormatting),
@@ -726,21 +364,103 @@ export const ChatArea: React.FC<{
     }
   }, [selectedFormatting, isFormattingInitialized]);
 
-  // Get selected server and channel/private chat
-  const selectedServer = servers.find((s) => s.id === selectedServerId);
-  const selectedChannel = selectedServer?.channels.find(
-    (c) => c.id === selectedChannelId,
-  );
-  const selectedPrivateChat = selectedServer?.privateChats?.find(
-    (pc) => pc.id === selectedPrivateChatId,
+  // Get selected server and channel/private chat - memoized to prevent re-renders
+  const selectedServer = useMemo(
+    () => servers.find((s) => s.id === selectedServerId),
+    [servers, selectedServerId],
   );
 
-  // Get messages for current channel or private chat
-  const channelKey =
-    selectedServerId && (selectedChannelId || selectedPrivateChatId)
-      ? `${selectedServerId}-${selectedChannelId || selectedPrivateChatId}`
-      : "";
-  const channelMessages = channelKey ? messages[channelKey] || [] : [];
+  const selectedChannel = useMemo(
+    () => selectedServer?.channels.find((c) => c.id === selectedChannelId),
+    [selectedServer, selectedChannelId],
+  );
+
+  const selectedPrivateChat = useMemo(
+    () =>
+      selectedServer?.privateChats?.find(
+        (pc) => pc.id === selectedPrivateChatId,
+      ),
+    [selectedServer, selectedPrivateChatId],
+  );
+
+  // Message sending hook
+  const { sendMessage } = useMessageSending({
+    selectedServerId,
+    selectedChannelId,
+    selectedPrivateChatId,
+    selectedChannel: selectedChannel ?? null,
+    selectedPrivateChat: selectedPrivateChat ?? null,
+    currentUser,
+    selectedColor,
+    selectedFormatting,
+    localReplyTo,
+  });
+
+  // Reactions hook
+  const {
+    reactionModal,
+    openReactionModal,
+    closeReactionModal,
+    selectReaction,
+    directReaction,
+    unreact,
+  } = useReactions({
+    selectedServerId,
+    currentUser,
+  });
+
+  // Get messages for current channel or private chat - memoized
+  const channelKey = useMemo(
+    () =>
+      selectedServerId && (selectedChannelId || selectedPrivateChatId)
+        ? `${selectedServerId}-${selectedChannelId || selectedPrivateChatId}`
+        : "",
+    [selectedServerId, selectedChannelId, selectedPrivateChatId],
+  );
+
+  const channelMessages = useMemo(
+    () => (channelKey ? messages[channelKey] || [] : []),
+    [messages, channelKey],
+  );
+
+  // Message history hook (must be after channelMessages is defined)
+  const messageHistory = useMessageHistory({
+    messages: channelMessages,
+    currentUsername: currentUser?.username || null,
+    selectedChannelId,
+    selectedPrivateChatId,
+  });
+
+  // Filter messages based on search query
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return channelMessages;
+    }
+    const query = searchQuery.toLowerCase();
+    return channelMessages.filter(
+      (msg) =>
+        msg.content.toLowerCase().includes(query) ||
+        msg.userId.toLowerCase().includes(query),
+    );
+  }, [channelMessages, searchQuery]);
+
+  // Virtualize messages - only show the last N messages unless searching
+  const displayedMessages = useMemo(() => {
+    if (searchQuery.trim()) {
+      // Show all filtered results when searching
+      return filteredMessages;
+    }
+    // Show only the last visibleMessageCount messages
+    return filteredMessages.slice(-visibleMessageCount);
+  }, [filteredMessages, visibleMessageCount, searchQuery]);
+
+  const hasMoreMessages = filteredMessages.length > displayedMessages.length;
+
+  // Memoize grouped events to prevent recalculation on every render
+  const eventGroups = useMemo(
+    () => groupConsecutiveEvents(displayedMessages),
+    [displayedMessages],
+  );
 
   const scrollDown = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -758,13 +478,21 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
+    // Reset scroll state and visible message count when changing channels
+    setIsScrolledUp(false);
+    wasAtBottomRef.current = true;
+    setVisibleMessageCount(100);
+    setSearchQuery("");
   }, [selectedServerId, selectedChannelId]);
 
   // Auto scroll to bottom on new messages
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
   useEffect(() => {
-    if (isScrolledUp) return;
-    scrollDown();
-  });
+    // Only auto-scroll if user was at the bottom before new messages arrived
+    if (wasAtBottomRef.current) {
+      scrollDown();
+    }
+  }, [displayedMessages]);
 
   // Check if scrolled away from bottom
   useEffect(() => {
@@ -776,6 +504,7 @@ export const ChatArea: React.FC<{
         container.scrollHeight - container.scrollTop - container.clientHeight <
         30;
       setIsScrolledUp(!atBottom);
+      wasAtBottomRef.current = atBottom;
     };
 
     container.addEventListener("scroll", checkIfScrolledToBottom);
@@ -783,129 +512,196 @@ export const ChatArea: React.FC<{
       container.removeEventListener("scroll", checkIfScrolledToBottom);
   }, []);
 
-  const getColorCode = (color: string): string => {
-    const index =
-      ircColors.indexOf(color) === 99 ? -1 : ircColors.indexOf(color);
-    return index !== -1 ? `\x03${index < 10 ? `0${index}` : index}` : ""; // Return \x03 followed by the index, or an empty string if not found
-  };
+  // Close plus menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showPlusMenu && !(event.target as Element).closest(".plus-menu")) {
+        setShowPlusMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPlusMenu]);
 
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
+
     scrollDown();
-    if (selectedServerId && (selectedChannelId || selectedPrivateChatId)) {
-      if (messageText.startsWith("/")) {
-        // Handle command
-        const command = messageText.substring(1).trim();
-        const [commandName, ...args] = command.split(" ");
-        if (commandName === "nick") {
-          ircClient.sendRaw(selectedServerId, `NICK ${args[0]}`);
-        } else if (commandName === "join") {
-          if (args[0]) {
-            ircClient.joinChannel(selectedServerId, args[0]);
-            ircClient.triggerEvent("JOIN", {
-              serverId: selectedServerId,
-              username: currentUser?.username ? currentUser.username : "",
-              channelName: args[0],
-            });
-          } else {
-            // Handle error: no channel specified
-            console.error("No channel specified for /join command");
-          }
-        } else if (commandName === "part") {
-          ircClient.leaveChannel(selectedServerId, args[0]);
-          ircClient.triggerEvent("PART", {
-            serverId: selectedServerId,
-            username: currentUser?.username ? currentUser.username : "",
-            channelName: args[0],
-          });
-        } else if (commandName === "msg") {
-          const [target, ...messageParts] = args;
-          const message = messageParts.join(" ");
-          ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
-        } else if (commandName === "me") {
-          const actionMessage = messageText.substring(4).trim();
-          ircClient.sendRaw(
-            selectedServerId,
-            `PRIVMSG ${selectedChannel ? selectedChannel.name : ""} :\u0001ACTION ${actionMessage}\u0001`,
-          );
-        } else {
-          ircClient.sendRaw(
-            selectedServerId,
-            `${commandName} :${args.join(" ")}`,
-          );
-        }
-      } else {
-        const colorCode = getColorCode(selectedColor || "inherit"); // Get the IRC color code
+    sendMessage(messageText);
 
-        // Apply formatting codes
-        let formattedText = messageText;
-        if (selectedFormatting.includes("bold")) {
-          formattedText = `\x02${formattedText}\x02`;
-        }
-        if (selectedFormatting.includes("italic")) {
-          formattedText = `\x1D${formattedText}\x1D`;
-        }
-        if (selectedFormatting.includes("underline")) {
-          formattedText = `\x1F${formattedText}\x1F`;
-        }
-        if (selectedFormatting.includes("strikethrough")) {
-          formattedText = `\x1E${formattedText}\x1E`;
-        }
-        if (selectedFormatting.includes("reverse")) {
-          formattedText = `\x16${formattedText}\x16`;
-        }
-        if (selectedFormatting.includes("monospace")) {
-          formattedText = `\x11${formattedText}\x11`;
-        }
+    // Cleanup after sending
+    setMessageText("");
+    setLocalReplyTo(null);
+    setShowAutocomplete(false);
+    messageHistory.resetHistory();
+    if (tabCompletion.isActive) {
+      tabCompletion.resetCompletion();
+    }
 
-        // Prepend the color code
-        formattedText = `${colorCode}${formattedText}`;
+    // Reset textarea height to initial single-line state
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          const scrollHeight = inputRef.current.scrollHeight;
+          inputRef.current.style.height = `${scrollHeight}px`;
+        }
+      }, 0);
+    }
+  };
 
-        // Determine target: channel name or username for private messages
+  const handleImageUpload = async (file: File) => {
+    if (!selectedServer?.filehost || !selectedServerId) return;
+
+    const filehostUrl = selectedServer.filehost;
+
+    // Check if we have a JWT token, request one if not
+    let jwtToken = selectedServer?.jwtToken;
+    if (!jwtToken) {
+      // Clear any existing JWT token to ensure we get a fresh one
+      useStore.setState((state) => ({
+        servers: state.servers.map((server) =>
+          server.id === selectedServerId
+            ? { ...server, jwtToken: undefined }
+            : server,
+        ),
+      }));
+
+      // Request JWT token from IRC server
+      console.log(
+        '🔑 Requesting fresh JWT token from IRC server for service "filehost"',
+      );
+      ircClient.requestExtJwt(selectedServerId, "*", "filehost");
+
+      // Wait a bit for the token to arrive (this is a simple approach)
+      // In a production app, you'd want to listen for the EXTJWT event
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Check again after waiting
+      const updatedServer = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
+      jwtToken = updatedServer?.jwtToken;
+
+      console.log(
+        "🔑 After waiting, JWT token:",
+        jwtToken ? `${jwtToken.substring(0, 20)}...` : "still null/undefined",
+      );
+
+      if (!jwtToken) {
+        console.error("Failed to obtain JWT token for image upload");
+        // TODO: Show error to user
+        return;
+      }
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      // Upload directly to the filehost URL with JWT authentication
+      const uploadUrl = `${filehostUrl}/upload`;
+      console.log("🔄 Image upload: Starting upload to", uploadUrl);
+      console.log("🔑 JWT token present:", !!jwtToken);
+      console.log(
+        "� JWT token value:",
+        jwtToken ? `${jwtToken.substring(0, 20)}...` : "null/undefined",
+      );
+      console.log("�📦 File size:", file.size, "bytes");
+
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+        body: formData,
+      });
+
+      console.log("📡 Response status:", response.status);
+      console.log(
+        "📡 Response headers:",
+        Object.fromEntries(response.headers.entries()),
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Upload failed with status:", response.status);
+        console.error("❌ Error response:", errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ Upload successful:", data);
+      if (data.saved_url) {
+        // Create the full URL by prepending the filehost
+        const fullImageUrl = `${filehostUrl}${data.saved_url}`;
+
+        // Send the link directly to the current channel/user
         const target =
           selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
 
-        ircClient.sendRaw(
-          selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.id};` : ""} PRIVMSG ${target} :${formattedText}`,
-        );
+        if (target) {
+          // Send via IRC
+          if (selectedServerId) {
+            ircClient.sendRaw(
+              selectedServerId,
+              `PRIVMSG ${target} :${fullImageUrl}`,
+            );
+          }
 
-        // For private messages, manually add our own message to the chat
-        // since the server doesn't echo private messages back to us
-        if (selectedPrivateChat && currentUser) {
-          const outgoingMessage = {
-            id: uuidv4(),
-            content: messageText,
-            timestamp: new Date(),
-            userId: currentUser.username || currentUser.id,
-            channelId: selectedPrivateChat.id,
-            serverId: selectedServerId,
-            type: "message" as const,
-            reactions: [],
-            replyMessage: localReplyTo,
-            mentioned: [],
-          };
+          // Add to store for immediate display (only for private chats, channels echo back)
+          if (selectedPrivateChat && currentUser && selectedServerId) {
+            const outgoingMessage = {
+              id: uuidv4(),
+              content: fullImageUrl,
+              timestamp: new Date(),
+              userId: currentUser.username || currentUser.id,
+              channelId: selectedPrivateChat.id,
+              serverId: selectedServerId,
+              type: "message" as const,
+              reactions: [],
+              replyMessage: null,
+              mentioned: [],
+            };
 
-          // Add the message to the store
-          const { addMessage } = useStore.getState();
-          addMessage(outgoingMessage);
+            const { addMessage } = useStore.getState();
+            addMessage(outgoingMessage);
+          }
         }
       }
-      setMessageText("");
-      setLocalReplyTo(null);
-      setShowAutocomplete(false);
-      if (tabCompletion.isActive) {
-        tabCompletion.resetCompletion();
-      }
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      // TODO: Show error to user
+    }
+  };
 
-      // Send typing done notification
-      if (selectedChannel?.name || selectedPrivateChat?.username) {
-        const target = selectedChannel?.name ?? selectedPrivateChat?.username;
-        ircClient.sendTyping(
-          selectedServerId as string,
-          target as string,
-          false,
-        );
+  const handleGifSend = (gifUrl: string) => {
+    // Send the GIF URL directly to the current channel/user
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+
+    if (target && selectedServerId) {
+      // Send via IRC
+      ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${gifUrl}`);
+
+      // Add to store for immediate display (only for private chats, channels echo back)
+      if (selectedPrivateChat && currentUser) {
+        const outgoingMessage = {
+          id: uuidv4(),
+          content: gifUrl,
+          timestamp: new Date(),
+          userId: currentUser.username || currentUser.id,
+          channelId: selectedPrivateChat.id,
+          serverId: selectedServerId,
+          type: "message" as const,
+          reactions: [],
+          replyMessage: null,
+          mentioned: [],
+        };
+
+        const { addMessage } = useStore.getState();
+        addMessage(outgoingMessage);
       }
     }
   };
@@ -913,40 +709,123 @@ export const ChatArea: React.FC<{
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Tab") {
       e.preventDefault();
-      handleTabCompletion();
+
+      // If emoji completion is already active, continue with emoji completion
+      if (emojiCompletion.isActive) {
+        handleEmojiCompletion();
+      } else {
+        // Check if we're starting emoji completion context
+        const textBeforeCursor = messageText.substring(0, cursorPosition);
+        const emojiMatch = textBeforeCursor.match(/:([a-zA-Z_]*)$/);
+
+        if (emojiMatch) {
+          handleEmojiCompletion();
+        } else {
+          handleTabCompletion();
+        }
+      }
       return;
     }
 
     // Handle keys when autocomplete dropdown is visible
     if (
-      showAutocomplete &&
+      (showAutocomplete || showEmojiAutocomplete) &&
       (e.key === "ArrowUp" ||
         e.key === "ArrowDown" ||
         e.key === "Escape" ||
-        e.key === "Enter")
+        e.key === "Enter" ||
+        e.key === " ")
     ) {
       // Let the dropdown handle these keys, don't interfere
       return;
     }
 
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Handle message history navigation with arrow keys
+    if (e.key === "ArrowUp") {
+      // Only activate if input is empty or already in history mode
+      if (messageText === "" || messageHistory.messageHistoryIndex >= 0) {
+        e.preventDefault();
+
+        if (messageHistory.userMessageHistory.length === 0) return;
+
+        const previousMessage = messageHistory.navigateUp(messageText);
+        if (previousMessage !== null) {
+          setMessageText(previousMessage);
+
+          // Move cursor to end of text
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.setSelectionRange(
+                previousMessage.length,
+                previousMessage.length,
+              );
+            }
+          }, 0);
+        }
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      // Only handle if we're in history mode
+      if (messageHistory.messageHistoryIndex >= 0) {
+        e.preventDefault();
+
+        const nextMessage = messageHistory.navigateDown();
+        if (nextMessage !== null) {
+          setMessageText(nextMessage);
+
+          // Move cursor to end
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.setSelectionRange(
+                nextMessage.length,
+                nextMessage.length,
+              );
+            }
+          }, 0);
+        }
+      }
+      return;
+    }
+
+    // Handle Enter key behavior based on settings
+    if (e.key === "Enter") {
+      const shouldCreateNewline =
+        globalSettings.enableMultilineInput &&
+        (globalSettings.multilineOnShiftEnter ? e.shiftKey : !e.shiftKey);
+
+      if (shouldCreateNewline) {
+        // Allow the default behavior (add newline)
+        return;
+      }
+
+      // Prevent newline from being added before sending message
       e.preventDefault();
+
+      // Force clear any newlines that might have been added to the textarea
+      if (inputRef.current) {
+        inputRef.current.value = messageText.trim();
+      }
+
       handleSendMessage();
       // Send typing done notification
-      if (selectedChannel?.name) {
-        ircClient.sendTyping(
-          selectedServerId ?? "",
-          selectedChannel.name,
-          false,
-        );
-      } else if (selectedPrivateChat?.username) {
-        ircClient.sendTyping(
-          selectedServerId ?? "",
-          selectedPrivateChat.username,
-          false,
-        );
+      const storeState = useStore.getState();
+      if (storeState.globalSettings.sendTypingNotifications) {
+        if (selectedChannel?.name) {
+          ircClient.sendTyping(
+            selectedServerId ?? "",
+            selectedChannel.name,
+            false,
+          );
+        } else if (selectedPrivateChat?.username) {
+          ircClient.sendTyping(
+            selectedServerId ?? "",
+            selectedPrivateChat.username,
+            false,
+          );
+        }
       }
-      lastTypingTime = 0;
       return;
     }
 
@@ -1002,7 +881,38 @@ export const ChatArea: React.FC<{
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEmojiCompletion = () => {
+    if (!inputRef.current) return;
+
+    const result = emojiCompletion.handleEmojiCompletion(
+      messageText,
+      cursorPosition,
+    );
+
+    if (result) {
+      setMessageText(result.newText);
+      setCursorPosition(result.newCursorPosition);
+
+      // Show dropdown when there are any matches available
+      const shouldShow = emojiCompletion.matches.length > 0;
+      setShowEmojiAutocomplete(shouldShow);
+
+      // Update input cursor position
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            result.newCursorPosition,
+            result.newCursorPosition,
+          );
+        }
+      }, 0);
+    } else {
+      // No completion result, hide dropdown
+      setShowEmojiAutocomplete(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     const newCursorPosition = e.target.selectionStart || 0;
 
@@ -1010,17 +920,33 @@ export const ChatArea: React.FC<{
     setCursorPosition(newCursorPosition);
     handleUpdatedText(newText);
 
+    // Exit history mode if user starts typing
+    messageHistory.exitHistory();
+
+    // Auto-resize textarea
+    const textarea = e.target;
+    textarea.style.height = "auto";
+    const scrollHeight = textarea.scrollHeight;
+    const maxHeight = 128; // 8 lines (16px line height * 8)
+    textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+
     // Reset tab completion if text changed from non-tab input
     if (tabCompletion.isActive) {
       tabCompletion.resetCompletion();
     }
 
+    // Reset emoji completion if text changed from non-tab input
+    if (emojiCompletion.isActive) {
+      emojiCompletion.resetCompletion();
+    }
+
     // Hide autocomplete when typing (only show on Tab completion)
     setShowAutocomplete(false);
+    setShowEmojiAutocomplete(false);
   };
 
-  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
-    const target = e.target as HTMLInputElement;
+  const handleInputClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
     const newCursorPos = target.selectionStart || 0;
     setCursorPosition(newCursorPos);
   };
@@ -1090,6 +1016,85 @@ export const ChatArea: React.FC<{
     tabCompletion.resetCompletion();
   };
 
+  const handleEmojiAutocompleteSelect = (emoji: string) => {
+    if (emojiCompletion.isActive) {
+      // Use emoji completion state for accurate replacement
+      const newText =
+        emojiCompletion.originalText.substring(
+          0,
+          emojiCompletion.completionStart,
+        ) +
+        emoji +
+        emojiCompletion.originalText.substring(
+          emojiCompletion.completionStart +
+            emojiCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition = emojiCompletion.completionStart + emoji.length;
+      setCursorPosition(newCursorPosition);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+
+    setShowEmojiAutocomplete(false);
+    emojiCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteClose = () => {
+    setShowEmojiAutocomplete(false);
+    emojiCompletion.resetCompletion();
+  };
+
+  const handleEmojiAutocompleteNavigate = (emoji: string) => {
+    if (emojiCompletion.isActive) {
+      // Find the index of the selected emoji to sync state
+      const selectedIndex = emojiCompletion.matches.findIndex(
+        (match) => match.emoji === emoji,
+      );
+      if (selectedIndex !== -1) {
+        emojiCompletion.setCurrentIndex(selectedIndex);
+      }
+
+      // Update text in real-time like Tab completion does
+      const newText =
+        emojiCompletion.originalText.substring(
+          0,
+          emojiCompletion.completionStart,
+        ) +
+        emoji +
+        emojiCompletion.originalText.substring(
+          emojiCompletion.completionStart +
+            emojiCompletion.originalPrefix.length,
+        );
+
+      setMessageText(newText);
+      const newCursorPosition = emojiCompletion.completionStart + emoji.length;
+      setCursorPosition(newCursorPosition);
+
+      // Update the hook's internal previousTextRef to prevent reset on next tab
+      emojiCompletion.updatePreviousText(newText);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(
+            newCursorPosition,
+            newCursorPosition,
+          );
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
+
   const handleAutocompleteClose = () => {
     setShowAutocomplete(false);
     tabCompletion.resetCompletion();
@@ -1128,57 +1133,26 @@ export const ChatArea: React.FC<{
     }
   };
 
-  const handleInputKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Skip if it was Tab key (handled by keyDown)
     if (e.key === "Tab") return;
 
-    const target = e.target as HTMLInputElement;
+    const target = e.target as HTMLTextAreaElement;
     const newCursorPos = target.selectionStart || 0;
     setCursorPosition(newCursorPos);
   };
 
   const handleUpdatedText = (text: string) => {
-    if (text.length > 0 && text[0] !== "/") {
-      const server = useStore
-        .getState()
-        .servers.find((s) => s.id === selectedServerId);
-      if (!server) return;
-
-      // Handle both channels and private chats
-      const channel = server.channels.find((c) => c.id === selectedChannelId);
-      const privateChat = server.privateChats?.find(
-        (pc) => pc.id === selectedPrivateChatId,
-      );
-      const target = channel?.name ?? privateChat?.username;
-
-      if (!target) return;
-
-      const currentTime = Date.now();
-      if (currentTime - lastTypingTime < 5000) return;
-
-      lastTypingTime = currentTime;
-      // Send typing active notification
-      if (target) {
-        ircClient.sendTyping(selectedServerId ?? "", target, true);
-      }
-    } else if (text.length === 0) {
-      // Send typing done notification
-      if (selectedChannel?.name || selectedPrivateChat?.username) {
-        const target = selectedChannel?.name || selectedPrivateChat?.username;
-        ircClient.sendTyping(
-          selectedServerId as string,
-          target as string,
-          false,
-        );
-      }
-      lastTypingTime = 0;
-    }
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+    if (!target) return;
+    typingNotification.notifyTyping(target, text);
   };
 
   const handleUsernameClick = (
     e: React.MouseEvent,
     username: string,
     serverId: string,
+    channelId: string,
     avatarElement?: Element | null,
   ) => {
     e.preventDefault();
@@ -1199,12 +1173,36 @@ export const ChatArea: React.FC<{
       y = rect.top - 5; // Position above the avatar with small gap
     }
 
+    // Calculate user's status in the specific channel
+    let userStatusInChannel: string | undefined;
+    if (channelId && channelId !== "server-notices") {
+      const selectedServer = servers.find((s) => s.id === serverId);
+      const channel = selectedServer?.channels.find((c) => c.id === channelId);
+      if (channel && currentUser) {
+        const serverCurrentUser = ircClient.getCurrentUser(serverId);
+        const userInChannel =
+          channel.users.find(
+            (u) =>
+              u.username.toLowerCase() ===
+              serverCurrentUser?.username.toLowerCase(),
+          ) ||
+          selectedServer?.users.find(
+            (u) =>
+              u.username.toLowerCase() ===
+              serverCurrentUser?.username.toLowerCase(),
+          );
+        userStatusInChannel = userInChannel?.status;
+      }
+    }
+
     setUserContextMenu({
       isOpen: true,
       x,
       y,
       username,
       serverId,
+      channelId,
+      userStatusInChannel,
     });
   };
 
@@ -1215,90 +1213,188 @@ export const ChatArea: React.FC<{
       y: 0,
       username: "",
       serverId: "",
+      channelId: "",
     });
   };
 
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
+      // Find and select the private chat
+      const server = servers.find((s) => s.id === selectedServerId);
+      const privateChat = server?.privateChats?.find(
+        (pc) => pc.username === username,
+      );
+      if (privateChat) {
+        selectPrivateChat(privateChat.id);
+      }
     }
   };
 
+  const handleOpenProfile = (username: string) => {
+    setSelectedProfileUsername(username);
+    setUserProfileModalOpen(true);
+  };
+
+  // Server notices popup drag handlers
+  const handleServerNoticesMouseDown = (e: React.MouseEvent) => {
+    setIsDraggingServerNotices(true);
+    setServerNoticesDragStart({
+      x: e.clientX - serverNoticesPopupPosition.x,
+      y: e.clientY - serverNoticesPopupPosition.y,
+    });
+  };
+
+  const handleServerNoticesMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingServerNotices) return;
+
+      const newX = e.clientX - serverNoticesDragStart.x;
+      const newY = e.clientY - serverNoticesDragStart.y;
+
+      // Constrain to viewport bounds (with some margin)
+      const maxX = window.innerWidth - 620; // 600px width + 20px margin
+      const maxY = window.innerHeight - 520; // 500px height + 20px margin
+
+      setServerNoticesPopupPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY)),
+      });
+    },
+    [isDraggingServerNotices, serverNoticesDragStart],
+  );
+
+  const handleServerNoticesMouseUp = useCallback(() => {
+    setIsDraggingServerNotices(false);
+  }, []);
+
+  // Server notices popup drag effect
+  useEffect(() => {
+    if (isDraggingServerNotices) {
+      document.addEventListener("mousemove", handleServerNoticesMouseMove);
+      document.addEventListener("mouseup", handleServerNoticesMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleServerNoticesMouseMove);
+      document.removeEventListener("mouseup", handleServerNoticesMouseUp);
+    };
+  }, [
+    isDraggingServerNotices,
+    handleServerNoticesMouseMove,
+    handleServerNoticesMouseUp,
+  ]);
+
   const handleReactClick = (message: MessageType, buttonElement: Element) => {
-    setReactionModal({
-      isOpen: true,
-      message,
-    });
+    openReactionModal(message);
   };
 
-  const handleCloseReactionModal = () => {
-    setReactionModal({
+  const handleCloseModerationModal = () => {
+    setModerationModal({
       isOpen: false,
-      message: null,
+      action: "warn",
+      username: "",
     });
   };
 
-  const handleReactionSelect = (emoji: string) => {
-    if (reactionModal.message?.msgid) {
-      const server = servers.find(
-        (s) => s.id === reactionModal.message?.serverId,
-      );
-      const channel = server?.channels.find(
-        (c) => c.id === reactionModal.message?.channelId,
-      );
-      if (server && channel) {
-        // Check if user has already reacted with this emoji
-        const existingReaction = reactionModal.message.reactions.find(
-          (r) => r.emoji === emoji && r.userId === currentUser?.username,
-        );
+  const handleModerationConfirm = (
+    action: ModerationAction,
+    reason: string,
+  ) => {
+    const { username } = moderationModal;
+    switch (action) {
+      case "warn":
+        if (selectedServerId && selectedChannel?.name) {
+          warnUser(selectedServerId, selectedChannel.name, username, reason);
+        }
+        break;
+      case "kick":
+        if (selectedServerId && selectedChannel?.name) {
+          kickUser(selectedServerId, selectedChannel.name, username, reason);
+        }
+        break;
+      case "ban-nick":
+        if (selectedServerId && selectedChannel?.name) {
+          banUserByNick(
+            selectedServerId,
+            selectedChannel.name,
+            username,
+            reason,
+          );
+        }
+        break;
+      case "ban-hostmask":
+        if (selectedServerId && selectedChannel?.name) {
+          banUserByHostmask(
+            selectedServerId,
+            selectedChannel.name,
+            username,
+            reason,
+          );
+        }
+        break;
+    }
+    handleCloseModerationModal();
+  };
 
-        if (existingReaction) {
-          // Send unreact message
-          const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
-          ircClient.sendRaw(server.id, tagMsg);
+  const handleRedactMessage = (message: MessageType) => {
+    if (message.msgid && selectedServerId) {
+      const confirmed = window.confirm(
+        "Are you sure you want to delete this message? This action cannot be undone.",
+      );
+      if (confirmed) {
+        const server = servers.find((s) => s.id === selectedServerId);
+        if (!server) return;
+
+        let target: string | undefined;
+        if (message.channelId) {
+          const channel = server.channels.find(
+            (c) => c.id === message.channelId,
+          );
+          target = channel?.name;
         } else {
-          // Send react message
-          const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${channel.name}`;
-          ircClient.sendRaw(server.id, tagMsg);
+          // Private message, find by userId
+          const privateChat = server.privateChats?.find(
+            (pc) => pc.username === message.userId.split("-")[0],
+          );
+          target = privateChat?.username;
+        }
+
+        if (target) {
+          redactMessage(selectedServerId, target, message.msgid);
         }
       }
     }
-    handleCloseReactionModal();
   };
 
-  const handleReactionUnreact = (emoji: string, message: MessageType) => {
-    if (message.msgid && selectedServerId) {
-      const server = servers.find((s) => s.id === selectedServerId);
-      const channel = server?.channels.find((c) => c.id === message.channelId);
-      if (server && channel) {
-        const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${message.msgid} TAGMSG ${channel.name}`;
-        ircClient.sendRaw(server.id, tagMsg);
-      }
-    }
-  };
-
-  const handleOpenReactionModal = (
-    message: MessageType,
-    position: { x: number; y: number },
-  ) => {
-    setReactionModal({
-      isOpen: true,
-      message,
-    });
-  };
-
-  const handleEmojiSelect = (emoji: string) => {
-    setMessageText((prev) => prev + emoji);
+  const handleEmojiSelect = (emojiData: EmojiClickData) => {
+    setMessageText((prev) => prev + emojiData.emoji);
     setIsEmojiSelectorOpen(false);
   };
 
-  const handleColorSelect = (color: string, formatting: string[]) => {
-    setSelectedColor(color);
-    setSelectedFormatting(formatting);
-    setIsColorPickerOpen(false);
+  const handleEmojiModalBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setIsEmojiSelectorOpen(false);
+    }
   };
 
-  const toggleFormatting = (format: string) => {
+  const handleAtButtonClick = () => {
+    setShowMembersDropdown((prev) => {
+      const newValue = !prev;
+      // Close other dropdowns when opening members dropdown
+      if (newValue) {
+        setShowAutocomplete(false);
+        setShowEmojiAutocomplete(false);
+        setIsEmojiSelectorOpen(false);
+        setIsColorPickerOpen(false);
+        emojiCompletion.resetCompletion();
+        tabCompletion.resetCompletion();
+      }
+      return newValue;
+    });
+  };
+
+  const toggleFormatting = (format: FormattingType) => {
     setSelectedFormatting((prev) =>
       prev.includes(format)
         ? prev.filter((f) => f !== format)
@@ -1306,192 +1402,220 @@ export const ChatArea: React.FC<{
     );
   };
 
-  const isNarrowView = useMediaQuery();
-
   // Focus input on channel change
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Only focus when channel changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Only focus when private chat changes
   useEffect(() => {
     if ("__TAURI__" in window && ["android", "ios"].includes(platform()))
       return;
+    // Don't steal focus if any modal is open
+    if (
+      isSettingsModalOpen ||
+      isUserProfileModalOpen ||
+      isAddServerModalOpen ||
+      isChannelListModalOpen ||
+      isChannelRenameModalOpen
+    )
+      return;
     inputRef.current?.focus();
-  });
+  }, [
+    selectedChannelId,
+    selectedPrivateChatId,
+    isSettingsModalOpen,
+    isUserProfileModalOpen,
+    isAddServerModalOpen,
+    isChannelListModalOpen,
+    isChannelRenameModalOpen,
+  ]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Channel header */}
-      <div className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm">
-        <div className="flex items-center">
-          {!isChanListVisible && (
-            <button
-              onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white mr-4"
-              aria-label="Expand channel list"
-            >
-              {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
-            </button>
-          )}
-          {selectedChannel && (
-            <>
-              <FaHashtag className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">
-                {selectedChannel.name.replace(/^#/, "")}
-              </h2>
-            </>
-          )}
-          {selectedPrivateChat && (
-            <>
-              <FaAt className="text-discord-text-muted mr-2" />
-              <h2 className="font-bold text-white mr-4">
-                {selectedPrivateChat.username}
-              </h2>
-            </>
-          )}
-          {selectedChannel?.topic && (
-            <>
-              <div className="mx-2 text-discord-text-muted">|</div>
-              <div className="text-discord-text-muted text-sm truncate max-w-xs">
-                {selectedChannel.topic}
-              </div>
-            </>
-          )}
-        </div>
-        {!!selectedServerId && (
-          <div className="flex items-center gap-4 text-discord-text-muted">
-            <button className="hover:text-discord-text-normal">
-              <FaBell />
-            </button>
-            <button className="hover:text-discord-text-normal">
-              <FaPenAlt />
-            </button>
-            <button className="hover:text-discord-text-normal">
-              <FaUserPlus />
-            </button>
-            {/* Only show member list toggle for channels, not private chats */}
-            {selectedChannel && (
-              <button
-                className="hover:text-discord-text-normal"
-                onClick={() => toggleMemberList(!isMemberListVisible)}
-                aria-label={
-                  isMemberListVisible
-                    ? "Collapse member list"
-                    : "Expand member list"
-                }
-                data-testid="toggle-member-list"
-              >
-                {isMemberListVisible ? (
-                  <UsersIcon className="w-4 h-4 text-white" />
-                ) : (
-                  <UsersIcon className="w-4 h-4 text-gray" />
-                )}
-              </button>
-            )}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-              />
-              <FaSearch className="absolute right-2 top-1.5 text-xs" />
-            </div>
-          </div>
-        )}
-      </div>
+      <ChatHeader
+        selectedChannel={selectedChannel ?? null}
+        selectedPrivateChat={selectedPrivateChat ?? null}
+        selectedServerId={selectedServerId}
+        selectedChannelId={selectedChannelId}
+        currentUser={currentUser}
+        isChanListVisible={isChanListVisible}
+        isMemberListVisible={isMemberListVisible}
+        isNarrowView={isNarrowView}
+        globalSettings={globalSettings}
+        searchQuery={searchQuery}
+        onToggleChanList={onToggleChanList}
+        onToggleMemberList={() => toggleMemberList(!isMemberListVisible)}
+        onSearchQueryChange={setSearchQuery}
+        onToggleNotificationVolume={handleToggleNotificationVolume}
+        onOpenChannelSettings={() => setChannelSettingsModalOpen(true)}
+        onOpenInviteUser={() => setInviteUserModalOpen(true)}
+      />
 
       {/* Messages area */}
-      {selectedServer && !selectedChannel && !selectedPrivateChat && (
-        <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
-          <BlankPage /> {/* Render the blank page */}
-        </div>
-      )}
-      {(selectedChannel || selectedPrivateChat) && (
+      {selectedServer &&
+        !selectedChannel &&
+        !selectedPrivateChat &&
+        selectedChannelId !== "server-notices" && (
+          <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
+            <BlankPage /> {/* Render the blank page */}
+          </div>
+        )}
+      {(selectedChannel ||
+        selectedPrivateChat ||
+        selectedChannelId === "server-notices") && (
         <div
           ref={messagesContainerRef}
-          className="flex-grow overflow-y-auto flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+          className="flex-grow overflow-y-auto overflow-x-hidden flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
         >
-          {channelMessages.map((message, index) => {
-            const previousMessage = channelMessages[index - 1];
-            const showHeader =
-              !previousMessage ||
-              previousMessage.userId !== message.userId ||
-              new Date(message.timestamp).getTime() -
-                new Date(previousMessage.timestamp).getTime() >
-                5 * 60 * 1000;
-
-            return (
-              <MessageItem
-                key={message.id}
-                message={message}
-                showDate={
-                  index === 0 ||
-                  new Date(message.timestamp).toDateString() !==
-                    new Date(
-                      channelMessages[index - 1]?.timestamp,
-                    ).toDateString()
-                }
-                showHeader={showHeader}
-                setReplyTo={setLocalReplyTo}
-                onUsernameContextMenu={(e, username, serverId, avatarElement) =>
-                  handleUsernameClick(e, username, serverId, avatarElement)
-                }
-                onIrcLinkClick={handleIrcLinkClick}
-                onReactClick={handleReactClick}
-                selectedServerId={selectedServerId}
-                onReactionUnreact={handleReactionUnreact}
-                onOpenReactionModal={handleOpenReactionModal}
-                users={selectedChannel?.users || []}
+          {selectedChannel?.isLoadingHistory ? (
+            // Show loading spinner when channel is loading history
+            <div className="flex-grow flex items-center justify-center">
+              <LoadingSpinner
+                size="lg"
+                text="Loading chat history..."
+                className="text-discord-text-muted"
               />
-            );
-          })}
+            </div>
+          ) : (
+            // Show messages when not loading
+            <>
+              {/* View older messages button */}
+              {hasMoreMessages && !searchQuery && (
+                <div className="flex justify-center py-4">
+                  <button
+                    onClick={() => setVisibleMessageCount((prev) => prev + 100)}
+                    className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
+                  >
+                    View older messages (
+                    {filteredMessages.length - displayedMessages.length} hidden)
+                  </button>
+                </div>
+              )}
+              {/* Search results indicator */}
+              {searchQuery && (
+                <div className="flex justify-center py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
+                  Found {filteredMessages.length} message
+                  {filteredMessages.length === 1 ? "" : "s"} matching "
+                  {searchQuery}"
+                </div>
+              )}
+              {eventGroups.map((group) => {
+                if (group.type === "eventGroup") {
+                  // Create a stable key from the first and last message IDs in the group
+                  const firstId = group.messages[0]?.id || "";
+                  const lastId =
+                    group.messages[group.messages.length - 1]?.id || "";
+                  const groupKey = `group-${firstId}-${lastId}`;
+
+                  return (
+                    <CollapsedEventMessage
+                      key={groupKey}
+                      eventGroup={group}
+                      users={selectedChannel?.users || []}
+                      onUsernameContextMenu={(
+                        e,
+                        username,
+                        serverId,
+                        channelId,
+                        avatarElement,
+                      ) =>
+                        handleUsernameClick(
+                          e,
+                          username,
+                          serverId,
+                          channelId,
+                          avatarElement,
+                        )
+                      }
+                    />
+                  );
+                }
+                // Single message - find its original index for date/header logic
+                const message = group.messages[0];
+                const originalIndex = channelMessages.findIndex(
+                  (m) => m.id === message.id,
+                );
+                const previousMessage = channelMessages[originalIndex - 1];
+                const showHeader =
+                  !previousMessage ||
+                  previousMessage.userId !== message.userId ||
+                  new Date(message.timestamp).getTime() -
+                    new Date(previousMessage.timestamp).getTime() >
+                    5 * 60 * 1000;
+
+                return (
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    showDate={
+                      originalIndex === 0 ||
+                      new Date(message.timestamp).toDateString() !==
+                        new Date(
+                          channelMessages[originalIndex - 1]?.timestamp,
+                        ).toDateString()
+                    }
+                    showHeader={showHeader}
+                    setReplyTo={handleSetReplyTo}
+                    onUsernameContextMenu={(
+                      e,
+                      username,
+                      serverId,
+                      channelId,
+                      avatarElement,
+                    ) =>
+                      handleUsernameClick(
+                        e,
+                        username,
+                        serverId,
+                        channelId,
+                        avatarElement,
+                      )
+                    }
+                    onIrcLinkClick={handleIrcLinkClick}
+                    onReactClick={handleReactClick}
+                    joinChannel={joinChannel}
+                    onReactionUnreact={unreact}
+                    onOpenReactionModal={openReactionModal}
+                    onDirectReaction={directReaction}
+                    serverId={selectedServerId || ""}
+                    channelId={selectedChannelId || undefined}
+                    onRedactMessage={handleRedactMessage}
+                    onOpenProfile={handleOpenProfile}
+                  />
+                );
+              })}
+            </>
+          )}
 
           <div ref={messagesEndRef} />
         </div>
       )}
       {!selectedServer && <DiscoverGrid />}
       {/* Scroll to bottom button */}
-      {isScrolledUp && (
-        <div className="relative bottom-10 z-50">
-          <div className="absolute right-4">
-            <button
-              onClick={scrollDown}
-              className="bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full p-2 shadow-lg transition-all"
-              aria-label="Scroll to bottom"
-            >
-              <FaArrowDown className="text-white" />
-            </button>
-          </div>
-        </div>
-      )}
+      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollDown} />
 
       {/* Input area */}
       {(selectedChannel || selectedPrivateChat) && (
         <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
-          <OptionsDropdown
-            isOpen={isEmojiSelectorOpen}
-            onClose={() => setIsEmojiSelectorOpen(false)}
-          />
           <TypingIndicator
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId || selectedPrivateChatId || ""}
           />
-          <div className="bg-discord-dark-100 rounded-lg flex items-center">
-            <button className="px-4 text-discord-text-muted hover:text-discord-text-normal">
+          <div className="bg-discord-dark-100 rounded-lg flex items-center relative">
+            <button
+              className="px-4 text-discord-text-muted hover:text-discord-text-normal"
+              onClick={() => setShowPlusMenu((prev) => !prev)}
+            >
               <FaPlus />
             </button>
+
             {localReplyTo && (
-              <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 flex items-center h-8 px-2">
-                <span className="flex-grow text-center">
-                  Replying to <strong>{localReplyTo.userId}</strong>
-                </span>
-                <button
-                  className="ml-2 text-xs text-discord-text-muted hover:text-discord-text-normal"
-                  onClick={() => setLocalReplyTo(null)}
-                >
-                  <FaTimes />
-                </button>
-              </div>
+              <ReplyBadge
+                replyTo={localReplyTo}
+                onClose={() => setLocalReplyTo(null)}
+              />
             )}
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
               value={messageText}
               onChange={handleInputChange}
               onClick={handleInputClick}
@@ -1499,61 +1623,113 @@ export const ChatArea: React.FC<{
               onKeyDown={handleKeyDown}
               placeholder={
                 selectedChannel
-                  ? `Message #${selectedChannel.name.replace(/^#/, "")}`
+                  ? `Message #${selectedChannel.name.replace(/^#/, "")}${
+                      globalSettings.enableMultilineInput && !isMobile
+                        ? globalSettings.multilineOnShiftEnter
+                          ? " (Shift+Enter for new line)"
+                          : " (Enter for new line, Shift+Enter to send)"
+                        : ""
+                    }`
                   : selectedPrivateChat
-                    ? `Message @${selectedPrivateChat.username}`
+                    ? `Message @${selectedPrivateChat.username}${
+                        globalSettings.enableMultilineInput && !isMobile
+                          ? globalSettings.multilineOnShiftEnter
+                            ? " (Shift+Enter for new line)"
+                            : " (Enter for new line, Shift+Enter to send)"
+                          : ""
+                      }`
                     : "Type a message..."
               }
-              className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal"
-              style={{
+              className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-32 overflow-y-auto"
+              style={getPreviewStyles({
                 color: selectedColor || "inherit",
-                fontWeight: selectedFormatting.includes("bold")
-                  ? "bold"
-                  : "normal",
-                fontStyle: selectedFormatting.includes("italic")
-                  ? "italic"
-                  : "normal",
-                textDecoration: selectedFormatting.includes("underline")
-                  ? "underline"
-                  : selectedFormatting.includes("strikethrough")
-                    ? "line-through"
-                    : "none",
-                fontFamily: selectedFormatting.includes("monospace")
-                  ? "monospace"
-                  : "inherit",
-              }}
+                formatting: selectedFormatting,
+              })}
+              rows={1}
             />
-            <button
-              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => setIsEmojiSelectorOpen((prev) => !prev)}
-            >
-              <FaGrinAlt />
-            </button>
-            <button
-              className="px-3 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => setIsColorPickerOpen((prev) => !prev)}
-            >
-              <div
-                className="w-4 h-4 rounded-full border-2 border-white-700"
-                style={{
-                  backgroundColor:
-                    selectedColor === "inherit"
-                      ? "transparent"
-                      : (selectedColor ?? undefined),
-                }}
-              />
-            </button>
-            <button className="px-3 text-discord-text-muted hover:text-discord-text-normal">
-              <FaAt />
-            </button>
+            <InputToolbar
+              selectedColor={selectedColor}
+              onEmojiClick={() => {
+                setIsEmojiSelectorOpen((prev) => !prev);
+                setIsColorPickerOpen(false);
+                setShowMembersDropdown(false);
+              }}
+              onColorPickerClick={() => {
+                setIsColorPickerOpen((prev) => !prev);
+                setIsEmojiSelectorOpen(false);
+                setShowMembersDropdown(false);
+              }}
+              onAtClick={handleAtButtonClick}
+            />
           </div>
 
-          {isEmojiSelectorOpen && (
-            <EmojiSelector
-              onSelect={handleEmojiSelect}
-              onClose={() => setIsEmojiSelectorOpen(false)}
-            />
+          {/* Plus menu */}
+          {showPlusMenu && (
+            <div
+              className="plus-menu absolute bg-discord-dark-200 rounded-lg shadow-lg border border-discord-dark-300 min-w-48 z-50"
+              style={{
+                bottom: "calc(100% + 8px)",
+                left: "16px",
+              }}
+            >
+              {selectedServer?.filehost && (
+                <button
+                  className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
+                  onClick={() => {
+                    // Handle image selection for preview
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        // Create preview URL
+                        const previewUrl = URL.createObjectURL(file);
+                        setImagePreview({
+                          isOpen: true,
+                          file,
+                          previewUrl,
+                        });
+                      }
+                    };
+                    input.click();
+                    setShowPlusMenu(false);
+                  }}
+                >
+                  <FaPlus className="mr-2" />
+                  Upload Image
+                </button>
+              )}
+              <button
+                className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
+                onClick={() => {
+                  setIsGifSelectorOpen(true);
+                  setShowPlusMenu(false);
+                }}
+              >
+                <FaGift className="mr-2" />
+                Send a GIF
+              </button>
+              {/* Add more menu items here if needed */}
+            </div>
           )}
+
+          <EmojiPickerModal
+            isOpen={isEmojiSelectorOpen}
+            onEmojiClick={handleEmojiSelect}
+            onClose={() => setIsEmojiSelectorOpen(false)}
+            onBackdropClick={handleEmojiModalBackdropClick}
+          />
+
+          <GifSelector
+            isOpen={isGifSelectorOpen}
+            onClose={() => setIsGifSelectorOpen(false)}
+            onSelectGif={(gifUrl) => {
+              // Send the GIF URL directly to the channel
+              handleGifSend(gifUrl);
+              setIsGifSelectorOpen(false);
+            }}
+          />
 
           {isColorPickerOpen && (
             <ColorPicker
@@ -1589,6 +1765,50 @@ export const ChatArea: React.FC<{
             onNavigate={handleAutocompleteNavigate}
             inputElement={inputRef.current}
           />
+
+          <EmojiAutocompleteDropdown
+            isVisible={showEmojiAutocomplete || emojiCompletion.isActive}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            emojiMatches={emojiCompletion.matches}
+            currentMatchIndex={emojiCompletion.currentIndex}
+            onSelect={handleEmojiAutocompleteSelect}
+            onClose={handleEmojiAutocompleteClose}
+            onNavigate={handleEmojiAutocompleteNavigate}
+            inputElement={inputRef.current}
+          />
+
+          {/* Members dropdown triggered by @ button */}
+          <AutocompleteDropdown
+            users={
+              selectedChannel?.users ||
+              (selectedPrivateChat
+                ? [
+                    ...(currentUser ? [currentUser] : []),
+                    {
+                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                      username: selectedPrivateChat.username,
+                      isOnline: true,
+                    },
+                  ]
+                : [])
+            }
+            isVisible={showMembersDropdown}
+            inputValue={messageText}
+            cursorPosition={cursorPosition}
+            tabCompletionMatches={[]}
+            currentMatchIndex={-1}
+            onSelect={(username) => {
+              const isAtMessageStart = messageText.trim() === "";
+              const suffix = isAtMessageStart ? ": " : " ";
+              setMessageText((prev) => prev + username + suffix);
+              setShowMembersDropdown(false);
+            }}
+            onClose={() => setShowMembersDropdown(false)}
+            onNavigate={() => {}}
+            inputElement={inputRef.current}
+            isAtButtonTriggered={true}
+          />
         </div>
       )}
 
@@ -1598,15 +1818,188 @@ export const ChatArea: React.FC<{
         y={userContextMenu.y}
         username={userContextMenu.username}
         serverId={userContextMenu.serverId}
+        channelId={userContextMenu.channelId}
         onClose={handleCloseUserContextMenu}
         onOpenPM={handleOpenPM}
+        onOpenProfile={handleOpenProfile}
+        currentUserStatus={userContextMenu.userStatusInChannel}
+        currentUsername={
+          ircClient.getCurrentUser(userContextMenu.serverId)?.username
+        }
+        onOpenModerationModal={(action) => {
+          setModerationModal({
+            isOpen: true,
+            action,
+            username: userContextMenu.username,
+          });
+        }}
       />
 
       <ReactionModal
         isOpen={reactionModal.isOpen}
-        onClose={handleCloseReactionModal}
-        onSelectEmoji={handleReactionSelect}
+        onClose={closeReactionModal}
+        onSelectEmoji={selectReaction}
       />
+
+      <ModerationModal
+        isOpen={moderationModal.isOpen}
+        onClose={handleCloseModerationModal}
+        onConfirm={handleModerationConfirm}
+        username={moderationModal.username}
+        action={moderationModal.action}
+      />
+
+      {selectedChannel && (
+        <ChannelSettingsModal
+          isOpen={channelSettingsModalOpen}
+          onClose={() => setChannelSettingsModalOpen(false)}
+          serverId={selectedServerId || ""}
+          channelName={selectedChannel.name}
+        />
+      )}
+
+      {selectedChannel && selectedServerId && (
+        <InviteUserModal
+          isOpen={inviteUserModalOpen}
+          onClose={() => setInviteUserModalOpen(false)}
+          serverId={selectedServerId}
+          channelName={selectedChannel.name}
+        />
+      )}
+
+      {selectedServerId && (
+        <UserProfileModal
+          isOpen={userProfileModalOpen}
+          onClose={() => setUserProfileModalOpen(false)}
+          serverId={selectedServerId}
+          username={selectedProfileUsername}
+        />
+      )}
+
+      {/* Image Preview Dialog */}
+      <ImagePreviewModal
+        isOpen={imagePreview.isOpen}
+        file={imagePreview.file}
+        previewUrl={imagePreview.previewUrl}
+        onCancel={() => {
+          // Clean up preview URL
+          if (imagePreview.previewUrl) {
+            URL.revokeObjectURL(imagePreview.previewUrl);
+          }
+          setImagePreview({
+            isOpen: false,
+            file: null,
+            previewUrl: null,
+          });
+        }}
+        onUpload={() => {
+          if (imagePreview.file) {
+            handleImageUpload(imagePreview.file);
+          }
+          // Clean up preview URL
+          if (imagePreview.previewUrl) {
+            URL.revokeObjectURL(imagePreview.previewUrl);
+          }
+          setImagePreview({
+            isOpen: false,
+            file: null,
+            previewUrl: null,
+          });
+        }}
+      />
+
+      {/* Popped out server notices window */}
+      {isServerNoticesPoppedOut &&
+        createPortal(
+          <div
+            className="fixed w-[600px] h-[500px] bg-discord-dark-200 border border-discord-dark-400 rounded-lg shadow-xl z-[10002] flex flex-col"
+            style={{
+              left: serverNoticesPopupPosition.x,
+              top: serverNoticesPopupPosition.y,
+            }}
+          >
+            <div
+              className="h-12 min-h-[48px] px-4 border-b border-discord-dark-400 flex items-center justify-between shadow-sm bg-discord-dark-400 cursor-move"
+              onMouseDown={handleServerNoticesMouseDown}
+            >
+              <div className="flex items-center">
+                <FaList className="text-discord-text-muted mr-2" />
+                <h2 className="font-bold text-white">Server Notices</h2>
+              </div>
+              <button
+                className="text-discord-text-muted hover:text-discord-text-normal"
+                onClick={() => setIsServerNoticesPoppedOut(false)}
+                title="Close popped out server notices"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div
+              ref={serverNoticesScrollRef}
+              onScroll={handleServerNoticesScroll}
+              className="flex-grow overflow-y-auto p-4 space-y-2"
+            >
+              {(
+                messages[
+                  selectedServerId ? `${selectedServerId}-server-notices` : ""
+                ] || []
+              )
+                .filter((msg: MessageType) => msg.type === "notice")
+                .slice(-50) // Show last 50 messages
+                .map(
+                  (message: MessageType, index: number, arr: MessageType[]) => {
+                    const previousMessage = arr[index - 1];
+                    const showHeader =
+                      !previousMessage ||
+                      previousMessage.userId !== message.userId ||
+                      new Date(message.timestamp).getTime() -
+                        new Date(previousMessage.timestamp).getTime() >
+                        5 * 60 * 1000;
+
+                    return (
+                      <MessageItem
+                        key={message.id}
+                        message={message}
+                        showDate={
+                          index === 0 ||
+                          new Date(message.timestamp).toDateString() !==
+                            new Date(previousMessage?.timestamp).toDateString()
+                        }
+                        showHeader={showHeader}
+                        setReplyTo={setLocalReplyTo}
+                        onUsernameContextMenu={(
+                          e,
+                          username,
+                          serverId,
+                          channelId,
+                          avatarElement,
+                        ) =>
+                          handleUsernameClick(
+                            e,
+                            username,
+                            serverId,
+                            channelId,
+                            avatarElement,
+                          )
+                        }
+                        onIrcLinkClick={handleIrcLinkClick}
+                        onReactClick={handleReactClick}
+                        joinChannel={joinChannel}
+                        onReactionUnreact={unreact}
+                        onOpenReactionModal={openReactionModal}
+                        onDirectReaction={directReaction}
+                        serverId={selectedServerId || ""}
+                        channelId={undefined}
+                        onRedactMessage={handleRedactMessage}
+                        onOpenProfile={handleOpenProfile}
+                      />
+                    );
+                  },
+                )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

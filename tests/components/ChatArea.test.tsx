@@ -11,6 +11,8 @@ vi.mock("../../src/lib/ircClient", () => ({
     sendRaw: vi.fn(),
     sendTyping: vi.fn(),
     on: vi.fn(),
+    getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
+    getNick: vi.fn(() => "tester"),
     version: "1.0.0",
   },
 }));
@@ -61,15 +63,24 @@ describe("ChatArea Tab Completion Integration", () => {
       currentUser: { id: "user1", username: "testuser", isOnline: true },
       ui: {
         selectedServerId: "server1",
-        selectedChannelId: "channel1",
-        selectedPrivateChatId: null,
+        perServerSelections: {
+          server1: {
+            selectedChannelId: "channel1",
+            selectedPrivateChatId: null,
+          },
+        },
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,
+        isEditServerModalOpen: false,
+        editServerId: null,
         isSettingsModalOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
+        isChannelListModalOpen: false,
+        isChannelRenameModalOpen: false,
+        linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
         contextMenu: {
@@ -80,6 +91,11 @@ describe("ChatArea Tab Completion Integration", () => {
           itemId: null,
         },
         prefillServerDetails: null,
+        inputAttachments: [],
+        // Server notices popup state
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
       },
       messages: {},
       typingUsers: {},

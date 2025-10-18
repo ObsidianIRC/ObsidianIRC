@@ -9,10 +9,11 @@ interface AutocompleteDropdownProps {
   cursorPosition: number;
   onSelect: (username: string) => void;
   onClose: () => void;
-  inputElement?: HTMLInputElement | null;
+  inputElement?: HTMLInputElement | HTMLTextAreaElement | null;
   tabCompletionMatches?: string[];
   currentMatchIndex?: number;
   onNavigate?: (username: string) => void;
+  isAtButtonTriggered?: boolean;
 }
 
 export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
@@ -26,6 +27,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   tabCompletionMatches = [],
   currentMatchIndex = 0,
   onNavigate,
+  isAtButtonTriggered = false,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -37,6 +39,13 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   };
 
   const getDisplayUsers = () => {
+    // If triggered by @ button, show all users
+    if (isAtButtonTriggered) {
+      return users
+        .sort((a, b) => a.username.localeCompare(b.username))
+        .slice(0, 20); // Show up to 20 users for @ button
+    }
+
     if (tabCompletionMatches.length > 0) {
       return tabCompletionMatches
         .map((match) => {
@@ -124,6 +133,22 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, [isVisible, displayUsers, selectedIndex, onClose, onNavigate, onSelect]);
 
+  useEffect(() => {
+    if (!isVisible || !isAtButtonTriggered) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isVisible, isAtButtonTriggered, onClose]);
+
   if (!isVisible || displayUsers.length === 0) {
     return null;
   }
@@ -147,11 +172,17 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   return (
     <div
       ref={dropdownRef}
-      className="fixed z-[9999] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl max-w-xs min-w-48"
-      style={{
-        top: position.top,
-        left: position.left,
-      }}
+      className={`z-[9999] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl max-w-xs min-w-48 ${
+        isAtButtonTriggered ? "absolute bottom-16 right-4" : "fixed"
+      }`}
+      style={
+        isAtButtonTriggered
+          ? {}
+          : {
+              top: position.top,
+              left: position.left,
+            }
+      }
     >
       <div className="py-1 max-h-60 overflow-y-auto">
         <div className="px-3 py-1 text-xs text-discord-text-muted font-semibold uppercase tracking-wide border-b border-discord-dark-500">

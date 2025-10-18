@@ -3,6 +3,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
+import { GlobalNotifications } from "../ui/GlobalNotifications";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
@@ -11,20 +12,26 @@ import { ServerList } from "./ServerList";
 
 export const AppLayout: React.FC = () => {
   const {
-    ui: {
-      isDarkMode,
-      isMobileMenuOpen,
-      isMemberListVisible,
-      isChannelListVisible,
-      mobileViewActiveColumn,
-      selectedServerId,
-      selectedPrivateChatId,
-    },
+    ui,
     toggleMobileMenu,
     toggleMemberList,
     toggleChannelList,
     setMobileViewActiveColumn,
   } = useStore();
+
+  const selectedServerId = ui.selectedServerId;
+  const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
+    selectedChannelId: null,
+    selectedPrivateChatId: null,
+  };
+  const { selectedPrivateChatId } = currentSelection;
+  const {
+    isDarkMode,
+    isMobileMenuOpen,
+    isMemberListVisible,
+    isChannelListVisible,
+    mobileViewActiveColumn,
+  } = ui;
 
   // Hide member list for private chats
   const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
@@ -68,7 +75,15 @@ export const AppLayout: React.FC = () => {
         return (
           <>
             {__HIDE_SERVER_LIST__ ? null : (
-              <div className="server-list flex-shrink-0 w-[72px] h-full bg-discord-dark-300 z-30">
+              <div
+                className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${
+                  isNarrowView && mobileViewActiveColumn === "serverList"
+                    ? "w-[72px]"
+                    : isNarrowView
+                      ? "w-0"
+                      : "w-[72px]"
+                }`}
+              >
                 <ServerList />
               </div>
             )}
@@ -76,16 +91,14 @@ export const AppLayout: React.FC = () => {
             <ResizableSidebar
               bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
               isVisible={isChannelListVisible}
-              defaultWidth={200}
+              defaultWidth={264}
               minWidth={80}
               maxWidth={400}
               side="left"
               onMinReached={() => toggleChannelList(false)}
             >
               <div
-                className={
-                  "channel-list w-full h-full bg-discord-dark-100 md:block z-20"
-                }
+                className={`channel-list ${isNarrowView ? "w-[calc(100vw-72px)]" : "w-full"} h-full bg-discord-dark-100 md:block z-20`}
               >
                 <ChannelList
                   onToggle={() => {
@@ -112,7 +125,7 @@ export const AppLayout: React.FC = () => {
           <ResizableSidebar
             bypass={isNarrowView && mobileViewActiveColumn === "memberList"}
             isVisible={shouldShowMemberList}
-            defaultWidth={240}
+            defaultWidth={280}
             minWidth={80}
             maxWidth={400}
             side="right"
@@ -160,7 +173,8 @@ export const AppLayout: React.FC = () => {
   }, [isTooNarrowForMemberList, toggleMemberList, isNarrowView]);
 
   const getLayoutColumn = (column: layoutColumn) => {
-    if (isNarrowView && column !== mobileViewActiveColumn) return;
+    // On mobile, only show the active column
+    if (isNarrowView && column !== mobileViewActiveColumn) return null;
     return getLayoutColumnElement(column);
   };
 
@@ -193,6 +207,7 @@ export const AppLayout: React.FC = () => {
       {getLayoutColumn("serverList")}
       {getLayoutColumn("chatView")}
       {selectedServerId && getLayoutColumn("memberList")}
+      <GlobalNotifications />
     </div>
   );
 };

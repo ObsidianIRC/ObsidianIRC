@@ -56,6 +56,19 @@ npm run tauri build -- --bundles dmg
 npm run tauri build -- --bundles appimage
 ```
 
+
+For distribution packages:
+```sh
+# Build .deb for Debian/Ubuntu
+npm run tauri build -- --bundles deb
+
+# Build .rpm for Fedora/RHEL
+npm run tauri build -- --bundles rpm
+
+# Build AppImage (recommended - works everywhere)
+npm run tauri build -- --bundles appimage
+```
+
 ### WINDOWS
 ```sh
 npm run build -- --bundles nsis

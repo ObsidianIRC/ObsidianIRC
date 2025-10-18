@@ -7,7 +7,7 @@ export function registerISupportHandler(
   useStore: typeof AppState,
 ) {
   ircClient.on("ISUPPORT", ({ serverId, key, value }) => {
-    if (key === "FAVICON") {
+    if (key === "FAVICON" || key === "ICON" || key === "draft/ICON") {
       const favicon = value;
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server: Server) => {
@@ -25,7 +25,7 @@ export function registerISupportHandler(
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server: Server) => {
           if (server.id === serverId) {
-            return { ...server, name: value };
+            return { ...server, networkName: value };
           }
           return server;
         });
@@ -40,6 +40,45 @@ export function registerISupportHandler(
         const updatedServers = state.servers.map((server: Server) => {
           if (server.id === serverId) {
             return { ...server, prefix };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+      return;
+    }
+
+    if (key === "BOT") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server: Server) => {
+          if (server.id === serverId) {
+            return { ...server, botMode: value };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+      return;
+    }
+
+    if (key === "FILEHOST" || key === "draft/FILEHOST") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server: Server) => {
+          if (server.id === serverId) {
+            return { ...server, filehost: value };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+      return;
+    }
+
+    if (key === "ELIST") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server: Server) => {
+          if (server.id === serverId) {
+            return { ...server, elist: value };
           }
           return server;
         });
