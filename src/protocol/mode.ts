@@ -42,13 +42,16 @@ function handleChannelMode(
   if (!channel) return;
 
   // Parse the modestring and apply mode changes
-  const changes = parseModestring(modestring, modeargs);
+  const changes = parseModestring(modestring, modeargs, server.chanmodes);
 
   // Apply the mode changes to users
   applyModeChanges(serverId, channel, changes, useStore);
 
   // Apply ban/exception/invite list changes
   applyListModeChanges(serverId, channel, sender, changes, useStore);
+
+  // Update channel modes
+  updateChannelModes(serverId, channel, changes, useStore);
 
   // Send notification message
   sendModeNotification(serverId, channel, sender, changes, useStore);
@@ -60,9 +63,21 @@ interface ModeChange {
   arg?: string;
 }
 
-function parseModestring(modestring: string, modeargs: string[]): ModeChange[] {
+function parseModestring(
+  modestring: string,
+  modeargs: string[],
+  chanmodes?: string,
+): ModeChange[] {
   const changes: ModeChange[] = [];
   let argIndex = 0;
+
+  // Parse CHANMODES to determine mode groups
+  // Format: A,B,C,D where A=always param, B=always param, C=param when set, D=never param
+  const modeGroups = chanmodes ? chanmodes.split(",") : [];
+  const groupA = modeGroups[0] || ""; // Always require param
+  const groupB = modeGroups[1] || ""; // Always require param
+  const groupC = modeGroups[2] || ""; // Require param only when setting
+  const groupD = modeGroups[3] || ""; // Never require param
 
   for (let i = 0; i < modestring.length; i++) {
     const char = modestring[i];
@@ -77,10 +92,18 @@ function parseModestring(modestring: string, modeargs: string[]): ModeChange[] {
         : "+";
     const mode = char;
 
-    // Check if this mode requires an argument
-    // For now, we'll assume modes like o, v, h, q, a, b, e, I require args
-    // This should be configurable based on CHANMODES ISUPPORT token
-    const requiresArg = "ovhqa bei".includes(mode);
+    // Determine if this mode requires an argument based on CHANMODES groups
+    let requiresArg = false;
+    if (groupA.includes(mode) || groupB.includes(mode)) {
+      requiresArg = true;
+    } else if (groupC.includes(mode)) {
+      requiresArg = action === "+";
+    } else if (groupD.includes(mode)) {
+      requiresArg = false;
+    } else {
+      // Fallback for modes not in CHANMODES (shouldn't happen with proper servers)
+      requiresArg = "ovhqa bei".includes(mode);
+    }
 
     const change: ModeChange = {
       mode,
@@ -156,6 +179,157 @@ function applyModeChanges(
 
     return { servers: updatedServers };
   });
+}
+
+function updateChannelModes(
+  serverId: string,
+  channel: Channel,
+  changes: ModeChange[],
+  useStore: typeof AppState,
+) {
+  // Only update if there are actual channel mode changes (not just user status changes)
+  const channelModeChanges = changes.filter(
+    (change) => !change.arg || !isUserStatusMode(change.mode),
+  );
+
+  if (channelModeChanges.length === 0) return;
+
+  // Get server for CHANMODES
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (!server) return;
+
+  useStore.setState((state) => {
+    const updatedServers = state.servers.map((server) => {
+      if (server.id !== serverId) return server;
+
+      const updatedChannels = server.channels.map((c) => {
+        if (c.name !== channel.name) return c;
+
+        // Parse current modes and modeArgs to get current state
+        const currentModesStr = c.modes || "";
+        const currentModeArgs = c.modeArgs || [];
+        const currentParsedModes = parseCurrentChannelModes(
+          currentModesStr,
+          currentModeArgs,
+          server.chanmodes,
+        );
+
+        // Apply changes to the parsed modes
+        const updatedParsedModes = { ...currentParsedModes };
+        channelModeChanges.forEach((change) => {
+          if (change.action === "+") {
+            updatedParsedModes[change.mode] = change.arg || null;
+          } else {
+            delete updatedParsedModes[change.mode];
+          }
+        });
+
+        // Generate new modes string and modeArgs array
+        const { modes: newModesStr, modeArgs: newModeArgs } =
+          generateModestringAndArgs(updatedParsedModes, server.chanmodes);
+
+        return { ...c, modes: newModesStr, modeArgs: newModeArgs };
+      });
+
+      return { ...server, channels: updatedChannels };
+    });
+
+    return { servers: updatedServers };
+  });
+}
+
+function isUserStatusMode(mode: string): boolean {
+  // Check if this is a user status mode (op, voice, etc.) that takes a nickname as argument
+  // These are handled separately and shouldn't affect channel.modes
+  return "ovhqa".includes(mode);
+}
+
+function parseCurrentChannelModes(
+  modestring: string,
+  modeargs: string[],
+  chanmodes?: string,
+): Record<string, string | null> {
+  // Parse CHANMODES to determine mode groups
+  const modeGroups = chanmodes ? chanmodes.split(",") : [];
+  const groupA = modeGroups[0] || ""; // Always require param
+  const groupB = modeGroups[1] || ""; // Always require param
+  const groupC = modeGroups[2] || ""; // Require param only when set
+  const groupD = modeGroups[3] || ""; // Never require param
+
+  const parsedModes: Record<string, string | null> = {};
+  let argIndex = 0;
+  let currentAction: "+" | "-" = "+";
+
+  // Parse the modestring as a MODE command, applying + and - to build final state
+  for (let i = 0; i < modestring.length; i++) {
+    const char = modestring[i];
+    if (char === "+" || char === "-") {
+      currentAction = char;
+      continue;
+    }
+
+    const mode = char;
+
+    // Determine if this mode should have a parameter
+    let hasParam = false;
+    if (groupA.includes(mode) || groupB.includes(mode)) {
+      hasParam = true;
+    } else if (groupC.includes(mode)) {
+      hasParam = currentAction === "+";
+    }
+
+    const param =
+      hasParam && argIndex < modeargs.length ? modeargs[argIndex++] : null;
+
+    if (currentAction === "+") {
+      parsedModes[mode] = param;
+    } else {
+      // Unsetting
+      delete parsedModes[mode];
+    }
+  }
+
+  return parsedModes;
+}
+
+function generateModestringAndArgs(
+  parsedModes: Record<string, string | null>,
+  chanmodes?: string,
+): { modes: string; modeArgs: string[] } {
+  // Parse CHANMODES to determine mode groups
+  const modeGroups = chanmodes ? chanmodes.split(",") : [];
+  const groupA = modeGroups[0] || ""; // Always require param
+  const groupB = modeGroups[1] || ""; // Always require param
+  const groupC = modeGroups[2] || ""; // Require param only when set
+  const groupD = modeGroups[3] || ""; // Never require param
+
+  const modeArgs: string[] = [];
+  let modestring = "+";
+
+  // Sort modes for consistency
+  const sortedModes = Object.keys(parsedModes).sort();
+
+  sortedModes.forEach((mode) => {
+    modestring += mode;
+
+    // Check if this mode should have a parameter
+    let hasParam = false;
+    if (groupA.includes(mode) || groupB.includes(mode)) {
+      hasParam = true;
+    } else if (groupC.includes(mode)) {
+      hasParam = true; // If it's set, it has a param
+    }
+
+    if (hasParam && parsedModes[mode] !== null) {
+      modeArgs.push(parsedModes[mode] as string);
+    }
+  });
+
+  return {
+    modes: modestring,
+    modeArgs,
+  };
 }
 
 function applyListModeChanges(
@@ -303,18 +477,34 @@ function sendModeNotification(
   changes: ModeChange[],
   useStore: typeof AppState,
 ) {
-  // Create a system message for the mode change
-  const modeText = changes
-    .map(
-      (change) =>
-        `${change.action}${change.mode}${change.arg ? ` ${change.arg}` : ""}`,
-    )
-    .join(" ");
+  // Group changes by action and reconstruct compact mode strings
+  const groupedChanges: { [action: string]: ModeChange[] } = {};
+  changes.forEach((change) => {
+    if (!groupedChanges[change.action]) {
+      groupedChanges[change.action] = [];
+    }
+    groupedChanges[change.action].push(change);
+  });
+
+  const modeParts: string[] = [];
+  Object.entries(groupedChanges).forEach(([action, actionChanges]) => {
+    let modeString = action;
+    const args: string[] = [];
+
+    actionChanges.forEach((change) => {
+      modeString += change.mode;
+      if (change.arg) {
+        args.push(change.arg);
+      }
+    });
+
+    modeParts.push(modeString + (args.length > 0 ? ` ${args.join(" ")}` : ""));
+  });
 
   const message: Message = {
     id: `mode-${Date.now()}-${Math.random()}`,
     type: "mode",
-    content: `sets mode: ${modeText}`,
+    content: `sets mode: ${modeParts.join(" ")}`,
     timestamp: new Date(),
     userId: sender,
     channelId: channel.id,
