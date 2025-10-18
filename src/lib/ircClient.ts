@@ -16,6 +16,7 @@ import {
   parseMessageTags,
   parseNamesResponse,
 } from "./ircUtils";
+import { createSocket, type ISocket } from "./socket";
 
 export interface EventMap {
   ready: BaseIRCEvent & { serverName: string; nickname: string };
@@ -355,7 +356,7 @@ type EventKey = keyof EventMap;
 type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 
 export class IRCClient {
-  private sockets: Map<string, WebSocket> = new Map();
+  private sockets: Map<string, ISocket> = new Map();
   private servers: Map<string, Server> = new Map();
   private nicks: Map<string, string> = new Map();
   private currentUsers: Map<string, User | null> = new Map(); // Per-server current users
@@ -458,20 +459,32 @@ export class IRCClient {
     // Create a new connection promise and store it
     const connectionPromise = new Promise<Server>((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
-      const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
-      const url = `${protocol}://${host}:${port}`;
+      let protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
+      let actualHost = host;
+      let actualPort = port;
 
-      let socket: WebSocket;
-      try {
-        socket = new WebSocket(url);
-      } catch (error) {
-        reject(new Error(`Failed to connect to ${host}:${port}`));
-        return;
+      if (host.startsWith("irc://") || host.startsWith("ircs://")) {
+        protocol = host.startsWith("irc://") ? "irc" : "ircs";
+        // Parse the IRC URL to extract host and port
+        console.log("Parsing IRC URL:", host);
+        const ircUrl = new URL(host);
+        actualHost = ircUrl.hostname;
+        actualPort = ircUrl.port ? Number.parseInt(ircUrl.port, 10) : port;
+        console.log("Parsed IRC URL:", {
+          protocol,
+          actualHost,
+          actualPort,
+          originalHost: host,
+        });
       }
 
+      const url = `${protocol}://${actualHost}:${actualPort}`;
+      console.log("Final URL being sent to createSocket:", url);
+      const socket = createSocket(url);
+
       // Create server object immediately and add to servers map
-      // Use provided name, default to host if name is empty
-      const finalName = name?.trim() || host;
+      // Use provided name, default to actualHost if name is empty
+      const finalName = name?.trim() || actualHost;
 
       // Check if we're reconnecting to an existing server
       let server: Server;
@@ -493,7 +506,7 @@ export class IRCClient {
         server = {
           id: serverId || uuidv4(),
           name: finalName,
-          host,
+          host: actualHost,
           port,
           channels: [],
           privateChats: [],
@@ -513,7 +526,6 @@ export class IRCClient {
           username: _saslAccountName,
           password: _saslPassword,
         });
-      } else {
       }
 
       this.currentUsers.set(server.id, {
@@ -531,8 +543,15 @@ export class IRCClient {
           socket.send(`PASS ${password}`);
         }
 
-        socket.send("CAP LS 302");
+        // Skip CAP negotiation for now and send registration directly
+        console.log("🔗 Sending IRC registration commands (skipping CAP)...");
         socket.send(`NICK ${nickname}`);
+        console.log("📤 Sent NICK command:", `NICK ${nickname}`);
+        socket.send(`USER ${nickname} 0 * :${nickname}`);
+        console.log(
+          "📤 Sent USER command:",
+          `USER ${nickname} 0 * :${nickname}`,
+        );
 
         // Update server to mark as connected
         server.isConnected = true;
@@ -555,7 +574,7 @@ export class IRCClient {
         this.startWebSocketPing(server.id);
 
         socket.onclose = () => {
-          console.log(`WebSocket onclose for server ${serverId}`);
+          console.log(`WebSocket onclose for server ${actualHost}`);
           // Stop WebSocket ping timers
           this.stopWebSocketPing(server.id);
           this.sockets.delete(server.id);
@@ -592,7 +611,7 @@ export class IRCClient {
         server.connectionState = "disconnected";
         this.sockets.delete(server.id);
         this.pendingConnections.delete(connectionKey);
-        reject(new Error(`Failed to connect to ${host}:${port}`));
+        reject(new Error(`Failed to connect to ${actualHost}:${actualPort}`));
       };
 
       socket.onmessage = (event) => {
@@ -799,7 +818,7 @@ export class IRCClient {
             console.warn(
               `WebSocket ping timeout for server ${serverId}, closing connection`,
             );
-            socket.close(1000, "Ping timeout");
+            socket.close();
           }, 10000);
 
           this.pongTimeouts.set(serverId, pongTimeout);
