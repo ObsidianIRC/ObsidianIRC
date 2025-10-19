@@ -207,6 +207,55 @@ describe("IRCClient", () => {
       });
     });
 
+    test("should reply with multiline messages", async () => {
+      const mockSocket = new MockWebSocket("ws://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+      );
+
+      mockSocket.simulateOpen();
+      const server = await connectionPromise;
+
+      // Set up event listener for MULTILINE_MESSAGE
+      let multilineMsg: unknown;
+      const multilinePromise = new Promise<void>((resolve) => {
+        client.on("MULTILINE_MESSAGE", (msg) => {
+          multilineMsg = msg;
+          resolve();
+        });
+      });
+
+      // Send a batch with 2 lines and a reply
+      mockSocket.simulateMessage(
+        "@msgid=123;time=2023-01-01T12:00:00.000Z;+draft/reply=456 :testuser!user@host BATCH +3 draft/multiline #testchannel\r\n",
+      );
+      mockSocket.simulateMessage(
+        "@batch=3 :testuser!user@host PRIVMSG #testchannel :hello\r\n",
+      );
+      mockSocket.simulateMessage(
+        "@batch=3 :testuser!user@host PRIVMSG #testchannel :world\r\n",
+      );
+      mockSocket.simulateMessage(":testuser!user@host BATCH -3\r\n");
+
+      await multilinePromise;
+
+      expect(multilineMsg).toEqual({
+        serverId: server.id,
+        mtags: { msgid: "123", "+draft/reply": "456" },
+        sender: "testuser",
+        channelName: "#testchannel",
+        message: "hello\nworld",
+        lines: ["hello", "world"],
+        messageIds: [],
+        timestamp: expect.any(Date),
+      });
+    });
+
     test("should parse MODE messages", async () => {
       const mockSocket = new MockWebSocket("ws://irc.example.com:443");
       MockWebSocketSpy.mockReturnValue(mockSocket);
