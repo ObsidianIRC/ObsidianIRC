@@ -1,19 +1,19 @@
 import type React from "react";
 import { useState } from "react";
-import { FaQuestionCircle, FaTimes } from "react-icons/fa";
+import { FaQuestionCircle } from "react-icons/fa";
 import useStore, { loadSavedServers } from "../../store";
 import type { ServerConfig } from "../../types";
+import { SimpleModal } from "../modals";
 
-interface EditServerModalProps {
-  serverId: string;
-  onClose: () => void;
-}
+export const EditServerModal: React.FC = () => {
+  const { servers, updateServer, sendRaw, isConnecting, closeModal, ui } =
+    useStore();
 
-export const EditServerModal: React.FC<EditServerModalProps> = ({
-  serverId,
-  onClose,
-}) => {
-  const { servers, updateServer, sendRaw, isConnecting } = useStore();
+  const isOpen = ui.modals.editServer?.isOpen || false;
+  const serverId = (ui.modals.editServer?.props as { serverId?: string })
+    ?.serverId;
+
+  if (!isOpen || !serverId) return null;
 
   const server = servers.find((s) => s.id === serverId);
   const savedServers = loadSavedServers();
@@ -111,7 +111,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
       };
 
       updateServer(serverId, updatedConfig);
-      onClose();
+      closeModal("editServer");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Unknown error occurred";
@@ -127,20 +127,36 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl font-bold">Edit Server</h2>
-          <button
-            onClick={onClose}
-            className="text-discord-text-muted hover:text-white"
-          >
-            <FaTimes />
-          </button>
-        </div>
+  const footerContent = (
+    <div className="flex justify-end">
+      <button
+        type="button"
+        onClick={() => closeModal("editServer")}
+        className="mr-3 px-4 py-2 text-discord-text-normal hover:underline"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        form="edit-server-form"
+        disabled={isConnecting}
+        className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-80"}`}
+      >
+        {isConnecting ? "Updating..." : "Update Server"}
+      </button>
+    </div>
+  );
 
-        <form onSubmit={handleSubmit}>
+  return (
+    <SimpleModal
+      isOpen={isOpen}
+      onClose={() => closeModal("editServer")}
+      title="Edit Server"
+      footer={footerContent}
+      maxWidth="md"
+    >
+      <div className="max-h-[60vh] overflow-y-auto">
+        <form id="edit-server-form" onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-discord-text-muted text-sm font-medium mb-1">
               Network Name
@@ -428,26 +444,9 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           {error && (
             <div className="mb-4 text-discord-red text-sm">{error}</div>
           )}
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="mr-3 px-4 py-2 text-discord-text-normal hover:underline"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isConnecting}
-              className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-80"}`}
-            >
-              {isConnecting ? "Updating..." : "Update Server"}
-            </button>
-          </div>
         </form>
       </div>
-    </div>
+    </SimpleModal>
   );
 };
 

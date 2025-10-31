@@ -43,8 +43,10 @@ vi.mock("../../src/store", () => ({
       },
     ],
     ui: {
+      modals: {
+        settings: { isOpen: true },
+      },
       selectedServerId: "server1",
-      isSettingsModalOpen: true,
     },
     globalSettings: {
       enableNotificationSounds: true,
@@ -66,6 +68,8 @@ vi.mock("../../src/store", () => ({
     sendRaw: vi.fn(),
     setName: vi.fn(),
     changeNick: vi.fn(),
+    openModal: vi.fn(),
+    closeModal: vi.fn(),
   })),
   serverSupportsMetadata: vi.fn(() => true),
   loadSavedServers: vi.fn(() => [

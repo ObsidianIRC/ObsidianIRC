@@ -16,7 +16,9 @@ vi.mock("../../src/store", () => ({
       },
     ],
     ui: {
-      showChannelRenameModal: true,
+      modals: {
+        channelRename: { isOpen: true },
+      },
       selectedServerId: "server1",
       perServerSelections: {
         server1: {
@@ -27,7 +29,8 @@ vi.mock("../../src/store", () => ({
     },
     selectedServerId: "server1",
     renameChannel: vi.fn(),
-    toggleChannelRenameModal: vi.fn(),
+    openModal: vi.fn(),
+    closeModal: vi.fn(),
   })),
 }));
 
@@ -81,10 +84,31 @@ describe("ChannelRenameModal", () => {
 
   test("does not render when modal is closed", () => {
     vi.mocked(useStore).mockReturnValue({
-      servers: [],
-      ui: { showChannelRenameModal: false },
+      servers: [
+        {
+          id: "server1",
+          name: "Test Server",
+          host: "irc.example.com",
+          port: 6667,
+          channels: [{ id: "channel1", name: "#oldchannel" }],
+        },
+      ],
+      ui: {
+        modals: {
+          channelRename: { isOpen: false },
+        },
+        selectedServerId: "server1",
+        perServerSelections: {
+          server1: {
+            selectedChannelId: "channel1",
+            selectedPrivateChatId: null,
+          },
+        },
+      },
+      selectedServerId: "server1",
       renameChannel: vi.fn(),
-      toggleChannelRenameModal: vi.fn(),
+      openModal: vi.fn(),
+      closeModal: vi.fn(),
     });
 
     const { container } = render(<ChannelRenameModal />);

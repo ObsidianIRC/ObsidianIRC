@@ -67,13 +67,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenChannelSettings,
   onOpenInviteUser,
 }) => {
-  const {
-    toggleChannelListModal,
-    toggleChannelRenameModal,
-    toggleMemberList,
-    pinPrivateChat,
-    unpinPrivateChat,
-  } = useStore();
+  const { openModal, toggleMemberList, pinPrivateChat, unpinPrivateChat } =
+    useStore();
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [editedTopic, setEditedTopic] = useState("");
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
@@ -584,7 +579,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           )}
           <button
             className="hover:text-discord-text-normal"
-            onClick={() => toggleChannelListModal(true)}
+            onClick={() => openModal("channelList")}
             title="List Channels"
           >
             <FaList />
@@ -592,7 +587,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           {selectedChannel && isOperator && (
             <button
               className="hover:text-discord-text-normal"
-              onClick={() => toggleChannelRenameModal(true)}
+              onClick={() => openModal("channelRename")}
               title="Rename Channel"
             >
               <FaEdit />

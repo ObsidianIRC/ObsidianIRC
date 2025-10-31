@@ -29,10 +29,7 @@ const askPermissions = async () => {
 };
 
 const initializeEnvSettings = (
-  toggleAddServerModal: (
-    isOpen?: boolean,
-    prefillDetails?: ConnectionDetails | null,
-  ) => void,
+  openModal: (modalId: string, props?: unknown) => void,
   joinChannel: (serverId: string, channelName: string) => void,
 ) => {
   if (loadSavedServers().length > 0) return;
@@ -47,7 +44,7 @@ const initializeEnvSettings = (
   }
   if (!__DEFAULT_IRC_SERVER_NAME__) {
   }
-  toggleAddServerModal(true, {
+  openModal("addServer", {
     name: __DEFAULT_IRC_SERVER_NAME__ || "Obsidian IRC",
     host,
     port,
@@ -68,19 +65,9 @@ const initializeEnvSettings = (
 
 const App: React.FC = () => {
   const {
-    toggleAddServerModal,
-    toggleEditServerModal,
-    ui: {
-      isAddServerModalOpen,
-      isUserProfileModalOpen,
-      isChannelListModalOpen,
-      isChannelRenameModalOpen,
-      isServerNoticesPopupOpen,
-      isEditServerModalOpen,
-      editServerId,
-      linkSecurityWarnings,
-      profileViewRequest,
-    },
+    openModal,
+    closeModal,
+    ui: { isServerNoticesPopupOpen, linkSecurityWarnings, profileViewRequest },
     joinChannel,
     connectToSavedServers,
     toggleServerNoticesPopup,
@@ -138,11 +125,11 @@ const App: React.FC = () => {
 
   // askPermissions();
   useEffect(() => {
-    initializeEnvSettings(toggleAddServerModal, joinChannel);
+    initializeEnvSettings(openModal, joinChannel);
     // Auto-reconnect to saved servers on app startup
     connectToSavedServers();
   }, [
-    toggleAddServerModal,
+    openModal,
     joinChannel, // Auto-reconnect to saved servers on app startup
     connectToSavedServers,
   ]); // Removed connectToSavedServers from dependencies
@@ -150,16 +137,11 @@ const App: React.FC = () => {
   return (
     <div className="h-screen overflow-hidden">
       <AppLayout />
-      {isAddServerModalOpen && <AddServerModal />}
-      {isEditServerModalOpen && editServerId && (
-        <EditServerModal
-          serverId={editServerId}
-          onClose={() => toggleEditServerModal(false)}
-        />
-      )}
-      {isUserProfileModalOpen && <UserSettings />}
-      {isChannelListModalOpen && <ChannelListModal />}
-      {isChannelRenameModalOpen && <ChannelRenameModal />}
+      <AddServerModal />
+      <EditServerModal />
+      <UserSettings />
+      <ChannelListModal />
+      <ChannelRenameModal />
       <LinkSecurityWarningModal />
       {userProfileModalState?.isOpen && (
         <UserProfileModal

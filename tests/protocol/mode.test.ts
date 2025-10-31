@@ -25,17 +25,10 @@ describe("MODE Protocol Handler", () => {
       ui: {
         selectedServerId: null,
         perServerSelections: {},
-        isAddServerModalOpen: false,
-        isEditServerModalOpen: false,
-        editServerId: null,
-        isSettingsModalOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isMemberListVisible: true,
         isChannelListVisible: true,
-        isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
@@ -52,6 +45,9 @@ describe("MODE Protocol Handler", () => {
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
+        // Modal manager state
+        modals: {},
+        modalHistory: [],
       },
     });
     vi.clearAllMocks();

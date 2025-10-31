@@ -10,11 +10,9 @@ export const ServerList: React.FC = () => {
     servers,
     ui: { selectedServerId },
     selectServer,
-    toggleAddServerModal,
+    openModal,
     deleteServer, // Add deleteServer action
-    toggleChannelListModal, // Add toggleChannelListModal action
     reconnectServer, // Add reconnectServer action
-    toggleEditServerModal, // Add toggleEditServerModal action
   } = useStore();
 
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
@@ -100,7 +98,7 @@ export const ServerList: React.FC = () => {
             <button
               className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
               onClick={() => {
-                toggleAddServerModal(true);
+                openModal("addServer");
                 setIsOptionsOpen(false);
               }}
             >
@@ -185,7 +183,7 @@ export const ServerList: React.FC = () => {
                     className="w-5 h-5 bg-discord-dark-300 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-xs shadow-md"
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleEditServerModal(true, server.id);
+                      openModal("editServer", { serverId: server.id });
                     }}
                     title="Edit Server"
                   >

@@ -21,6 +21,8 @@ import useStore, {
   serverSupportsMetadata,
 } from "../../store";
 import type { ServerConfig } from "../../types";
+import { ModalWithSidebar } from "../modals";
+import { SettingField, UnsavedChangesModal } from "../modals/shared";
 import AvatarUpload from "./AvatarUpload";
 import UserProfileModal from "./UserProfileModal";
 
@@ -30,23 +32,6 @@ type SettingsCategory =
   | "preferences"
   | "media"
   | "account";
-
-// Component for displaying setting fields
-const SettingField: React.FC<{
-  label: string;
-  description: string;
-  children: React.ReactNode;
-}> = ({ label, description, children }) => (
-  <div className="space-y-2">
-    <div>
-      <label className="block text-discord-text-normal text-sm font-medium">
-        {label}
-      </label>
-      <p className="text-discord-text-muted text-xs">{description}</p>
-    </div>
-    {children}
-  </div>
-);
 
 // Component for managing custom mentions list
 const CustomMentionsList: React.FC<{
@@ -240,7 +225,7 @@ const IgnoreList: React.FC<{
 
 const UserSettings: React.FC = React.memo(() => {
   const {
-    toggleUserProfileModal,
+    closeModal,
     setProfileViewRequest,
     servers,
     ui,
@@ -591,7 +576,7 @@ const UserSettings: React.FC = React.memo(() => {
     }
     // Reset original values when closing so it will reinitialize next time
     setOriginalValues(null);
-    toggleUserProfileModal(false);
+    closeModal("settings");
   };
 
   // Audio playback utility
@@ -953,7 +938,7 @@ const UserSettings: React.FC = React.memo(() => {
 
     // Reset original values when closing after save
     setOriginalValues(null);
-    toggleUserProfileModal(false);
+    closeModal("settings");
   };
 
   const categories = [
@@ -981,7 +966,7 @@ const UserSettings: React.FC = React.memo(() => {
               } else {
                 // Close User Settings and request to open User Profile
                 setProfileViewRequest(currentServer.id, currentUser.username);
-                toggleUserProfileModal(false);
+                closeModal("settings");
               }
             }}
             className="px-4 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20 flex items-center gap-2"
@@ -1673,84 +1658,83 @@ const UserSettings: React.FC = React.memo(() => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-discord-dark-200 rounded-lg w-full max-w-4xl h-[80vh] flex overflow-hidden">
-        {/* Sidebar */}
-        <div className="bg-discord-dark-300 flex flex-col">
-          <div className="p-4 border-b border-discord-dark-500 flex justify-center">
-            {isMobile ? (
-              <FaCog className="text-white text-xl" />
-            ) : (
-              <h2 className="text-white text-xl font-bold">User Settings</h2>
-            )}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            <nav className="p-2">
-              {categories.map((category) => {
-                const Icon = category.icon;
-                return (
-                  <button
-                    key={category.id}
-                    onClick={() => setActiveCategory(category.id)}
-                    className={`flex items-center ${isMobile ? "justify-center px-2" : "w-full px-3 text-left"} py-2 mb-1 rounded transition-colors overflow-hidden min-w-0 ${
-                      activeCategory === category.id
-                        ? "bg-discord-primary text-white"
-                        : "text-discord-text-muted hover:text-white hover:bg-discord-dark-400"
-                    }`}
-                  >
-                    <Icon
-                      className={`${isMobile ? "text-lg" : "mr-3 text-sm"}`}
-                    />
-                    <span className={`${isMobile ? "hidden" : ""}`}>
-                      {category.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
+  const isOpen = ui.modals.settings?.isOpen || false;
 
-        {/* Main content */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex justify-between items-center p-4 border-b border-discord-dark-500">
-            <h3 className="text-white text-lg font-semibold">
-              {categories.find((c) => c.id === activeCategory)?.name}
-            </h3>
-            <button
-              onClick={handleClose}
-              className="text-discord-text-muted hover:text-white"
-            >
-              <FaTimes />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6">
-            {renderActiveCategory()}
-          </div>
-
-          <div className="flex justify-end p-4 border-t border-discord-dark-500 space-x-3">
-            <button
-              onClick={handleClose}
-              className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveAll}
-              disabled={!hasUnsavedChanges}
-              className={`px-4 py-2 text-white rounded font-medium transition-colors ${
-                hasUnsavedChanges
-                  ? "bg-discord-primary hover:bg-opacity-80"
-                  : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
-              }`}
-            >
-              {hasUnsavedChanges ? "Save Changes" : "No Changes"}
-            </button>
-          </div>
-        </div>
+  // Sidebar content
+  const sidebarContent = (
+    <>
+      <div className="p-4 border-b border-discord-dark-500 flex justify-center">
+        {isMobile ? (
+          <FaCog className="text-white text-xl" />
+        ) : (
+          <h2 className="text-white text-xl font-bold">User Settings</h2>
+        )}
       </div>
+      <div className="flex-1 overflow-y-auto">
+        <nav className="p-2">
+          {categories.map((category) => {
+            const Icon = category.icon;
+            return (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={`flex items-center ${isMobile ? "justify-center px-2" : "w-full px-3 text-left"} py-2 mb-1 rounded transition-colors overflow-hidden min-w-0 ${
+                  activeCategory === category.id
+                    ? "bg-discord-primary text-white"
+                    : "text-discord-text-muted hover:text-white hover:bg-discord-dark-400"
+                }`}
+              >
+                <Icon className={`${isMobile ? "text-lg" : "mr-3 text-sm"}`} />
+                <span className={`${isMobile ? "hidden" : ""}`}>
+                  {category.name}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </>
+  );
+
+  // Footer content
+  const footerContent = (
+    <>
+      <button
+        onClick={handleClose}
+        className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
+      >
+        Cancel
+      </button>
+      <button
+        onClick={handleSaveAll}
+        disabled={!hasUnsavedChanges}
+        className={`px-4 py-2 text-white rounded font-medium transition-colors ${
+          hasUnsavedChanges
+            ? "bg-discord-primary hover:bg-opacity-80"
+            : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
+        }`}
+      >
+        {hasUnsavedChanges ? "Save Changes" : "No Changes"}
+      </button>
+    </>
+  );
+
+  return (
+    <>
+      <ModalWithSidebar
+        isOpen={isOpen}
+        onClose={handleClose}
+        title={
+          categories.find((c) => c.id === activeCategory)?.name ||
+          "User Settings"
+        }
+        sidebar={sidebarContent}
+        footer={footerContent}
+        maxWidth="4xl"
+        sidebarWidth={isMobile ? "60px" : "250px"}
+      >
+        {renderActiveCategory()}
+      </ModalWithSidebar>
       {/* User Profile Modal */}
       {viewProfileModalOpen && currentUser && currentServer && (
         <UserProfileModal
@@ -1762,64 +1746,26 @@ const UserSettings: React.FC = React.memo(() => {
       )}
 
       {/* Unsaved Changes Warning Modal */}
-      {showUnsavedChangesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-discord-dark-300 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h3 className="text-white text-xl font-semibold mb-4">
-                Unsaved Changes
-              </h3>
-              <p className="text-discord-text-normal mb-6">
-                You have unsaved changes. Would you like to save them before
-                viewing your profile?
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowUnsavedChangesModal(false);
-                  }}
-                  className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentUser && currentServer) {
-                      setShowUnsavedChangesModal(false);
-                      // Close User Settings and request to open User Profile
-                      setProfileViewRequest(
-                        currentServer.id,
-                        currentUser.username,
-                      );
-                      toggleUserProfileModal(false);
-                    }
-                  }}
-                  className="px-4 py-2 bg-black text-white rounded font-medium hover:bg-gray-900 transition-colors"
-                >
-                  No
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentUser && currentServer) {
-                      handleSaveAll();
-                      setShowUnsavedChangesModal(false);
-                      // Close User Settings and request to open User Profile
-                      setProfileViewRequest(
-                        currentServer.id,
-                        currentUser.username,
-                      );
-                      toggleUserProfileModal(false);
-                    }
-                  }}
-                  className="px-4 py-2 bg-[#5865F2] text-white rounded font-medium hover:bg-[#4752C4] transition-colors"
-                >
-                  Yes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <UnsavedChangesModal
+        isOpen={showUnsavedChangesModal}
+        onCancel={() => setShowUnsavedChangesModal(false)}
+        onDontSave={() => {
+          if (currentUser && currentServer) {
+            setShowUnsavedChangesModal(false);
+            setProfileViewRequest(currentServer.id, currentUser.username);
+            closeModal("settings");
+          }
+        }}
+        onSave={() => {
+          if (currentUser && currentServer) {
+            handleSaveAll();
+            setShowUnsavedChangesModal(false);
+            setProfileViewRequest(currentServer.id, currentUser.username);
+            closeModal("settings");
+          }
+        }}
+        message="You have unsaved changes. Would you like to save them before viewing your profile?"
+      />
 
       {/* External Content Warning Modal */}
       {showExternalContentWarning && (
@@ -1861,7 +1807,7 @@ const UserSettings: React.FC = React.memo(() => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 });
 

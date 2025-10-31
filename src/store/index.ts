@@ -377,17 +377,10 @@ interface UIState {
       selectedPrivateChatId: string | null;
     }
   >;
-  isAddServerModalOpen: boolean | undefined;
-  isEditServerModalOpen: boolean;
-  editServerId: string | null;
-  isSettingsModalOpen: boolean;
-  isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
   isMobileMenuOpen: boolean;
   isMemberListVisible: boolean;
   isChannelListVisible: boolean;
-  isChannelListModalOpen: boolean;
-  isChannelRenameModalOpen: boolean;
   mobileViewActiveColumn: layoutColumn;
   isServerMenuOpen: boolean;
   contextMenu: {
@@ -408,6 +401,9 @@ interface UIState {
   profileViewRequest: { serverId: string; username: string } | null;
   // Shimmer effect for newly connected servers
   serverShimmer?: Set<string>; // Set of server IDs that should show shimmer
+  // Modal manager state
+  modals: Record<string, { isOpen: boolean; props?: unknown }>;
+  modalHistory: string[]; // Stack of open modals for ESC handling
 }
 
 export interface GlobalSettings {
@@ -654,21 +650,12 @@ export interface AppState {
   updateServer: (serverId: string, config: Partial<ServerConfig>) => void; // Update server configuration
   capAck: (serverId: string, key: string, capabilities: string) => void; // Handle CAP ACK
   // UI actions
-  toggleAddServerModal: (
-    isOpen?: boolean,
-    prefillDetails?: ConnectionDetails | null,
-  ) => void;
-  toggleEditServerModal: (isOpen?: boolean, serverId?: string | null) => void;
-  toggleSettingsModal: (isOpen?: boolean) => void;
-  toggleUserProfileModal: (isOpen?: boolean) => void;
   setProfileViewRequest: (serverId: string, username: string) => void;
   clearProfileViewRequest: () => void;
   toggleDarkMode: () => void;
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
   toggleChannelList: (isOpen?: boolean) => void;
-  toggleChannelListModal: (isOpen?: boolean) => void;
-  toggleChannelRenameModal: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
   showContextMenu: (
     x: number,
@@ -709,6 +696,16 @@ export interface AppState {
   metadataSubs: (serverId: string) => void;
   metadataSync: (serverId: string, target: string) => void;
   sendRaw: (serverId: string, command: string) => void;
+  // Modal manager actions
+  openModal: (modalId: string, props?: unknown) => void;
+  closeModal: (modalId: string) => void;
+  closeTopModal: () => void;
+  closeAllModals: () => void;
+  getModalContext: () => {
+    serverId: string | null;
+    channelId: string | null;
+    selectedServer: Server | undefined;
+  };
 }
 
 // Helper functions for per-server tab selections
@@ -778,17 +775,10 @@ const useStore = create<AppState>((set, get) => ({
   ui: {
     selectedServerId: null,
     perServerSelections: {},
-    isAddServerModalOpen: false,
-    isEditServerModalOpen: false,
-    editServerId: null,
-    isSettingsModalOpen: false,
-    isUserProfileModalOpen: false,
     isDarkMode: true, // Discord-like default is dark mode
     isMobileMenuOpen: false,
     isMemberListVisible: true,
     isChannelListVisible: true,
-    isChannelListModalOpen: false,
-    isChannelRenameModalOpen: false,
     mobileViewActiveColumn: "serverList", // Default to server list in mobile mode on open
     isServerMenuOpen: false,
     contextMenu: {
@@ -807,6 +797,9 @@ const useStore = create<AppState>((set, get) => ({
     serverNoticesPopupMinimized: false,
     // Profile view request
     profileViewRequest: null,
+    // Modal manager state
+    modals: {},
+    modalHistory: [],
   },
   globalSettings: {
     enableNotifications: false,
@@ -2215,46 +2208,6 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   // UI actions
-  toggleAddServerModal: (isOpen, prefillDetails = null) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isAddServerModalOpen: isOpen,
-        prefillServerDetails: prefillDetails,
-      },
-    }));
-  },
-
-  toggleEditServerModal: (isOpen, serverId = null) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isEditServerModalOpen: isOpen ?? false,
-        editServerId: serverId,
-      },
-    }));
-  },
-
-  toggleSettingsModal: (isOpen) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isSettingsModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isSettingsModalOpen,
-      },
-    }));
-  },
-
-  toggleUserProfileModal: (isOpen) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isUserProfileModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isUserProfileModalOpen,
-      },
-    }));
-  },
-
   setProfileViewRequest: (serverId, username) => {
     set((state) => ({
       ui: {
@@ -2331,26 +2284,6 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
-  },
-
-  toggleChannelListModal: (isOpen) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isChannelListModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isChannelListModalOpen,
-      },
-    }));
-  },
-
-  toggleChannelRenameModal: (isOpen?: boolean) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isChannelRenameModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isChannelRenameModalOpen,
-      },
-    }));
   },
 
   toggleServerMenu: (isOpen) => {
@@ -2450,6 +2383,73 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+  },
+
+  // Modal manager actions
+  openModal: (modalId, props) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        modals: {
+          ...state.ui.modals,
+          [modalId]: { isOpen: true, props },
+        },
+        modalHistory: [...state.ui.modalHistory, modalId],
+        // Handle addServer modal's prefillServerDetails
+        ...(modalId === "addServer" && props
+          ? { prefillServerDetails: props as ConnectionDetails }
+          : {}),
+      },
+    }));
+  },
+
+  closeModal: (modalId) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        modals: {
+          ...state.ui.modals,
+          [modalId]: { isOpen: false, props: undefined },
+        },
+        modalHistory: state.ui.modalHistory.filter((id) => id !== modalId),
+      },
+    }));
+  },
+
+  closeTopModal: () => {
+    const state = get();
+    const topModalId = state.ui.modalHistory[state.ui.modalHistory.length - 1];
+    if (topModalId) {
+      get().closeModal(topModalId);
+    }
+  },
+
+  closeAllModals: () => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        modals: {},
+        modalHistory: [],
+      },
+    }));
+  },
+
+  getModalContext: () => {
+    const state = get();
+    const serverId = state.ui.selectedServerId;
+    const selectedServer = state.servers.find((s) => s.id === serverId);
+
+    const selection = serverId
+      ? getServerSelection(state, serverId)
+      : { selectedChannelId: null, selectedPrivateChatId: null };
+
+    const channelId = selection.selectedChannelId;
+
+    return {
+      serverId,
+      channelId,
+      selectedServer,
+    };
   },
 
   // Settings actions

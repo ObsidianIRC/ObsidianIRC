@@ -25,24 +25,24 @@ describe("Store", () => {
   });
 
   describe("UI actions", () => {
-    test("should toggle channel list modal", () => {
-      const { toggleChannelListModal } = useStore.getState();
+    test("should open and close channel list modal", () => {
+      const { openModal, closeModal } = useStore.getState();
 
-      toggleChannelListModal(true);
-      expect(useStore.getState().ui.isChannelListModalOpen).toBe(true);
+      openModal("channelList");
+      expect(useStore.getState().ui.modals.channelList?.isOpen).toBe(true);
 
-      toggleChannelListModal(false);
-      expect(useStore.getState().ui.isChannelListModalOpen).toBe(false);
+      closeModal("channelList");
+      expect(useStore.getState().ui.modals.channelList?.isOpen).toBe(false);
     });
 
-    test("should toggle channel rename modal", () => {
-      const { toggleChannelRenameModal } = useStore.getState();
+    test("should open and close channel rename modal", () => {
+      const { openModal, closeModal } = useStore.getState();
 
-      toggleChannelRenameModal(true);
-      expect(useStore.getState().ui.isChannelRenameModalOpen).toBe(true);
+      openModal("channelRename");
+      expect(useStore.getState().ui.modals.channelRename?.isOpen).toBe(true);
 
-      toggleChannelRenameModal(false);
-      expect(useStore.getState().ui.isChannelRenameModalOpen).toBe(false);
+      closeModal("channelRename");
+      expect(useStore.getState().ui.modals.channelRename?.isOpen).toBe(false);
     });
   });
 

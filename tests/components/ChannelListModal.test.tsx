@@ -15,7 +15,9 @@ vi.mock("../../src/store", () => ({
       },
     ],
     ui: {
-      showChannelListModal: true,
+      modals: {
+        channelList: { isOpen: true },
+      },
       selectedServerId: "server1",
     },
     channelList: {
@@ -41,7 +43,8 @@ vi.mock("../../src/store", () => ({
     joinChannel: vi.fn(),
     listChannels: vi.fn(),
     updateChannelListFilters: vi.fn(),
-    toggleChannelListModal: vi.fn(),
+    openModal: vi.fn(),
+    closeModal: vi.fn(),
   })),
 }));
 
@@ -116,7 +119,7 @@ describe("ChannelListModal", () => {
   test("closes modal when close button is clicked", () => {
     render(<ChannelListModal />);
 
-    const closeButton = screen.getByLabelText("Close");
+    const closeButton = screen.getByLabelText("Close modal");
     fireEvent.click(closeButton);
 
     // Modal should be closable

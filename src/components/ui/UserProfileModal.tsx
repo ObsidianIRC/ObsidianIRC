@@ -87,9 +87,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const selectChannel = useStore((state) => state.selectChannel);
   const openPrivateChat = useStore((state) => state.openPrivateChat);
   const selectPrivateChat = useStore((state) => state.selectPrivateChat);
-  const toggleUserProfileModal = useStore(
-    (state) => state.toggleUserProfileModal,
-  );
+  const openModal = useStore((state) => state.openModal);
   const server = servers.find((s) => s.id === serverId);
 
   // Get user metadata from channels
@@ -615,7 +613,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   onClick={() => {
                     onClose();
-                    toggleUserProfileModal(true);
+                    openModal("settings");
                   }}
                   className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
                 >
