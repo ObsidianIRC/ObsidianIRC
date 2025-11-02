@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import UserSettings from "../../src/components/ui/UserSettings";
+import { fireEvent, renderWithProviders, screen, waitFor } from "../test-utils";
 
 // Extend window interface for test environment
 declare global {
@@ -9,68 +9,76 @@ declare global {
   }
 }
 
-// Mock the store
-vi.mock("../../src/store", () => ({
-  default: vi.fn(() => ({
-    toggleUserProfileModal: vi.fn(),
-    servers: [
-      {
-        id: "server1",
-        name: "Test Server",
-        host: "irc.example.com",
-        port: 6667,
-        capabilities: ["draft/metadata"],
-        channels: [
-          {
-            id: "channel1",
-            name: "#test",
-            users: [
-              {
-                id: "user1",
-                username: "testuser",
-                metadata: {
-                  avatar: { value: "avatar-url" },
-                  "display-name": { value: "Display Name" },
-                  homepage: { value: "https://example.com" },
-                  status: { value: "Available" },
-                  color: { value: "#800040" },
-                  bot: { value: "" },
-                },
+// Create a stable mock store object
+const mockStoreState = {
+  toggleUserProfileModal: vi.fn(),
+  servers: [
+    {
+      id: "server1",
+      name: "Test Server",
+      host: "irc.example.com",
+      port: 6667,
+      capabilities: ["draft/metadata"],
+      channels: [
+        {
+          id: "channel1",
+          name: "#test",
+          users: [
+            {
+              id: "user1",
+              username: "testuser",
+              metadata: {
+                avatar: { value: "avatar-url" },
+                "display-name": { value: "Display Name" },
+                homepage: { value: "https://example.com" },
+                status: { value: "Available" },
+                color: { value: "#800040" },
+                bot: { value: "" },
               },
-            ],
-          },
-        ],
-      },
-    ],
-    ui: {
-      modals: {
-        settings: { isOpen: true },
-      },
-      selectedServerId: "server1",
+            },
+          ],
+        },
+      ],
     },
-    globalSettings: {
-      enableNotificationSounds: true,
-      notificationSound: "/sounds/notif1.mp3",
-      notificationVolume: 0.8,
-      enableHighlights: true,
-      sendTypingNotifications: true,
-      nickname: "",
-      accountName: "",
-      accountPassword: "",
-      customMentions: [],
-      showEvents: true,
-      showNickChanges: true,
-      showJoinsParts: true,
-      showQuits: true,
+  ],
+  ui: {
+    modals: {
+      settings: { isOpen: true },
     },
-    updateGlobalSettings: vi.fn(),
-    metadataSet: vi.fn(),
-    sendRaw: vi.fn(),
-    setName: vi.fn(),
-    changeNick: vi.fn(),
-    openModal: vi.fn(),
-    closeModal: vi.fn(),
-  })),
+    selectedServerId: "server1",
+  },
+  globalSettings: {
+    enableNotificationSounds: true,
+    notificationSound: "/sounds/notif1.mp3",
+    notificationVolume: 0.8,
+    enableHighlights: true,
+    sendTypingNotifications: true,
+    nickname: "",
+    accountName: "",
+    accountPassword: "",
+    customMentions: [],
+    showEvents: true,
+    showNickChanges: true,
+    showJoinsParts: true,
+    showQuits: true,
+  },
+  updateGlobalSettings: vi.fn(),
+  metadataSet: vi.fn(),
+  sendRaw: vi.fn(),
+  setName: vi.fn(),
+  changeNick: vi.fn(),
+  openModal: vi.fn(),
+  closeModal: vi.fn(),
+  addToIgnoreList: vi.fn(),
+  removeFromIgnoreList: vi.fn(),
+  setProfileViewRequest: vi.fn(),
+  isConnecting: false,
+  updateServer: vi.fn(),
+};
+
+// Mock the store - return the same object every time
+vi.mock("../../src/store", () => ({
+  default: () => mockStoreState,
   serverSupportsMetadata: vi.fn(() => true),
   loadSavedServers: vi.fn(() => [
     {
@@ -119,12 +127,12 @@ describe("UserSettings", () => {
   });
 
   it("renders the settings modal", () => {
-    render(<UserSettings />);
+    renderWithProviders(<UserSettings />);
     expect(screen.getByText("User Settings")).toBeInTheDocument();
   });
 
   it("displays notification settings with correct text", async () => {
-    render(<UserSettings />);
+    renderWithProviders(<UserSettings />);
 
     // Click on the Notifications tab first
     fireEvent.click(screen.getByText("Notifications"));
@@ -144,7 +152,7 @@ describe("UserSettings", () => {
     // Set the environment variable BEFORE rendering to ensure Account tab is visible
     window.__HIDE_SERVER_LIST__ = true; // Note: true means hosted chat mode, which shows Account tab
 
-    render(<UserSettings />);
+    renderWithProviders(<UserSettings />);
 
     // Click on the Account tab first
     fireEvent.click(screen.getByText("Account"));

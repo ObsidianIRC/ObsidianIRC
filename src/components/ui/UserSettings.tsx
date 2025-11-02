@@ -21,7 +21,7 @@ import useStore, {
   serverSupportsMetadata,
 } from "../../store";
 import type { ServerConfig } from "../../types";
-import { ModalWithSidebar } from "../modals";
+import { Modal, ModalWithSidebar, useUnsavedChanges } from "../modals";
 import { SettingField, UnsavedChangesModal } from "../modals/shared";
 import AvatarUpload from "./AvatarUpload";
 import UserProfileModal from "./UserProfileModal";
@@ -359,72 +359,8 @@ const UserSettings: React.FC = React.memo(() => {
     serverConfig?.operOnConnect || false,
   );
 
-  // Original values for change tracking
-  const [originalValues, setOriginalValues] = useState<{
-    avatar: string;
-    displayName: string;
-    realname: string;
-    homepage: string;
-    status: string;
-    color: string;
-    bot: string;
-    newNickname: string;
-    enableNotificationSounds: boolean;
-    notificationSound: string;
-    enableHighlights: boolean;
-    sendTypingNotifications: boolean;
-    nickname: string;
-    accountName: string;
-    accountPassword: string;
-    operName: string;
-    operPassword: string;
-    operOnConnect: boolean;
-    showSafeMedia: boolean;
-    showExternalContent: boolean;
-    enableMarkdownRendering: boolean;
-    showEvents: boolean;
-    showNickChanges: boolean;
-    showJoinsParts: boolean;
-    showQuits: boolean;
-    showKicks: boolean;
-    enableMultilineInput: boolean;
-    multilineOnShiftEnter: boolean;
-    autoFallbackToSingleLine: boolean;
-  } | null>(null);
-
-  // Track if there are unsaved changes
-  const hasUnsavedChanges =
-    originalValues &&
-    (avatar !== originalValues.avatar ||
-      displayName !== originalValues.displayName ||
-      realname !== originalValues.realname ||
-      homepage !== originalValues.homepage ||
-      status !== originalValues.status ||
-      color !== originalValues.color ||
-      bot !== originalValues.bot ||
-      newNickname !== originalValues.newNickname ||
-      enableNotificationSounds !== originalValues.enableNotificationSounds ||
-      notificationSound !== originalValues.notificationSound ||
-      enableHighlights !== originalValues.enableHighlights ||
-      sendTypingNotifications !== originalValues.sendTypingNotifications ||
-      nickname !== originalValues.nickname ||
-      accountName !== originalValues.accountName ||
-      accountPassword !== originalValues.accountPassword ||
-      operName !== originalValues.operName ||
-      operPassword !== originalValues.operPassword ||
-      operOnConnect !== originalValues.operOnConnect ||
-      showSafeMedia !== originalValues.showSafeMedia ||
-      showExternalContent !== originalValues.showExternalContent ||
-      enableMarkdownRendering !== originalValues.enableMarkdownRendering ||
-      globalShowEvents !== originalValues.showEvents ||
-      globalShowNickChanges !== originalValues.showNickChanges ||
-      globalShowJoinsParts !== originalValues.showJoinsParts ||
-      globalShowQuits !== originalValues.showQuits ||
-      globalShowKicks !== originalValues.showKicks ||
-      globalEnableMultilineInput !== originalValues.enableMultilineInput ||
-      globalMultilineOnShiftEnter !== originalValues.multilineOnShiftEnter ||
-      globalAutoFallbackToSingleLine !==
-        originalValues.autoFallbackToSingleLine);
+  // Original values tracking is now handled by useUnsavedChanges hook
+  const isOpen = ui.modals.settings?.isOpen || false;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -574,8 +510,7 @@ const UserSettings: React.FC = React.memo(() => {
         return;
       }
     }
-    // Reset original values when closing so it will reinitialize next time
-    setOriginalValues(null);
+    // Hook automatically resets original values on close
     closeModal("settings");
   };
 
@@ -642,7 +577,7 @@ const UserSettings: React.FC = React.memo(() => {
 
   // Load existing metadata on mount - only once when modal opens
   useEffect(() => {
-    if (currentUser && !originalValues) {
+    if (currentUser && isOpen) {
       const avatarValue = currentUser.metadata?.avatar?.value || "";
       const displayNameValue =
         currentUser.metadata?.["display-name"]?.value || "";
@@ -683,40 +618,10 @@ const UserSettings: React.FC = React.memo(() => {
       setAccountName(globalAccountName);
       setAccountPassword(globalAccountPassword);
 
-      // Set original values for change tracking - only once
-      setOriginalValues({
-        avatar: avatarValue,
-        displayName: displayNameValue,
-        realname: realnameValue,
-        homepage: homepageValue,
-        status: statusValue,
-        color: colorValue,
-        bot: botValue,
-        newNickname: nicknameValue,
-        enableNotificationSounds: globalEnableNotificationSounds,
-        notificationSound: migratedNotificationSound,
-        enableHighlights: globalEnableHighlights,
-        sendTypingNotifications: globalSendTypingNotifications,
-        nickname: globalNickname || currentUser?.username || "",
-        accountName: globalAccountName,
-        accountPassword: globalAccountPassword,
-        showSafeMedia: globalShowSafeMedia,
-        showExternalContent: globalShowExternalContent,
-        enableMarkdownRendering: globalEnableMarkdownRendering,
-        showEvents: globalShowEvents,
-        showNickChanges: globalShowNickChanges,
-        showJoinsParts: globalShowJoinsParts,
-        showQuits: globalShowQuits,
-        showKicks: globalShowKicks,
-        enableMultilineInput: globalEnableMultilineInput,
-        multilineOnShiftEnter: globalMultilineOnShiftEnter,
-        autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
-        operName: operName,
-        operPassword: operPassword,
-        operOnConnect: operOnConnect,
-      });
+      // Note: Original values for change tracking are now handled by useUnsavedChanges hook
     }
   }, [
+    isOpen,
     currentUser?.id,
     currentUser?.displayName,
     currentUser?.metadata?.["display-name"]?.value,
@@ -733,23 +638,8 @@ const UserSettings: React.FC = React.memo(() => {
     globalNickname,
     globalNotificationSound,
     globalSendTypingNotifications,
-    globalShowSafeMedia,
-    globalShowExternalContent,
     currentUser,
-    originalValues,
     updateGlobalSettings,
-    globalAutoFallbackToSingleLine,
-    globalEnableMarkdownRendering,
-    globalEnableMultilineInput,
-    globalMultilineOnShiftEnter,
-    globalShowEvents,
-    globalShowJoinsParts,
-    globalShowKicks,
-    globalShowNickChanges,
-    globalShowQuits,
-    operName,
-    operPassword,
-    operOnConnect,
   ]); // Only depend on user ID - removed all other dependencies
 
   const handleSaveMetadata = (key: string, value: string) => {
@@ -936,8 +826,7 @@ const UserSettings: React.FC = React.memo(() => {
       updateGlobalSettings(globalSettingsUpdates);
     }
 
-    // Reset original values when closing after save
-    setOriginalValues(null);
+    // Hook automatically resets original values on close
     closeModal("settings");
   };
 
@@ -946,7 +835,7 @@ const UserSettings: React.FC = React.memo(() => {
     { id: "notifications" as const, name: "Notifications", icon: FaBell },
     { id: "preferences" as const, name: "Preferences", icon: FaCog },
     { id: "media" as const, name: "Media", icon: FaImage },
-    ...(isHostedChatMode
+    ...(isHostedChatMode || serverConfig?.saslEnabled
       ? [{ id: "account" as const, name: "Account", icon: FaServer }]
       : []),
   ];
@@ -1658,7 +1547,41 @@ const UserSettings: React.FC = React.memo(() => {
     }
   };
 
-  const isOpen = ui.modals.settings?.isOpen || false;
+  // Track unsaved changes with automatic deep comparison
+  const { hasChanges: hasUnsavedChanges, originalValues } = useUnsavedChanges(
+    {
+      avatar,
+      displayName,
+      realname,
+      homepage,
+      status,
+      color,
+      bot,
+      newNickname,
+      enableNotificationSounds,
+      notificationSound,
+      enableHighlights,
+      sendTypingNotifications,
+      nickname,
+      accountName,
+      accountPassword,
+      operName,
+      operPassword,
+      operOnConnect,
+      showSafeMedia,
+      showExternalContent,
+      enableMarkdownRendering,
+      showEvents: globalShowEvents,
+      showNickChanges: globalShowNickChanges,
+      showJoinsParts: globalShowJoinsParts,
+      showQuits: globalShowQuits,
+      showKicks: globalShowKicks,
+      enableMultilineInput: globalEnableMultilineInput,
+      multilineOnShiftEnter: globalMultilineOnShiftEnter,
+      autoFallbackToSingleLine: globalAutoFallbackToSingleLine,
+    },
+    isOpen,
+  );
 
   // Sidebar content
   const sidebarContent = (
@@ -1768,45 +1691,45 @@ const UserSettings: React.FC = React.memo(() => {
       />
 
       {/* External Content Warning Modal */}
-      {showExternalContentWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-discord-dark-300 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h3 className="text-white text-xl font-semibold mb-4">
-                ⚠️ External Content Warning
-              </h3>
-              <p className="text-discord-text-normal mb-4">
-                Enabling external content display will load images and media
-                from external servers. This may reveal your IP address to those
-                servers.
-              </p>
-              <p className="text-discord-text-muted text-sm mb-6">
-                Only enable this if you understand the privacy implications and
-                trust the content sources.
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowExternalContentWarning(false);
-                  }}
-                  className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowExternalContentWarning(false);
-                    setShowExternalContent(true);
-                  }}
-                  className="px-4 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700 transition-colors"
-                >
-                  Enable Anyway
-                </button>
-              </div>
-            </div>
+      <Modal
+        isOpen={showExternalContentWarning}
+        onClose={() => setShowExternalContentWarning(false)}
+        preventClose={true}
+        className="bg-discord-dark-300 rounded-lg shadow-xl max-w-md w-full mx-4"
+      >
+        <div className="p-6">
+          <h3 className="text-white text-xl font-semibold mb-4">
+            ⚠️ External Content Warning
+          </h3>
+          <p className="text-discord-text-normal mb-4">
+            Enabling external content display will load images and media from
+            external servers. This may reveal your IP address to those servers.
+          </p>
+          <p className="text-discord-text-muted text-sm mb-6">
+            Only enable this if you understand the privacy implications and
+            trust the content sources.
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setShowExternalContentWarning(false);
+              }}
+              className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-500 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setShowExternalContentWarning(false);
+                setShowExternalContent(true);
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700 transition-colors"
+            >
+              Enable Anyway
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
     </>
   );
 });

@@ -6,6 +6,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
+import { ModalStackProvider } from "./components/modals";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
@@ -135,32 +136,34 @@ const App: React.FC = () => {
   ]); // Removed connectToSavedServers from dependencies
 
   return (
-    <div className="h-screen overflow-hidden">
-      <AppLayout />
-      <AddServerModal />
-      <EditServerModal />
-      <UserSettings />
-      <ChannelListModal />
-      <ChannelRenameModal />
-      <LinkSecurityWarningModal />
-      {userProfileModalState?.isOpen && (
-        <UserProfileModal
-          isOpen={userProfileModalState.isOpen}
-          onClose={() => setUserProfileModalState(null)}
-          serverId={userProfileModalState.serverId}
-          username={userProfileModalState.username}
-        />
-      )}
-      {isServerNoticesPopupOpen && (
-        <ServerNoticesPopup
-          messages={serverNotices}
-          onClose={() => toggleServerNoticesPopup(false)}
-          onUsernameContextMenu={handleUsernameContextMenu}
-          onIrcLinkClick={handleIrcLinkClick}
-          joinChannel={joinChannel}
-        />
-      )}
-    </div>
+    <ModalStackProvider>
+      <div className="h-screen overflow-hidden">
+        <AppLayout />
+        <AddServerModal />
+        <EditServerModal />
+        <UserSettings />
+        <ChannelListModal />
+        <ChannelRenameModal />
+        <LinkSecurityWarningModal />
+        {userProfileModalState?.isOpen && (
+          <UserProfileModal
+            isOpen={userProfileModalState.isOpen}
+            onClose={() => setUserProfileModalState(null)}
+            serverId={userProfileModalState.serverId}
+            username={userProfileModalState.username}
+          />
+        )}
+        {isServerNoticesPopupOpen && (
+          <ServerNoticesPopup
+            messages={serverNotices}
+            onClose={() => toggleServerNoticesPopup(false)}
+            onUsernameContextMenu={handleUsernameContextMenu}
+            onIrcLinkClick={handleIrcLinkClick}
+            joinChannel={joinChannel}
+          />
+        )}
+      </div>
+    </ModalStackProvider>
   );
 };
 

@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import ChannelRenameModal from "../../src/components/ui/ChannelRenameModal";
 import useStore from "../../src/store";
+import { fireEvent, renderWithProviders, screen } from "../test-utils";
 
 // Mock the store
 vi.mock("../../src/store", () => ({
@@ -40,7 +40,7 @@ describe("ChannelRenameModal", () => {
   });
 
   test("renders channel rename modal", () => {
-    render(<ChannelRenameModal />);
+    renderWithProviders(<ChannelRenameModal />);
 
     expect(
       screen.getByRole("heading", { name: "Rename Channel" }),
@@ -48,13 +48,13 @@ describe("ChannelRenameModal", () => {
   });
 
   test("closes modal when cancel button is clicked", () => {
-    render(<ChannelRenameModal />);
+    renderWithProviders(<ChannelRenameModal />);
 
     // There is no cancel button, just close button
   });
 
   test("closes modal when close button is clicked", () => {
-    render(<ChannelRenameModal />);
+    renderWithProviders(<ChannelRenameModal />);
 
     const closeButtons = screen.getAllByRole("button");
     const closeButton = closeButtons.find(
@@ -66,7 +66,7 @@ describe("ChannelRenameModal", () => {
   });
 
   test("renames channel when form is submitted", () => {
-    render(<ChannelRenameModal />);
+    renderWithProviders(<ChannelRenameModal />);
 
     const newNameInput = screen.getByPlaceholderText("Enter new channel name");
     const renameButton = screen.getByRole("button", { name: "Rename Channel" });
@@ -76,7 +76,7 @@ describe("ChannelRenameModal", () => {
   });
 
   test("shows validation error for empty new name", () => {
-    render(<ChannelRenameModal />);
+    renderWithProviders(<ChannelRenameModal />);
 
     const renameButton = screen.getByRole("button", { name: /Rename/ });
     fireEvent.click(renameButton);
@@ -111,7 +111,7 @@ describe("ChannelRenameModal", () => {
       closeModal: vi.fn(),
     });
 
-    const { container } = render(<ChannelRenameModal />);
+    const { container } = renderWithProviders(<ChannelRenameModal />);
     expect(container.firstChild).toBeNull();
   });
 });

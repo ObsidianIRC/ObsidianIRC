@@ -2396,8 +2396,10 @@ const useStore = create<AppState>((set, get) => ({
         },
         modalHistory: [...state.ui.modalHistory, modalId],
         // Handle addServer modal's prefillServerDetails
-        ...(modalId === "addServer" && props
-          ? { prefillServerDetails: props as ConnectionDetails }
+        ...(modalId === "addServer"
+          ? {
+              prefillServerDetails: props ? (props as ConnectionDetails) : null,
+            }
           : {}),
       },
     }));
@@ -2412,6 +2414,8 @@ const useStore = create<AppState>((set, get) => ({
           [modalId]: { isOpen: false, props: undefined },
         },
         modalHistory: state.ui.modalHistory.filter((id) => id !== modalId),
+        // Clear prefillServerDetails when closing addServer modal
+        ...(modalId === "addServer" ? { prefillServerDetails: null } : {}),
       },
     }));
   },
@@ -2430,6 +2434,7 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         modals: {},
         modalHistory: [],
+        prefillServerDetails: null,
       },
     }));
   },
@@ -5826,8 +5831,12 @@ ircClient.on("TAGMSG", (response) => {
 
   // Check if the sender is not the current user for this specific server
   // we don't care about showing our own typing status
-  const currentUser = ircClient.getCurrentUser(response.serverId);
-  if (sender !== currentUser?.username && mtags && mtags["+typing"]) {
+  const currentNick = ircClient.getNick(response.serverId);
+  if (
+    sender.toLowerCase() !== currentNick?.toLowerCase() &&
+    mtags &&
+    mtags["+typing"]
+  ) {
     const isActive = mtags["+typing"] === "active";
     const server = useStore
       .getState()

@@ -177,10 +177,10 @@ const ChannelListModal: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedServerId) {
+    if (selectedServerId && isOpen) {
       listChannels(selectedServerId);
     }
-  }, [selectedServerId, listChannels]);
+  }, [selectedServerId, isOpen, listChannels]);
 
   // Sync filter state with store
   useEffect(() => {

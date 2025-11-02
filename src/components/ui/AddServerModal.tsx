@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaQuestionCircle } from "react-icons/fa";
 import useStore from "../../store";
 import { SimpleModal } from "../modals";
@@ -33,6 +33,19 @@ export const AddServerModal: React.FC = () => {
   const [registerPassword, setRegisterPassword] = useState("");
 
   const [error, setError] = useState("");
+
+  // Update state when prefillServerDetails changes (e.g., when clicking a server in discovery)
+  useEffect(() => {
+    if (prefillServerDetails) {
+      setServerName(prefillServerDetails.name || "");
+      setServerHost(prefillServerDetails.host || "");
+      setServerPort(prefillServerDetails.port || "443");
+      setNickname(
+        prefillServerDetails.nickname ||
+          `user${Math.floor(Math.random() * 1000)}`,
+      );
+    }
+  }, [prefillServerDetails]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

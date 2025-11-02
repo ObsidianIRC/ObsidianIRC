@@ -9,11 +9,17 @@ export {
   type ModalHeaderProps,
   type ModalProps,
 } from "./base";
+// Context
+export {
+  ModalStackProvider,
+  useModalStackContext,
+} from "./context/ModalStackContext";
 // Hooks
 export {
   useClickOutside,
   useModalEscape,
   useScrollLock,
+  useUnsavedChanges,
 } from "./hooks";
 // Layout components
 export {
