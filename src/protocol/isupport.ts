@@ -1,10 +1,11 @@
+import type { StoreApi, UseBoundStore } from "zustand";
 import type { IRCClient } from "../lib/ircClient";
-import type AppState from "../store/";
+import type { AppState } from "../store/";
 import type { Server } from "../types/";
 
 export function registerISupportHandler(
   ircClient: IRCClient,
-  useStore: typeof AppState,
+  useStore: UseBoundStore<StoreApi<AppState>>,
 ) {
   ircClient.on("ISUPPORT", ({ serverId, key, value }) => {
     if (key === "FAVICON" || key === "ICON" || key === "draft/ICON") {

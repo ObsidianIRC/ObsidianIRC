@@ -3,8 +3,7 @@ import { FaPlus } from "react-icons/fa";
 import useStore from "../../store";
 
 const DiscoverGrid = () => {
-  const { toggleAddServerModal, connect, isConnecting, connectionError } =
-    useStore();
+  const { openModal, connect, isConnecting, connectionError } = useStore();
   const [query, setQuery] = useState("");
   const [servers, setServers] = useState<
     { name: string; description: string; server?: string; port?: string }[]
@@ -36,7 +35,7 @@ const DiscoverGrid = () => {
   );
 
   const handleServerClick = (server: Record<string, string>) => {
-    toggleAddServerModal(true, {
+    openModal("addServer", {
       name: server.name,
       host: server.server || "", // Use empty string if server is undefined
       port: server.port || "443", // Default to 443 if port is undefined

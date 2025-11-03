@@ -547,12 +547,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
       // Apply avatar change
       if (channelAvatar !== (channel?.metadata?.avatar?.value || "")) {
-        await metadataSet(
-          serverId,
-          channelName,
-          "avatar",
-          channelAvatar || undefined,
-        );
+        await metadataSet(serverId, channelName, "avatar", channelAvatar || "");
       }
 
       // Apply display name change
@@ -564,7 +559,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           serverId,
           channelName,
           "display-name",
-          channelDisplayName || undefined,
+          channelDisplayName || "",
         );
       }
     } finally {

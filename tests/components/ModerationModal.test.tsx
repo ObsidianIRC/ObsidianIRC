@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { ModerationAction } from "../../src/components/ui/ModerationModal";
 import ModerationModal from "../../src/components/ui/ModerationModal";
+import { renderWithProviders } from "../test-utils";
 
 describe("ModerationModal", () => {
   const mockOnClose = vi.fn();
@@ -12,7 +13,7 @@ describe("ModerationModal", () => {
   });
 
   const renderModal = (action: ModerationAction = "warn", isOpen = true) => {
-    return render(
+    return renderWithProviders(
       <ModerationModal
         isOpen={isOpen}
         onClose={mockOnClose}
@@ -103,7 +104,7 @@ describe("ModerationModal", () => {
   test("calls onClose when close button is clicked", () => {
     renderModal("warn");
 
-    const closeButton = screen.getByRole("button", { name: "" }); // Close button has no accessible name
+    const closeButton = screen.getByRole("button", { name: "Close modal" });
     fireEvent.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -148,7 +149,7 @@ describe("ModerationModal", () => {
     fireEvent.change(reasonInput, { target: { value: "Test reason" } });
 
     // Close modal
-    const closeButton = screen.getByRole("button", { name: "" }); // Close button has no accessible name
+    const closeButton = screen.getByRole("button", { name: "Close modal" });
     fireEvent.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);

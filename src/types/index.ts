@@ -46,6 +46,15 @@ export interface Server {
   jwtToken?: string; // JWT token for filehost authentication
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // Configuration properties (for backward compatibility with components)
+  nickname?: string;
+  saslAccountName?: string;
+  saslEnabled?: boolean;
+  saslPassword?: string;
+  password?: string;
+  operUsername?: string;
+  operPassword?: string;
+  operOnConnect?: boolean;
 }
 
 export interface ServerConfig {

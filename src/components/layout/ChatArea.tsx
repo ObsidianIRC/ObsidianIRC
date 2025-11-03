@@ -169,7 +169,7 @@ export const ChatArea: React.FC<{
   const selectPrivateChat = useStore((state) => state.selectPrivateChat);
   const connect = useStore((state) => state.connect);
   const joinChannel = useStore((state) => state.joinChannel);
-  const toggleAddServerModal = useStore((state) => state.toggleAddServerModal);
+  const openModal = useStore((state) => state.openModal);
   const redactMessage = useStore((state) => state.redactMessage);
   const warnUser = useStore((state) => state.warnUser);
   const kickUser = useStore((state) => state.kickUser);
@@ -182,15 +182,10 @@ export const ChatArea: React.FC<{
     selectedPrivateChatId: null,
   };
   const { selectedChannelId, selectedPrivateChatId } = currentSelection;
-  const {
-    isMemberListVisible,
-    isSettingsModalOpen,
-    isUserProfileModalOpen,
-    isAddServerModalOpen,
-    isChannelListModalOpen,
-    isChannelRenameModalOpen,
-    isServerNoticesPopupOpen,
-  } = ui;
+  const { isMemberListVisible, isServerNoticesPopupOpen } = ui;
+
+  // Check if settings modal is open via modal manager
+  const isSettingsModalOpen = ui.modals.settings?.isOpen || false;
 
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -274,7 +269,7 @@ export const ChatArea: React.FC<{
     const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
 
     // Open the connect modal with pre-filled server details
-    toggleAddServerModal(true, {
+    openModal("addServer", {
       name: parsed.host,
       host: parsed.host,
       port: parsed.port.toString(),
@@ -1409,23 +1404,19 @@ export const ChatArea: React.FC<{
     if ("__TAURI__" in window && ["android", "ios"].includes(platform()))
       return;
     // Don't steal focus if any modal is open
-    if (
+    const isAnyModalOpen =
       isSettingsModalOpen ||
-      isUserProfileModalOpen ||
-      isAddServerModalOpen ||
-      isChannelListModalOpen ||
-      isChannelRenameModalOpen
-    )
-      return;
+      ui.modals.addServer?.isOpen ||
+      ui.modals.editServer?.isOpen ||
+      ui.modals.channelList?.isOpen ||
+      ui.modals.channelRename?.isOpen;
+    if (isAnyModalOpen) return;
     inputRef.current?.focus();
   }, [
     selectedChannelId,
     selectedPrivateChatId,
     isSettingsModalOpen,
-    isUserProfileModalOpen,
-    isAddServerModalOpen,
-    isChannelListModalOpen,
-    isChannelRenameModalOpen,
+    ui.modals,
   ]);
 
   return (

@@ -33,11 +33,7 @@ const mockStoreState = {
   ui: {
     selectedServerId: null,
     perServerSelections: {},
-    isAddServerModalOpen: false,
-    isEditServerModalOpen: false,
-    editServerId: null,
-    isSettingsModalOpen: false,
-    isUserProfileModalOpen: false,
+    modals: {} as Record<string, { isOpen: boolean; props?: unknown }>,
     isDarkMode: true,
     linkSecurityWarnings: [],
   },
@@ -68,14 +64,14 @@ const mockStoreState = {
   toggleChannelList: vi.fn(),
   connectToSavedServers: vi.fn(),
   toggleMemberList: vi.fn(),
-  toggleAddServerModal: vi.fn((open?: boolean) => {
-    mockStoreState.ui.isAddServerModalOpen =
-      open ?? !mockStoreState.ui.isAddServerModalOpen;
+  openModal: vi.fn((modalId: string, props?: unknown) => {
+    mockStoreState.ui.modals[modalId] = { isOpen: true, props };
     storeVersion++;
   }),
-  toggleSettingsModal: vi.fn((open?: boolean) => {
-    mockStoreState.ui.isSettingsModalOpen =
-      open ?? !mockStoreState.ui.isSettingsModalOpen;
+  closeModal: vi.fn((modalId: string) => {
+    if (mockStoreState.ui.modals[modalId]) {
+      mockStoreState.ui.modals[modalId].isOpen = false;
+    }
     storeVersion++;
   }),
 };
@@ -98,8 +94,7 @@ describe("App", () => {
 
   beforeEach(() => {
     // Reset mock state between tests
-    mockStoreState.ui.isAddServerModalOpen = false;
-    mockStoreState.ui.isSettingsModalOpen = false;
+    mockStoreState.ui.modals = {};
   });
 
   afterEach(() => {
@@ -115,8 +110,8 @@ describe("App", () => {
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
 
-      // Check that toggleAddServerModal was called with true
-      expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
+      // Check that openModal was called with "addServer"
+      expect(mockStoreState.openModal).toHaveBeenCalledWith("addServer");
     });
 
     it("Can add a new server with valid information", async () => {
@@ -140,8 +135,8 @@ describe("App", () => {
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
 
-      // Check that toggleAddServerModal was called
-      expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
+      // Check that openModal was called
+      expect(mockStoreState.openModal).toHaveBeenCalledWith("addServer");
     });
 
     it("Shows error message when server connection fails", async () => {
@@ -157,8 +152,8 @@ describe("App", () => {
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
 
-      // Check that toggleAddServerModal was called
-      expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
+      // Check that openModal was called
+      expect(mockStoreState.openModal).toHaveBeenCalledWith("addServer");
     });
 
     it("Shows error message when server connection fails", async () => {
@@ -174,8 +169,8 @@ describe("App", () => {
       await user.click(screen.getByTestId("server-list-options-button"));
       await user.click(screen.getByText(/Add Server/i));
 
-      // Check that toggleAddServerModal was called
-      expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
+      // Check that openModal was called
+      expect(mockStoreState.openModal).toHaveBeenCalledWith("addServer");
     });
   });
 
@@ -187,8 +182,8 @@ describe("App", () => {
       // Open settings
       await user.click(screen.getByTestId("user-settings-button"));
 
-      // Check that toggleUserProfileModal was called
-      expect(mockStoreState.toggleUserProfileModal).toHaveBeenCalledWith(true);
+      // Check that openModal was called with "settings"
+      expect(mockStoreState.openModal).toHaveBeenCalledWith("settings");
     });
   });
 });

@@ -64,6 +64,10 @@ describe("LinkSecurityWarningModal", () => {
           host: "irc.example.com",
           port: 6667,
           linkSecurity: 1,
+          channels: [],
+          privateChats: [],
+          isConnected: false,
+          users: [],
         },
         {
           id: "server2",
@@ -71,9 +75,12 @@ describe("LinkSecurityWarningModal", () => {
           host: "localhost",
           port: 6667,
           linkSecurity: 0,
+          channels: [],
+          privateChats: [],
+          isConnected: false,
+          users: [],
         },
-        // biome-ignore lint/suspicious/noExplicitAny: Partial mock doesn't need full Server type
-      ] as any[], // Cast to any to avoid full Server type
+      ],
       ui: {
         linkSecurityWarnings: [
           { serverId: "server1", timestamp: Date.now() },
@@ -91,15 +98,13 @@ describe("LinkSecurityWarningModal", () => {
         isChannelListVisible: false,
         isChannelListModalOpen: false,
         isChannelRenameModalOpen: false,
-        // biome-ignore lint/suspicious/noExplicitAny: Partial mock type
-        mobileViewActiveColumn: "chat" as any,
+        mobileViewActiveColumn: "chat",
         isServerMenuOpen: false,
         contextMenu: {
           isOpen: false,
           x: 0,
           y: 0,
-          // biome-ignore lint/suspicious/noExplicitAny: Partial mock type
-          type: "server" as any,
+          type: "server",
           itemId: null,
         },
         prefillServerDetails: null,
@@ -165,6 +170,9 @@ describe("LinkSecurityWarningModal", () => {
         port: 6667,
         nickname: "testuser",
         channels: [],
+        privateChats: [],
+        isConnected: false,
+        users: [],
         saslEnabled: false,
       },
       {
@@ -174,6 +182,9 @@ describe("LinkSecurityWarningModal", () => {
         port: 6667,
         nickname: "testuser",
         channels: [],
+        privateChats: [],
+        isConnected: false,
+        users: [],
         saslEnabled: false,
       },
     ]);
@@ -297,19 +308,27 @@ describe("LinkSecurityWarningModal", () => {
     const mockSavedServers = [
       {
         id: "server1",
+        name: "Test Server",
         host: "irc.example.com",
         port: 6667,
         nickname: "testuser",
-        saslEnabled: false,
         channels: [],
+        privateChats: [],
+        isConnected: false,
+        users: [],
+        saslEnabled: false,
       },
       {
         id: "server2",
+        name: "Local Server",
         host: "localhost",
         port: 6667,
         nickname: "testuser",
-        saslEnabled: false,
         channels: [],
+        privateChats: [],
+        isConnected: false,
+        users: [],
+        saslEnabled: false,
       },
     ];
 
@@ -368,9 +387,12 @@ describe("LinkSecurityWarningModal", () => {
 
       // Verify saveServersToLocalStorage was called with updated server config
       expect(mockSaveServersToLocalStorage).toHaveBeenCalled();
-      const savedServers = mockSaveServersToLocalStorage.mock.calls[0][0];
-      // biome-ignore lint/suspicious/noExplicitAny: Mock server config doesn't need full typing
-      const updatedServer = savedServers.find((s: any) => s.id === "server1");
+      const savedServers = mockSaveServersToLocalStorage.mock
+        .calls[0][0] as Array<{
+        id: string;
+        skipLinkSecurityWarning?: boolean;
+      }>;
+      const updatedServer = savedServers.find((s) => s.id === "server1");
       expect(updatedServer?.skipLinkSecurityWarning).toBe(true);
     }
 

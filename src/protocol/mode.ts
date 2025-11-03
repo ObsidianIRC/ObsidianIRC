@@ -1,10 +1,11 @@
+import type { StoreApi, UseBoundStore } from "zustand";
 import type { IRCClient } from "../lib/ircClient";
-import type AppState from "../store/";
+import type { AppState } from "../store/";
 import type { Channel, Message, Server } from "../types/";
 
 export function registerModeHandler(
   ircClient: IRCClient,
-  useStore: typeof AppState,
+  useStore: UseBoundStore<StoreApi<AppState>>,
 ) {
   ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
     const state = useStore.getState();
@@ -36,7 +37,7 @@ function handleChannelMode(
   sender: string,
   modestring: string,
   modeargs: string[],
-  useStore: typeof AppState,
+  useStore: UseBoundStore<StoreApi<AppState>>,
 ) {
   const channel = server.channels.find((c: Channel) => c.name === channelName);
   if (!channel) return;
@@ -124,7 +125,7 @@ function applyModeChanges(
   serverId: string,
   channel: Channel,
   changes: ModeChange[],
-  useStore: typeof AppState,
+  useStore: UseBoundStore<StoreApi<AppState>>,
 ) {
   const state = useStore.getState();
   const server = state.servers.find((s: Server) => s.id === serverId);
@@ -185,7 +186,7 @@ function updateChannelModes(
   serverId: string,
   channel: Channel,
   changes: ModeChange[],
-  useStore: typeof AppState,
+  useStore: UseBoundStore<StoreApi<AppState>>,
 ) {
   // Only update if there are actual channel mode changes (not just user status changes)
   const channelModeChanges = changes.filter(
@@ -337,7 +338,7 @@ function applyListModeChanges(
   channel: Channel,
   sender: string,
   changes: ModeChange[],
-  useStore: typeof AppState,
+  useStore: UseBoundStore<StoreApi<AppState>>,
 ) {
   useStore.setState((state) => {
     const updatedServers = state.servers.map((s: Server) => {
@@ -475,7 +476,7 @@ function sendModeNotification(
   channel: Channel,
   sender: string,
   changes: ModeChange[],
-  useStore: typeof AppState,
+  useStore: UseBoundStore<StoreApi<AppState>>,
 ) {
   // Group changes by action and reconstruct compact mode strings
   const groupedChanges: { [action: string]: ModeChange[] } = {};

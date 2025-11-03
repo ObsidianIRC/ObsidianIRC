@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import ChannelListModal from "../../src/components/ui/ChannelListModal";
+import { fireEvent, renderWithProviders, screen } from "../test-utils";
 
 // Mock the store
 vi.mock("../../src/store", () => ({
@@ -15,7 +15,9 @@ vi.mock("../../src/store", () => ({
       },
     ],
     ui: {
-      showChannelListModal: true,
+      modals: {
+        channelList: { isOpen: true },
+      },
       selectedServerId: "server1",
     },
     channelList: {
@@ -41,7 +43,8 @@ vi.mock("../../src/store", () => ({
     joinChannel: vi.fn(),
     listChannels: vi.fn(),
     updateChannelListFilters: vi.fn(),
-    toggleChannelListModal: vi.fn(),
+    openModal: vi.fn(),
+    closeModal: vi.fn(),
   })),
 }));
 
@@ -51,7 +54,7 @@ describe("ChannelListModal", () => {
   });
 
   test("renders channel list modal", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     expect(screen.getByText("Channels on Test Server")).toBeInTheDocument();
     expect(screen.getByText("channel1")).toBeInTheDocument();
@@ -60,7 +63,7 @@ describe("ChannelListModal", () => {
   });
 
   test("displays channel information correctly", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("20")).toBeInTheDocument();
@@ -71,7 +74,7 @@ describe("ChannelListModal", () => {
   });
 
   test("filters channels by name", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     const searchInput = screen.getByPlaceholderText("Filter channels...");
     fireEvent.change(searchInput, { target: { value: "channel1" } });
@@ -82,7 +85,7 @@ describe("ChannelListModal", () => {
   });
 
   test("sorts channels by user count", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     const sortSelect = screen.getByRole("combobox");
     fireEvent.change(sortSelect, { target: { value: "users" } });
@@ -96,7 +99,7 @@ describe("ChannelListModal", () => {
   });
 
   test("joins channel when clicked", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     const channelDiv = screen.getByText("channel1").closest("div");
     if (channelDiv) {
@@ -107,30 +110,30 @@ describe("ChannelListModal", () => {
   });
 
   test("shows loading state when listing channels", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     // Should show channels by default
     expect(screen.getByText("channel1")).toBeInTheDocument();
   });
 
   test("closes modal when close button is clicked", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
-    const closeButton = screen.getByLabelText("Close");
+    const closeButton = screen.getByLabelText("Close modal");
     fireEvent.click(closeButton);
 
     // Modal should be closable
   });
 
   test("shows empty state when no channels", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     // Should show channels by default
     expect(screen.getByText("channel1")).toBeInTheDocument();
   });
 
   test("shows filtered empty state", () => {
-    render(<ChannelListModal />);
+    renderWithProviders(<ChannelListModal />);
 
     const searchInput = screen.getByPlaceholderText("Filter channels...");
     fireEvent.change(searchInput, { target: { value: "nonexistent" } });
