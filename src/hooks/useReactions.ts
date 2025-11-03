@@ -120,7 +120,10 @@ export function useReactions({
             if (messages) {
               const msgIndex = messages.findIndex((m) => m.id === message.id);
               if (msgIndex !== -1) {
-                const updatedMessage = { ...messages[msgIndex] };
+                // Type assertion to avoid TypeScript's type instantiation depth limit with Immer
+                const updatedMessage = {
+                  ...(messages[msgIndex] as unknown as Message),
+                };
                 if (existingReaction) {
                   // Remove the reaction
                   updatedMessage.reactions = updatedMessage.reactions.filter(
@@ -136,14 +139,17 @@ export function useReactions({
                     { emoji, userId: currentUser?.username || "" },
                   ];
                 }
+                // Type assertion to avoid TypeScript's type instantiation depth limit with Immer
+                const messagesArray = messages as unknown as Message[];
+                const newMessages = [
+                  ...messagesArray.slice(0, msgIndex),
+                  updatedMessage,
+                  ...messagesArray.slice(msgIndex + 1),
+                ];
                 return {
                   messages: {
                     ...state.messages,
-                    [key]: [
-                      ...messages.slice(0, msgIndex),
-                      updatedMessage,
-                      ...messages.slice(msgIndex + 1),
-                    ],
+                    [key]: newMessages,
                   },
                 };
               }
@@ -184,7 +190,10 @@ export function useReactions({
           if (messages) {
             const msgIndex = messages.findIndex((m) => m.id === message.id);
             if (msgIndex !== -1) {
-              const updatedMessage = { ...messages[msgIndex] };
+              // Type assertion to avoid TypeScript's type instantiation depth limit with Immer
+              const updatedMessage = {
+                ...(messages[msgIndex] as unknown as Message),
+              };
               // Check if user already reacted
               const existingReactionIndex = updatedMessage.reactions.findIndex(
                 (r) => r.emoji === emoji && r.userId === currentUser?.username,
@@ -194,14 +203,17 @@ export function useReactions({
                   ...updatedMessage.reactions,
                   { emoji, userId: currentUser?.username || "" },
                 ];
+                // Type assertion to avoid TypeScript's type instantiation depth limit with Immer
+                const messagesArray = messages as unknown as Message[];
+                const newMessages = [
+                  ...messagesArray.slice(0, msgIndex),
+                  updatedMessage,
+                  ...messagesArray.slice(msgIndex + 1),
+                ];
                 return {
                   messages: {
                     ...state.messages,
-                    [key]: [
-                      ...messages.slice(0, msgIndex),
-                      updatedMessage,
-                      ...messages.slice(msgIndex + 1),
-                    ],
+                    [key]: newMessages,
                   },
                 };
               }
@@ -234,20 +246,26 @@ export function useReactions({
           if (messages) {
             const msgIndex = messages.findIndex((m) => m.id === message.id);
             if (msgIndex !== -1) {
-              const updatedMessage = { ...messages[msgIndex] };
+              // Type assertion to avoid TypeScript's type instantiation depth limit with Immer
+              const updatedMessage = {
+                ...(messages[msgIndex] as unknown as Message),
+              };
               // Remove the reaction
               updatedMessage.reactions = updatedMessage.reactions.filter(
                 (r) =>
                   !(r.emoji === emoji && r.userId === currentUser?.username),
               );
+              // Type assertion to avoid TypeScript's type instantiation depth limit with Immer
+              const messagesArray = messages as unknown as Message[];
+              const newMessages = [
+                ...messagesArray.slice(0, msgIndex),
+                updatedMessage,
+                ...messagesArray.slice(msgIndex + 1),
+              ];
               return {
                 messages: {
                   ...state.messages,
-                  [key]: [
-                    ...messages.slice(0, msgIndex),
-                    updatedMessage,
-                    ...messages.slice(msgIndex + 1),
-                  ],
+                  [key]: newMessages,
                 },
               };
             }

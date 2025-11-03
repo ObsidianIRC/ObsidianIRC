@@ -15,7 +15,6 @@ describe("Store", () => {
       expect(state.servers).toEqual([]);
       expect(state.currentUser).toBeNull();
       expect(state.isConnecting).toBe(false);
-      expect(state.selectedServerId).toBeNull();
       expect(state.connectionError).toBeNull();
       expect(state.messages).toEqual({});
       expect(state.typingUsers).toEqual({});

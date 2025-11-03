@@ -20,7 +20,7 @@ import useStore, {
   loadSavedServers,
   serverSupportsMetadata,
 } from "../../store";
-import type { ServerConfig } from "../../types";
+import type { Server } from "../../types";
 import { Modal, ModalWithSidebar, useUnsavedChanges } from "../modals";
 import { SettingField, UnsavedChangesModal } from "../modals/shared";
 import AvatarUpload from "./AvatarUpload";
@@ -644,12 +644,7 @@ const UserSettings: React.FC = React.memo(() => {
 
   const handleSaveMetadata = (key: string, value: string) => {
     if (currentServer && currentUser) {
-      metadataSet(
-        currentServer.id,
-        currentUser.username,
-        key,
-        value || undefined,
-      );
+      metadataSet(currentServer.id, currentUser.username, key, value || "");
     }
   };
 
@@ -693,7 +688,7 @@ const UserSettings: React.FC = React.memo(() => {
               currentServer.id,
               "*", // Use * to refer to current user (self)
               "display-name",
-              displayName || undefined,
+              displayName || "",
             );
           } catch (error) {
             console.error("Failed to set display name metadata:", error);
@@ -720,7 +715,7 @@ const UserSettings: React.FC = React.memo(() => {
                 currentServer.id,
                 "*", // Use * to refer to current user (self)
                 key,
-                value || undefined,
+                value || "",
               );
             } catch (error) {
               console.error(`Failed to set ${key} metadata:`, error);
@@ -806,7 +801,7 @@ const UserSettings: React.FC = React.memo(() => {
 
     // Save oper settings to server config if changed
     if (currentServer) {
-      const serverConfigUpdates: Partial<ServerConfig> = {};
+      const serverConfigUpdates: Partial<Server> = {};
       if (operName !== originalValues.operName) {
         serverConfigUpdates.operUsername = operName || undefined;
       }

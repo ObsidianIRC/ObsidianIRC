@@ -7,7 +7,22 @@ import { SimpleModal } from "../modals";
 export const AddServerModal: React.FC = () => {
   const { closeModal, connect, isConnecting, connectionError, ui } = useStore();
 
-  const { prefillServerDetails } = ui;
+  // Read prefill data from modal props (passed via openModal) or fallback to legacy prefillServerDetails
+  const modalProps = ui.modals.addServer?.props as
+    | {
+        name?: string;
+        host?: string;
+        port?: string;
+        nickname?: string;
+        ui?: {
+          disableServerConnectionInfo?: boolean;
+          hideServerInfo?: boolean;
+          title?: string;
+          hideClose?: boolean;
+        };
+      }
+    | undefined;
+  const prefillServerDetails = modalProps || ui.prefillServerDetails;
   const isOpen = ui.modals.addServer?.isOpen || false;
 
   const [serverName, setServerName] = useState(

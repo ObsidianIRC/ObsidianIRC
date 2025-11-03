@@ -16,7 +16,6 @@ describe("MODE Protocol Handler", () => {
       servers: [],
       currentUser: null,
       isConnecting: false,
-      selectedServerId: null,
       connectionError: null,
       messages: {},
       typingUsers: {},
@@ -55,7 +54,10 @@ describe("MODE Protocol Handler", () => {
 
   describe("registerModeHandler", () => {
     test("should register MODE event handler", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       expect(mockIRCClient.on).toHaveBeenCalledWith(
         "MODE",
@@ -66,7 +68,10 @@ describe("MODE Protocol Handler", () => {
 
   describe("MODE event handling", () => {
     test("should handle channel mode changes with op", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       // Get the MODE handler function
       const modeCall = mockIRCClient.on.mock.calls.find(
@@ -143,7 +148,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should handle channel mode changes with voice", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",
@@ -202,7 +210,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should handle mode removal", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",
@@ -261,7 +272,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should handle multiple modes in one command", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",
@@ -330,7 +344,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should handle custom prefix configurations", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",
@@ -389,7 +406,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should handle multiple prefixes on same user", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",
@@ -450,7 +470,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should ignore MODE events for non-existent servers", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",
@@ -472,7 +495,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should ignore MODE events for non-existent channels", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",
@@ -508,7 +534,10 @@ describe("MODE Protocol Handler", () => {
     });
 
     test("should ignore MODE events when server has no prefix configured", () => {
-      registerModeHandler(mockIRCClient as unknown as IRCClient, useStore);
+      registerModeHandler(
+        mockIRCClient as unknown as IRCClient,
+        useStore as Parameters<typeof registerModeHandler>[1],
+      );
 
       const modeCall = mockIRCClient.on.mock.calls.find(
         (call) => call[0] === "MODE",

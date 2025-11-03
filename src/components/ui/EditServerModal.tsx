@@ -2,7 +2,7 @@ import type React from "react";
 import { useState } from "react";
 import { FaQuestionCircle } from "react-icons/fa";
 import useStore, { loadSavedServers } from "../../store";
-import type { ServerConfig } from "../../types";
+import type { Server } from "../../types";
 import { SimpleModal } from "../modals";
 
 export const EditServerModal: React.FC = () => {
@@ -87,7 +87,7 @@ export const EditServerModal: React.FC = () => {
 
     try {
       // Update server configuration
-      const updatedConfig: Partial<ServerConfig> = {
+      const updatedConfig = {
         name: finalServerName,
         host: serverHost.trim(),
         port: Number.parseInt(serverPort, 10),
@@ -108,7 +108,7 @@ export const EditServerModal: React.FC = () => {
               }
             : {}),
         operOnConnect,
-      };
+      } as unknown as Partial<Server>;
 
       updateServer(serverId, updatedConfig);
       closeModal("editServer");

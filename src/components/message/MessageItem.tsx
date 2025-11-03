@@ -483,6 +483,7 @@ export const MessageItem = (props: MessageItemProps) => {
           isAway: false,
           status: "",
           isBot: false,
+          isIrcOp: false,
           metadata,
         };
       }

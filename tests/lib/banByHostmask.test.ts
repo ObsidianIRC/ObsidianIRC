@@ -31,7 +31,6 @@ describe("Ban by hostmask functionality", () => {
     // Reset the store state before each test
     useStore.setState({
       servers: [],
-      selectedServerId: null,
       messages: {},
     });
     vi.clearAllMocks();
