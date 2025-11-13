@@ -2,10 +2,9 @@ name: CrabNebula Cloud Release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 env:
   CN_APPLICATION: "obsidianirc/ObsidianIRC"

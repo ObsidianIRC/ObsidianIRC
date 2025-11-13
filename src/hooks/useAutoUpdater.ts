@@ -1,7 +1,11 @@
 import { ask } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { check } from "@tauri-apps/plugin-updater";
-import { useEffect, useState } from "react";
+import {
+  check,
+  type DownloadEvent,
+  type Update,
+} from "@tauri-apps/plugin-updater";
+import { useCallback, useEffect, useState } from "react";
 
 interface UpdateStatus {
   checking: boolean;
@@ -20,47 +24,7 @@ export function useAutoUpdater() {
     version: null,
   });
 
-  const checkForUpdates = async (silent = false) => {
-    try {
-      setStatus((prev) => ({ ...prev, checking: true, error: null }));
-
-      const update = await check();
-
-      if (update) {
-        setStatus((prev) => ({
-          ...prev,
-          available: true,
-          version: update.version,
-          checking: false,
-        }));
-
-        if (!silent) {
-          const shouldUpdate = await ask(
-            `Update to version ${update.version} is available. Would you like to install it now?`,
-            {
-              title: "Update Available",
-              kind: "info",
-            },
-          );
-
-          if (shouldUpdate) {
-            await installUpdate(update);
-          }
-        }
-      } else {
-        setStatus((prev) => ({ ...prev, checking: false, available: false }));
-      }
-    } catch (error) {
-      console.error("Failed to check for updates:", error);
-      setStatus((prev) => ({
-        ...prev,
-        checking: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      }));
-    }
-  };
-
-  const installUpdate = async (update: any) => {
+  const installUpdate = useCallback(async (update: Update) => {
     try {
       setStatus((prev) => ({ ...prev, downloading: true, error: null }));
 
@@ -68,17 +32,21 @@ export function useAutoUpdater() {
       let contentLength = 0;
 
       // Download and install the update
-      await update.downloadAndInstall((event: any) => {
+      await update.downloadAndInstall((event: DownloadEvent) => {
         switch (event.event) {
           case "Started":
-            contentLength = event.data.contentLength || 0;
-            console.log(`Update download started (${contentLength} bytes)`);
+            if ("data" in event) {
+              contentLength = event.data.contentLength || 0;
+              console.log(`Update download started (${contentLength} bytes)`);
+            }
             break;
           case "Progress": {
-            downloaded += event.data.chunkLength;
-            const progress =
-              contentLength > 0 ? (downloaded / contentLength) * 100 : 0;
-            console.log(`Download progress: ${progress.toFixed(2)}%`);
+            if ("data" in event) {
+              downloaded += event.data.chunkLength || 0;
+              const progress =
+                contentLength > 0 ? (downloaded / contentLength) * 100 : 0;
+              console.log(`Download progress: ${progress.toFixed(2)}%`);
+            }
             break;
           }
           case "Finished":
@@ -110,7 +78,50 @@ export function useAutoUpdater() {
           error instanceof Error ? error.message : "Failed to install update",
       }));
     }
-  };
+  }, []);
+
+  const checkForUpdates = useCallback(
+    async (silent = false) => {
+      try {
+        setStatus((prev) => ({ ...prev, checking: true, error: null }));
+
+        const update = await check();
+
+        if (update) {
+          setStatus((prev) => ({
+            ...prev,
+            available: true,
+            version: update.version,
+            checking: false,
+          }));
+
+          // Always prompt the user when an update is found, even during "silent" checks
+          // This ensures users are notified and can choose to install
+          const shouldUpdate = await ask(
+            `Update to version ${update.version} is available. Would you like to install it now?`,
+            {
+              title: "Update Available",
+              kind: "info",
+            },
+          );
+
+          if (shouldUpdate) {
+            await installUpdate(update);
+          }
+        } else {
+          setStatus((prev) => ({ ...prev, checking: false, available: false }));
+        }
+      } catch (error) {
+        console.error("Failed to check for updates:", error);
+        setStatus((prev) => ({
+          ...prev,
+          checking: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        }));
+      }
+    },
+    [installUpdate],
+  );
 
   // Check for updates on mount (only in production)
   useEffect(() => {
@@ -129,7 +140,7 @@ export function useAutoUpdater() {
 
       return () => clearInterval(interval);
     }
-  }, []);
+  }, [checkForUpdates]);
 
   return {
     status,
