@@ -538,20 +538,19 @@ export class IRCClient {
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
-        // Send IRC commands to register the user
+
+        // Start CAP negotiation
+        console.log("🔗 Starting CAP negotiation...");
+        socket.send("CAP LS 302");
+
+        // Send password if provided (before CAP negotiation completes)
         if (password) {
           socket.send(`PASS ${password}`);
         }
 
-        // Skip CAP negotiation for now and send registration directly
-        console.log("🔗 Sending IRC registration commands (skipping CAP)...");
+        // Send NICK command (can be sent during CAP negotiation)
         socket.send(`NICK ${nickname}`);
         console.log("📤 Sent NICK command:", `NICK ${nickname}`);
-        socket.send(`USER ${nickname} 0 * :${nickname}`);
-        console.log(
-          "📤 Sent USER command:",
-          `USER ${nickname} 0 * :${nickname}`,
-        );
 
         // Update server to mark as connected
         server.isConnected = true;
@@ -570,8 +569,8 @@ export class IRCClient {
           }
         }
 
-        // Start WebSocket ping timer for keepalive
-        this.startWebSocketPing(server.id);
+        // Don't start ping timer here - wait for 001 welcome message
+        // to ensure connection is fully established before sending PINGs
 
         socket.onclose = () => {
           console.log(`WebSocket onclose for server ${actualHost}`);
@@ -811,7 +810,7 @@ export class IRCClient {
           // Since we can't send ping frames directly in JS, we'll send an IRC PING
           // which serves as both IRC keepalive and WebSocket activity
           const timestamp = Date.now().toString();
-          this.sendRaw(serverId, `PING ${timestamp}`);
+          this.sendRaw(serverId, `PING :${timestamp}`);
 
           // Set a timeout for pong response (10 seconds)
           const pongTimeout = setTimeout(() => {
@@ -1357,6 +1356,10 @@ export class IRCClient {
         }
 
         this.triggerEvent("ready", { serverId, serverName, nickname });
+
+        // Start IRC ping timer for keepalive (for both TCP and WebSocket connections)
+        // This is needed to prevent ping timeouts on servers that don't send regular PINGs
+        this.startWebSocketPing(serverId);
 
         // Rejoin channels if this is a reconnection (server already has channels)
         const server = this.servers.get(serverId);
@@ -2630,6 +2633,12 @@ export class IRCClient {
         if (capsToRequest.includes("draft/extended-isupport")) {
           this.sendRaw(serverId, "ISUPPORT");
         }
+      } else {
+        // No capabilities to request, end CAP negotiation immediately
+        console.log(`[CAP LS] No capabilities to request for ${serverId}, ending CAP negotiation`);
+        this.sendRaw(serverId, "CAP END");
+        this.capNegotiationComplete.set(serverId, true);
+        this.userOnConnect(serverId);
       }
       // Clean up
       this.capLsAccumulated.delete(serverId);
@@ -2663,6 +2672,22 @@ export class IRCClient {
     // Trigger the original event for compatibility
     this.triggerEvent("CAP ACK", { serverId, cliCaps });
 
+    // Store the acknowledged capabilities
+    const server = this.servers.get(serverId);
+    if (server) {
+      const caps = cliCaps.split(" ");
+      if (!server.capabilities) {
+        server.capabilities = [];
+      }
+      for (const cap of caps) {
+        if (!server.capabilities.includes(cap)) {
+          server.capabilities.push(cap);
+        }
+      }
+      console.log(`[CAP ACK] Server ${serverId} acknowledged capabilities:`, caps);
+      console.log(`[CAP ACK] Total server capabilities:`, server.capabilities);
+    }
+
     // Decrement pending CAP REQ count
     const pendingCount = this.pendingCapReqs.get(serverId) || 0;
     if (pendingCount > 0) {
@@ -2672,12 +2697,22 @@ export class IRCClient {
         // All CAP REQ batches acknowledged
         this.pendingCapReqs.delete(serverId);
 
+        // Send CAP END to complete negotiation
+        console.log(`[CAP ACK] All CAP REQs acknowledged for ${serverId}, sending CAP END`);
+        this.sendRaw(serverId, "CAP END");
+        this.capNegotiationComplete.set(serverId, true);
+
+        // Send USER command now that CAP negotiation is complete
+        this.userOnConnect(serverId);
+
         // Note: SASL authentication is handled by the store's event handlers
         // The store will check capabilities and initiate SASL if needed
       } else {
         this.pendingCapReqs.set(serverId, newCount);
+        console.log(`[CAP ACK] Still waiting for ${newCount} more CAP ACKs for ${serverId}`);
       }
     } else {
+      console.log(`[CAP ACK] Received unexpected CAP ACK for ${serverId} (no pending requests)`);
     }
   }
 
