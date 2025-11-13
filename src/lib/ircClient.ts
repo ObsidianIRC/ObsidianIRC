@@ -2635,7 +2635,9 @@ export class IRCClient {
         }
       } else {
         // No capabilities to request, end CAP negotiation immediately
-        console.log(`[CAP LS] No capabilities to request for ${serverId}, ending CAP negotiation`);
+        console.log(
+          `[CAP LS] No capabilities to request for ${serverId}, ending CAP negotiation`,
+        );
         this.sendRaw(serverId, "CAP END");
         this.capNegotiationComplete.set(serverId, true);
         this.userOnConnect(serverId);
@@ -2684,8 +2686,11 @@ export class IRCClient {
           server.capabilities.push(cap);
         }
       }
-      console.log(`[CAP ACK] Server ${serverId} acknowledged capabilities:`, caps);
-      console.log(`[CAP ACK] Total server capabilities:`, server.capabilities);
+      console.log(
+        `[CAP ACK] Server ${serverId} acknowledged capabilities:`,
+        caps,
+      );
+      console.log("[CAP ACK] Total server capabilities:", server.capabilities);
     }
 
     // Decrement pending CAP REQ count
@@ -2698,7 +2703,9 @@ export class IRCClient {
         this.pendingCapReqs.delete(serverId);
 
         // Send CAP END to complete negotiation
-        console.log(`[CAP ACK] All CAP REQs acknowledged for ${serverId}, sending CAP END`);
+        console.log(
+          `[CAP ACK] All CAP REQs acknowledged for ${serverId}, sending CAP END`,
+        );
         this.sendRaw(serverId, "CAP END");
         this.capNegotiationComplete.set(serverId, true);
 
@@ -2709,10 +2716,14 @@ export class IRCClient {
         // The store will check capabilities and initiate SASL if needed
       } else {
         this.pendingCapReqs.set(serverId, newCount);
-        console.log(`[CAP ACK] Still waiting for ${newCount} more CAP ACKs for ${serverId}`);
+        console.log(
+          `[CAP ACK] Still waiting for ${newCount} more CAP ACKs for ${serverId}`,
+        );
       }
     } else {
-      console.log(`[CAP ACK] Received unexpected CAP ACK for ${serverId} (no pending requests)`);
+      console.log(
+        `[CAP ACK] Received unexpected CAP ACK for ${serverId} (no pending requests)`,
+      );
     }
   }
 
