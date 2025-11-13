@@ -25,8 +25,11 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tauri-apps/api": "^1.6.0",
+    "@tauri-apps/plugin-dialog": "^2.2.1",
     "@tauri-apps/plugin-notification": "^2.2.2",
     "@tauri-apps/plugin-os": "^2.2.1",
+    "@tauri-apps/plugin-process": "^2.2.1",
+    "@tauri-apps/plugin-updater": "^2.2.1",
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",
     "daisyui": "^5.0.12",
