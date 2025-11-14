@@ -4,10 +4,23 @@ use std::sync::Arc;
 use tauri::{Emitter, State};
 use tokio::net::TcpStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio_native_tls::TlsConnector;
-use native_tls::TlsConnector as NativeTlsConnector;
 use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::task;
+
+// Platform-specific TLS imports
+#[cfg(not(target_os = "android"))]
+use tokio_native_tls::TlsConnector;
+#[cfg(not(target_os = "android"))]
+use native_tls::TlsConnector as NativeTlsConnector;
+
+#[cfg(target_os = "android")]
+use tokio_rustls::TlsConnector;
+#[cfg(target_os = "android")]
+use rustls::pki_types::ServerName;
+#[cfg(target_os = "android")]
+use std::sync::Arc as StdArc;
+#[cfg(target_os = "android")]
+use webpki_roots;
 
 /// Connection handle for managing write operations and shutdown
 #[derive(Debug)]
@@ -160,33 +173,74 @@ pub async fn connect(
 
     // Handle TLS if needed
     if use_tls {
-        // Create TLS connection
-        let connector = TlsConnector::from(
-            NativeTlsConnector::builder()
-                .build()
-                .map_err(|e| format!("Failed to create TLS connector: {}", e))?
-        );
+        // Create TLS connection based on platform
+        #[cfg(not(target_os = "android"))]
+        {
+            let connector = TlsConnector::from(
+                NativeTlsConnector::builder()
+                    .build()
+                    .map_err(|e| format!("Failed to create TLS connector: {}", e))?
+            );
 
-        let tls_stream = connector
-            .connect(&host, tcp_stream)
-            .await
-            .map_err(|e| format!("TLS handshake failed: {}", e))?;
+            let tls_stream = connector
+                .connect(&host, tcp_stream)
+                .await
+                .map_err(|e| format!("TLS handshake failed: {}", e))?;
 
-        // Split the TLS stream using tokio::io::split
-        let (reader, writer) = tokio::io::split(tls_stream);
+            // Split the TLS stream using tokio::io::split
+            let (reader, writer) = tokio::io::split(tls_stream);
 
-        // Spawn read task
-        let client_id_read = client_id.clone();
-        let app_handle_read = app_handle.clone();
-        let state_clone = state.0.clone();
-        task::spawn(async move {
-            read_task(client_id_read, reader, app_handle_read, state_clone).await;
-        });
+            // Spawn read task
+            let client_id_read = client_id.clone();
+            let app_handle_read = app_handle.clone();
+            let state_clone = state.0.clone();
+            task::spawn(async move {
+                read_task(client_id_read, reader, app_handle_read, state_clone).await;
+            });
 
-        // Spawn write task
-        task::spawn(async move {
-            write_task(writer, write_rx, shutdown_rx).await;
-        });
+            // Spawn write task
+            task::spawn(async move {
+                write_task(writer, write_rx, shutdown_rx).await;
+            });
+        }
+
+        #[cfg(target_os = "android")]
+        {
+            // Create rustls config with webpki roots
+            let root_store = rustls::RootCertStore {
+                roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+            };
+
+            let config = rustls::ClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
+
+            let connector = TlsConnector::from(StdArc::new(config));
+
+            let server_name = ServerName::try_from(host.clone())
+                .map_err(|_| format!("Invalid DNS name: {}", host))?;
+
+            let tls_stream = connector
+                .connect(server_name, tcp_stream)
+                .await
+                .map_err(|e| format!("TLS handshake failed: {}", e))?;
+
+            // Split the TLS stream using tokio::io::split
+            let (reader, writer) = tokio::io::split(tls_stream);
+
+            // Spawn read task
+            let client_id_read = client_id.clone();
+            let app_handle_read = app_handle.clone();
+            let state_clone = state.0.clone();
+            task::spawn(async move {
+                read_task(client_id_read, reader, app_handle_read, state_clone).await;
+            });
+
+            // Spawn write task
+            task::spawn(async move {
+                write_task(writer, write_rx, shutdown_rx).await;
+            });
+        }
     } else {
         // Plain TCP - use into_split for owned halves
         let (reader, writer) = tcp_stream.into_split();
