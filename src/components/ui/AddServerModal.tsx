@@ -83,7 +83,10 @@ export const AddServerModal: React.FC = () => {
       if (isTauri && useIrcProtocol) {
         const port = Number.parseInt(serverPort, 10);
         // Remove any existing protocol prefix from serverHost
-        const cleanHost = serverHost.replace(/^(https?|wss?|ircs?):\/\//, "");
+        const cleanHost = serverHost.replace(
+          /^(https?|wss?|ircs?|irc):\/\//,
+          "",
+        );
 
         // Check if this is a localhost connection (case insensitive)
         const isLocalhost =

@@ -18,6 +18,7 @@ export class TCPSocket implements ISocket {
   private clientId: string;
   private isConnected = false;
   private _readyState = 0; // 0: CONNECTING, 1: OPEN, 2: CLOSING, 3: CLOSED
+  private unlisten?: () => void;
 
   public onopen: (() => void) | null = null;
   public onmessage: ((event: { data: string }) => void) | null = null;
@@ -55,10 +56,21 @@ export class TCPSocket implements ISocket {
       }
 
       if (payload.event.connected === false) {
+        this.isConnected = false;
         this._readyState = 3; // CLOSED
         this.onclose?.();
+        this.unlisten?.();
+        this.unlisten = undefined;
       }
-    });
+    })
+      .then((unlistenFn) => {
+        this.unlisten = unlistenFn;
+      })
+      .catch((error: unknown) => {
+        this.onerror?.(
+          new Error(`Failed to register tcp-message listener: ${error}`),
+        );
+      });
 
     invoke("connect", { clientId: this.clientId, address })
       .then(() => {
@@ -99,6 +111,8 @@ export class TCPSocket implements ISocket {
           this.isConnected = false;
           this._readyState = 3; // CLOSED
           this.onclose?.();
+          this.unlisten?.();
+          this.unlisten = undefined;
         })
         .catch((error: unknown) => {
           this.onerror?.(new Error(`Failed to disconnect: ${error}`));

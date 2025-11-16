@@ -60,12 +60,25 @@ async fn read_task<R>(
 ) where
     R: AsyncReadExt + Unpin,
 {
-    let mut buf = vec![0u8; 4096];
+    let mut read_buf = vec![0u8; 4096];
+    let mut line_buffer = Vec::new();
 
     loop {
-        match reader.read(&mut buf).await {
+        match reader.read(&mut read_buf).await {
             Ok(0) => {
                 // Connection closed by server
+                // Emit any remaining partial data as a final message
+                if !line_buffer.is_empty() {
+                    let _ = app_handle.emit("tcp-message", ReceivedPayload {
+                        id: client_id.clone(),
+                        event: MessageEvent {
+                            message: Some(MessageData { data: line_buffer.clone() }),
+                            error: None,
+                            connected: None,
+                        },
+                    });
+                }
+
                 let _ = app_handle.emit("tcp-message", ReceivedPayload {
                     id: client_id.clone(),
                     event: MessageEvent {
@@ -81,17 +94,32 @@ async fn read_task<R>(
                 break;
             }
             Ok(n) => {
-                // Data received - emit message event
-                let data = buf[..n].to_vec();
+                // Append new data to line buffer
+                line_buffer.extend_from_slice(&read_buf[..n]);
 
-                let _ = app_handle.emit("tcp-message", ReceivedPayload {
-                    id: client_id.clone(),
-                    event: MessageEvent {
-                        message: Some(MessageData { data }),
-                        error: None,
-                        connected: None,
-                    },
-                });
+                // Extract complete lines (ending with \r\n)
+                loop {
+                    if let Some(pos) = line_buffer.windows(2).position(|w| w == b"\r\n") {
+                        // Extract the complete line including \r\n
+                        let line_data = line_buffer[..pos + 2].to_vec();
+
+                        // Remove the line from buffer
+                        line_buffer.drain(..pos + 2);
+
+                        // Emit the complete line
+                        let _ = app_handle.emit("tcp-message", ReceivedPayload {
+                            id: client_id.clone(),
+                            event: MessageEvent {
+                                message: Some(MessageData { data: line_data }),
+                                error: None,
+                                connected: None,
+                            },
+                        });
+                    } else {
+                        // No complete line found, wait for more data
+                        break;
+                    }
+                }
             }
             Err(e) => {
                 // Read error - emit error event and stop
@@ -342,11 +370,18 @@ pub async fn send(
     data: String,
     state: State<'_, SocketState>,
 ) -> Result<(), String> {
-    let connections = state.0.lock().await;
+    // Extract write_tx without holding the mutex across .await
+    let write_tx = {
+        let connections = state.0.lock().await;
+        connections
+            .get(&client_id)
+            .map(|handle| handle.write_tx.clone())
+    };
 
-    if let Some(handle) = connections.get(&client_id) {
-        // Send to the write channel (non-blocking)
-        handle.write_tx.send(data).await
+    if let Some(write_tx) = write_tx {
+        write_tx
+            .send(data)
+            .await
             .map_err(|e| format!("Failed to send data: {}", e))?;
         Ok(())
     } else {
