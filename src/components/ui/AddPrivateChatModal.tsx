@@ -66,7 +66,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-container">
       <div className="bg-discord-dark-300 rounded-lg p-6 w-96 max-w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">

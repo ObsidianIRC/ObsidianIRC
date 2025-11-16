@@ -204,6 +204,12 @@ export const AppLayout: React.FC = () => {
       className={`flex h-screen overflow-hidden bg-discord-dark-300 ${
         isDarkMode ? "text-white" : "text-gray-900"
       }`}
+      style={{
+        paddingTop: "var(--safe-area-inset-top)",
+        paddingRight: "var(--safe-area-inset-right)",
+        paddingBottom: "var(--safe-area-inset-bottom)",
+        paddingLeft: "var(--safe-area-inset-left)",
+      }}
     >
       {getLayoutColumn("serverList")}
       {getLayoutColumn("chatView")}

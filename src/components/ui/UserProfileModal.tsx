@@ -288,7 +288,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         onCancel={handleCancelOpen}
       />
       <div
-        className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[9999] p-4"
+        className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[9999] p-4 modal-container"
         onClick={onClose}
       >
         <div
