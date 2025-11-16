@@ -1,6 +1,6 @@
-type layoutColumn = "serverList" | "chatView" | "memberList";
+export type layoutColumn = "serverList" | "chatView" | "memberList";
 
-interface ConnectionDetails {
+export interface ConnectionDetails {
   name: string;
   host: string;
   port: string;

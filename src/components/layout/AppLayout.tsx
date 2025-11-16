@@ -3,6 +3,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
+import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";

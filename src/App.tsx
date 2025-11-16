@@ -1,3 +1,4 @@
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import {
   isPermissionGranted,
   requestPermission,
@@ -15,7 +16,9 @@ import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
+import { parseIrcUrl } from "./lib/ircUrlParser";
 import useStore, { loadSavedServers } from "./store";
+import type { ConnectionDetails } from "./store/types";
 
 const askPermissions = async () => {
   // Do you have permission to send a notification?
@@ -27,12 +30,6 @@ const askPermissions = async () => {
     permissionGranted = permission === "granted";
   }
 };
-
-// const { onOpenUrl } = window.__TAURI__.deepLink;
-// await onOpenUrl((urls: string[]) => {
-//   // TODO: Handle deep links here
-//   console.log('deep link:', urls);
-// });
 
 const initializeEnvSettings = (
   toggleAddServerModal: (
@@ -152,6 +149,44 @@ const App: React.FC = () => {
     joinChannel, // Auto-reconnect to saved servers on app startup
     connectToSavedServers,
   ]); // Removed connectToSavedServers from dependencies
+
+  // Handle deep links
+  useEffect(() => {
+    const setupDeepLinkHandler = async () => {
+      try {
+        // Register handler for when app is already running
+        await onOpenUrl((urls) => {
+          console.log("Deep link received:", urls);
+
+          for (const url of urls) {
+            if (url.startsWith("irc://") || url.startsWith("ircs://")) {
+              console.log("Processing IRC URL:", url);
+
+              try {
+                // Parse the IRC URL
+                const parsed = parseIrcUrl(url);
+                console.log("Parsed IRC URL:", parsed);
+
+                // Open the connect modal with pre-filled details
+                toggleAddServerModal(true, {
+                  name: parsed.host || "IRC Server",
+                  host: parsed.host,
+                  port: parsed.port.toString(),
+                  nickname: parsed.nick || "user",
+                });
+              } catch (error) {
+                console.error("Failed to parse IRC URL:", error);
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Failed to setup deep link handler:", error);
+      }
+    };
+
+    setupDeepLinkHandler();
+  }, [toggleAddServerModal]);
 
   return (
     <div className="h-screen overflow-hidden">

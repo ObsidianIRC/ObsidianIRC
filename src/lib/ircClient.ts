@@ -11,6 +11,7 @@ import type {
   Server,
   User,
 } from "../types";
+import { parseIrcUrl } from "./ircUrlParser";
 import {
   parseIsupport,
   parseMessageTags,
@@ -464,12 +465,14 @@ export class IRCClient {
       let actualPort = port;
 
       if (host.startsWith("irc://") || host.startsWith("ircs://")) {
-        protocol = host.startsWith("irc://") ? "irc" : "ircs";
-        // Parse the IRC URL to extract host and port
+        // Parse the IRC URL using centralized parser (Android-compatible)
         console.log("Parsing IRC URL:", host);
-        const ircUrl = new URL(host);
-        actualHost = ircUrl.hostname;
-        actualPort = ircUrl.port ? Number.parseInt(ircUrl.port, 10) : port;
+        const parsed = parseIrcUrl(host);
+
+        protocol = parsed.scheme;
+        actualHost = parsed.host;
+        actualPort = parsed.port;
+
         console.log("Parsed IRC URL:", {
           protocol,
           actualHost,
