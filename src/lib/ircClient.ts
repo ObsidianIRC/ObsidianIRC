@@ -466,23 +466,14 @@ export class IRCClient {
 
       if (host.startsWith("irc://") || host.startsWith("ircs://")) {
         // Parse the IRC URL using centralized parser (Android-compatible)
-        console.log("Parsing IRC URL:", host);
         const parsed = parseIrcUrl(host);
 
         protocol = parsed.scheme;
         actualHost = parsed.host;
         actualPort = parsed.port;
-
-        console.log("Parsed IRC URL:", {
-          protocol,
-          actualHost,
-          actualPort,
-          originalHost: host,
-        });
       }
 
       const url = `${protocol}://${actualHost}:${actualPort}`;
-      console.log("Final URL being sent to createSocket:", url);
       const socket = createSocket(url);
 
       // Create server object immediately and add to servers map
@@ -553,7 +544,6 @@ export class IRCClient {
 
         // Send NICK command (can be sent during CAP negotiation)
         socket.send(`NICK ${nickname}`);
-        console.log("📤 Sent NICK command:", `NICK ${nickname}`);
 
         // Update server to mark as connected
         server.isConnected = true;
@@ -718,9 +708,6 @@ export class IRCClient {
     this.reconnectionTimeouts.set(
       serverId,
       setTimeout(() => {
-        console.log(
-          `Reconnection timeout fired for server ${serverId}, attempting reconnection`,
-        );
         this.attemptReconnection(
           serverId,
           name,
@@ -745,7 +732,6 @@ export class IRCClient {
     saslAccountName?: string,
     saslPassword?: string,
   ): Promise<void> {
-    console.log(`Attempting reconnection for server ${serverId}`);
     const server = this.servers.get(serverId);
     if (!server) return;
 
@@ -788,12 +774,6 @@ export class IRCClient {
   sendRaw(serverId: string, command: string): void {
     const socket = this.sockets.get(serverId);
     if (socket && socket.readyState === WebSocket.OPEN) {
-      console.log(
-        `IRC Client: Sending command to server ${serverId}: ${command}`,
-      );
-      // Log metadata and command-related outgoing messages for debugging
-      if (command.startsWith("METADATA") || command.startsWith("/")) {
-      }
       socket.send(command);
     } else {
       console.error(`Socket for server ${serverId} is not open`);
@@ -1255,14 +1235,6 @@ export class IRCClient {
       // Skip empty lines
       if (!line) continue;
 
-      console.log(`IRC Client: Received line from server ${serverId}: ${line}`);
-
-      // Debug: Log ALL lines that contain CAP to see if CAP ACK is even being processed
-      if (line.includes("CAP")) {
-      }
-
-      // Debug: Log all incoming IRC messages
-
       // Handle message tags first, before splitting on trailing parameter
       let lineAfterTags = line;
       if (line[0] === "@") {
@@ -1366,25 +1338,13 @@ export class IRCClient {
 
         // Rejoin channels if this is a reconnection (server already has channels)
         const server = this.servers.get(serverId);
-        if (server) {
+        if (server && server.channels.length > 0) {
           console.log(
-            `Server ${serverId} has ${server.channels.length} channels:`,
-            server.channels.map((c) => c.name),
+            `Rejoining ${server.channels.length} channels after reconnection`,
           );
-          if (server.channels.length > 0) {
-            console.log(
-              `Rejoining ${server.channels.length} channels after reconnection:`,
-              server.channels.map((c) => c.name),
-            );
-            for (const channel of server.channels) {
-              console.log(`Sending JOIN for channel: ${channel.name}`);
-              this.sendRaw(serverId, `JOIN ${channel.name}`);
-            }
-          } else {
-            console.log(`No channels to rejoin for server ${serverId}`);
+          for (const channel of server.channels) {
+            this.sendRaw(serverId, `JOIN ${channel.name}`);
           }
-        } else {
-          console.log(`Server ${serverId} not found for rejoining channels`);
         }
       } else if (command === "NICK") {
         const oldNick = getNickFromNuh(source);
@@ -1703,21 +1663,12 @@ export class IRCClient {
           });
         }
       } else if (command === "CAP") {
-        console.log(
-          `[CAP] Processing CAP command, parv: ${JSON.stringify(parv)}, trailing: "${trailing}"`,
-        );
-        console.log(`[CAP] Received CAP message: ${parv.join(" ")}`);
-        console.log(`[CAP] Full parv array: ${JSON.stringify(parv)}`);
-        console.log(`[CAP] Trailing parameter: "${trailing}"`);
         let i = 0;
         let caps = "";
         if (parv[i] === "*") {
           i++;
         }
         let subcommand = parv[i++];
-        console.log(
-          `[CAP] Subcommand: '${subcommand}', i after increment: ${i}, parv length: ${parv.length}`,
-        );
         // Handle CAP ACK which has nickname before subcommand
         if (
           subcommand !== "LS" &&
@@ -1741,8 +1692,6 @@ export class IRCClient {
             if (parv[i]) caps += " ";
           }
         }
-
-        console.log(`[CAP] Final caps string: "${caps}"`);
 
         if (subcommand === "LS") this.onCapLs(serverId, caps, isFinal);
         else if (subcommand === "ACK") {
@@ -2336,9 +2285,6 @@ export class IRCClient {
         const mask = parv[2];
         const setter = parv[3];
         const timestamp = Number.parseInt(parv[4], 10);
-        console.log(
-          `IRC Client: RPL_BANLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
-        );
         this.triggerEvent("RPL_BANLIST", {
           serverId,
           channel,
@@ -2352,9 +2298,6 @@ export class IRCClient {
         const mask = parv[2];
         const setter = parv[3];
         const timestamp = Number.parseInt(parv[4], 10);
-        console.log(
-          `IRC Client: RPL_INVITELIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
-        );
         this.triggerEvent("RPL_INVITELIST", {
           serverId,
           channel,
@@ -2368,9 +2311,6 @@ export class IRCClient {
         const mask = parv[2];
         const setter = parv[3];
         const timestamp = Number.parseInt(parv[4], 10);
-        console.log(
-          `IRC Client: RPL_EXCEPTLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
-        );
         this.triggerEvent("RPL_EXCEPTLIST", {
           serverId,
           channel,
@@ -2381,9 +2321,6 @@ export class IRCClient {
       } else if (command === "368") {
         // RPL_ENDOFBANLIST: <channel> :End of channel ban list
         const channel = parv[1];
-        console.log(
-          `IRC Client: RPL_ENDOFBANLIST parsed - channel: ${channel}`,
-        );
         this.triggerEvent("RPL_ENDOFBANLIST", {
           serverId,
           channel,
@@ -2391,9 +2328,6 @@ export class IRCClient {
       } else if (command === "347") {
         // RPL_ENDOFINVITELIST: <channel> :End of channel invite list
         const channel = parv[1];
-        console.log(
-          `IRC Client: RPL_ENDOFINVITELIST parsed - channel: ${channel}`,
-        );
         this.triggerEvent("RPL_ENDOFINVITELIST", {
           serverId,
           channel,
@@ -2401,9 +2335,6 @@ export class IRCClient {
       } else if (command === "349") {
         // RPL_ENDOFEXCEPTLIST: <channel> :End of channel exception list
         const channel = parv[1];
-        console.log(
-          `IRC Client: RPL_ENDOFEXCEPTLIST parsed - channel: ${channel}`,
-        );
         this.triggerEvent("RPL_ENDOFEXCEPTLIST", {
           serverId,
           channel,
@@ -2689,11 +2620,6 @@ export class IRCClient {
           server.capabilities.push(cap);
         }
       }
-      console.log(
-        `[CAP ACK] Server ${serverId} acknowledged capabilities:`,
-        caps,
-      );
-      console.log("[CAP ACK] Total server capabilities:", server.capabilities);
     }
 
     // Decrement pending CAP REQ count
@@ -2706,9 +2632,6 @@ export class IRCClient {
         this.pendingCapReqs.delete(serverId);
 
         // Send CAP END to complete negotiation
-        console.log(
-          `[CAP ACK] All CAP REQs acknowledged for ${serverId}, sending CAP END`,
-        );
         this.sendRaw(serverId, "CAP END");
         this.capNegotiationComplete.set(serverId, true);
 
@@ -2719,9 +2642,6 @@ export class IRCClient {
         // The store will check capabilities and initiate SASL if needed
       } else {
         this.pendingCapReqs.set(serverId, newCount);
-        console.log(
-          `[CAP ACK] Still waiting for ${newCount} more CAP ACKs for ${serverId}`,
-        );
       }
     } else {
       console.log(

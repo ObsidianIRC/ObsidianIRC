@@ -160,12 +160,9 @@ const App: React.FC = () => {
 
           for (const url of urls) {
             if (url.startsWith("irc://") || url.startsWith("ircs://")) {
-              console.log("Processing IRC URL:", url);
-
               try {
                 // Parse the IRC URL
                 const parsed = parseIrcUrl(url);
-                console.log("Parsed IRC URL:", parsed);
 
                 // Open the connect modal with pre-filled details
                 toggleAddServerModal(true, {
