@@ -89,6 +89,10 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
             placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             className="w-full bg-discord-dark-400 border border-discord-dark-500 rounded px-10 py-2 text-white placeholder-discord-channels-default focus:outline-none focus:border-discord-primary"
             autoFocus
           />

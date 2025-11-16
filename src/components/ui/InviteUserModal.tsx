@@ -91,6 +91,10 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
               }}
               onKeyDown={handleKeyDown}
               placeholder="Enter username to invite"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full px-3 py-2 bg-discord-dark-500 text-discord-text-normal rounded border border-discord-dark-400 focus:border-discord-blurple focus:outline-none"
               autoFocus
             />

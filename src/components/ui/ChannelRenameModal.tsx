@@ -70,6 +70,10 @@ const ChannelRenameModal: React.FC = () => {
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full p-2 bg-discord-dark-300 text-white rounded"
               placeholder="Enter new channel name"
             />

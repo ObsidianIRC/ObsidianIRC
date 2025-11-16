@@ -156,6 +156,10 @@ export const AddServerModal: React.FC = () => {
                     e.target.select();
                   }}
                   placeholder="ExampleNET"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -173,6 +177,10 @@ export const AddServerModal: React.FC = () => {
                       e.target.select();
                     }}
                     placeholder="irc.example.com"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
                       disableServerConnectionInfo
                         ? "bg-gray-700 text-gray-400 cursor-not-allowed"
@@ -198,6 +206,10 @@ export const AddServerModal: React.FC = () => {
                       e.target.select();
                     }}
                     placeholder="443"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
                       disableServerConnectionInfo
                         ? "bg-gray-700 text-gray-400 cursor-not-allowed"
@@ -222,6 +234,10 @@ export const AddServerModal: React.FC = () => {
                 e.target.select();
               }}
               placeholder="YourNickname"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
             />
           </div>
