@@ -30,9 +30,14 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            // Commenting out deep link registration as it may cause "unsupported platform" error
-            // #[cfg(desktop)]
-            // app.deep_link().register_all()?;
+            // Register deep links at runtime for Linux and Windows (debug)
+            // This enables AppImage support and development testing
+            // Note: macOS doesn't support runtime registration
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                app.deep_link().register_all()?;
+            }
             Ok(())
         })
         .manage(SocketState(Arc::new(Mutex::new(HashMap::new()))))
