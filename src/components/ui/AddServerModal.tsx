@@ -39,7 +39,9 @@ export const AddServerModal: React.FC = () => {
   const [showServerPassword, setShowServerPassword] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [registerAccount, setRegisterAccount] = useState(false);
-  const [useIrcProtocol, setUseIrcProtocol] = useState(false);
+  const [useIrcProtocol, setUseIrcProtocol] = useState(
+    prefillServerDetails?.useIrcProtocol ?? false,
+  );
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
 

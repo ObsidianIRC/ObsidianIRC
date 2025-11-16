@@ -5,6 +5,7 @@ export interface ConnectionDetails {
   host: string;
   port: string;
   nickname: string;
+  useIrcProtocol?: boolean;
   ui?: {
     disableServerConnectionInfo?: boolean;
     hideServerInfo?: boolean;

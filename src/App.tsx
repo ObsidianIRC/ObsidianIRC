@@ -150,7 +150,7 @@ const App: React.FC = () => {
     connectToSavedServers,
   ]); // Removed connectToSavedServers from dependencies
 
-  // Handle deep links
+  // Handle deeplinks
   useEffect(() => {
     const setupDeepLinkHandler = async () => {
       try {
@@ -170,6 +170,7 @@ const App: React.FC = () => {
                   host: parsed.host,
                   port: parsed.port.toString(),
                   nickname: parsed.nick || "user",
+                  useIrcProtocol: true,
                 });
               } catch (error) {
                 console.error("Failed to parse IRC URL:", error);
