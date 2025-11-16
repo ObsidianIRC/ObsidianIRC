@@ -52,8 +52,11 @@ export function parseIrcUrl(url: string, defaultNick = "user"): ParsedIrcUrl {
   // Split into main part and query string
   const [mainPart, queryString] = withoutProtocol.split("?");
 
+  // Remove trailing slash from main part for cleaner parsing
+  const cleanMainPart = mainPart.replace(/\/$/, "");
+
   // Parse the main part (host:port/channels)
-  const pathMatch = mainPart.match(/^([^:/]+)(?::(\d+))?(?:\/(.+))?$/);
+  const pathMatch = cleanMainPart.match(/^([^:/]+)(?::(\d+))?(?:\/(.+))?$/);
 
   if (pathMatch) {
     host = pathMatch[1];
@@ -74,7 +77,7 @@ export function parseIrcUrl(url: string, defaultNick = "user"): ParsedIrcUrl {
     }
   } else {
     // Fallback for malformed URLs
-    host = mainPart.split(":")[0] || "";
+    host = cleanMainPart.split(":")[0] || "";
     port = scheme === "ircs" ? 443 : 8000;
   }
 
