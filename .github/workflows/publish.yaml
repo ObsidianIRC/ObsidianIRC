@@ -270,11 +270,40 @@ jobs:
 
       - name: Package unsigned .ipa
         run: |
-          cd "${{ runner.temp }}"
-          # Manually create ipa sctructure
-          mkdir -p Payload
-          cp -R ObsidianIRC.xcarchive Payload/
-          zip -0 -y -r ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa Payload
+          ARCHIVE_PATH="${{ runner.temp }}/ObsidianIRC.xcarchive"
+          WORK_DIR="${{ runner.temp }}/ipa-build"
+
+          # Create working directory
+          mkdir -p "$WORK_DIR/Payload"
+
+          # Find and copy .app bundle from archive
+          APP_BUNDLE=$(find "$ARCHIVE_PATH/Products/Applications" -name "*.app" -maxdepth 1 | head -n 1)
+
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "Error: No .app bundle found in archive"
+            exit 1
+          fi
+
+          echo "Found app bundle: $APP_BUNDLE"
+          cp -R "$APP_BUNDLE" "$WORK_DIR/Payload/"
+
+          # Copy SwiftSupport if exists (recommended for Swift apps)
+          if [ -d "$ARCHIVE_PATH/SwiftSupport" ]; then
+            echo "Including SwiftSupport"
+            cp -R "$ARCHIVE_PATH/SwiftSupport" "$WORK_DIR/"
+          fi
+
+          # Create IPA
+          cd "$WORK_DIR"
+          zip -r -0 -y ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa Payload SwiftSupport 2>/dev/null || \
+            zip -r -0 -y ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa Payload
+
+          # Move to expected location
+          mv ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa "${{ runner.temp }}/"
+
+          # Verify IPA structure
+          echo "IPA contents:"
+          unzip -l "${{ runner.temp }}/ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa" | head -n 20
 
       - name: Publish
         uses: softprops/action-gh-release@v2
