@@ -8,7 +8,7 @@ import {
   processMarkdownInText,
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
-import type { MessageType, User } from "../../types";
+import type { MessageType, PrivateChat, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import { InviteMessage } from "./InviteMessage";
 import {
@@ -463,60 +463,78 @@ export const MessageItem = (props: MessageItemProps) => {
     ),
   );
 
-  const rawMessageUser = useStore((state) => {
-    if (userKey === "none") return undefined;
+  const rawMessageUser = useStore(
+    useCallback(
+      (state) => {
+        if (userKey === "none") return undefined;
 
-    if (userKey.startsWith("pm-")) {
-      const privateChatId = userKey.slice(3);
-      const privateChat = state.servers
-        .find((s) => s.id === serverId)
-        ?.privateChats?.find((pc) => pc.id === privateChatId);
-      if (privateChat) {
-        // Always create fresh user object with current metadata
-        const metadata = getUserMetadata(privateChat.username, serverId) || {};
-        return {
-          id: privateChat.id,
-          username: privateChat.username,
-          realname: "",
-          account: "",
-          isOnline: true,
-          isAway: false,
-          status: "",
-          isBot: false,
-          metadata,
-        };
-      }
-    } else if (userKey.startsWith("channel-")) {
-      const userId = userKey.slice(8);
-      const server = state.servers.find((s) => s.id === serverId);
-      const channel = server?.channels.find((c) => c.id === channelId);
-      return channel?.users.find((user) => user.id === userId);
-    }
+        if (userKey.startsWith("pm-")) {
+          const privateChatId = userKey.slice(3);
+          const privateChat = state.servers
+            .find((s) => s.id === serverId)
+            ?.privateChats?.find((pc) => pc.id === privateChatId);
+          if (privateChat) {
+            // Don't create new objects - return the privateChat user reference
+            // We'll handle metadata separately
+            return privateChat;
+          }
+        } else if (userKey.startsWith("channel-")) {
+          const userId = userKey.slice(8);
+          const server = state.servers.find((s) => s.id === serverId);
+          const channel = server?.channels.find((c) => c.id === channelId);
+          return channel?.users.find((user) => user.id === userId);
+        }
 
-    return undefined;
-  });
+        return undefined;
+      },
+      [userKey, serverId, channelId],
+    ),
+  );
 
   // Get metadata for private message users reactively
-  const pmUserMetadata = useStore((state) => {
-    // Include metadataChangeCounter to make this reactive to metadata updates
-    const _counter = state.metadataChangeCounter;
-    if (!userKey.startsWith("pm-")) return null;
-    const privateChatId = userKey.slice(3);
-    const privateChat = state.servers
-      .find((s) => s.id === serverId)
-      ?.privateChats?.find((pc) => pc.id === privateChatId);
-    if (privateChat) {
-      return getUserMetadata(privateChat.username, serverId);
-    }
-    return null;
-  });
+  const pmUserMetadata = useStore(
+    useCallback(
+      (state) => {
+        // Include metadataChangeCounter to make this reactive to metadata updates
+        const _counter = state.metadataChangeCounter;
+        if (!userKey.startsWith("pm-")) return null;
+        const privateChatId = userKey.slice(3);
+        const privateChat = state.servers
+          .find((s) => s.id === serverId)
+          ?.privateChats?.find((pc) => pc.id === privateChatId);
+        if (privateChat) {
+          return getUserMetadata(privateChat.username, serverId);
+        }
+        return null;
+      },
+      [userKey, serverId],
+    ),
+  );
 
-  const messageUser = useMemo(() => {
-    if (!rawMessageUser) return rawMessageUser;
-    if (userKey.startsWith("pm-") && pmUserMetadata) {
-      return { ...rawMessageUser, metadata: pmUserMetadata };
+  const messageUser: User | undefined = useMemo(() => {
+    if (!rawMessageUser) return undefined;
+
+    // For PM users, rawMessageUser is the privateChat object
+    // We need to construct a proper User object
+    if (userKey.startsWith("pm-")) {
+      const privateChat = rawMessageUser as PrivateChat;
+      const user: User = {
+        id: privateChat.id,
+        username: privateChat.username,
+        realname: "",
+        account: "",
+        isOnline: privateChat.isOnline ?? true,
+        isAway: privateChat.isAway ?? false,
+        status: "",
+        isBot: false,
+        isIrcOp: false,
+        metadata: pmUserMetadata || {},
+      };
+      return user;
     }
-    return rawMessageUser;
+
+    // For channel users, rawMessageUser is already a proper User object
+    return rawMessageUser as User;
   }, [rawMessageUser, pmUserMetadata, userKey]);
 
   const avatarUrl = messageUser?.metadata?.avatar?.value;
