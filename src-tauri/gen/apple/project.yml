@@ -51,6 +51,11 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        CFBundleURLTypes:
+          - CFBundleURLName: IRC Protocol
+            CFBundleURLSchemes:
+              - irc
+              - ircs
         CFBundleShortVersionString: 0.0.1
         CFBundleVersion: 0.0.1
     entitlements:

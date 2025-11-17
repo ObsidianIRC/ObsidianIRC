@@ -21,6 +21,7 @@ import type {
   User,
   WhoisData,
 } from "../types";
+import type { ConnectionDetails, layoutColumn } from "./types";
 
 const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
 const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";

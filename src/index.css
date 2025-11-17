@@ -53,6 +53,14 @@ body {
   width: 100%;
 }
 
+/* iOS safe area support for modals */
+.modal-container {
+  padding-top: var(--safe-area-inset-top);
+  padding-right: var(--safe-area-inset-right);
+  padding-bottom: var(--safe-area-inset-bottom);
+  padding-left: var(--safe-area-inset-left);
+}
+
 :root {
   --background: 0 0% 100%;
   --foreground: 240 10% 3.9%;
@@ -80,6 +88,12 @@ body {
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
   --keyboard-height: 0px;
+
+  /* iOS safe area insets */
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
 }
 
 .dark {

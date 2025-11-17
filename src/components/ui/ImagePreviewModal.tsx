@@ -23,7 +23,7 @@ export function ImagePreviewModal({
   if (!isOpen || !previewUrl) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-container">
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-md w-full mx-4">
         <div className="p-4">
           <h3 className="text-lg font-semibold text-white mb-4">

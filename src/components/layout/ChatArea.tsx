@@ -1640,6 +1640,10 @@ export const ChatArea: React.FC<{
                       }`
                     : "Type a message..."
               }
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-32 overflow-y-auto"
               style={getPreviewStyles({
                 color: selectedColor || "inherit",

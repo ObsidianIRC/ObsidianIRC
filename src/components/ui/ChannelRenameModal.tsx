@@ -41,7 +41,7 @@ const ChannelRenameModal: React.FC = () => {
   if (!selectedChannel) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 modal-container">
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-white text-xl font-bold">Rename Channel</h2>
@@ -70,6 +70,10 @@ const ChannelRenameModal: React.FC = () => {
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full p-2 bg-discord-dark-300 text-white rounded"
               placeholder="Enter new channel name"
             />

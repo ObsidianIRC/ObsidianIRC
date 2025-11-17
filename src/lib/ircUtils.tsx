@@ -455,7 +455,6 @@ export function processMarkdownInText(
   const hasMarkdown = markdownPatterns.some((pattern) => pattern.test(text));
 
   if (hasMarkdown && enableMarkdown) {
-    console.log("Detected markdown in:", text);
     // If markdown syntax is detected and markdown is enabled, render the entire text as markdown
     return renderMarkdown(text, showExternalContent);
   }

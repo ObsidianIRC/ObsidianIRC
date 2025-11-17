@@ -1674,7 +1674,7 @@ const UserSettings: React.FC = React.memo(() => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 modal-container">
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-4xl h-[80vh] flex overflow-hidden">
         {/* Sidebar */}
         <div className="bg-discord-dark-300 flex flex-col">

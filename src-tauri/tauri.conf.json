@@ -39,5 +39,27 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        {
+          "schemes": ["irc", "ircs"],
+          "host": "*"
+        },
+        {
+          "host": "obsidianirc.github.io",
+          "pathPrefix": [
+            "/"
+          ]
+        }
+      ],
+      "desktop": {
+        "schemes": [
+          "irc",
+          "ircs"
+        ]
+      }
+    }
   }
 }

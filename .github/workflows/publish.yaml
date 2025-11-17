@@ -96,7 +96,7 @@ jobs:
       - name: install dependencies (ubuntu only)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file pkg-config
+          sudo apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file pkg-config xdg-utils
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -177,6 +177,8 @@ jobs:
         run: npm run tauri android build
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
 
       - name: Extract android signing key from env
         run: |
@@ -268,11 +270,40 @@ jobs:
 
       - name: Package unsigned .ipa
         run: |
-          cd "${{ runner.temp }}"
-          # Manually create ipa sctructure
-          mkdir -p Payload
-          cp -R ObsidianIRC.xcarchive Payload/
-          zip -0 -y -r ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa Payload
+          ARCHIVE_PATH="${{ runner.temp }}/ObsidianIRC.xcarchive"
+          WORK_DIR="${{ runner.temp }}/ipa-build"
+
+          # Create working directory
+          mkdir -p "$WORK_DIR/Payload"
+
+          # Find and copy .app bundle from archive
+          APP_BUNDLE=$(find "$ARCHIVE_PATH/Products/Applications" -name "*.app" -maxdepth 1 | head -n 1)
+
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "Error: No .app bundle found in archive"
+            exit 1
+          fi
+
+          echo "Found app bundle: $APP_BUNDLE"
+          cp -R "$APP_BUNDLE" "$WORK_DIR/Payload/"
+
+          # Copy SwiftSupport if exists (recommended for Swift apps)
+          if [ -d "$ARCHIVE_PATH/SwiftSupport" ]; then
+            echo "Including SwiftSupport"
+            cp -R "$ARCHIVE_PATH/SwiftSupport" "$WORK_DIR/"
+          fi
+
+          # Create IPA
+          cd "$WORK_DIR"
+          zip -r -0 -y ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa Payload SwiftSupport 2>/dev/null || \
+            zip -r -0 -y ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa Payload
+
+          # Move to expected location
+          mv ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa "${{ runner.temp }}/"
+
+          # Verify IPA structure
+          echo "IPA contents:"
+          unzip -l "${{ runner.temp }}/ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa" | head -n 20
 
       - name: Publish
         uses: softprops/action-gh-release@v2

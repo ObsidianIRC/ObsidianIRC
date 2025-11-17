@@ -3,6 +3,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import useStore from "../../store";
+import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
@@ -203,6 +204,12 @@ export const AppLayout: React.FC = () => {
       className={`flex h-screen overflow-hidden bg-discord-dark-300 ${
         isDarkMode ? "text-white" : "text-gray-900"
       }`}
+      style={{
+        paddingTop: "var(--safe-area-inset-top)",
+        paddingRight: "var(--safe-area-inset-right)",
+        paddingBottom: "var(--safe-area-inset-bottom)",
+        paddingLeft: "var(--safe-area-inset-left)",
+      }}
     >
       {getLayoutColumn("serverList")}
       {getLayoutColumn("chatView")}

@@ -36,39 +36,62 @@ export function parseIrcUrl(url: string, defaultNick = "user"): ParsedIrcUrl {
   // Sanitize URL by removing trailing punctuation commonly found in chat text
   const sanitizedUrl = url.trim().replace(/[),.;:]+$/, "");
 
-  const urlObj = new URL(sanitizedUrl);
-  const host = urlObj.hostname;
-  const scheme = urlObj.protocol.replace(":", "") as "irc" | "ircs";
+  // Determine scheme
+  const scheme = sanitizedUrl.startsWith("ircs://") ? "ircs" : "irc";
 
-  // Determine port with sensible defaults
-  const port = urlObj.port
-    ? Number.parseInt(urlObj.port, 10)
-    : scheme === "ircs"
-      ? 443
-      : 8000;
+  // Manual parsing for Android compatibility (new URL() doesn't support custom schemes on Android)
+  let host: string;
+  let port: number;
+  let channels: string[] = [];
+  let nick = defaultNick;
+  let password: string | undefined;
 
-  // Parse channels from pathname (/chan1,chan2) or hash (#chan1,chan2)
-  const rawChannelStr =
-    urlObj.pathname.length > 1
-      ? urlObj.pathname.slice(1) // Remove leading /
-      : urlObj.hash.startsWith("#")
-        ? urlObj.hash.slice(1) // Remove leading #
-        : "";
+  // Remove protocol prefix
+  const withoutProtocol = sanitizedUrl.replace(/^ircs?:\/\//, "");
 
-  const channels = rawChannelStr
-    .split(",")
-    .filter(Boolean)
-    .map((c) => decodeURIComponent(c))
-    .map((c) => normalizeChannelName(c));
+  // Split into main part and query string
+  const [mainPart, queryString] = withoutProtocol.split("?");
 
-  // Extract connection parameters
-  const nick = urlObj.searchParams.get("nick") || defaultNick;
-  const password = urlObj.searchParams.get("password") || undefined;
+  // Remove trailing slash from main part for cleaner parsing
+  const cleanMainPart = mainPart.replace(/\/$/, "");
+
+  // Parse the main part (host:port/channels)
+  const pathMatch = cleanMainPart.match(/^([^:/]+)(?::(\d+))?(?:\/(.+))?$/);
+
+  if (pathMatch) {
+    host = pathMatch[1];
+    port = pathMatch[2]
+      ? Number.parseInt(pathMatch[2], 10)
+      : scheme === "ircs"
+        ? 443
+        : 8000;
+
+    // Parse channels from path
+    if (pathMatch[3]) {
+      const rawChannelStr = pathMatch[3];
+      channels = rawChannelStr
+        .split(",")
+        .filter(Boolean)
+        .map((c) => decodeURIComponent(c))
+        .map((c) => normalizeChannelName(c));
+    }
+  } else {
+    // Fallback for malformed URLs
+    host = cleanMainPart.split(":")[0] || "";
+    port = scheme === "ircs" ? 443 : 8000;
+  }
+
+  // Parse query parameters manually
+  if (queryString) {
+    const params = new URLSearchParams(queryString);
+    nick = params.get("nick") || defaultNick;
+    password = params.get("password") || undefined;
+  }
 
   return {
     host,
     port,
-    scheme,
+    scheme: scheme as "irc" | "ircs",
     channels,
     nick,
     password,
@@ -99,10 +122,14 @@ export function normalizeChannelName(channelName: string): string {
  */
 export function isValidIrcUrl(url: string): boolean {
   try {
-    const urlObj = new URL(url);
-    return (
-      ["irc:", "ircs:"].includes(urlObj.protocol) && urlObj.hostname !== ""
-    );
+    // Manual validation for Android compatibility
+    const trimmed = url.trim();
+    if (!trimmed.startsWith("irc://") && !trimmed.startsWith("ircs://")) {
+      return false;
+    }
+
+    const parsed = parseIrcUrl(trimmed);
+    return parsed.host !== "" && parsed.port > 0;
   } catch {
     return false;
   }
