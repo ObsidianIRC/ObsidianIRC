@@ -1,0 +1,371 @@
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FaCog,
+  FaHashtag,
+  FaSearch,
+  FaServer,
+  FaTimes,
+  FaUser,
+} from "react-icons/fa";
+import { fuzzyMatch } from "../../lib/fuzzySearch";
+import { settingsRegistry } from "../../lib/settings";
+import type { SettingSearchResult } from "../../lib/settings/types";
+import useStore from "../../store";
+import type { Channel, PrivateChat, Server } from "../../types";
+
+type QuickActionResultType = "setting" | "channel" | "dm" | "server";
+
+interface QuickActionResult {
+  type: QuickActionResultType;
+  id: string;
+  title: string;
+  description?: string;
+  serverId?: string;
+  score: number;
+  data?: SettingSearchResult | Channel | PrivateChat | Server;
+}
+
+const QuickActions: React.FC = () => {
+  const {
+    servers,
+    ui,
+    toggleQuickActions,
+    toggleSettingsModal,
+    setSettingsNavigation,
+    selectChannel,
+    selectPrivateChat,
+    selectServer,
+  } = useStore();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClose = useCallback(() => {
+    toggleQuickActions(false);
+    setSearchQuery("");
+    setSelectedIndex(0);
+  }, [toggleQuickActions]);
+
+  const searchResults: QuickActionResult[] = useMemo(() => {
+    const query = searchQuery.trim();
+    if (query.length === 0) return [];
+
+    const results: QuickActionResult[] = [];
+    const currentServerId = ui.selectedServerId;
+    const currentSelection = currentServerId
+      ? ui.perServerSelections[currentServerId]
+      : null;
+
+    settingsRegistry.search(query, { limit: 10 }).forEach((settingResult) => {
+      results.push({
+        type: "setting",
+        id: `setting-${settingResult.setting.id}`,
+        title: settingResult.setting.title,
+        description: settingResult.setting.description,
+        score: settingResult.score,
+        data: settingResult,
+      });
+    });
+
+    servers.forEach((server) => {
+      const isCurrentServer = server.id === currentServerId;
+      const isCurrentlySelectedServer = server.id === currentServerId;
+
+      const serverMatch = fuzzyMatch(query, server.name);
+      if (serverMatch.matches) {
+        let scoreAdjustment = 0;
+        if (isCurrentlySelectedServer) {
+          scoreAdjustment = -30;
+        }
+
+        results.push({
+          type: "server",
+          id: `server-${server.id}`,
+          title: server.name,
+          description: server.host,
+          serverId: server.id,
+          score: serverMatch.score + scoreAdjustment,
+          data: server,
+        });
+      }
+
+      server.channels.forEach((channel) => {
+        const channelMatch = fuzzyMatch(query, channel.name);
+        if (channelMatch.matches) {
+          const isCurrentlySelected =
+            isCurrentServer &&
+            currentSelection?.selectedChannelId === channel.id;
+
+          let scoreAdjustment = 0;
+          if (isCurrentlySelected) {
+            scoreAdjustment = -30;
+          } else if (isCurrentServer) {
+            scoreAdjustment = 20;
+          }
+
+          results.push({
+            type: "channel",
+            id: `channel-${server.id}-${channel.id}`,
+            title: channel.name,
+            description: `${server.name}${channel.topic ? ` - ${channel.topic}` : ""}`,
+            serverId: server.id,
+            score: channelMatch.score + scoreAdjustment,
+            data: channel,
+          });
+        }
+      });
+
+      server.privateChats.forEach((pm) => {
+        const pmMatch = fuzzyMatch(query, pm.username);
+        if (pmMatch.matches) {
+          const isCurrentlySelected =
+            isCurrentServer &&
+            currentSelection?.selectedPrivateChatId === pm.id;
+
+          let scoreAdjustment = 0;
+          if (isCurrentlySelected) {
+            scoreAdjustment = -30;
+          } else if (isCurrentServer) {
+            scoreAdjustment = 20;
+          }
+
+          results.push({
+            type: "dm",
+            id: `dm-${server.id}-${pm.id}`,
+            title: pm.username,
+            description: server.name,
+            serverId: server.id,
+            score: pmMatch.score + scoreAdjustment,
+            data: pm,
+          });
+        }
+      });
+    });
+
+    return results.sort((a, b) => b.score - a.score).slice(0, 15);
+  }, [searchQuery, servers, ui.selectedServerId, ui.perServerSelections]);
+
+  const handleSelect = useCallback(
+    (result: QuickActionResult) => {
+      switch (result.type) {
+        case "setting": {
+          const settingResult = result.data as SettingSearchResult;
+          const setting = settingResult.setting;
+          setSettingsNavigation({
+            category: setting.category as
+              | "profile"
+              | "notifications"
+              | "preferences"
+              | "media"
+              | "account",
+            highlightedSettingId: setting.id,
+          });
+          toggleSettingsModal(true);
+          break;
+        }
+        case "channel": {
+          const channel = result.data as Channel;
+          selectServer(result.serverId || null);
+          selectChannel(channel.id);
+          break;
+        }
+        case "dm": {
+          const pm = result.data as PrivateChat;
+          selectServer(result.serverId || null);
+          selectPrivateChat(pm.id);
+          break;
+        }
+        case "server": {
+          selectServer(result.id.replace("server-", ""));
+          break;
+        }
+      }
+      handleClose();
+    },
+    [
+      setSettingsNavigation,
+      toggleSettingsModal,
+      selectServer,
+      selectChannel,
+      selectPrivateChat,
+      handleClose,
+    ],
+  );
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, []);
+
+  const searchResultsRef = useRef<QuickActionResult[]>([]);
+  const selectedIndexRef = useRef(selectedIndex);
+  const handleCloseRef = useRef(handleClose);
+  const handleSelectRef = useRef(handleSelect);
+
+  searchResultsRef.current = searchResults;
+  selectedIndexRef.current = selectedIndex;
+  handleCloseRef.current = handleClose;
+  handleSelectRef.current = handleSelect;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleCloseRef.current();
+        return;
+      }
+
+      if (searchResultsRef.current.length === 0) return;
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSelectedIndex((prev) =>
+            prev < searchResultsRef.current.length - 1 ? prev + 1 : prev,
+          );
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+          break;
+        case "Tab":
+          e.preventDefault();
+          if (e.shiftKey) {
+            setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+          } else {
+            setSelectedIndex((prev) =>
+              prev < searchResultsRef.current.length - 1 ? prev + 1 : prev,
+            );
+          }
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (searchResultsRef.current[selectedIndexRef.current]) {
+            handleSelectRef.current(
+              searchResultsRef.current[selectedIndexRef.current],
+            );
+          }
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+      onClick={handleClose}
+    >
+      <div
+        className="bg-discord-dark-200 rounded-lg w-full max-w-2xl mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center border-b border-discord-dark-500 p-4">
+          <FaSearch className="text-discord-text-muted mr-3" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search settings, channels, servers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 bg-transparent text-white placeholder-discord-text-muted outline-none"
+            autoFocus
+          />
+          <button
+            onClick={handleClose}
+            className="text-discord-text-muted hover:text-white ml-3"
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        <div className="max-h-96 overflow-y-auto">
+          {searchQuery.trim().length === 0 ? (
+            <div className="p-8 text-center text-discord-text-muted">
+              Type to search settings, channels, servers, or private messages...
+            </div>
+          ) : searchResults.length === 0 ? (
+            <div className="p-8 text-center text-discord-text-muted">
+              No results found
+            </div>
+          ) : (
+            <div className="p-2">
+              {searchResults.map((result, index) => {
+                const getIcon = () => {
+                  switch (result.type) {
+                    case "setting":
+                      return <FaCog className="mr-3" />;
+                    case "channel":
+                      return <FaHashtag className="mr-3" />;
+                    case "dm":
+                      return <FaUser className="mr-3" />;
+                    case "server":
+                      return <FaServer className="mr-3" />;
+                  }
+                };
+
+                const getTypeBadge = () => {
+                  switch (result.type) {
+                    case "setting":
+                      return "Setting";
+                    case "channel":
+                      return "Channel";
+                    case "dm":
+                      return "DM";
+                    case "server":
+                      return "Server";
+                  }
+                };
+
+                return (
+                  <button
+                    key={result.id}
+                    onClick={() => handleSelect(result)}
+                    className={`w-full flex flex-col px-4 py-3 rounded text-left transition-colors ${
+                      index === selectedIndex
+                        ? "bg-discord-primary text-white"
+                        : "text-discord-text-normal hover:bg-discord-dark-400"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center flex-1 min-w-0">
+                        {getIcon()}
+                        <span className="font-medium truncate">
+                          {result.title}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-1 rounded ml-2 whitespace-nowrap ${
+                          index === selectedIndex
+                            ? "bg-white/20"
+                            : "bg-discord-dark-400"
+                        }`}
+                      >
+                        {getTypeBadge()}
+                      </span>
+                    </div>
+                    {result.description && (
+                      <span
+                        className={`text-sm mt-1 ml-8 truncate ${
+                          index === selectedIndex
+                            ? "text-white/80"
+                            : "text-discord-text-muted"
+                        }`}
+                      >
+                        {result.description}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default QuickActions;

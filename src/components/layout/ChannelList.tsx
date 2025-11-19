@@ -38,7 +38,7 @@ export const ChannelList: React.FC<{
     pinPrivateChat,
     unpinPrivateChat,
     reorderPrivateChats,
-    toggleUserProfileModal,
+    toggleSettingsModal,
     setMobileViewActiveColumn,
     reorderChannels,
   } = useStore();
@@ -1276,7 +1276,7 @@ export const ChannelList: React.FC<{
       <div className="mt-auto mb-2 px-2">
         <div
           className="py-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full transition-all duration-200 ease-in-out shadow-sm bg-discord-dark-400/50 hover:bg-discord-primary/70"
-          onClick={() => toggleUserProfileModal(true)}
+          onClick={() => toggleSettingsModal(true)}
         >
           <div className="flex items-center gap-2 ml-2 flex-1 min-w-0">
             <div className="relative flex-shrink-0">
@@ -1341,7 +1341,7 @@ export const ChannelList: React.FC<{
             <button
               className="hover:text-white"
               data-testid="user-settings-button"
-              onClick={() => toggleUserProfileModal(true)}
+              onClick={() => toggleSettingsModal(true)}
             >
               <FaCog className="mr-2" />
             </button>
