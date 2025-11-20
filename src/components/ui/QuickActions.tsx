@@ -9,12 +9,23 @@ import {
   FaUser,
 } from "react-icons/fa";
 import { fuzzyMatch } from "../../lib/fuzzySearch";
+import ircClient from "../../lib/ircClient";
 import { settingsRegistry } from "../../lib/settings";
 import type { SettingSearchResult } from "../../lib/settings/types";
 import useStore from "../../store";
 import type { Channel, PrivateChat, Server } from "../../types";
 
-type QuickActionResultType = "setting" | "channel" | "dm" | "server";
+type QuickActionResultType =
+  | "setting"
+  | "channel"
+  | "dm"
+  | "server"
+  | "join-channel"
+  | "start-dm";
+
+interface JoinChannelData {
+  channelName: string;
+}
 
 interface QuickActionResult {
   type: QuickActionResultType;
@@ -23,19 +34,22 @@ interface QuickActionResult {
   description?: string;
   serverId?: string;
   score: number;
-  data?: SettingSearchResult | Channel | PrivateChat | Server;
+  data?: SettingSearchResult | Channel | PrivateChat | Server | JoinChannelData;
 }
 
 const QuickActions: React.FC = () => {
   const {
     servers,
     ui,
+    channelList,
     toggleQuickActions,
     toggleSettingsModal,
     setSettingsNavigation,
     selectChannel,
     selectPrivateChat,
     selectServer,
+    joinChannel,
+    openPrivateChat,
   } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -244,10 +258,105 @@ const QuickActions: React.FC = () => {
           });
         }
       });
+
+      if (
+        currentServerId &&
+        server.id === currentServerId &&
+        query.startsWith("#")
+      ) {
+        const channelName = query.trim();
+        const availableChannels = channelList[server.id] || [];
+        const alreadyShown = new Set<string>();
+
+        availableChannels.forEach((availChannel) => {
+          const channelMatch = fuzzyMatch(
+            query.slice(1),
+            availChannel.channel.slice(1),
+          );
+          if (channelMatch.matches) {
+            const alreadyJoined = server.channels.find(
+              (ch) => ch.name === availChannel.channel,
+            );
+            if (!alreadyJoined) {
+              results.push({
+                type: "join-channel",
+                id: `join-channel-${server.id}-${availChannel.channel}`,
+                title: `Join ${availChannel.channel}`,
+                description: `${availChannel.userCount} users - ${server.name}`,
+                serverId: server.id,
+                score: channelMatch.score + 50,
+                data: { channelName: availChannel.channel },
+              });
+              alreadyShown.add(availChannel.channel.toLowerCase());
+            }
+          }
+        });
+
+        if (
+          channelName.length > 1 &&
+          !alreadyShown.has(channelName.toLowerCase())
+        ) {
+          results.push({
+            type: "join-channel",
+            id: `join-channel-${server.id}-${channelName}`,
+            title: `Join ${channelName}`,
+            description: `Join channel on ${server.name}`,
+            serverId: server.id,
+            score: 100,
+            data: { channelName },
+          });
+        }
+      }
+
+      if (currentServerId && server.id === currentServerId) {
+        const allUsers = new Map<
+          string,
+          { username: string; isOnline: boolean }
+        >();
+        for (const channel of server.channels) {
+          for (const user of channel.users) {
+            allUsers.set(user.username, {
+              username: user.username,
+              isOnline: user.isOnline,
+            });
+          }
+        }
+
+        const currentUser = ircClient.getCurrentUser(server.id);
+        const availableUsers = Array.from(allUsers.values()).filter(
+          (user) => user.username !== currentUser?.username,
+        );
+
+        availableUsers.forEach((user) => {
+          const existingPM = server.privateChats.find(
+            (pm) => pm.username === user.username,
+          );
+          if (!existingPM) {
+            const userMatch = fuzzyMatch(query, user.username);
+            if (userMatch.matches) {
+              results.push({
+                type: "start-dm",
+                id: `start-dm-${server.id}-${user.username}`,
+                title: `Message ${user.username}`,
+                description: `Start private message on ${server.name}`,
+                serverId: server.id,
+                score: userMatch.score + (user.isOnline ? 10 : 0),
+                data: undefined,
+              });
+            }
+          }
+        });
+      }
     });
 
     return results.sort((a, b) => b.score - a.score).slice(0, 15);
-  }, [searchQuery, servers, ui.selectedServerId, ui.perServerSelections]);
+  }, [
+    searchQuery,
+    servers,
+    channelList,
+    ui.selectedServerId,
+    ui.perServerSelections,
+  ]);
 
   const handleSelect = useCallback(
     (result: QuickActionResult) => {
@@ -283,6 +392,33 @@ const QuickActions: React.FC = () => {
           selectServer(result.id.replace("server-", ""));
           break;
         }
+        case "join-channel": {
+          if (result.serverId && result.data) {
+            const channelName = (result.data as { channelName: string })
+              .channelName;
+            selectServer(result.serverId);
+            joinChannel(result.serverId, channelName);
+          }
+          break;
+        }
+        case "start-dm": {
+          if (result.serverId) {
+            const username = result.title.replace("Message ", "");
+            openPrivateChat(result.serverId, username);
+            selectServer(result.serverId);
+            const freshState = useStore.getState();
+            const server = freshState.servers.find(
+              (s) => s.id === result.serverId,
+            );
+            const privateChat = server?.privateChats?.find(
+              (pc) => pc.username === username,
+            );
+            if (privateChat) {
+              selectPrivateChat(privateChat.id);
+            }
+          }
+          break;
+        }
       }
       handleClose();
     },
@@ -293,6 +429,8 @@ const QuickActions: React.FC = () => {
       selectChannel,
       selectPrivateChat,
       handleClose,
+      joinChannel,
+      openPrivateChat,
     ],
   );
 
@@ -404,6 +542,10 @@ const QuickActions: React.FC = () => {
                       return <FaUser className="mr-3" />;
                     case "server":
                       return <FaServer className="mr-3" />;
+                    case "join-channel":
+                      return <FaHashtag className="mr-3" />;
+                    case "start-dm":
+                      return <FaUser className="mr-3" />;
                   }
                 };
 
@@ -417,6 +559,10 @@ const QuickActions: React.FC = () => {
                       return "DM";
                     case "server":
                       return "Server";
+                    case "join-channel":
+                      return "Join";
+                    case "start-dm":
+                      return "New DM";
                   }
                 };
 
