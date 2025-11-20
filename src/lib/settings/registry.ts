@@ -345,8 +345,11 @@ class SettingsRegistry {
       return { valid: true };
     }
 
-    // Required check
-    if (validation.required && !value) {
+    // Required check - allow false and 0 as valid values
+    if (
+      validation.required &&
+      (value === null || value === undefined || value === "")
+    ) {
       return { valid: false, error: "This field is required" };
     }
 

@@ -173,7 +173,6 @@ const QuickActions: React.FC = () => {
     });
 
     servers.forEach((server) => {
-      const isCurrentServer = server.id === currentServerId;
       const isCurrentlySelectedServer = server.id === currentServerId;
 
       const serverMatch = fuzzyMatch(query, server.name);
@@ -198,13 +197,13 @@ const QuickActions: React.FC = () => {
         const channelMatch = fuzzyMatch(query, channel.name);
         if (channelMatch.matches) {
           const isCurrentlySelected =
-            isCurrentServer &&
+            isCurrentlySelectedServer &&
             currentSelection?.selectedChannelId === channel.id;
 
           let scoreAdjustment = 0;
           if (isCurrentlySelected) {
             scoreAdjustment = -30;
-          } else if (isCurrentServer) {
+          } else if (isCurrentlySelectedServer) {
             scoreAdjustment = 20;
           }
 
@@ -224,13 +223,13 @@ const QuickActions: React.FC = () => {
         const pmMatch = fuzzyMatch(query, pm.username);
         if (pmMatch.matches) {
           const isCurrentlySelected =
-            isCurrentServer &&
+            isCurrentlySelectedServer &&
             currentSelection?.selectedPrivateChatId === pm.id;
 
           let scoreAdjustment = 0;
           if (isCurrentlySelected) {
             scoreAdjustment = -30;
-          } else if (isCurrentServer) {
+          } else if (isCurrentlySelectedServer) {
             scoreAdjustment = 20;
           }
 

@@ -139,7 +139,7 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
                 type="radio"
                 value={option.value}
                 checked={value === option.value}
-                onChange={(e) => handleChange(e.target.value)}
+                onChange={() => handleChange(option.value)}
                 disabled={disabled || option.disabled}
                 className="mr-3 accent-discord-primary disabled:opacity-50"
               />
@@ -206,7 +206,9 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) {
-              handleChange(file.name);
+              const reader = new FileReader();
+              reader.onload = () => handleChange(reader.result as string);
+              reader.readAsDataURL(file);
             }
           }}
           accept={setting.accept}

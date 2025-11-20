@@ -200,11 +200,16 @@ export const SearchableModal: React.FC<SearchableModalProps> = (props) => {
     }
   }, [selectedIndex]);
 
+  // Helper to escape regex metacharacters
+  const escapeRegExp = (value: string) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   // Highlight search query in text
   const highlightText = (text: string, searchQuery: string) => {
     if (!highlightQuery || !searchQuery.trim()) return text;
 
-    const parts = text.split(new RegExp(`(${searchQuery})`, "gi"));
+    const escaped = escapeRegExp(searchQuery);
+    const parts = text.split(new RegExp(`(${escaped})`, "gi"));
     return parts.map((part, index) =>
       part.toLowerCase() === searchQuery.toLowerCase() ? (
         <mark
