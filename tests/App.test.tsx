@@ -187,8 +187,8 @@ describe("App", () => {
       // Open settings
       await user.click(screen.getByTestId("user-settings-button"));
 
-      // Check that toggleUserProfileModal was called
-      expect(mockStoreState.toggleUserProfileModal).toHaveBeenCalledWith(true);
+      // Check that toggleSettingsModal was called
+      expect(mockStoreState.toggleSettingsModal).toHaveBeenCalledWith(true);
     });
   });
 });

@@ -11,6 +11,7 @@ import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
+import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
@@ -70,6 +71,7 @@ const App: React.FC = () => {
   const {
     toggleAddServerModal,
     toggleEditServerModal,
+    toggleQuickActions,
     ui: {
       isAddServerModalOpen,
       isUserProfileModalOpen,
@@ -77,6 +79,8 @@ const App: React.FC = () => {
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
+      isSettingsModalOpen,
+      isQuickActionsOpen,
       editServerId,
       linkSecurityWarnings,
       profileViewRequest,
@@ -147,6 +151,21 @@ const App: React.FC = () => {
     connectToSavedServers,
   ]); // Removed connectToSavedServers from dependencies
 
+  // Global keyboard shortcut for Quick Actions (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        toggleQuickActions();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [toggleQuickActions]);
+
   return (
     <div className="h-screen overflow-hidden">
       <AppLayout />
@@ -157,7 +176,8 @@ const App: React.FC = () => {
           onClose={() => toggleEditServerModal(false)}
         />
       )}
-      {isUserProfileModalOpen && <UserSettings />}
+      {isSettingsModalOpen && <UserSettings />}
+      {isQuickActionsOpen && <QuickActions />}
       {isChannelListModalOpen && <ChannelListModal />}
       {isChannelRenameModalOpen && <ChannelRenameModal />}
       <LinkSecurityWarningModal />

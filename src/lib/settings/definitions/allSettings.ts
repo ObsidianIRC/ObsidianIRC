@@ -1,0 +1,508 @@
+import { CustomMentionsField } from "../../../components/ui/settings/CustomMentionsField";
+import { IgnoreListField } from "../../../components/ui/settings/IgnoreListField";
+import settingsRegistry from "../registry";
+import type { SettingDefinition } from "../types";
+
+/**
+ * Profile Settings
+ */
+const profileSettings: SettingDefinition[] = [
+  {
+    id: "profile.nickname",
+    key: "nickname",
+    category: "profile",
+    subcategory: "Identity",
+    title: "Nickname",
+    description: "Your unique identifier on this server",
+    type: "text",
+    defaultValue: "",
+    placeholder: "Enter nickname...",
+    searchKeywords: ["nick", "username", "name", "identity"],
+    priority: 1,
+    validation: {
+      required: true,
+      maxLength: 30,
+      pattern: /^[a-zA-Z0-9_\-[\]{}\\`|^]+$/,
+    },
+  },
+  {
+    id: "profile.displayName",
+    key: "displayName",
+    category: "profile",
+    subcategory: "Identity",
+    title: "Display Name",
+    description: "Your display name shown to other users (IRCv3 metadata)",
+    type: "text",
+    defaultValue: "",
+    placeholder: "Enter display name...",
+    searchKeywords: ["display", "name", "visible"],
+    priority: 2,
+  },
+  {
+    id: "profile.realname",
+    key: "realname",
+    category: "profile",
+    subcategory: "Identity",
+    title: "Real Name",
+    description: "Your real name (shown in WHOIS)",
+    type: "text",
+    defaultValue: "",
+    placeholder: "Enter real name...",
+    searchKeywords: ["real", "name", "whois"],
+    priority: 3,
+  },
+  {
+    id: "profile.avatar",
+    key: "avatar",
+    category: "profile",
+    subcategory: "Appearance",
+    title: "Avatar URL",
+    description: "URL to your avatar image (IRCv3 metadata)",
+    type: "text",
+    defaultValue: "",
+    placeholder: "https://example.com/avatar.png",
+    searchKeywords: ["avatar", "picture", "image", "photo"],
+    priority: 4,
+    validation: {
+      pattern: /^(https?:\/\/)?.*\.(jpg|jpeg|png|gif|webp)$/i,
+    },
+  },
+  {
+    id: "profile.homepage",
+    key: "homepage",
+    category: "profile",
+    subcategory: "Social",
+    title: "Homepage",
+    description: "Your personal website or social profile",
+    type: "text",
+    defaultValue: "",
+    placeholder: "https://example.com",
+    searchKeywords: ["website", "url", "homepage", "social"],
+    priority: 5,
+  },
+  {
+    id: "profile.status",
+    key: "status",
+    category: "profile",
+    subcategory: "Social",
+    title: "Status",
+    description: "Your current status message",
+    type: "text",
+    defaultValue: "",
+    placeholder: "What are you up to?",
+    searchKeywords: ["status", "message", "away"],
+    priority: 6,
+  },
+  {
+    id: "profile.color",
+    key: "color",
+    category: "profile",
+    subcategory: "Appearance",
+    title: "Color",
+    description: "Your user color (if supported)",
+    type: "color",
+    defaultValue: "#5865F2",
+    searchKeywords: ["color", "theme", "appearance"],
+    priority: 7,
+  },
+  {
+    id: "profile.bot",
+    key: "bot",
+    category: "profile",
+    subcategory: "Identity",
+    title: "Bot Account",
+    description: "Mark this account as a bot",
+    type: "toggle",
+    defaultValue: false,
+    searchKeywords: ["bot", "automated", "robot"],
+    priority: 8,
+  },
+];
+
+/**
+ * Notification Settings
+ */
+const notificationSettings: SettingDefinition[] = [
+  {
+    id: "notifications.enableSounds",
+    key: "enableNotificationSounds",
+    category: "notifications",
+    subcategory: "Audio",
+    title: "Enable Notification Sounds",
+    description: "Play sounds for mentions and messages",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["sound", "audio", "notification", "alert"],
+    priority: 1,
+  },
+  {
+    id: "notifications.soundFile",
+    key: "notificationSound",
+    category: "notifications",
+    subcategory: "Audio",
+    title: "Notification Sound",
+    description: "Custom notification sound file",
+    type: "file",
+    defaultValue: "",
+    accept: "audio/*",
+    searchKeywords: ["sound", "file", "audio", "custom"],
+    priority: 2,
+    dependencies: [
+      {
+        settingId: "notifications.enableSounds",
+        condition: (value) => value === true,
+      },
+    ],
+  },
+  {
+    id: "notifications.enableHighlights",
+    key: "enableHighlights",
+    category: "notifications",
+    subcategory: "Mentions",
+    title: "Enable Highlights",
+    description: "Highlight messages that mention you",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["highlight", "mention", "ping"],
+    priority: 3,
+  },
+  {
+    id: "notifications.customMentions",
+    key: "customMentions",
+    category: "notifications",
+    subcategory: "Mentions",
+    title: "Custom Mentions",
+    description: "Additional words or phrases to highlight",
+    type: "custom",
+    defaultValue: [],
+    searchKeywords: ["custom", "mention", "highlight", "keyword"],
+    priority: 4,
+    customComponent: CustomMentionsField,
+  },
+];
+
+/**
+ * Preference Settings
+ */
+const preferenceSettings: SettingDefinition[] = [
+  {
+    id: "preferences.sendTyping",
+    key: "sendTypingNotifications",
+    category: "preferences",
+    subcategory: "Chat",
+    title: "Send Typing Notifications",
+    description: "Let others know when you are typing",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["typing", "notification", "indicator"],
+    priority: 1,
+  },
+  {
+    id: "preferences.markdown",
+    key: "enableMarkdownRendering",
+    category: "preferences",
+    subcategory: "Chat",
+    title: "Enable Markdown",
+    description: "Render markdown formatting in messages",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["markdown", "formatting", "rich text"],
+    priority: 2,
+  },
+  {
+    id: "preferences.showEvents",
+    key: "showEvents",
+    category: "preferences",
+    subcategory: "Events",
+    title: "Show All Events",
+    description: "Display all server events in chat",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["events", "messages", "activity"],
+    priority: 3,
+  },
+  {
+    id: "preferences.showNickChanges",
+    key: "showNickChanges",
+    category: "preferences",
+    subcategory: "Events",
+    title: "Show Nick Changes",
+    description: "Display when users change their nickname",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["nick", "change", "rename"],
+    priority: 4,
+    dependencies: [
+      {
+        settingId: "preferences.showEvents",
+        condition: (value) => value === true,
+      },
+    ],
+  },
+  {
+    id: "preferences.showJoinsParts",
+    key: "showJoinsParts",
+    category: "preferences",
+    subcategory: "Events",
+    title: "Show Joins/Parts",
+    description: "Display when users join or leave channels",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["join", "part", "leave", "enter"],
+    priority: 5,
+    dependencies: [
+      {
+        settingId: "preferences.showEvents",
+        condition: (value) => value === true,
+      },
+    ],
+  },
+  {
+    id: "preferences.showQuits",
+    key: "showQuits",
+    category: "preferences",
+    subcategory: "Events",
+    title: "Show Quits",
+    description: "Display when users disconnect from server",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["quit", "disconnect", "leave"],
+    priority: 6,
+    dependencies: [
+      {
+        settingId: "preferences.showEvents",
+        condition: (value) => value === true,
+      },
+    ],
+  },
+  {
+    id: "preferences.showKicks",
+    key: "showKicks",
+    category: "preferences",
+    subcategory: "Events",
+    title: "Show Kicks",
+    description: "Display when users are kicked from channels",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["kick", "ban", "remove"],
+    priority: 7,
+    dependencies: [
+      {
+        settingId: "preferences.showEvents",
+        condition: (value) => value === true,
+      },
+    ],
+  },
+  {
+    id: "preferences.multilineInput",
+    key: "enableMultilineInput",
+    category: "preferences",
+    subcategory: "Input",
+    title: "Enable Multiline Input",
+    description: "Allow entering multiple lines of text",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["multiline", "input", "text", "enter"],
+    priority: 8,
+  },
+  {
+    id: "preferences.multilineShiftEnter",
+    key: "multilineOnShiftEnter",
+    category: "preferences",
+    subcategory: "Input",
+    title: "Multiline on Shift+Enter",
+    description: "Use Shift+Enter for new lines (Enter sends)",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["shift", "enter", "multiline", "keyboard"],
+    priority: 9,
+    dependencies: [
+      {
+        settingId: "preferences.multilineInput",
+        condition: (value) => value === true,
+      },
+    ],
+  },
+  {
+    id: "preferences.autoFallback",
+    key: "autoFallbackToSingleLine",
+    category: "preferences",
+    subcategory: "Input",
+    title: "Auto Fallback to Single Line",
+    description: "Automatically switch to single line for short messages",
+    type: "toggle",
+    defaultValue: false,
+    searchKeywords: ["fallback", "single", "line", "auto"],
+    priority: 10,
+    dependencies: [
+      {
+        settingId: "preferences.multilineInput",
+        condition: (value) => value === true,
+      },
+    ],
+  },
+  {
+    id: "preferences.ignoreList",
+    key: "ignoreList",
+    category: "preferences",
+    subcategory: "Privacy",
+    title: "Ignore List",
+    description: "Users and patterns to ignore",
+    type: "custom",
+    defaultValue: [],
+    searchKeywords: ["ignore", "block", "mute", "filter"],
+    priority: 11,
+    customComponent: IgnoreListField,
+  },
+];
+
+/**
+ * Media Settings
+ */
+const mediaSettings: SettingDefinition[] = [
+  {
+    id: "media.showSafe",
+    key: "showSafeMedia",
+    category: "media",
+    subcategory: "Display",
+    title: "Show Safe Media",
+    description: "Automatically display media from trusted sources",
+    type: "toggle",
+    defaultValue: true,
+    searchKeywords: ["media", "images", "safe", "trusted"],
+    priority: 1,
+  },
+  {
+    id: "media.showExternal",
+    key: "showExternalContent",
+    category: "media",
+    subcategory: "Display",
+    title: "Show External Content",
+    description: "Display content from external websites",
+    type: "toggle",
+    defaultValue: false,
+    searchKeywords: ["external", "content", "embed", "preview"],
+    priority: 2,
+  },
+];
+
+/**
+ * Account Settings (Hosted Chat Mode)
+ */
+const accountSettings: SettingDefinition[] = [
+  {
+    id: "account.nickname",
+    key: "accountNickname",
+    category: "account",
+    subcategory: "Credentials",
+    title: "Default Nickname",
+    description: "Your default nickname for all servers",
+    type: "text",
+    defaultValue: "",
+    placeholder: "Enter default nickname...",
+    searchKeywords: ["nick", "default", "account"],
+    priority: 1,
+  },
+  {
+    id: "account.name",
+    key: "accountName",
+    category: "account",
+    subcategory: "Credentials",
+    title: "Account Name",
+    description: "Your account username for authentication",
+    type: "text",
+    defaultValue: "",
+    placeholder: "Enter account name...",
+    searchKeywords: ["account", "login", "username", "auth"],
+    priority: 2,
+  },
+  {
+    id: "account.password",
+    key: "accountPassword",
+    category: "account",
+    subcategory: "Credentials",
+    title: "Account Password",
+    description: "Your account password for authentication",
+    type: "text", // Should be 'password' type when we add it
+    defaultValue: "",
+    placeholder: "Enter password...",
+    searchKeywords: ["password", "auth", "login"],
+    priority: 3,
+  },
+  {
+    id: "account.operName",
+    key: "operUsername",
+    category: "account",
+    subcategory: "Operator",
+    title: "Oper Username",
+    description: "IRC operator username",
+    type: "text",
+    defaultValue: "",
+    placeholder: "Enter oper username...",
+    searchKeywords: ["oper", "operator", "admin"],
+    priority: 4,
+  },
+  {
+    id: "account.operPassword",
+    key: "operPassword",
+    category: "account",
+    subcategory: "Operator",
+    title: "Oper Password",
+    description: "IRC operator password",
+    type: "text", // Should be 'password' type when we add it
+    defaultValue: "",
+    placeholder: "Enter oper password...",
+    searchKeywords: ["oper", "operator", "password", "admin"],
+    priority: 5,
+  },
+  {
+    id: "account.operOnConnect",
+    key: "operOnConnect",
+    category: "account",
+    subcategory: "Operator",
+    title: "Oper on Connect",
+    description: "Automatically authenticate as operator on connect",
+    type: "toggle",
+    defaultValue: false,
+    searchKeywords: ["oper", "auto", "connect", "operator"],
+    priority: 6,
+    dependencies: [
+      {
+        settingId: "account.operName",
+        condition: (value) => !!value,
+      },
+      {
+        settingId: "account.operPassword",
+        condition: (value) => !!value,
+      },
+    ],
+  },
+];
+
+/**
+ * Register all settings
+ */
+export const registerAllSettings = () => {
+  // Register all settings with the registry
+  settingsRegistry.registerMany([
+    ...profileSettings,
+    ...notificationSettings,
+    ...preferenceSettings,
+    ...mediaSettings,
+    ...accountSettings,
+  ]);
+};
+
+// Export individual categories for use in components
+export {
+  profileSettings,
+  notificationSettings,
+  preferenceSettings,
+  mediaSettings,
+  accountSettings,
+};
+
+// Initialize settings on module load
+registerAllSettings();
+
+export default settingsRegistry;

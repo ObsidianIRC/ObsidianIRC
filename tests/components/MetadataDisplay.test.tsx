@@ -137,6 +137,7 @@ describe("Metadata Display Features", () => {
         isEditServerModalOpen: false,
         editServerId: null,
         isSettingsModalOpen: false,
+        isQuickActionsOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
@@ -158,6 +159,7 @@ describe("Metadata Display Features", () => {
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
+        settingsNavigation: null,
       },
       messages: {
         "server1-channel1": mockChannel.messages,

@@ -44,6 +44,7 @@ describe("Nickname retry functionality", () => {
         isEditServerModalOpen: false,
         editServerId: null,
         isSettingsModalOpen: false,
+        isQuickActionsOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: false,
         isMobileMenuOpen: false,
@@ -67,6 +68,7 @@ describe("Nickname retry functionality", () => {
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
+        settingsNavigation: null,
       },
       addGlobalNotification: vi.fn(),
     };
@@ -138,6 +140,7 @@ describe("Nickname retry functionality", () => {
         isEditServerModalOpen: false,
         editServerId: null,
         isSettingsModalOpen: false,
+        isQuickActionsOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: false,
         isMobileMenuOpen: false,
@@ -161,6 +164,7 @@ describe("Nickname retry functionality", () => {
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
+        settingsNavigation: null,
       },
       addGlobalNotification: vi.fn(),
     };
