@@ -19,6 +19,7 @@ import ircClient from "../../lib/ircClient";
 import { settingsRegistry } from "../../lib/settings";
 import type { SettingValue } from "../../lib/settings/types";
 import useStore, {
+  type GlobalSettings,
   loadSavedServers,
   serverSupportsMetadata,
 } from "../../store";
@@ -315,6 +316,8 @@ export const UserSettings: React.FC = React.memo(() => {
 
     const initialSettings: Record<string, SettingValue> = {
       ...globalSettings,
+      customMentions: deepClone(globalSettings.customMentions),
+      ignoreList: deepClone(globalSettings.ignoreList),
     };
 
     setSettings(initialSettings);
@@ -444,12 +447,11 @@ export const UserSettings: React.FC = React.memo(() => {
     operOnConnect,
   ]);
 
-  // Setting change handler
   const handleSettingChange = useCallback(
-    (settingId: string, value: SettingValue) => {
+    (settingKey: string, value: SettingValue) => {
       setSettings((prev) => ({
         ...prev,
-        [settingId]: value,
+        [settingKey]: value,
       }));
     },
     [],
@@ -609,8 +611,7 @@ export const UserSettings: React.FC = React.memo(() => {
       changeNick(currentServer.id, newNickname);
     }
 
-    // Save global settings
-    updateGlobalSettings(settings);
+    updateGlobalSettings(settings as Partial<GlobalSettings>);
 
     // Save notification sound file
     if (notificationSoundFile) {
@@ -1048,8 +1049,10 @@ export const UserSettings: React.FC = React.memo(() => {
                   <SettingField
                     key={setting.id}
                     setting={setting}
-                    value={settings[setting.id] ?? setting.defaultValue}
-                    onChange={(value) => handleSettingChange(setting.id, value)}
+                    value={settings[setting.key] ?? setting.defaultValue}
+                    onChange={(value) =>
+                      handleSettingChange(setting.key, value)
+                    }
                     isHighlighted={highlightedSetting === setting.id}
                   />
                 ))}

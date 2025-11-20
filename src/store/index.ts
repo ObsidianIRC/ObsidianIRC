@@ -2505,14 +2505,12 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  // Settings actions
   updateGlobalSettings: (settings: Partial<GlobalSettings>) => {
     set((state) => {
       const newGlobalSettings = {
         ...state.globalSettings,
         ...settings,
       };
-      // Save to localStorage
       saveGlobalSettingsToLocalStorage(newGlobalSettings);
       return {
         globalSettings: newGlobalSettings,
