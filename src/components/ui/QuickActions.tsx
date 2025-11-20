@@ -49,13 +49,117 @@ const QuickActions: React.FC = () => {
 
   const searchResults: QuickActionResult[] = useMemo(() => {
     const query = searchQuery.trim();
-    if (query.length === 0) return [];
-
     const results: QuickActionResult[] = [];
     const currentServerId = ui.selectedServerId;
     const currentSelection = currentServerId
       ? ui.perServerSelections[currentServerId]
       : null;
+
+    // If no search query, show unread mentions and messages
+    if (query.length === 0) {
+      servers.forEach((server) => {
+        const isCurrentServer = server.id === currentServerId;
+
+        // Add channels with unread mentions or messages (excluding currently selected)
+        server.channels.forEach((channel) => {
+          const isCurrentlySelected =
+            isCurrentServer &&
+            currentSelection?.selectedChannelId === channel.id;
+
+          // Skip currently selected channel
+          if (isCurrentlySelected) return;
+
+          // Only show channels with unread mentions or messages
+          if (channel.isMentioned && channel.unreadCount > 0) {
+            // High priority for mentions (score: 1000 + unreadCount)
+            results.push({
+              type: "channel",
+              id: `channel-${server.id}-${channel.id}`,
+              title: channel.name,
+              description: `${server.name}${channel.topic ? ` - ${channel.topic}` : ""}`,
+              serverId: server.id,
+              score: 1000 + channel.unreadCount,
+              data: channel,
+            });
+          } else if (channel.unreadCount > 0) {
+            // Lower priority for unread messages (score: 500 + unreadCount)
+            results.push({
+              type: "channel",
+              id: `channel-${server.id}-${channel.id}`,
+              title: channel.name,
+              description: `${server.name}${channel.topic ? ` - ${channel.topic}` : ""}`,
+              serverId: server.id,
+              score: 500 + channel.unreadCount,
+              data: channel,
+            });
+          }
+        });
+
+        // Add private chats with unread mentions or messages (excluding currently selected)
+        server.privateChats.forEach((pm) => {
+          const isCurrentlySelected =
+            isCurrentServer &&
+            currentSelection?.selectedPrivateChatId === pm.id;
+
+          // Skip currently selected PM
+          if (isCurrentlySelected) return;
+
+          // Only show PMs with unread mentions or messages
+          if (pm.isMentioned && pm.unreadCount > 0) {
+            // High priority for mentions (score: 1000 + unreadCount)
+            results.push({
+              type: "dm",
+              id: `dm-${server.id}-${pm.id}`,
+              title: pm.username,
+              description: server.name,
+              serverId: server.id,
+              score: 1000 + pm.unreadCount,
+              data: pm,
+            });
+          } else if (pm.unreadCount > 0) {
+            // Lower priority for unread messages (score: 500 + unreadCount)
+            results.push({
+              type: "dm",
+              id: `dm-${server.id}-${pm.id}`,
+              title: pm.username,
+              description: server.name,
+              serverId: server.id,
+              score: 500 + pm.unreadCount,
+              data: pm,
+            });
+          }
+        });
+
+        // Add servers with mentions (excluding currently selected)
+        const hasMentions =
+          server.channels.some((ch) => ch.isMentioned) ||
+          server.privateChats?.some((pc) => pc.isMentioned);
+        const isCurrentlySelectedServer = server.id === currentServerId;
+
+        if (hasMentions && !isCurrentlySelectedServer) {
+          // Count total mentions in server
+          const totalMentions =
+            server.channels
+              .filter((ch) => ch.isMentioned)
+              .reduce((sum, ch) => sum + ch.unreadCount, 0) +
+            server.privateChats
+              .filter((pc) => pc.isMentioned)
+              .reduce((sum, pc) => sum + pc.unreadCount, 0);
+
+          results.push({
+            type: "server",
+            id: `server-${server.id}`,
+            title: server.name,
+            description: server.host,
+            serverId: server.id,
+            score: 800 + totalMentions, // Between unread messages and mentions
+            data: server,
+          });
+        }
+      });
+
+      return results.sort((a, b) => b.score - a.score).slice(0, 15);
+    }
 
     settingsRegistry.search(query, { limit: 10 }).forEach((settingResult) => {
       results.push({
@@ -282,13 +386,11 @@ const QuickActions: React.FC = () => {
         </div>
 
         <div className="max-h-96 overflow-y-auto">
-          {searchQuery.trim().length === 0 ? (
+          {searchResults.length === 0 ? (
             <div className="p-8 text-center text-discord-text-muted">
-              Type to search settings, channels, servers, or private messages...
-            </div>
-          ) : searchResults.length === 0 ? (
-            <div className="p-8 text-center text-discord-text-muted">
-              No results found
+              {searchQuery.trim().length === 0
+                ? "No unread mentions or messages"
+                : "No results found"}
             </div>
           ) : (
             <div className="p-2">
@@ -319,6 +421,28 @@ const QuickActions: React.FC = () => {
                   }
                 };
 
+                // Get unread indicator for channels and DMs
+                const getUnreadIndicator = () => {
+                  if (result.type === "channel" || result.type === "dm") {
+                    const item = result.data as Channel | PrivateChat;
+                    if (item.isMentioned && item.unreadCount > 0) {
+                      // Red badge with count for mentions
+                      return (
+                        <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center ml-2">
+                          {item.unreadCount}
+                        </span>
+                      );
+                    }
+                    if (item.unreadCount > 0) {
+                      // Blue dot for unread messages
+                      return (
+                        <span className="w-2 h-2 bg-blue-500 rounded-full ml-2" />
+                      );
+                    }
+                  }
+                  return null;
+                };
+
                 return (
                   <button
                     key={result.id}
@@ -335,6 +459,7 @@ const QuickActions: React.FC = () => {
                         <span className="font-medium truncate">
                           {result.title}
                         </span>
+                        {getUnreadIndicator()}
                       </div>
                       <span
                         className={`text-xs px-2 py-1 rounded ml-2 whitespace-nowrap ${
