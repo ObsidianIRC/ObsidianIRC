@@ -8,7 +8,27 @@ on:
       - "v*.*.*"
   workflow_dispatch:
 
+env:
+  CN_APPLICATION: "ObsidianIRC/ObsidianIRC"
+
 jobs:
+  # CrabNebula draft release (only for version tags)
+  draft-crabnebula:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Create CrabNebula draft release
+        uses: crabnebula-dev/cloud-release@v0
+        with:
+          command: release draft ${{ env.CN_APPLICATION }} --framework tauri ${{ steps.get_version.outputs.version }}
+          api-key: ${{ secrets.CN_API_KEY }}
+
   collect-version:
     if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -29,7 +49,9 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
   publish-tauri:
-    needs: collect-version
+    needs: [collect-version, draft-crabnebula]
+    # Run even if draft-crabnebula was skipped (non-tag builds)
+    if: always() && needs.collect-version.result == 'success'
     permissions:
       contents: write
     strategy:
@@ -78,6 +100,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ needs.collect-version.outputs.tag_name }}
           releaseName: ${{ needs.collect-version.outputs.name }}
@@ -86,9 +110,18 @@ jobs:
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}
 
+      - name: Upload to CrabNebula (tags only)
+        if: github.ref_type == 'tag'
+        uses: crabnebula-dev/cloud-release@v0
+        with:
+          command: release upload ${{ env.CN_APPLICATION }} --framework tauri ${{ needs.collect-version.outputs.current_version }}
+          api-key: ${{ secrets.CN_API_KEY }}
+          path: ./src-tauri/target
+
   publish-linux-arm:
     runs-on: ubuntu-22.04-arm # Use 22.04 for glibc 2.35 compatibility
-    needs: collect-version
+    needs: [collect-version, draft-crabnebula]
+    if: always() && needs.collect-version.result == 'success'
     permissions:
       contents: write
     steps:
@@ -117,6 +150,17 @@ jobs:
 
       - name: Build app
         run: npm run tauri build -- --verbose
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload to CrabNebula (tags only)
+        if: github.ref_type == 'tag'
+        uses: crabnebula-dev/cloud-release@v0
+        with:
+          command: release upload ${{ env.CN_APPLICATION }} --framework tauri ${{ needs.collect-version.outputs.current_version }}
+          api-key: ${{ secrets.CN_API_KEY }}
+          path: ./src-tauri/target
 
       - name: Publish
         uses: softprops/action-gh-release@v2
@@ -321,3 +365,16 @@ jobs:
           generate_release_notes: true
           files: |
             ./ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-web.zip
+
+  # Publish CrabNebula release after all desktop builds complete (tags only)
+  publish-crabnebula:
+    if: github.ref_type == 'tag'
+    needs: [collect-version, publish-tauri, publish-linux-arm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish CrabNebula release
+        uses: crabnebula-dev/cloud-release@v0
+        with:
+          command: release publish ${{ env.CN_APPLICATION }} --framework tauri ${{ needs.collect-version.outputs.current_version }}
+          api-key: ${{ secrets.CN_API_KEY }}
