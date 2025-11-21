@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  CN_APPLICATION: "ObsidianIRC/ObsidianIRC"
+  CN_APPLICATION: "obsidianirc/obsidianirc"
 
 jobs:
   # CrabNebula draft release (only for version tags)
