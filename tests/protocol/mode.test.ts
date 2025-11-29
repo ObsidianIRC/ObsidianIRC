@@ -54,6 +54,7 @@ describe("MODE Protocol Handler", () => {
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
         settingsNavigation: null,
+        shouldFocusChatInput: false,
       },
     });
     vi.clearAllMocks();

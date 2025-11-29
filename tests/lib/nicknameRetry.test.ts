@@ -69,6 +69,7 @@ describe("Nickname retry functionality", () => {
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
         settingsNavigation: null,
+        shouldFocusChatInput: false,
       },
       addGlobalNotification: vi.fn(),
     };
@@ -165,6 +166,7 @@ describe("Nickname retry functionality", () => {
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
         settingsNavigation: null,
+        shouldFocusChatInput: false,
       },
       addGlobalNotification: vi.fn(),
     };

@@ -419,6 +419,8 @@ interface UIState {
   } | null;
   // Shimmer effect for newly connected servers
   serverShimmer?: Set<string>; // Set of server IDs that should show shimmer
+  // Request focus on chat input (used when closing modals)
+  shouldFocusChatInput: boolean;
 }
 
 export interface GlobalSettings {
@@ -672,6 +674,8 @@ export interface AppState {
   toggleEditServerModal: (isOpen?: boolean, serverId?: string | null) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleQuickActions: (isOpen?: boolean) => void;
+  requestChatInputFocus: () => void;
+  clearChatInputFocus: () => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
   setProfileViewRequest: (serverId: string, username: string) => void;
   clearProfileViewRequest: () => void;
@@ -832,6 +836,8 @@ const useStore = create<AppState>((set, get) => ({
     profileViewRequest: null,
     // Settings navigation
     settingsNavigation: null,
+    // Chat input focus request
+    shouldFocusChatInput: false,
   },
   globalSettings: {
     enableNotifications: false,
@@ -2277,6 +2283,18 @@ const useStore = create<AppState>((set, get) => ({
         isQuickActionsOpen:
           isOpen !== undefined ? isOpen : !state.ui.isQuickActionsOpen,
       },
+    }));
+  },
+
+  requestChatInputFocus: () => {
+    set((state) => ({
+      ui: { ...state.ui, shouldFocusChatInput: true },
+    }));
+  },
+
+  clearChatInputFocus: () => {
+    set((state) => ({
+      ui: { ...state.ui, shouldFocusChatInput: false },
     }));
   },
 
