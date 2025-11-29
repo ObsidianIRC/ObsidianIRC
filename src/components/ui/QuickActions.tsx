@@ -50,6 +50,7 @@ const QuickActions: React.FC = () => {
     selectServer,
     joinChannel,
     openPrivateChat,
+    requestChatInputFocus,
   } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -59,7 +60,8 @@ const QuickActions: React.FC = () => {
     toggleQuickActions(false);
     setSearchQuery("");
     setSelectedIndex(0);
-  }, [toggleQuickActions]);
+    requestChatInputFocus();
+  }, [toggleQuickActions, requestChatInputFocus]);
 
   const searchResults: QuickActionResult[] = useMemo(() => {
     const query = searchQuery.trim();
