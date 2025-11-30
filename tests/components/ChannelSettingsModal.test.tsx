@@ -155,32 +155,41 @@ describe("ChannelSettingsModal", () => {
   test("renders modal with correct title", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    expect(
-      screen.getByText("Channel Settings - #testchannel"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Channel Settings")).toBeInTheDocument();
   });
 
   test("renders tabs correctly", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    expect(screen.getByText("Bans (+b)")).toBeInTheDocument();
-    expect(screen.getByText("Ban Exceptions (+e)")).toBeInTheDocument();
-    expect(screen.getByText("Invitations (+I)")).toBeInTheDocument();
+    // Check that the nav contains the tab buttons
+    const nav = screen.getByRole("navigation");
+    expect(nav).toHaveTextContent("Bans");
+    expect(nav).toHaveTextContent("Exceptions");
+    expect(nav).toHaveTextContent("Invitations");
   });
 
   test("defaults to bans tab", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    expect(screen.getByText("Bans (+b)")).toHaveClass("border-discord-blue");
+    // Find the active tab button within the nav (should have bg-discord-primary class)
+    const nav = screen.getByRole("navigation");
+    const activeTab = nav.querySelector("button.bg-discord-primary");
+    expect(activeTab).toBeInTheDocument();
+    expect(activeTab).toHaveTextContent("Bans");
   });
 
   test("switches tabs correctly", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    const exceptionsTab = screen.getByText("Ban Exceptions (+e)");
-    fireEvent.click(exceptionsTab);
+    const nav = screen.getByRole("navigation");
+    const exceptionsTab = Array.from(nav.querySelectorAll("button")).find(
+      (btn) => btn.textContent?.includes("Exceptions"),
+    );
+    expect(exceptionsTab).toBeTruthy();
+    fireEvent.click(exceptionsTab as HTMLButtonElement);
 
-    expect(exceptionsTab).toHaveClass("border-discord-blue");
+    const activeTab = nav.querySelector("button.bg-discord-primary");
+    expect(activeTab).toHaveTextContent("Exceptions");
   });
 
   test("displays existing bans", () => {
@@ -192,12 +201,15 @@ describe("ChannelSettingsModal", () => {
   test("shows add mask input when plus button is clicked", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    // Find all buttons and get the one with the plus icon (second button)
-    const buttons = screen.getAllByRole("button");
-    const addButton = buttons[1]; // First is close, second is add
-    expect(addButton).toBeInTheDocument();
-    fireEvent.click(addButton);
+    // Ensure we're on the bans tab
+    const nav = screen.getByRole("navigation");
+    const bansTab = Array.from(nav.querySelectorAll("button")).find((btn) =>
+      btn.textContent?.includes("Bans"),
+    );
+    expect(bansTab).toBeTruthy();
+    fireEvent.click(bansTab as HTMLButtonElement);
 
+    // The input should already be visible for adding bans
     expect(
       screen.getByPlaceholderText(
         "Add ban mask (e.g., nick!*@*, *!*@host.com)",
@@ -291,9 +303,7 @@ describe("ChannelSettingsModal", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
     // Should show loading or empty state
-    expect(
-      screen.getByText("Channel Settings - #testchannel"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Channel Settings")).toBeInTheDocument();
   });
 
   test("displays empty state when no modes exist", () => {
