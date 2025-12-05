@@ -4,8 +4,10 @@ import {
 } from "@tauri-apps/plugin-notification";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
@@ -168,36 +170,46 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen overflow-hidden">
-      <AppLayout />
-      {isAddServerModalOpen && <AddServerModal />}
-      {isEditServerModalOpen && editServerId && (
-        <EditServerModal
-          serverId={editServerId}
-          onClose={() => toggleEditServerModal(false)}
+      <Routes>
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route
+          path="/*"
+          element={
+            <>
+              <AppLayout />
+              {isAddServerModalOpen && <AddServerModal />}
+              {isEditServerModalOpen && editServerId && (
+                <EditServerModal
+                  serverId={editServerId}
+                  onClose={() => toggleEditServerModal(false)}
+                />
+              )}
+              {isSettingsModalOpen && <UserSettings />}
+              {isQuickActionsOpen && <QuickActions />}
+              {isChannelListModalOpen && <ChannelListModal />}
+              {isChannelRenameModalOpen && <ChannelRenameModal />}
+              <LinkSecurityWarningModal />
+              {userProfileModalState?.isOpen && (
+                <UserProfileModal
+                  isOpen={userProfileModalState.isOpen}
+                  onClose={() => setUserProfileModalState(null)}
+                  serverId={userProfileModalState.serverId}
+                  username={userProfileModalState.username}
+                />
+              )}
+              {isServerNoticesPopupOpen && (
+                <ServerNoticesPopup
+                  messages={serverNotices}
+                  onClose={() => toggleServerNoticesPopup(false)}
+                  onUsernameContextMenu={handleUsernameContextMenu}
+                  onIrcLinkClick={handleIrcLinkClick}
+                  joinChannel={joinChannel}
+                />
+              )}
+            </>
+          }
         />
-      )}
-      {isSettingsModalOpen && <UserSettings />}
-      {isQuickActionsOpen && <QuickActions />}
-      {isChannelListModalOpen && <ChannelListModal />}
-      {isChannelRenameModalOpen && <ChannelRenameModal />}
-      <LinkSecurityWarningModal />
-      {userProfileModalState?.isOpen && (
-        <UserProfileModal
-          isOpen={userProfileModalState.isOpen}
-          onClose={() => setUserProfileModalState(null)}
-          serverId={userProfileModalState.serverId}
-          username={userProfileModalState.username}
-        />
-      )}
-      {isServerNoticesPopupOpen && (
-        <ServerNoticesPopup
-          messages={serverNotices}
-          onClose={() => toggleServerNoticesPopup(false)}
-          onUsernameContextMenu={handleUsernameContextMenu}
-          onIrcLinkClick={handleIrcLinkClick}
-          joinChannel={joinChannel}
-        />
-      )}
+      </Routes>
     </div>
   );
 };
