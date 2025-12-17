@@ -4901,33 +4901,8 @@ ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
 });
 
 ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
-  // Handle channel mode responses
-  if (target.startsWith("#")) {
-    // This is a channel mode change - let the protocol handler deal with it
-    // The protocol handler will update the store with list changes
-    // We still update the basic mode info for the channel
-    useStore.setState((state) => {
-      const updatedServers = state.servers.map((server) => {
-        if (server.id === serverId) {
-          const updatedChannels = server.channels.map((channel) => {
-            if (channel.name.toLowerCase() === target.toLowerCase()) {
-              // Parse the modestring and modeargs to update channel modes
-              // For now, we'll store the raw modestring
-              return {
-                ...channel,
-                modes: modestring,
-                modeArgs: modeargs,
-              };
-            }
-            return channel;
-          });
-          return { ...server, channels: updatedChannels };
-        }
-        return server;
-      });
-      return { servers: updatedServers };
-    });
-  } else {
+  // Handle user mode responses (channel modes are handled by the protocol handler)
+  if (!target.startsWith("#")) {
     // This is a user mode change
     useStore.setState((state) => {
       // Check if this is the current user
@@ -4994,6 +4969,31 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
     });
   }
 });
+
+ircClient.on(
+  "RPL_CHANNELMODEIS",
+  ({ serverId, channelName, modestring, modeargs }) => {
+    useStore.setState((state) => {
+      const updatedServers = state.servers.map((server) => {
+        if (server.id === serverId) {
+          const updatedChannels = server.channels.map((channel) => {
+            if (channel.name.toLowerCase() === channelName.toLowerCase()) {
+              return {
+                ...channel,
+                modes: modestring,
+                modeArgs: modeargs,
+              };
+            }
+            return channel;
+          });
+          return { ...server, channels: updatedChannels };
+        }
+        return server;
+      });
+      return { servers: updatedServers };
+    });
+  },
+);
 
 ircClient.on(
   "RPL_BANLIST",
