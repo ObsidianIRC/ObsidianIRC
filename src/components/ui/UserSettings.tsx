@@ -10,6 +10,7 @@ import {
   FaCog,
   FaImage,
   FaServer,
+  FaShieldAlt,
   FaTimes,
   FaUser,
 } from "react-icons/fa";
@@ -80,7 +81,8 @@ type SettingsCategory =
   | "notifications"
   | "preferences"
   | "media"
-  | "account";
+  | "account"
+  | "privacy";
 
 interface CategoryInfo {
   id: SettingsCategory;
@@ -119,6 +121,12 @@ const categories: CategoryInfo[] = [
     title: "Account",
     icon: <FaServer className="w-5 h-5" />,
     description: "Manage your account and authentication",
+  },
+  {
+    id: "privacy",
+    title: "Privacy",
+    icon: <FaShieldAlt className="w-5 h-5" />,
+    description: "View our privacy policy and data practices",
   },
 ];
 
@@ -674,6 +682,98 @@ export const UserSettings: React.FC = React.memo(() => {
     toggleSettingsModal(false);
   }, [hasUnsavedChanges, toggleSettingsModal]);
 
+  // Render privacy settings
+  const renderPrivacyFields = () => {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
+          <h3 className="text-discord-text-normal font-medium">
+            Privacy Policy
+          </h3>
+          <p className="text-discord-text-muted text-sm">
+            Learn how we handle your data and protect your privacy.
+          </p>
+
+          <div className="space-y-3">
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between w-full p-3 bg-discord-dark-500 rounded hover:bg-discord-dark-300 transition-colors"
+            >
+              <span className="text-discord-text-normal">
+                View Full Privacy Policy
+              </span>
+              <svg
+                className="w-4 h-4 text-discord-text-muted"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
+          <h3 className="text-discord-text-normal font-medium">
+            Data Collection
+          </h3>
+          <div className="space-y-2 text-discord-text-muted text-sm">
+            <p>
+              • <strong>Local Storage:</strong> Your messages and settings are
+              stored locally on your device
+            </p>
+            <p>
+              • <strong>No Central Server:</strong> We don't store your IRC
+              communications on our servers
+            </p>
+            <p>
+              • <strong>IRC Servers:</strong> Only connect to servers you choose
+            </p>
+            <p>
+              • <strong>Anonymous Analytics:</strong> Optional crash reports to
+              improve the app
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
+          <h3 className="text-discord-text-normal font-medium">Contact</h3>
+          <div className="space-y-2 text-discord-text-muted text-sm">
+            <p>Questions about privacy? Contact us:</p>
+            <p>
+              • <strong>Email:</strong>{" "}
+              <a
+                href="mailto:obsidian@gmail.com"
+                className="text-discord-primary hover:text-discord-primary-light"
+              >
+                obsidian@gmail.com
+              </a>
+            </p>
+            <p>
+              • <strong>GitHub:</strong>{" "}
+              <a
+                href="https://github.com/ObsidianIRC/ObsidianIRC"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-discord-primary hover:text-discord-primary-light"
+              >
+                github.com/ObsidianIRC/ObsidianIRC
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const { getBackdropProps, getContentProps } = useModalBehavior({
     onClose: handleClose,
     isOpen: ui.isSettingsModalOpen,
@@ -1042,22 +1142,27 @@ export const UserSettings: React.FC = React.memo(() => {
             {/* Account category - custom rendering */}
             {activeCategory === "account" && renderAccountFields()}
 
+            {/* Privacy category - custom rendering */}
+            {activeCategory === "privacy" && renderPrivacyFields()}
+
             {/* Other categories - use SettingRenderer */}
-            {activeCategory !== "profile" && activeCategory !== "account" && (
-              <div className="space-y-4">
-                {categorySettings.map((setting) => (
-                  <SettingField
-                    key={setting.id}
-                    setting={setting}
-                    value={settings[setting.key] ?? setting.defaultValue}
-                    onChange={(value) =>
-                      handleSettingChange(setting.key, value)
-                    }
-                    isHighlighted={highlightedSetting === setting.id}
-                  />
-                ))}
-              </div>
-            )}
+            {activeCategory !== "profile" &&
+              activeCategory !== "account" &&
+              activeCategory !== "privacy" && (
+                <div className="space-y-4">
+                  {categorySettings.map((setting) => (
+                    <SettingField
+                      key={setting.id}
+                      setting={setting}
+                      value={settings[setting.key] ?? setting.defaultValue}
+                      onChange={(value) =>
+                        handleSettingChange(setting.key, value)
+                      }
+                      isHighlighted={highlightedSetting === setting.id}
+                    />
+                  ))}
+                </div>
+              )}
           </div>
 
           <div className="flex justify-end p-4 border-t border-discord-dark-500 space-x-3">

@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
 import ircClient from "../src/lib/ircClient";
@@ -108,7 +109,11 @@ describe("App", () => {
 
   describe("Server Management", () => {
     it("Can open and close add server modal", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Open modal
@@ -120,7 +125,11 @@ describe("App", () => {
     });
 
     it("Can add a new server with valid information", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Mock successful connection
@@ -145,7 +154,11 @@ describe("App", () => {
     });
 
     it("Shows error message when server connection fails", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Mock failed connection
@@ -162,7 +175,11 @@ describe("App", () => {
     });
 
     it("Shows error message when server connection fails", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Mock failed connection
@@ -181,7 +198,11 @@ describe("App", () => {
 
   describe("User Settings", () => {
     it("Can open and close user settings modal", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Open settings
