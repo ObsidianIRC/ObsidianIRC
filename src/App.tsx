@@ -5,13 +5,16 @@ import {
 } from "@tauri-apps/plugin-notification";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
+import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
@@ -73,6 +76,7 @@ const App: React.FC = () => {
   const {
     toggleAddServerModal,
     toggleEditServerModal,
+    toggleQuickActions,
     ui: {
       isAddServerModalOpen,
       isUserProfileModalOpen,
@@ -80,6 +84,8 @@ const App: React.FC = () => {
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
+      isSettingsModalOpen,
+      isQuickActionsOpen,
       editServerId,
       linkSecurityWarnings,
       profileViewRequest,
@@ -186,37 +192,63 @@ const App: React.FC = () => {
     setupDeepLinkHandler();
   }, [toggleAddServerModal]);
 
+  // Global keyboard shortcut for Quick Actions (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        toggleQuickActions();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [toggleQuickActions]);
+
   return (
     <div className="h-screen overflow-hidden">
-      <AppLayout />
-      {isAddServerModalOpen && <AddServerModal />}
-      {isEditServerModalOpen && editServerId && (
-        <EditServerModal
-          serverId={editServerId}
-          onClose={() => toggleEditServerModal(false)}
+      <Routes>
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route
+          path="/*"
+          element={
+            <>
+              <AppLayout />
+              {isAddServerModalOpen && <AddServerModal />}
+              {isEditServerModalOpen && editServerId && (
+                <EditServerModal
+                  serverId={editServerId}
+                  onClose={() => toggleEditServerModal(false)}
+                />
+              )}
+              {isSettingsModalOpen && <UserSettings />}
+              {isQuickActionsOpen && <QuickActions />}
+              {isChannelListModalOpen && <ChannelListModal />}
+              {isChannelRenameModalOpen && <ChannelRenameModal />}
+              <LinkSecurityWarningModal />
+              {userProfileModalState?.isOpen && (
+                <UserProfileModal
+                  isOpen={userProfileModalState.isOpen}
+                  onClose={() => setUserProfileModalState(null)}
+                  serverId={userProfileModalState.serverId}
+                  username={userProfileModalState.username}
+                />
+              )}
+              {isServerNoticesPopupOpen && (
+                <ServerNoticesPopup
+                  messages={serverNotices}
+                  onClose={() => toggleServerNoticesPopup(false)}
+                  onUsernameContextMenu={handleUsernameContextMenu}
+                  onIrcLinkClick={handleIrcLinkClick}
+                  joinChannel={joinChannel}
+                />
+              )}
+            </>
+          }
         />
-      )}
-      {isUserProfileModalOpen && <UserSettings />}
-      {isChannelListModalOpen && <ChannelListModal />}
-      {isChannelRenameModalOpen && <ChannelRenameModal />}
-      <LinkSecurityWarningModal />
-      {userProfileModalState?.isOpen && (
-        <UserProfileModal
-          isOpen={userProfileModalState.isOpen}
-          onClose={() => setUserProfileModalState(null)}
-          serverId={userProfileModalState.serverId}
-          username={userProfileModalState.username}
-        />
-      )}
-      {isServerNoticesPopupOpen && (
-        <ServerNoticesPopup
-          messages={serverNotices}
-          onClose={() => toggleServerNoticesPopup(false)}
-          onUsernameContextMenu={handleUsernameContextMenu}
-          onIrcLinkClick={handleIrcLinkClick}
-          joinChannel={joinChannel}
-        />
-      )}
+      </Routes>
     </div>
   );
 };

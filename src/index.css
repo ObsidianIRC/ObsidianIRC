@@ -198,6 +198,16 @@ body {
   }
 }
 
+/* Settings highlight blink - one time only */
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 /* Markdown styling */
 .markdown-content {
   line-height: 1.2;

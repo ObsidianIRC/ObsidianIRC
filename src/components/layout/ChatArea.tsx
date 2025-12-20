@@ -175,6 +175,18 @@ export const ChatArea: React.FC<{
   const kickUser = useStore((state) => state.kickUser);
   const banUserByNick = useStore((state) => state.banUserByNick);
   const banUserByHostmask = useStore((state) => state.banUserByHostmask);
+  const clearChatInputFocus = useStore((state) => state.clearChatInputFocus);
+  const shouldFocusChatInput = useStore(
+    (state) => state.ui.shouldFocusChatInput,
+  );
+
+  // Focus chat input when requested by other components (e.g., modals closing)
+  useEffect(() => {
+    if (shouldFocusChatInput && inputRef.current) {
+      inputRef.current.focus();
+      clearChatInputFocus();
+    }
+  }, [shouldFocusChatInput, clearChatInputFocus]);
 
   const selectedServerId = ui.selectedServerId;
   const currentSelection = ui.perServerSelections[selectedServerId || ""] || {

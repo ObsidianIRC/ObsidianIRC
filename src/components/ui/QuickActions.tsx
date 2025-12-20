@@ -1,0 +1,643 @@
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FaCog,
+  FaHashtag,
+  FaSearch,
+  FaServer,
+  FaTimes,
+  FaUser,
+} from "react-icons/fa";
+import { fuzzyMatch } from "../../lib/fuzzySearch";
+import ircClient from "../../lib/ircClient";
+import { settingsRegistry } from "../../lib/settings";
+import type { SettingSearchResult } from "../../lib/settings/types";
+import useStore from "../../store";
+import type { Channel, PrivateChat, Server } from "../../types";
+
+type QuickActionResultType =
+  | "setting"
+  | "channel"
+  | "dm"
+  | "server"
+  | "join-channel"
+  | "start-dm";
+
+interface JoinChannelData {
+  channelName: string;
+}
+
+interface QuickActionResult {
+  type: QuickActionResultType;
+  id: string;
+  title: string;
+  description?: string;
+  serverId?: string;
+  score: number;
+  data?: SettingSearchResult | Channel | PrivateChat | Server | JoinChannelData;
+}
+
+const QuickActions: React.FC = () => {
+  const {
+    servers,
+    ui,
+    channelList,
+    toggleQuickActions,
+    toggleSettingsModal,
+    setSettingsNavigation,
+    selectChannel,
+    selectPrivateChat,
+    selectServer,
+    joinChannel,
+    openPrivateChat,
+    requestChatInputFocus,
+  } = useStore();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClose = useCallback(() => {
+    toggleQuickActions(false);
+    setSearchQuery("");
+    setSelectedIndex(0);
+    requestChatInputFocus();
+  }, [toggleQuickActions, requestChatInputFocus]);
+
+  const searchResults: QuickActionResult[] = useMemo(() => {
+    const query = searchQuery.trim();
+    const results: QuickActionResult[] = [];
+    const currentServerId = ui.selectedServerId;
+    const currentSelection = currentServerId
+      ? ui.perServerSelections[currentServerId]
+      : null;
+
+    // If no search query, show unread mentions and messages
+    if (query.length === 0) {
+      servers.forEach((server) => {
+        const isCurrentServer = server.id === currentServerId;
+
+        // Add channels with unread mentions or messages (excluding currently selected)
+        server.channels.forEach((channel) => {
+          const isCurrentlySelected =
+            isCurrentServer &&
+            currentSelection?.selectedChannelId === channel.id;
+
+          // Skip currently selected channel
+          if (isCurrentlySelected) return;
+
+          // Only show channels with unread mentions or messages
+          if (channel.isMentioned && channel.unreadCount > 0) {
+            // High priority for mentions (score: 1000 + unreadCount)
+            results.push({
+              type: "channel",
+              id: `channel-${server.id}-${channel.id}`,
+              title: channel.name,
+              description: `${server.name}${channel.topic ? ` - ${channel.topic}` : ""}`,
+              serverId: server.id,
+              score: 1000 + channel.unreadCount,
+              data: channel,
+            });
+          } else if (channel.unreadCount > 0) {
+            // Lower priority for unread messages (score: 500 + unreadCount)
+            results.push({
+              type: "channel",
+              id: `channel-${server.id}-${channel.id}`,
+              title: channel.name,
+              description: `${server.name}${channel.topic ? ` - ${channel.topic}` : ""}`,
+              serverId: server.id,
+              score: 500 + channel.unreadCount,
+              data: channel,
+            });
+          }
+        });
+
+        // Add private chats with unread mentions or messages (excluding currently selected)
+        server.privateChats.forEach((pm) => {
+          const isCurrentlySelected =
+            isCurrentServer &&
+            currentSelection?.selectedPrivateChatId === pm.id;
+
+          // Skip currently selected PM
+          if (isCurrentlySelected) return;
+
+          // Only show PMs with unread mentions or messages
+          if (pm.isMentioned && pm.unreadCount > 0) {
+            // High priority for mentions (score: 1000 + unreadCount)
+            results.push({
+              type: "dm",
+              id: `dm-${server.id}-${pm.id}`,
+              title: pm.username,
+              description: server.name,
+              serverId: server.id,
+              score: 1000 + pm.unreadCount,
+              data: pm,
+            });
+          } else if (pm.unreadCount > 0) {
+            // Lower priority for unread messages (score: 500 + unreadCount)
+            results.push({
+              type: "dm",
+              id: `dm-${server.id}-${pm.id}`,
+              title: pm.username,
+              description: server.name,
+              serverId: server.id,
+              score: 500 + pm.unreadCount,
+              data: pm,
+            });
+          }
+        });
+
+        // Add servers with mentions (excluding currently selected)
+        const hasMentions =
+          server.channels.some((ch) => ch.isMentioned) ||
+          server.privateChats?.some((pc) => pc.isMentioned);
+        const isCurrentlySelectedServer = server.id === currentServerId;
+
+        if (hasMentions && !isCurrentlySelectedServer) {
+          // Count total mentions in server
+          const totalMentions =
+            server.channels
+              .filter((ch) => ch.isMentioned)
+              .reduce((sum, ch) => sum + ch.unreadCount, 0) +
+            server.privateChats
+              .filter((pc) => pc.isMentioned)
+              .reduce((sum, pc) => sum + pc.unreadCount, 0);
+
+          results.push({
+            type: "server",
+            id: `server-${server.id}`,
+            title: server.name,
+            description: server.host,
+            serverId: server.id,
+            score: 800 + totalMentions, // Between unread messages and mentions
+            data: server,
+          });
+        }
+      });
+
+      return results.sort((a, b) => b.score - a.score).slice(0, 15);
+    }
+
+    settingsRegistry.search(query, { limit: 10 }).forEach((settingResult) => {
+      results.push({
+        type: "setting",
+        id: `setting-${settingResult.setting.id}`,
+        title: settingResult.setting.title,
+        description: settingResult.setting.description,
+        score: settingResult.score,
+        data: settingResult,
+      });
+    });
+
+    servers.forEach((server) => {
+      const isCurrentlySelectedServer = server.id === currentServerId;
+
+      const serverMatch = fuzzyMatch(query, server.name);
+      if (serverMatch.matches) {
+        let scoreAdjustment = 0;
+        if (isCurrentlySelectedServer) {
+          scoreAdjustment = -30;
+        }
+
+        results.push({
+          type: "server",
+          id: `server-${server.id}`,
+          title: server.name,
+          description: server.host,
+          serverId: server.id,
+          score: serverMatch.score + scoreAdjustment,
+          data: server,
+        });
+      }
+
+      server.channels.forEach((channel) => {
+        const channelMatch = fuzzyMatch(query, channel.name);
+        if (channelMatch.matches) {
+          const isCurrentlySelected =
+            isCurrentlySelectedServer &&
+            currentSelection?.selectedChannelId === channel.id;
+
+          let scoreAdjustment = 0;
+          if (isCurrentlySelected) {
+            scoreAdjustment = -30;
+          } else if (isCurrentlySelectedServer) {
+            scoreAdjustment = 20;
+          }
+
+          results.push({
+            type: "channel",
+            id: `channel-${server.id}-${channel.id}`,
+            title: channel.name,
+            description: `${server.name}${channel.topic ? ` - ${channel.topic}` : ""}`,
+            serverId: server.id,
+            score: channelMatch.score + scoreAdjustment,
+            data: channel,
+          });
+        }
+      });
+
+      server.privateChats.forEach((pm) => {
+        const pmMatch = fuzzyMatch(query, pm.username);
+        if (pmMatch.matches) {
+          const isCurrentlySelected =
+            isCurrentlySelectedServer &&
+            currentSelection?.selectedPrivateChatId === pm.id;
+
+          let scoreAdjustment = 0;
+          if (isCurrentlySelected) {
+            scoreAdjustment = -30;
+          } else if (isCurrentlySelectedServer) {
+            scoreAdjustment = 20;
+          }
+
+          results.push({
+            type: "dm",
+            id: `dm-${server.id}-${pm.id}`,
+            title: pm.username,
+            description: server.name,
+            serverId: server.id,
+            score: pmMatch.score + scoreAdjustment,
+            data: pm,
+          });
+        }
+      });
+
+      if (
+        currentServerId &&
+        server.id === currentServerId &&
+        query.startsWith("#")
+      ) {
+        const channelName = query.trim();
+        const availableChannels = channelList[server.id] || [];
+        const alreadyShown = new Set<string>();
+
+        availableChannels.forEach((availChannel) => {
+          const channelMatch = fuzzyMatch(
+            query.slice(1),
+            availChannel.channel.slice(1),
+          );
+          if (channelMatch.matches) {
+            const alreadyJoined = server.channels.find(
+              (ch) => ch.name === availChannel.channel,
+            );
+            if (!alreadyJoined) {
+              results.push({
+                type: "join-channel",
+                id: `join-channel-${server.id}-${availChannel.channel}`,
+                title: `Join ${availChannel.channel}`,
+                description: `${availChannel.userCount} users - ${server.name}`,
+                serverId: server.id,
+                score: channelMatch.score + 50,
+                data: { channelName: availChannel.channel },
+              });
+              alreadyShown.add(availChannel.channel.toLowerCase());
+            }
+          }
+        });
+
+        if (
+          channelName.length > 1 &&
+          !alreadyShown.has(channelName.toLowerCase())
+        ) {
+          results.push({
+            type: "join-channel",
+            id: `join-channel-${server.id}-${channelName}`,
+            title: `Join ${channelName}`,
+            description: `Join channel on ${server.name}`,
+            serverId: server.id,
+            score: 100,
+            data: { channelName },
+          });
+        }
+      }
+
+      if (currentServerId && server.id === currentServerId) {
+        const allUsers = new Map<
+          string,
+          { username: string; isOnline: boolean }
+        >();
+        for (const channel of server.channels) {
+          for (const user of channel.users) {
+            allUsers.set(user.username, {
+              username: user.username,
+              isOnline: user.isOnline,
+            });
+          }
+        }
+
+        const currentUser = ircClient.getCurrentUser(server.id);
+        const availableUsers = Array.from(allUsers.values()).filter(
+          (user) => user.username !== currentUser?.username,
+        );
+
+        availableUsers.forEach((user) => {
+          const existingPM = server.privateChats.find(
+            (pm) => pm.username === user.username,
+          );
+          if (!existingPM) {
+            const userMatch = fuzzyMatch(query, user.username);
+            if (userMatch.matches) {
+              results.push({
+                type: "start-dm",
+                id: `start-dm-${server.id}-${user.username}`,
+                title: `Message ${user.username}`,
+                description: `Start private message on ${server.name}`,
+                serverId: server.id,
+                score: userMatch.score + (user.isOnline ? 10 : 0),
+                data: undefined,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return results.sort((a, b) => b.score - a.score).slice(0, 15);
+  }, [
+    searchQuery,
+    servers,
+    channelList,
+    ui.selectedServerId,
+    ui.perServerSelections,
+  ]);
+
+  const handleSelect = useCallback(
+    (result: QuickActionResult) => {
+      switch (result.type) {
+        case "setting": {
+          const settingResult = result.data as SettingSearchResult;
+          const setting = settingResult.setting;
+          setSettingsNavigation({
+            category: setting.category as
+              | "profile"
+              | "notifications"
+              | "preferences"
+              | "media"
+              | "account",
+            highlightedSettingId: setting.id,
+          });
+          toggleSettingsModal(true);
+          break;
+        }
+        case "channel": {
+          const channel = result.data as Channel;
+          selectServer(result.serverId || null);
+          selectChannel(channel.id);
+          break;
+        }
+        case "dm": {
+          const pm = result.data as PrivateChat;
+          selectServer(result.serverId || null);
+          selectPrivateChat(pm.id);
+          break;
+        }
+        case "server": {
+          selectServer(result.id.replace("server-", ""));
+          break;
+        }
+        case "join-channel": {
+          if (result.serverId && result.data) {
+            const channelName = (result.data as { channelName: string })
+              .channelName;
+            selectServer(result.serverId);
+            joinChannel(result.serverId, channelName);
+          }
+          break;
+        }
+        case "start-dm": {
+          if (result.serverId) {
+            const username = result.title.replace("Message ", "");
+            openPrivateChat(result.serverId, username);
+            selectServer(result.serverId);
+            const freshState = useStore.getState();
+            const server = freshState.servers.find(
+              (s) => s.id === result.serverId,
+            );
+            const privateChat = server?.privateChats?.find(
+              (pc) => pc.username === username,
+            );
+            if (privateChat) {
+              selectPrivateChat(privateChat.id);
+            }
+          }
+          break;
+        }
+      }
+      handleClose();
+    },
+    [
+      setSettingsNavigation,
+      toggleSettingsModal,
+      selectServer,
+      selectChannel,
+      selectPrivateChat,
+      handleClose,
+      joinChannel,
+      openPrivateChat,
+    ],
+  );
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, []);
+
+  const searchResultsRef = useRef<QuickActionResult[]>([]);
+  const selectedIndexRef = useRef(selectedIndex);
+  const handleCloseRef = useRef(handleClose);
+  const handleSelectRef = useRef(handleSelect);
+
+  searchResultsRef.current = searchResults;
+  selectedIndexRef.current = selectedIndex;
+  handleCloseRef.current = handleClose;
+  handleSelectRef.current = handleSelect;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleCloseRef.current();
+        return;
+      }
+
+      if (searchResultsRef.current.length === 0) return;
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSelectedIndex((prev) =>
+            prev < searchResultsRef.current.length - 1 ? prev + 1 : prev,
+          );
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+          break;
+        case "Tab":
+          e.preventDefault();
+          if (e.shiftKey) {
+            setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+          } else {
+            setSelectedIndex((prev) =>
+              prev < searchResultsRef.current.length - 1 ? prev + 1 : prev,
+            );
+          }
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (searchResultsRef.current[selectedIndexRef.current]) {
+            handleSelectRef.current(
+              searchResultsRef.current[selectedIndexRef.current],
+            );
+          }
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+      onClick={handleClose}
+    >
+      <div
+        className="bg-discord-dark-200 rounded-lg w-full max-w-2xl mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center border-b border-discord-dark-500 p-4">
+          <FaSearch className="text-discord-text-muted mr-3" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search settings, channels, servers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 bg-transparent text-white placeholder-discord-text-muted outline-none"
+            autoFocus
+          />
+          <button
+            onClick={handleClose}
+            className="text-discord-text-muted hover:text-white ml-3"
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        <div className="max-h-96 overflow-y-auto">
+          {searchResults.length === 0 ? (
+            <div className="p-8 text-center text-discord-text-muted">
+              {searchQuery.trim().length === 0
+                ? "No unread mentions or messages"
+                : "No results found"}
+            </div>
+          ) : (
+            <div className="p-2">
+              {searchResults.map((result, index) => {
+                const getIcon = () => {
+                  switch (result.type) {
+                    case "setting":
+                      return <FaCog className="mr-3" />;
+                    case "channel":
+                      return <FaHashtag className="mr-3" />;
+                    case "dm":
+                      return <FaUser className="mr-3" />;
+                    case "server":
+                      return <FaServer className="mr-3" />;
+                    case "join-channel":
+                      return <FaHashtag className="mr-3" />;
+                    case "start-dm":
+                      return <FaUser className="mr-3" />;
+                  }
+                };
+
+                const getTypeBadge = () => {
+                  switch (result.type) {
+                    case "setting":
+                      return "Setting";
+                    case "channel":
+                      return "Channel";
+                    case "dm":
+                      return "DM";
+                    case "server":
+                      return "Server";
+                    case "join-channel":
+                      return "Join";
+                    case "start-dm":
+                      return "New DM";
+                  }
+                };
+
+                // Get unread indicator for channels and DMs
+                const getUnreadIndicator = () => {
+                  if (result.type === "channel" || result.type === "dm") {
+                    const item = result.data as Channel | PrivateChat;
+                    if (item.isMentioned && item.unreadCount > 0) {
+                      // Red badge with count for mentions
+                      return (
+                        <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center ml-2">
+                          {item.unreadCount}
+                        </span>
+                      );
+                    }
+                    if (item.unreadCount > 0) {
+                      // Blue dot for unread messages
+                      return (
+                        <span className="w-2 h-2 bg-blue-500 rounded-full ml-2" />
+                      );
+                    }
+                  }
+                  return null;
+                };
+
+                return (
+                  <button
+                    key={result.id}
+                    onClick={() => handleSelect(result)}
+                    className={`w-full flex flex-col px-4 py-3 rounded text-left transition-colors ${
+                      index === selectedIndex
+                        ? "bg-discord-primary text-white"
+                        : "text-discord-text-normal hover:bg-discord-dark-400"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center flex-1 min-w-0">
+                        {getIcon()}
+                        <span className="font-medium truncate">
+                          {result.title}
+                        </span>
+                        {getUnreadIndicator()}
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-1 rounded ml-2 whitespace-nowrap ${
+                          index === selectedIndex
+                            ? "bg-white/20"
+                            : "bg-discord-dark-400"
+                        }`}
+                      >
+                        {getTypeBadge()}
+                      </span>
+                    </div>
+                    {result.description && (
+                      <span
+                        className={`text-sm mt-1 ml-8 truncate ${
+                          index === selectedIndex
+                            ? "text-white/80"
+                            : "text-discord-text-muted"
+                        }`}
+                      >
+                        {result.description}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default QuickActions;

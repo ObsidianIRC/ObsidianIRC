@@ -382,6 +382,7 @@ interface UIState {
   isEditServerModalOpen: boolean;
   editServerId: string | null;
   isSettingsModalOpen: boolean;
+  isQuickActionsOpen: boolean;
   isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
   isMobileMenuOpen: boolean;
@@ -407,8 +408,20 @@ interface UIState {
   serverNoticesPopupMinimized: boolean;
   // Profile view request - set when we want to open a user profile after closing settings
   profileViewRequest: { serverId: string; username: string } | null;
+  // Settings navigation - for Quick Actions to specify which category and setting to open/highlight
+  settingsNavigation: {
+    category?:
+      | "profile"
+      | "notifications"
+      | "preferences"
+      | "media"
+      | "account";
+    highlightedSettingId?: string;
+  } | null;
   // Shimmer effect for newly connected servers
   serverShimmer?: Set<string>; // Set of server IDs that should show shimmer
+  // Request focus on chat input (used when closing modals)
+  shouldFocusChatInput: boolean;
 }
 
 export interface GlobalSettings {
@@ -661,9 +674,22 @@ export interface AppState {
   ) => void;
   toggleEditServerModal: (isOpen?: boolean, serverId?: string | null) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
+  toggleQuickActions: (isOpen?: boolean) => void;
+  requestChatInputFocus: () => void;
+  clearChatInputFocus: () => void;
   toggleUserProfileModal: (isOpen?: boolean) => void;
   setProfileViewRequest: (serverId: string, username: string) => void;
   clearProfileViewRequest: () => void;
+  setSettingsNavigation: (navigation: {
+    category?:
+      | "profile"
+      | "notifications"
+      | "preferences"
+      | "media"
+      | "account";
+    highlightedSettingId?: string;
+  }) => void;
+  clearSettingsNavigation: () => void;
   toggleDarkMode: () => void;
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
@@ -783,6 +809,7 @@ const useStore = create<AppState>((set, get) => ({
     isEditServerModalOpen: false,
     editServerId: null,
     isSettingsModalOpen: false,
+    isQuickActionsOpen: false,
     isUserProfileModalOpen: false,
     isDarkMode: true, // Discord-like default is dark mode
     isMobileMenuOpen: false,
@@ -808,6 +835,10 @@ const useStore = create<AppState>((set, get) => ({
     serverNoticesPopupMinimized: false,
     // Profile view request
     profileViewRequest: null,
+    // Settings navigation
+    settingsNavigation: null,
+    // Chat input focus request
+    shouldFocusChatInput: false,
   },
   globalSettings: {
     enableNotifications: false,
@@ -2246,6 +2277,28 @@ const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  toggleQuickActions: (isOpen) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isQuickActionsOpen:
+          isOpen !== undefined ? isOpen : !state.ui.isQuickActionsOpen,
+      },
+    }));
+  },
+
+  requestChatInputFocus: () => {
+    set((state) => ({
+      ui: { ...state.ui, shouldFocusChatInput: true },
+    }));
+  },
+
+  clearChatInputFocus: () => {
+    set((state) => ({
+      ui: { ...state.ui, shouldFocusChatInput: false },
+    }));
+  },
+
   toggleUserProfileModal: (isOpen) => {
     set((state) => ({
       ui: {
@@ -2270,6 +2323,24 @@ const useStore = create<AppState>((set, get) => ({
       ui: {
         ...state.ui,
         profileViewRequest: null,
+      },
+    }));
+  },
+
+  setSettingsNavigation: (navigation) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        settingsNavigation: navigation,
+      },
+    }));
+  },
+
+  clearSettingsNavigation: () => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        settingsNavigation: null,
       },
     }));
   },
@@ -2453,14 +2524,12 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  // Settings actions
   updateGlobalSettings: (settings: Partial<GlobalSettings>) => {
     set((state) => {
       const newGlobalSettings = {
         ...state.globalSettings,
         ...settings,
       };
-      // Save to localStorage
       saveGlobalSettingsToLocalStorage(newGlobalSettings);
       return {
         globalSettings: newGlobalSettings,
