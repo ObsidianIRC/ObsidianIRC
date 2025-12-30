@@ -1,3 +1,4 @@
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import {
   isPermissionGranted,
   requestPermission,
@@ -18,7 +19,9 @@ import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
+import { parseIrcUrl } from "./lib/ircUrlParser";
 import useStore, { loadSavedServers } from "./store";
+import type { ConnectionDetails } from "./store/types";
 
 const askPermissions = async () => {
   // Do you have permission to send a notification?
@@ -152,6 +155,42 @@ const App: React.FC = () => {
     joinChannel, // Auto-reconnect to saved servers on app startup
     connectToSavedServers,
   ]); // Removed connectToSavedServers from dependencies
+
+  // Handle deeplinks
+  useEffect(() => {
+    const setupDeepLinkHandler = async () => {
+      try {
+        // Register handler for when app is already running
+        await onOpenUrl((urls) => {
+          console.log("Deep link received:", urls);
+
+          for (const url of urls) {
+            if (url.startsWith("irc://") || url.startsWith("ircs://")) {
+              try {
+                // Parse the IRC URL
+                const parsed = parseIrcUrl(url);
+
+                // Open the connect modal with pre-filled details
+                toggleAddServerModal(true, {
+                  name: parsed.host || "IRC Server",
+                  host: parsed.host,
+                  port: parsed.port.toString(),
+                  nickname: parsed.nick || "user",
+                  useIrcProtocol: true,
+                });
+              } catch (error) {
+                console.error("Failed to parse IRC URL:", error);
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Failed to setup deep link handler:", error);
+      }
+    };
+
+    setupDeepLinkHandler();
+  }, [toggleAddServerModal]);
 
   // Global keyboard shortcut for Quick Actions (Cmd+K / Ctrl+K)
   useEffect(() => {

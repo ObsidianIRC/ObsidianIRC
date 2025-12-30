@@ -8,7 +8,7 @@
   "permissions": [
     "core:default",
     "notification:default",
-    "notification:default",
-    "os:default"
+    "os:default",
+    "deep-link:default"
   ]
 }
