@@ -1,11 +1,11 @@
-name: 'Tauri Build and Publish'
+name: "Tauri Build and Publish"
 
 on:
   push:
     branches:
       - main
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
       tag_name: v${{ steps.package-version.outputs.version }}
-      draft: 'false'
+      draft: "false"
       prerelease: ${{ github.ref_type != 'tag' && 'true' || 'false' }}
       body: |
         See the assets to download this version and install.
@@ -36,14 +36,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04' # Use 22.04 for glibc 2.35 compatibility
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
+          - platform: "macos-latest" # for Arm based macs (M1 and above).
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest" # for Intel based macs.
+            args: "--target x86_64-apple-darwin"
+          - platform: "ubuntu-22.04" # Use 22.04 for glibc 2.35 compatibility
+            args: ""
+          - platform: "windows-latest"
+            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -59,7 +59,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'npm'
+          cache: "npm"
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -70,7 +70,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: install frontend dependencies
         run: npm install
@@ -102,7 +102,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'npm'
+          cache: "npm"
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -110,7 +110,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: install frontend dependencies
         run: npm install
@@ -144,9 +144,9 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '22'
-          cache: 'gradle'
+          distribution: "zulu"
+          java-version: "22"
+          cache: "gradle"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -158,7 +158,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'npm'
+          cache: "npm"
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -168,7 +168,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: Install dependencies
         run: npm install
@@ -249,9 +249,9 @@ jobs:
         if: github.ref_type == 'branch'
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '22'
-          cache: 'gradle'
+          distribution: "zulu"
+          java-version: "22"
+          cache: "gradle"
 
       - name: Setup Android SDK (internal release)
         if: github.ref_type == 'branch'
@@ -266,7 +266,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install Rust (internal release)
         if: github.ref_type == 'branch'
@@ -278,7 +278,7 @@ jobs:
         if: github.ref_type == 'branch'
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: Install dependencies (internal release)
         if: github.ref_type == 'branch'
@@ -361,7 +361,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: "lts/*"
           cache: npm
 
       - name: Install dependencies
@@ -375,7 +375,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: Start Tauri iOS build with WS server
         run: |
@@ -458,7 +458,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: "lts/*"
           cache: npm
 
       - name: Install dependencies
