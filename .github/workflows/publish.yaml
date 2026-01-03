@@ -2,15 +2,15 @@ name: "Tauri Build and Publish"
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - "v*.*.*"
-  workflow_dispatch:
+  #   branches:
+  #     - main
+  #   tags:
+  #     - "v*.*.*"
+  # workflow_dispatch:
 
 jobs:
   collect-version:
-    if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    # if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
@@ -169,6 +169,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          shared-key: "android-builds"
 
       - name: Install dependencies
         run: npm install
@@ -228,87 +229,158 @@ jobs:
             ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.apk
             ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.aab
 
-  publish-android-google-play:
+  publish-android-google-play-internal:
     runs-on: ubuntu-latest
-    needs: [collect-version, publish-android]
+    needs: [collect-version]
     permissions:
       contents: write
       id-token: write
-    if: (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_type == 'tag')) || github.event_name == 'workflow_dispatch'
+    if: github.ref_type == 'branch'
     steps:
       - uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GOOGLE_WIF_PROVIDER }}
           service_account: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
 
-      # Internal release path: rebuild with incremented version code
-      - name: Setup Java (internal release)
-        if: github.ref_type == 'branch'
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "zulu"
           java-version: "22"
           cache: "gradle"
 
-      - name: Setup Android SDK (internal release)
-        if: github.ref_type == 'branch'
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install NDK (internal release)
-        if: github.ref_type == 'branch'
+      - name: Install NDK
         run: sdkmanager "ndk;27.0.11902837"
 
-      - name: Setup Node (internal release)
-        if: github.ref_type == 'branch'
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
 
-      - name: Install Rust (internal release)
-        if: github.ref_type == 'branch'
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
 
-      - name: Rust cache (internal release)
-        if: github.ref_type == 'branch'
+      - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          shared-key: "android-builds"
 
-      - name: Install dependencies (internal release)
-        if: github.ref_type == 'branch'
+      - name: Install dependencies
         run: npm install
 
-      - name: Override version code for internal release
-        if: github.ref_type == 'branch'
+      - name: Get latest version code from Google Play
+        id: playstore_version
         run: |
-          # Use a high base number to avoid conflicts with production versions
-          INTERNAL_VERSION_CODE=$((1000000 + ${{ github.run_number }}))
-          sed -i "s/tauri.android.versionCode=.*/tauri.android.versionCode=$INTERNAL_VERSION_CODE/" src-tauri/gen/android/app/tauri.properties
-          sed -i 's/tauri.android.versionName=.*/tauri.android.versionName=internal-${{ github.run_number }}/' src-tauri/gen/android/app/tauri.properties
-          echo "Internal version code set to: $INTERNAL_VERSION_CODE"
+          # Get latest version code from production track
+          PACKAGE_NAME="com.obsidianirc.dev"
 
-      - name: Build with override version (internal release)
-        if: github.ref_type == 'branch'
-        run: npm run tauri android build
+          echo "Querying Google Play for latest version codes..."
+
+          # Create edit
+          EDIT_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+            -H "Content-Type: application/json" \
+            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits")
+
+          echo "Edit response: $EDIT_RESPONSE"
+          EDIT_ID=$(echo "$EDIT_RESPONSE" | jq -r '.id // empty')
+
+          if [ -z "$EDIT_ID" ]; then
+            echo "⚠️ Failed to create edit, using fallback version strategy"
+            # Use run_number to ensure fallback is always unique and incrementing
+            FALLBACK_VERSION=$((3000 + ${{ github.run_number }}))
+            echo "Fallback version code: $FALLBACK_VERSION (3000 + run_number)"
+            echo "version_code=$FALLBACK_VERSION" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Created edit: $EDIT_ID"
+
+          # Get production track info
+          PROD_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits/${EDIT_ID}/tracks/production")
+          echo "Production track response: $PROD_RESPONSE"
+          PROD_VERSION=$(echo "$PROD_RESPONSE" | jq -r '.releases[0].versionCodes[0] // 0')
+
+          # Get internal track info (in case internal is higher)
+          INTERNAL_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits/${EDIT_ID}/tracks/internal")
+          echo "Internal track response: $INTERNAL_RESPONSE"
+          INTERNAL_VERSION=$(echo "$INTERNAL_RESPONSE" | jq -r '.releases[0].versionCodes[0] // 0')
+
+          # Delete the edit (we only needed to read)
+          curl -s -X DELETE \
+            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits/${EDIT_ID}"
+
+          # Use the highest version code and increment
+          MAX_VERSION=$((PROD_VERSION > INTERNAL_VERSION ? PROD_VERSION : INTERNAL_VERSION))
+          NEW_VERSION=$((MAX_VERSION + 1))
+
+          # Safety check: if version is suspiciously low, use fallback strategy
+          if [ "$NEW_VERSION" -lt 1000 ]; then
+            echo "⚠️ Warning: Calculated version $NEW_VERSION seems too low (< 1000)"
+            echo "This might indicate API returned no releases or incorrect data"
+            echo "Using fallback version strategy instead"
+            NEW_VERSION=$((3000 + ${{ github.run_number }}))
+            echo "Fallback version code: $NEW_VERSION"
+          fi
+
+          echo "Production version: $PROD_VERSION"
+          echo "Internal version: $INTERNAL_VERSION"
+          echo "Max version found: $MAX_VERSION"
+          echo "New version code: $NEW_VERSION"
+          echo "version_code=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Initialize Android project
+        run: npm run tauri android init -- --ci
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
           ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
           ANDROID_NDK: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
 
-      - name: Extract android signing key (internal release)
-        if: github.ref_type == 'branch'
+      - name: Patch build.gradle.kts to use environment variables
+        run: |
+          BUILD_GRADLE="src-tauri/gen/android/app/build.gradle.kts"
+
+          # Backup original
+          cp "$BUILD_GRADLE" "${BUILD_GRADLE}.bak"
+
+          # Replace versionCode and versionName lines to use env vars with fallback
+          sed -i 's/versionCode = tauriProperties.*/versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()/' "$BUILD_GRADLE"
+          sed -i 's/versionName = tauriProperties.*/versionName = System.getenv("VERSION_NAME") ?: tauriProperties.getProperty("tauri.android.versionName", "1.0")/' "$BUILD_GRADLE"
+
+          echo "Patched build.gradle.kts to use environment variables"
+          grep -A 2 "versionCode =" "$BUILD_GRADLE"
+
+      - name: Build Android with custom version
+        run: npm run tauri android build
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          VERSION_CODE: ${{ steps.playstore_version.outputs.version_code }}
+          VERSION_NAME: internal-${{ github.run_number }}
+
+      - name: Extract android signing key
         run: |
           echo "${{ secrets.ANDROID_RELEASE_KEYSTORE }}" > src-tauri/gen/android/release.jks.base64
           base64 -d src-tauri/gen/android/release.jks.base64 > src-tauri/gen/android/release.decrypted.jks
 
-      - name: Sign AAB (internal release)
-        if: github.ref_type == 'branch'
+      - name: Sign AAB
         run: |
           ${{ env.ANDROID_HOME }}/build-tools/34.0.0/apksigner sign \
             --min-sdk-version 22 \
@@ -321,29 +393,42 @@ jobs:
               src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
 
       - name: Upload to Google Play - Internal Track
-        if: github.ref_type == 'branch'
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountEmail: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
           packageName: com.obsidianirc.dev
           releaseFiles: src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab
           track: internal
           status: completed
           releaseName: Internal build ${{ github.run_number }}
 
-      # Production release path: download artifact from publish-android
-      - name: Download signed AAB artifact (production release)
-        if: github.ref_type == 'tag'
+  publish-android-google-play-production:
+    runs-on: ubuntu-latest
+    needs: [collect-version, publish-android]
+    permissions:
+      contents: write
+      id-token: write
+    if: github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GOOGLE_WIF_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
+
+      - name: Download signed AAB artifact
         uses: actions/download-artifact@v4
         with:
           name: signed-aab
           path: ./
 
       - name: Upload to Google Play - Production Track
-        if: github.ref_type == 'tag'
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountEmail: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
           packageName: com.obsidianirc.dev
           releaseFiles: ./app-universal-release-signed.aab
           track: production
