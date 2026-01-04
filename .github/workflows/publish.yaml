@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       google-playstore-version:
-        description: 'Optional: Override Google Play version code (default: auto-query from API)'
+        description: 'Optional: Override Google Play version code'
         required: false
         type: string
 
@@ -251,6 +251,8 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GOOGLE_WIF_PROVIDER }}
           service_account: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
+          token_format: 'access_token'
+          access_token_scopes: 'https://www.googleapis.com/auth/androidpublisher'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -312,8 +314,9 @@ jobs:
           if [ -z "$EDIT_ID" ]; then
             echo "⚠️ Failed to create edit, using fallback version strategy"
             # Use run_number to ensure fallback is always unique and incrementing
-            FALLBACK_VERSION=$((3000 + ${{ github.run_number }}))
-            echo "Fallback version code: $FALLBACK_VERSION (3000 + run_number)"
+            # Internal releases use 1,000,000+ range to avoid conflicts with production (1-999,999)
+            FALLBACK_VERSION=$((1000000 + ${{ github.run_number }}))
+            echo "Fallback version code: $FALLBACK_VERSION (1,000,000 + run_number)"
             echo "version_code=$FALLBACK_VERSION" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -344,11 +347,12 @@ jobs:
           NEW_VERSION=$((MAX_VERSION + 1))
 
           # Safety check: if version is suspiciously low, use fallback strategy
-          if [ "$NEW_VERSION" -lt 1000 ]; then
-            echo "⚠️ Warning: Calculated version $NEW_VERSION seems too low (< 1000)"
+          # Internal releases should be in 1,000,000+ range to avoid conflicts with production
+          if [ "$NEW_VERSION" -lt 1000000 ]; then
+            echo "⚠️ Warning: Calculated version $NEW_VERSION seems too low (< 1,000,000)"
             echo "This might indicate API returned no releases or incorrect data"
             echo "Using fallback version strategy instead"
-            NEW_VERSION=$((3000 + ${{ github.run_number }}))
+            NEW_VERSION=$((1000000 + ${{ github.run_number }}))
             echo "Fallback version code: $NEW_VERSION"
           fi
 
@@ -431,6 +435,8 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GOOGLE_WIF_PROVIDER }}
           service_account: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
+          token_format: 'access_token'
+          access_token_scopes: 'https://www.googleapis.com/auth/androidpublisher'
 
       - name: Download signed AAB artifact
         uses: actions/download-artifact@v4
