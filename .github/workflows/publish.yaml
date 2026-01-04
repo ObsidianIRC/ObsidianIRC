@@ -2,10 +2,10 @@ name: "Tauri Build and Publish"
 
 on:
   push:
-    # branches:
-    #   - main
-    # tags:
-    #   - "v*.*.*"
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       google-playstore-version:
@@ -15,7 +15,7 @@ on:
 
 jobs:
   collect-version:
-    # if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
@@ -241,7 +241,7 @@ jobs:
       contents: write
       id-token: write
     # Only run on pushes to main branch OR manual workflow dispatch
-    # if: (github.ref_type == 'branch' && github.ref_name == 'main') || github.event_name == 'workflow_dispatch'
+    if: (github.ref_type == 'branch' && github.ref_name == 'main') || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
