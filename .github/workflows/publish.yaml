@@ -6,7 +6,12 @@ on:
   #     - main
   #   tags:
   #     - "v*.*.*"
-  # workflow_dispatch:
+  workflow_dispatch:
+    inputs:
+      google-playstore-version:
+        description: 'Optional: Override Google Play version code (default: auto-query from API)'
+        required: false
+        type: string
 
 jobs:
   collect-version:
@@ -212,7 +217,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: signed-aab
-          path: ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab
+          path: ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version }}.aab
           retention-days: 1
 
       - name: Publish
@@ -235,7 +240,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    if: github.ref_type == 'branch'
+    # Only run on pushes to main branch OR manual workflow dispatch
+    if: (github.ref_type == 'branch' && github.ref_name == 'main') || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -282,6 +288,13 @@ jobs:
       - name: Get latest version code from Google Play
         id: playstore_version
         run: |
+          # Check if version is manually overridden via workflow_dispatch
+          if [ -n "${{ inputs.google-playstore-version }}" ]; then
+            echo "✅ Using manually specified version code: ${{ inputs.google-playstore-version }}"
+            echo "version_code=${{ inputs.google-playstore-version }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Get latest version code from production track
           PACKAGE_NAME="com.obsidianirc.dev"
 
@@ -408,7 +421,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    if: github.ref_type == 'tag'
+    # if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -430,7 +443,7 @@ jobs:
         with:
           serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
           packageName: com.obsidianirc.dev
-          releaseFiles: ./app-universal-release-signed.aab
+          releaseFiles: ./ObsidianIRC-${{ needs.collect-version.outputs.current_version }}.aab
           track: production
           status: completed
           releaseName: ObsidianIRC v${{ needs.collect-version.outputs.current_version }}
