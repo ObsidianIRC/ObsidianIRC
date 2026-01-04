@@ -2,10 +2,10 @@ name: "Tauri Build and Publish"
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - "v*.*.*"
+    # branches:
+    #   - main
+    # tags:
+    #   - "v*.*.*"
   workflow_dispatch:
     inputs:
       google-playstore-version:
@@ -15,7 +15,7 @@ on:
 
 jobs:
   collect-version:
-    if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    # if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
@@ -241,7 +241,7 @@ jobs:
       contents: write
       id-token: write
     # Only run on pushes to main branch OR manual workflow dispatch
-    if: (github.ref_type == 'branch' && github.ref_name == 'main') || github.event_name == 'workflow_dispatch'
+    # if: (github.ref_type == 'branch' && github.ref_name == 'main') || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -287,7 +287,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Get latest version code from Google Play
+      - name: Create internal version code
         id: playstore_version
         run: |
           # Check if version is manually overridden via workflow_dispatch
@@ -297,70 +297,9 @@ jobs:
             exit 0
           fi
 
-          # Get latest version code from production track
-          PACKAGE_NAME="com.obsidianirc.dev"
-
-          echo "Querying Google Play for latest version codes..."
-
-          # Create edit
-          EDIT_RESPONSE=$(curl -s -X POST \
-            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-            -H "Content-Type: application/json" \
-            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits")
-
-          echo "Edit response: $EDIT_RESPONSE"
-          EDIT_ID=$(echo "$EDIT_RESPONSE" | jq -r '.id // empty')
-
-          if [ -z "$EDIT_ID" ]; then
-            echo "⚠️ Failed to create edit, using fallback version strategy"
-            # Use run_number to ensure fallback is always unique and incrementing
-            # Internal releases use 1,000,000+ range to avoid conflicts with production (1-999,999)
-            FALLBACK_VERSION=$((1000000 + ${{ github.run_number }}))
-            echo "Fallback version code: $FALLBACK_VERSION (1,000,000 + run_number)"
-            echo "version_code=$FALLBACK_VERSION" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "Created edit: $EDIT_ID"
-
-          # Get production track info
-          PROD_RESPONSE=$(curl -s \
-            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits/${EDIT_ID}/tracks/production")
-          echo "Production track response: $PROD_RESPONSE"
-          PROD_VERSION=$(echo "$PROD_RESPONSE" | jq -r '.releases[0].versionCodes[0] // 0')
-
-          # Get internal track info (in case internal is higher)
-          INTERNAL_RESPONSE=$(curl -s \
-            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits/${EDIT_ID}/tracks/internal")
-          echo "Internal track response: $INTERNAL_RESPONSE"
-          INTERNAL_VERSION=$(echo "$INTERNAL_RESPONSE" | jq -r '.releases[0].versionCodes[0] // 0')
-
-          # Delete the edit (we only needed to read)
-          curl -s -X DELETE \
-            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/edits/${EDIT_ID}"
-
-          # Use the highest version code and increment
-          MAX_VERSION=$((PROD_VERSION > INTERNAL_VERSION ? PROD_VERSION : INTERNAL_VERSION))
-          NEW_VERSION=$((MAX_VERSION + 1))
-
-          # Safety check: if version is suspiciously low, use fallback strategy
-          # Internal releases should be in 1,000,000+ range to avoid conflicts with production
-          if [ "$NEW_VERSION" -lt 1000000 ]; then
-            echo "⚠️ Warning: Calculated version $NEW_VERSION seems too low (< 1,000,000)"
-            echo "This might indicate API returned no releases or incorrect data"
-            echo "Using fallback version strategy instead"
-            NEW_VERSION=$((1000000 + ${{ github.run_number }}))
-            echo "Fallback version code: $NEW_VERSION"
-          fi
-
-          echo "Production version: $PROD_VERSION"
-          echo "Internal version: $INTERNAL_VERSION"
-          echo "Max version found: $MAX_VERSION"
-          echo "New version code: $NEW_VERSION"
-          echo "version_code=$NEW_VERSION" >> $GITHUB_OUTPUT
+          FALLBACK_VERSION=$((1000000 + ${{ github.run_number }}))
+          echo "Fallback version code: $FALLBACK_VERSION (1,000,000 + run_number)"
+          echo "version_code=$FALLBACK_VERSION" >> $GITHUB_OUTPUT
 
       - name: Initialize Android project
         run: npm run tauri android init -- --ci
