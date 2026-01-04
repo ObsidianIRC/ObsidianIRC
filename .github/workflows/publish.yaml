@@ -7,6 +7,11 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      google-playstore-version:
+        description: 'Optional: Override Google Play version code'
+        required: false
+        type: string
 
 jobs:
   collect-version:
@@ -169,6 +174,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          shared-key: "android-builds"
 
       - name: Install dependencies
         run: npm install
@@ -207,6 +213,13 @@ jobs:
           mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-signed.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.apk
           mv ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.aab
 
+      - name: Upload signed AAB artifact for Google Play
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-aab
+          path: ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version }}.aab
+          retention-days: 1
+
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
@@ -220,6 +233,165 @@ jobs:
           files: |
             ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.apk
             ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.aab
+
+  publish-android-google-play-internal:
+    runs-on: ubuntu-latest
+    needs: [collect-version]
+    permissions:
+      contents: write
+      id-token: write
+    # Only run on pushes to main branch OR manual workflow dispatch
+    if: (github.ref_type == 'branch' && github.ref_name == 'main') || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GOOGLE_WIF_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
+          token_format: 'access_token'
+          access_token_scopes: 'https://www.googleapis.com/auth/androidpublisher'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "22"
+          cache: "gradle"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager "ndk;27.0.11902837"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          shared-key: "android-builds"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create internal version code
+        id: playstore_version
+        run: |
+          # Check if version is manually overridden via workflow_dispatch
+          if [ -n "${{ inputs.google-playstore-version }}" ]; then
+            echo "✅ Using manually specified version code: ${{ inputs.google-playstore-version }}"
+            echo "version_code=${{ inputs.google-playstore-version }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          FALLBACK_VERSION=$((1000000 + ${{ github.run_number }}))
+          echo "Fallback version code: $FALLBACK_VERSION (1,000,000 + run_number)"
+          echo "version_code=$FALLBACK_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Initialize Android project
+        run: npm run tauri android init -- --ci
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+
+      - name: Patch build.gradle.kts to use environment variables
+        run: |
+          BUILD_GRADLE="src-tauri/gen/android/app/build.gradle.kts"
+
+          # Backup original
+          cp "$BUILD_GRADLE" "${BUILD_GRADLE}.bak"
+
+          # Replace versionCode and versionName lines to use env vars with fallback
+          sed -i 's/versionCode = tauriProperties.*/versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()/' "$BUILD_GRADLE"
+          sed -i 's/versionName = tauriProperties.*/versionName = System.getenv("VERSION_NAME") ?: tauriProperties.getProperty("tauri.android.versionName", "1.0")/' "$BUILD_GRADLE"
+
+          echo "Patched build.gradle.kts to use environment variables"
+          grep -A 2 "versionCode =" "$BUILD_GRADLE"
+
+      - name: Build Android with custom version
+        run: npm run tauri android build
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          ANDROID_NDK: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+          VERSION_CODE: ${{ steps.playstore_version.outputs.version_code }}
+          VERSION_NAME: internal-${{ github.run_number }}
+
+      - name: Extract android signing key
+        run: |
+          echo "${{ secrets.ANDROID_RELEASE_KEYSTORE }}" > src-tauri/gen/android/release.jks.base64
+          base64 -d src-tauri/gen/android/release.jks.base64 > src-tauri/gen/android/release.decrypted.jks
+
+      - name: Sign AAB
+        run: |
+          ${{ env.ANDROID_HOME }}/build-tools/34.0.0/apksigner sign \
+            --min-sdk-version 22 \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --ks src-tauri/gen/android/release.decrypted.jks \
+            --ks-key-alias ${{ secrets.ANDROID_RELEASE_KEY }} \
+            --ks-pass pass:${{ secrets.ANDROID_RELEASE_PASSWORD }} \
+            --out src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab \
+              src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
+
+      - name: Upload to Google Play - Internal Track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: com.obsidianirc.dev
+          releaseFiles: src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release-signed.aab
+          track: internal
+          status: completed
+          releaseName: Internal build ${{ github.run_number }}
+
+  publish-android-google-play-production:
+    runs-on: ubuntu-latest
+    needs: [collect-version, publish-android]
+    permissions:
+      contents: write
+      id-token: write
+    if: github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GOOGLE_WIF_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_WIF_SERVICE_ACCOUNT }}
+          token_format: 'access_token'
+          access_token_scopes: 'https://www.googleapis.com/auth/androidpublisher'
+
+      - name: Download signed AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-aab
+          path: ./
+
+      - name: Upload to Google Play - Production Track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: com.obsidianirc.dev
+          releaseFiles: ./ObsidianIRC-${{ needs.collect-version.outputs.current_version }}.aab
+          track: production
+          status: completed
+          releaseName: ObsidianIRC v${{ needs.collect-version.outputs.current_version }}
 
   publish-ios:
     runs-on: macos-latest
