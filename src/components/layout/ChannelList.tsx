@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaUser,
 } from "react-icons/fa";
+import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
@@ -32,7 +33,6 @@ export const ChannelList: React.FC<{
   const {
     selectChannel,
     selectPrivateChat,
-    joinChannel,
     leaveChannel,
     deletePrivateChat,
     pinPrivateChat,
@@ -42,6 +42,8 @@ export const ChannelList: React.FC<{
     setMobileViewActiveColumn,
     reorderChannels,
   } = useStore();
+
+  const joinAndSelectChannel = useJoinAndSelectChannel();
 
   const selectedServerId = useStore((state) => state.ui.selectedServerId);
   const selectedChannelId = useStore((state) => {
@@ -321,7 +323,7 @@ export const ChannelList: React.FC<{
         ? newChannelName.trim()
         : `#${newChannelName.trim()}`;
 
-      joinChannel(selectedServerId, channelName);
+      joinAndSelectChannel(selectedServerId, channelName);
       setNewChannelName("");
     }
   };

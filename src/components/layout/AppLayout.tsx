@@ -140,38 +140,40 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  // Set correct state for mobile view
+  // Sync mobile/desktop view states
   useEffect(() => {
-    if (!isNarrowView) return;
+    if (!isNarrowView) {
+      // Desktop: auto-hide member list only if too narrow
+      if (isTooNarrowForMemberList && isMemberListVisible) {
+        toggleMemberList(false);
+      }
+      return; // Don't handle mobile logic on desktop
+    }
+
+    // Mobile: sync toggles with mobileViewActiveColumn
     switch (mobileViewActiveColumn) {
       case "serverList":
-        toggleChannelList(true);
+        if (!isChannelListVisible) toggleChannelList(true);
+        if (isMemberListVisible) toggleMemberList(false);
         break;
       case "chatView":
-        toggleChannelList(false);
-        toggleMemberList(false);
+        if (isChannelListVisible) toggleChannelList(false);
+        if (isMemberListVisible) toggleMemberList(false);
         break;
       case "memberList":
-        toggleChannelList(false);
+        if (isChannelListVisible) toggleChannelList(false);
+        if (!isMemberListVisible) toggleMemberList(true);
         break;
     }
   }, [
     isNarrowView,
+    isTooNarrowForMemberList,
     mobileViewActiveColumn,
+    isChannelListVisible,
+    isMemberListVisible,
     toggleChannelList,
     toggleMemberList,
   ]);
-
-  // Show channel list if the screen is resized
-  useEffect(() => {
-    toggleChannelList(true);
-  }, [toggleChannelList]);
-
-  // Hide member list if the screen is too narrow
-  useEffect(() => {
-    if (isNarrowView) return;
-    toggleMemberList(!isTooNarrowForMemberList);
-  }, [isTooNarrowForMemberList, toggleMemberList, isNarrowView]);
 
   const getLayoutColumn = (column: layoutColumn) => {
     // On mobile, only show the active column

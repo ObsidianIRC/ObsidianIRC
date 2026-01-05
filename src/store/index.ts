@@ -705,6 +705,7 @@ export interface AppState {
   ) => void;
   hideContextMenu: () => void;
   setMobileViewActiveColumn: (column: layoutColumn) => void;
+  setMobileView: (view: layoutColumn) => void;
   // Server notices popup actions
   toggleServerNoticesPopup: (isOpen?: boolean) => void;
   minimizeServerNoticesPopup: (isMinimized?: boolean) => void;
@@ -1483,6 +1484,7 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       // Special case for server notices
       if (channelId === "server-notices") {
+        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
         return {
           ui: {
             ...state.ui,
@@ -1495,7 +1497,9 @@ const useStore = create<AppState>((set, get) => ({
               },
             ),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: "chatView",
+            mobileViewActiveColumn: isNarrowView
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
           },
         };
       }
@@ -1539,6 +1543,7 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
+        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
         return {
           servers: updatedServers,
           ui: {
@@ -1549,11 +1554,14 @@ const useStore = create<AppState>((set, get) => ({
               selectedPrivateChatId: null,
             }),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: "chatView",
+            mobileViewActiveColumn: isNarrowView
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
       return {
         ui: {
           ...state.ui,
@@ -1566,7 +1574,9 @@ const useStore = create<AppState>((set, get) => ({
             },
           ),
           isMobileMenuOpen: false,
-          mobileViewActiveColumn: "chatView",
+          mobileViewActiveColumn: isNarrowView
+            ? "chatView"
+            : state.ui.mobileViewActiveColumn,
         },
       };
     });
@@ -1691,6 +1701,7 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
+        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
         return {
           servers: updatedServers,
           ui: {
@@ -1701,11 +1712,14 @@ const useStore = create<AppState>((set, get) => ({
               selectedPrivateChatId: privateChatId,
             }),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: "chatView",
+            mobileViewActiveColumn: isNarrowView
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
       return {
         ui: {
           ...state.ui,
@@ -1718,7 +1732,9 @@ const useStore = create<AppState>((set, get) => ({
             },
           ),
           isMobileMenuOpen: false,
-          mobileViewActiveColumn: "chatView",
+          mobileViewActiveColumn: isNarrowView
+            ? "chatView"
+            : state.ui.mobileViewActiveColumn,
         },
       };
     });
@@ -2367,23 +2383,20 @@ const useStore = create<AppState>((set, get) => ({
   toggleMemberList: (isOpen) => {
     set((state) => {
       const openState =
-        isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+        isOpen !== undefined ? isOpen : !state.ui.isMemberListVisible;
 
-      // Only change mobileViewActiveColumn if we're not on the serverList view
-      // This prevents desktop member list toggles from affecting mobile navigation
-      const shouldUpdateMobileColumn =
-        state.ui.mobileViewActiveColumn !== "serverList";
+      // Only update mobileViewActiveColumn if actually in narrow view
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
 
       return {
         ui: {
           ...state.ui,
-          isMemberListVisible:
-            openState !== undefined ? openState : !state.ui.isMemberListVisible,
-          mobileViewActiveColumn: shouldUpdateMobileColumn
+          isMemberListVisible: openState,
+          mobileViewActiveColumn: isNarrowView
             ? openState
               ? "memberList"
               : "chatView"
-            : state.ui.mobileViewActiveColumn,
+            : state.ui.mobileViewActiveColumn, // Don't change on desktop
         },
       };
     });
@@ -2393,13 +2406,18 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const openState =
         isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+
+      // Only update mobileViewActiveColumn if actually in narrow view
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+
       return {
         ui: {
           ...state.ui,
           isChannelListVisible: openState,
-          mobileViewActiveColumn: openState
-            ? "serverList"
-            : state.ui.mobileViewActiveColumn,
+          mobileViewActiveColumn:
+            isNarrowView && openState
+              ? "serverList"
+              : state.ui.mobileViewActiveColumn, // Don't change on desktop
         },
       };
     });
@@ -2469,6 +2487,39 @@ const useStore = create<AppState>((set, get) => ({
         mobileViewActiveColumn: column,
       },
     }));
+  },
+
+  // Single source of truth for mobile navigation - syncs all related states
+  setMobileView: (view: layoutColumn) => {
+    set((state) => {
+      // Only execute in narrow view
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+      if (!isNarrowView) return state;
+
+      // Sync all related states based on the active column
+      const updates = {
+        serverList: {
+          isChannelListVisible: true,
+          isMemberListVisible: false,
+        },
+        chatView: {
+          isChannelListVisible: false,
+          isMemberListVisible: false,
+        },
+        memberList: {
+          isChannelListVisible: false,
+          isMemberListVisible: true,
+        },
+      }[view];
+
+      return {
+        ui: {
+          ...state.ui,
+          mobileViewActiveColumn: view,
+          ...updates,
+        },
+      };
+    });
   },
 
   toggleServerNoticesPopup: (isOpen) => {
