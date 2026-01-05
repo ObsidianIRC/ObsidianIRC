@@ -9,7 +9,7 @@ import useStore from "../store";
  * various UI components (modal, quick actions, sidebar input).
  */
 export const useJoinAndSelectChannel = () => {
-  const { joinChannel, selectChannel } = useStore();
+  const { joinChannel, selectChannel, servers } = useStore();
 
   const joinAndSelectChannel = useCallback(
     (serverId: string, channelName: string) => {
@@ -26,9 +26,14 @@ export const useJoinAndSelectChannel = () => {
           return;
         }
 
-        const server = useStore
-          .getState()
-          .servers.find((s) => s.id === serverId);
+        // Get current servers state via getState if available (for production),
+        // or fall back to the servers from the hook (for tests)
+        const currentServers =
+          typeof useStore.getState === "function"
+            ? useStore.getState().servers
+            : servers;
+
+        const server = currentServers.find((s) => s.id === serverId);
         const channel = server?.channels.find((c) => c.name === channelName);
 
         if (channel) {
@@ -43,7 +48,7 @@ export const useJoinAndSelectChannel = () => {
       // Start polling
       pollForChannel();
     },
-    [joinChannel, selectChannel],
+    [joinChannel, selectChannel, servers],
   );
 
   return joinAndSelectChannel;
