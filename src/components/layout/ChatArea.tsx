@@ -1504,10 +1504,19 @@ export const ChatArea: React.FC<{
               )}
               {/* Search results indicator */}
               {searchQuery && (
-                <div className="flex justify-center py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
-                  Found {filteredMessages.length} message
-                  {filteredMessages.length === 1 ? "" : "s"} matching "
-                  {searchQuery}"
+                <div className="flex justify-center items-center gap-2 py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
+                  <span>
+                    Found {filteredMessages.length} message
+                    {filteredMessages.length === 1 ? "" : "s"} matching "
+                    {searchQuery}"
+                  </span>
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-red-400 hover:text-red-300"
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
               {eventGroups.map((group) => {

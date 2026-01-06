@@ -48,7 +48,7 @@ export const ServerList: React.FC = () => {
   }, []);
 
   return (
-    <div className="py-3 flex flex-col items-center h-full overflow-visible relative">
+    <div className="pt-3 pb-6 md:pb-3 flex flex-col items-center h-full overflow-visible relative">
       {/* Home button - in Discord this would be DMs */}
       <div
         className={`
