@@ -262,7 +262,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       show: !!selectedChannel,
     },
     {
-      label: "List Channels",
+      label: "Server Channels",
       icon: <FaList />,
       onClick: () => toggleChannelListModal(true),
       show: true,
@@ -737,7 +737,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <button
             className="hidden md:block hover:text-discord-text-normal"
             onClick={() => toggleChannelListModal(true)}
-            title="List Channels"
+            title="Server Channels"
           >
             <FaList />
           </button>
