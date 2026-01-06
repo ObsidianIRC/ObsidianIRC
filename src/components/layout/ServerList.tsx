@@ -81,7 +81,7 @@ export const ServerList: React.FC = () => {
       {/* Add Server Button */}
       <div className="relative mb-2">
         <div
-          className="w-12 h-12 bg-discord-primary hover:bg-discord-primary/80 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer group hover:rounded-xl"
+          className="w-12 h-12 bg-discord-dark-100 hover:bg-discord-primary/80 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer group hover:rounded-xl"
           onClick={() => toggleAddServerModal(true)}
           data-testid="server-list-add-button"
         >
