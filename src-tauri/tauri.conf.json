@@ -47,6 +47,26 @@
       "endpoints": [
         "https://cdn.crabnebula.app/update/obsidianirc/obsidianirc/{{target}}/{{arch}}/{{current_version}}"
       ]
+    },
+    "deep-link": {
+      "mobile": [
+        {
+          "schemes": ["irc", "ircs"],
+          "host": "*"
+        },
+        {
+          "host": "obsidianirc.github.io",
+          "pathPrefix": [
+            "/"
+          ]
+        }
+      ],
+      "desktop": {
+        "schemes": [
+          "irc",
+          "ircs"
+        ]
+      }
     }
   }
 }

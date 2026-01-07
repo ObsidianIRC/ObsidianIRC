@@ -29,6 +29,7 @@ describe("MODE Protocol Handler", () => {
         isEditServerModalOpen: false,
         editServerId: null,
         isSettingsModalOpen: false,
+        isQuickActionsOpen: false,
         isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
@@ -52,6 +53,8 @@ describe("MODE Protocol Handler", () => {
         isServerNoticesPopupOpen: false,
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
+        settingsNavigation: null,
+        shouldFocusChatInput: false,
       },
     });
     vi.clearAllMocks();

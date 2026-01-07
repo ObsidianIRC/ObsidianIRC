@@ -1,22 +1,28 @@
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import {
   isPermissionGranted,
   requestPermission,
 } from "@tauri-apps/plugin-notification";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
+import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useAutoUpdater } from "./hooks/useAutoUpdater";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
+import { parseIrcUrl } from "./lib/ircUrlParser";
 import useStore, { loadSavedServers } from "./store";
+import type { ConnectionDetails } from "./store/types";
 
 const askPermissions = async () => {
   // Do you have permission to send a notification?
@@ -71,6 +77,7 @@ const App: React.FC = () => {
   const {
     toggleAddServerModal,
     toggleEditServerModal,
+    toggleQuickActions,
     ui: {
       isAddServerModalOpen,
       isUserProfileModalOpen,
@@ -78,6 +85,8 @@ const App: React.FC = () => {
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
+      isSettingsModalOpen,
+      isQuickActionsOpen,
       editServerId,
       linkSecurityWarnings,
       profileViewRequest,
@@ -151,37 +160,99 @@ const App: React.FC = () => {
     connectToSavedServers,
   ]); // Removed connectToSavedServers from dependencies
 
+  // Handle deeplinks
+  useEffect(() => {
+    const setupDeepLinkHandler = async () => {
+      try {
+        // Register handler for when app is already running
+        await onOpenUrl((urls) => {
+          console.log("Deep link received:", urls);
+
+          for (const url of urls) {
+            if (url.startsWith("irc://") || url.startsWith("ircs://")) {
+              try {
+                // Parse the IRC URL
+                const parsed = parseIrcUrl(url);
+
+                // Open the connect modal with pre-filled details
+                toggleAddServerModal(true, {
+                  name: parsed.host || "IRC Server",
+                  host: parsed.host,
+                  port: parsed.port.toString(),
+                  nickname: parsed.nick || "user",
+                  useIrcProtocol: true,
+                });
+              } catch (error) {
+                console.error("Failed to parse IRC URL:", error);
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Failed to setup deep link handler:", error);
+      }
+    };
+
+    setupDeepLinkHandler();
+  }, [toggleAddServerModal]);
+
+  // Global keyboard shortcut for Quick Actions (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        toggleQuickActions();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [toggleQuickActions]);
+
   return (
     <div className="h-screen overflow-hidden">
-      <AppLayout />
-      {isAddServerModalOpen && <AddServerModal />}
-      {isEditServerModalOpen && editServerId && (
-        <EditServerModal
-          serverId={editServerId}
-          onClose={() => toggleEditServerModal(false)}
+      <Routes>
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route
+          path="/*"
+          element={
+            <>
+              <AppLayout />
+              {isAddServerModalOpen && <AddServerModal />}
+              {isEditServerModalOpen && editServerId && (
+                <EditServerModal
+                  serverId={editServerId}
+                  onClose={() => toggleEditServerModal(false)}
+                />
+              )}
+              {isSettingsModalOpen && <UserSettings />}
+              {isQuickActionsOpen && <QuickActions />}
+              {isChannelListModalOpen && <ChannelListModal />}
+              {isChannelRenameModalOpen && <ChannelRenameModal />}
+              <LinkSecurityWarningModal />
+              {userProfileModalState?.isOpen && (
+                <UserProfileModal
+                  isOpen={userProfileModalState.isOpen}
+                  onClose={() => setUserProfileModalState(null)}
+                  serverId={userProfileModalState.serverId}
+                  username={userProfileModalState.username}
+                />
+              )}
+              {isServerNoticesPopupOpen && (
+                <ServerNoticesPopup
+                  messages={serverNotices}
+                  onClose={() => toggleServerNoticesPopup(false)}
+                  onUsernameContextMenu={handleUsernameContextMenu}
+                  onIrcLinkClick={handleIrcLinkClick}
+                  joinChannel={joinChannel}
+                />
+              )}
+            </>
+          }
         />
-      )}
-      {isUserProfileModalOpen && <UserSettings />}
-      {isChannelListModalOpen && <ChannelListModal />}
-      {isChannelRenameModalOpen && <ChannelRenameModal />}
-      <LinkSecurityWarningModal />
-      {userProfileModalState?.isOpen && (
-        <UserProfileModal
-          isOpen={userProfileModalState.isOpen}
-          onClose={() => setUserProfileModalState(null)}
-          serverId={userProfileModalState.serverId}
-          username={userProfileModalState.username}
-        />
-      )}
-      {isServerNoticesPopupOpen && (
-        <ServerNoticesPopup
-          messages={serverNotices}
-          onClose={() => toggleServerNoticesPopup(false)}
-          onUsernameContextMenu={handleUsernameContextMenu}
-          onIrcLinkClick={handleIrcLinkClick}
-          joinChannel={joinChannel}
-        />
-      )}
+      </Routes>
     </div>
   );
 };

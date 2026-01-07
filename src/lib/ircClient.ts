@@ -11,11 +11,13 @@ import type {
   Server,
   User,
 } from "../types";
+import { parseIrcUrl } from "./ircUrlParser";
 import {
   parseIsupport,
   parseMessageTags,
   parseNamesResponse,
 } from "./ircUtils";
+import { createSocket, type ISocket } from "./socket";
 
 export interface EventMap {
   ready: BaseIRCEvent & { serverName: string; nickname: string };
@@ -355,7 +357,7 @@ type EventKey = keyof EventMap;
 type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 
 export class IRCClient {
-  private sockets: Map<string, WebSocket> = new Map();
+  private sockets: Map<string, ISocket> = new Map();
   private servers: Map<string, Server> = new Map();
   private nicks: Map<string, string> = new Map();
   private currentUsers: Map<string, User | null> = new Map(); // Per-server current users
@@ -458,20 +460,25 @@ export class IRCClient {
     // Create a new connection promise and store it
     const connectionPromise = new Promise<Server>((resolve, reject) => {
       // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
-      const protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
-      const url = `${protocol}://${host}:${port}`;
+      let protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
+      let actualHost = host;
+      let actualPort = port;
 
-      let socket: WebSocket;
-      try {
-        socket = new WebSocket(url);
-      } catch (error) {
-        reject(new Error(`Failed to connect to ${host}:${port}`));
-        return;
+      if (host.startsWith("irc://") || host.startsWith("ircs://")) {
+        // Parse the IRC URL using centralized parser (Android-compatible)
+        const parsed = parseIrcUrl(host);
+
+        protocol = parsed.scheme;
+        actualHost = parsed.host;
+        actualPort = parsed.port;
       }
 
+      const url = `${protocol}://${actualHost}:${actualPort}`;
+      const socket = createSocket(url);
+
       // Create server object immediately and add to servers map
-      // Use provided name, default to host if name is empty
-      const finalName = name?.trim() || host;
+      // Use provided name, default to actualHost if name is empty
+      const finalName = name?.trim() || actualHost;
 
       // Check if we're reconnecting to an existing server
       let server: Server;
@@ -493,7 +500,7 @@ export class IRCClient {
         server = {
           id: serverId || uuidv4(),
           name: finalName,
-          host,
+          host: actualHost,
           port,
           channels: [],
           privateChats: [],
@@ -513,7 +520,6 @@ export class IRCClient {
           username: _saslAccountName,
           password: _saslPassword,
         });
-      } else {
       }
 
       this.currentUsers.set(server.id, {
@@ -526,12 +532,17 @@ export class IRCClient {
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
-        // Send IRC commands to register the user
+
+        // Start CAP negotiation
+        console.log("🔗 Starting CAP negotiation...");
+        socket.send("CAP LS 302");
+
+        // Send password if provided (before CAP negotiation completes)
         if (password) {
           socket.send(`PASS ${password}`);
         }
 
-        socket.send("CAP LS 302");
+        // Send NICK command (can be sent during CAP negotiation)
         socket.send(`NICK ${nickname}`);
 
         // Update server to mark as connected
@@ -551,11 +562,11 @@ export class IRCClient {
           }
         }
 
-        // Start WebSocket ping timer for keepalive
-        this.startWebSocketPing(server.id);
+        // Don't start ping timer here - wait for 001 welcome message
+        // to ensure connection is fully established before sending PINGs
 
         socket.onclose = () => {
-          console.log(`WebSocket onclose for server ${serverId}`);
+          console.log(`WebSocket onclose for server ${actualHost}`);
           // Stop WebSocket ping timers
           this.stopWebSocketPing(server.id);
           this.sockets.delete(server.id);
@@ -592,7 +603,7 @@ export class IRCClient {
         server.connectionState = "disconnected";
         this.sockets.delete(server.id);
         this.pendingConnections.delete(connectionKey);
-        reject(new Error(`Failed to connect to ${host}:${port}`));
+        reject(new Error(`Failed to connect to ${actualHost}:${actualPort}`));
       };
 
       socket.onmessage = (event) => {
@@ -697,9 +708,6 @@ export class IRCClient {
     this.reconnectionTimeouts.set(
       serverId,
       setTimeout(() => {
-        console.log(
-          `Reconnection timeout fired for server ${serverId}, attempting reconnection`,
-        );
         this.attemptReconnection(
           serverId,
           name,
@@ -724,7 +732,6 @@ export class IRCClient {
     saslAccountName?: string,
     saslPassword?: string,
   ): Promise<void> {
-    console.log(`Attempting reconnection for server ${serverId}`);
     const server = this.servers.get(serverId);
     if (!server) return;
 
@@ -767,12 +774,6 @@ export class IRCClient {
   sendRaw(serverId: string, command: string): void {
     const socket = this.sockets.get(serverId);
     if (socket && socket.readyState === WebSocket.OPEN) {
-      console.log(
-        `IRC Client: Sending command to server ${serverId}: ${command}`,
-      );
-      // Log metadata and command-related outgoing messages for debugging
-      if (command.startsWith("METADATA") || command.startsWith("/")) {
-      }
       socket.send(command);
     } else {
       console.error(`Socket for server ${serverId} is not open`);
@@ -792,14 +793,14 @@ export class IRCClient {
           // Since we can't send ping frames directly in JS, we'll send an IRC PING
           // which serves as both IRC keepalive and WebSocket activity
           const timestamp = Date.now().toString();
-          this.sendRaw(serverId, `PING ${timestamp}`);
+          this.sendRaw(serverId, `PING :${timestamp}`);
 
           // Set a timeout for pong response (10 seconds)
           const pongTimeout = setTimeout(() => {
             console.warn(
               `WebSocket ping timeout for server ${serverId}, closing connection`,
             );
-            socket.close(1000, "Ping timeout");
+            socket.close();
           }, 10000);
 
           this.pongTimeouts.set(serverId, pongTimeout);
@@ -1234,14 +1235,6 @@ export class IRCClient {
       // Skip empty lines
       if (!line) continue;
 
-      console.log(`IRC Client: Received line from server ${serverId}: ${line}`);
-
-      // Debug: Log ALL lines that contain CAP to see if CAP ACK is even being processed
-      if (line.includes("CAP")) {
-      }
-
-      // Debug: Log all incoming IRC messages
-
       // Handle message tags first, before splitting on trailing parameter
       let lineAfterTags = line;
       if (line[0] === "@") {
@@ -1339,27 +1332,19 @@ export class IRCClient {
 
         this.triggerEvent("ready", { serverId, serverName, nickname });
 
+        // Start IRC ping timer for keepalive (for both TCP and WebSocket connections)
+        // This is needed to prevent ping timeouts on servers that don't send regular PINGs
+        this.startWebSocketPing(serverId);
+
         // Rejoin channels if this is a reconnection (server already has channels)
         const server = this.servers.get(serverId);
-        if (server) {
+        if (server && server.channels.length > 0) {
           console.log(
-            `Server ${serverId} has ${server.channels.length} channels:`,
-            server.channels.map((c) => c.name),
+            `Rejoining ${server.channels.length} channels after reconnection`,
           );
-          if (server.channels.length > 0) {
-            console.log(
-              `Rejoining ${server.channels.length} channels after reconnection:`,
-              server.channels.map((c) => c.name),
-            );
-            for (const channel of server.channels) {
-              console.log(`Sending JOIN for channel: ${channel.name}`);
-              this.sendRaw(serverId, `JOIN ${channel.name}`);
-            }
-          } else {
-            console.log(`No channels to rejoin for server ${serverId}`);
+          for (const channel of server.channels) {
+            this.sendRaw(serverId, `JOIN ${channel.name}`);
           }
-        } else {
-          console.log(`Server ${serverId} not found for rejoining channels`);
         }
       } else if (command === "NICK") {
         const oldNick = getNickFromNuh(source);
@@ -1678,21 +1663,12 @@ export class IRCClient {
           });
         }
       } else if (command === "CAP") {
-        console.log(
-          `[CAP] Processing CAP command, parv: ${JSON.stringify(parv)}, trailing: "${trailing}"`,
-        );
-        console.log(`[CAP] Received CAP message: ${parv.join(" ")}`);
-        console.log(`[CAP] Full parv array: ${JSON.stringify(parv)}`);
-        console.log(`[CAP] Trailing parameter: "${trailing}"`);
         let i = 0;
         let caps = "";
         if (parv[i] === "*") {
           i++;
         }
         let subcommand = parv[i++];
-        console.log(
-          `[CAP] Subcommand: '${subcommand}', i after increment: ${i}, parv length: ${parv.length}`,
-        );
         // Handle CAP ACK which has nickname before subcommand
         if (
           subcommand !== "LS" &&
@@ -1716,8 +1692,6 @@ export class IRCClient {
             if (parv[i]) caps += " ";
           }
         }
-
-        console.log(`[CAP] Final caps string: "${caps}"`);
 
         if (subcommand === "LS") this.onCapLs(serverId, caps, isFinal);
         else if (subcommand === "ACK") {
@@ -2311,9 +2285,6 @@ export class IRCClient {
         const mask = parv[2];
         const setter = parv[3];
         const timestamp = Number.parseInt(parv[4], 10);
-        console.log(
-          `IRC Client: RPL_BANLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
-        );
         this.triggerEvent("RPL_BANLIST", {
           serverId,
           channel,
@@ -2327,9 +2298,6 @@ export class IRCClient {
         const mask = parv[2];
         const setter = parv[3];
         const timestamp = Number.parseInt(parv[4], 10);
-        console.log(
-          `IRC Client: RPL_INVITELIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
-        );
         this.triggerEvent("RPL_INVITELIST", {
           serverId,
           channel,
@@ -2343,9 +2311,6 @@ export class IRCClient {
         const mask = parv[2];
         const setter = parv[3];
         const timestamp = Number.parseInt(parv[4], 10);
-        console.log(
-          `IRC Client: RPL_EXCEPTLIST parsed - channel: ${channel}, mask: ${mask}, setter: ${setter}, timestamp: ${timestamp}`,
-        );
         this.triggerEvent("RPL_EXCEPTLIST", {
           serverId,
           channel,
@@ -2356,9 +2321,6 @@ export class IRCClient {
       } else if (command === "368") {
         // RPL_ENDOFBANLIST: <channel> :End of channel ban list
         const channel = parv[1];
-        console.log(
-          `IRC Client: RPL_ENDOFBANLIST parsed - channel: ${channel}`,
-        );
         this.triggerEvent("RPL_ENDOFBANLIST", {
           serverId,
           channel,
@@ -2366,9 +2328,6 @@ export class IRCClient {
       } else if (command === "347") {
         // RPL_ENDOFINVITELIST: <channel> :End of channel invite list
         const channel = parv[1];
-        console.log(
-          `IRC Client: RPL_ENDOFINVITELIST parsed - channel: ${channel}`,
-        );
         this.triggerEvent("RPL_ENDOFINVITELIST", {
           serverId,
           channel,
@@ -2376,9 +2335,6 @@ export class IRCClient {
       } else if (command === "349") {
         // RPL_ENDOFEXCEPTLIST: <channel> :End of channel exception list
         const channel = parv[1];
-        console.log(
-          `IRC Client: RPL_ENDOFEXCEPTLIST parsed - channel: ${channel}`,
-        );
         this.triggerEvent("RPL_ENDOFEXCEPTLIST", {
           serverId,
           channel,
@@ -2611,6 +2567,14 @@ export class IRCClient {
         if (capsToRequest.includes("draft/extended-isupport")) {
           this.sendRaw(serverId, "ISUPPORT");
         }
+      } else {
+        // No capabilities to request, end CAP negotiation immediately
+        console.log(
+          `[CAP LS] No capabilities to request for ${serverId}, ending CAP negotiation`,
+        );
+        this.sendRaw(serverId, "CAP END");
+        this.capNegotiationComplete.set(serverId, true);
+        this.userOnConnect(serverId);
       }
       // Clean up
       this.capLsAccumulated.delete(serverId);
@@ -2644,6 +2608,20 @@ export class IRCClient {
     // Trigger the original event for compatibility
     this.triggerEvent("CAP ACK", { serverId, cliCaps });
 
+    // Store the acknowledged capabilities
+    const server = this.servers.get(serverId);
+    if (server) {
+      const caps = cliCaps.split(" ");
+      if (!server.capabilities) {
+        server.capabilities = [];
+      }
+      for (const cap of caps) {
+        if (!server.capabilities.includes(cap)) {
+          server.capabilities.push(cap);
+        }
+      }
+    }
+
     // Decrement pending CAP REQ count
     const pendingCount = this.pendingCapReqs.get(serverId) || 0;
     if (pendingCount > 0) {
@@ -2653,12 +2631,22 @@ export class IRCClient {
         // All CAP REQ batches acknowledged
         this.pendingCapReqs.delete(serverId);
 
+        // Send CAP END to complete negotiation
+        this.sendRaw(serverId, "CAP END");
+        this.capNegotiationComplete.set(serverId, true);
+
+        // Send USER command now that CAP negotiation is complete
+        this.userOnConnect(serverId);
+
         // Note: SASL authentication is handled by the store's event handlers
         // The store will check capabilities and initiate SASL if needed
       } else {
         this.pendingCapReqs.set(serverId, newCount);
       }
     } else {
+      console.log(
+        `[CAP ACK] Received unexpected CAP ACK for ${serverId} (no pending requests)`,
+      );
     }
   }
 
