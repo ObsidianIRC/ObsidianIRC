@@ -11,7 +11,10 @@ import {
   extractMentions,
   showMentionNotification,
 } from "../lib/notifications";
-import { registerAllProtocolHandlers } from "../protocol";
+import {
+  clearServerConnectionTimeout,
+  registerAllProtocolHandlers,
+} from "../protocol";
 import type {
   Channel,
   Message,
@@ -460,6 +463,7 @@ export interface AppState {
   servers: Server[];
   currentUser: User | null;
   isConnecting: boolean;
+  connectingServerId: string | null;
   selectedServerId: string | null;
   connectionError: string | null;
   messages: Record<string, Message[]>;
@@ -778,6 +782,7 @@ const useStore = create<AppState>((set, get) => ({
   servers: [],
   currentUser: null,
   isConnecting: false,
+  connectingServerId: null,
   connectionError: null,
   messages: {},
   typingUsers: {},
@@ -953,22 +958,21 @@ const useStore = create<AppState>((set, get) => ({
           (s) => s.host === host && s.port === port,
         );
         if (existingServerIndex !== -1) {
-          // Update existing server properties
           const updatedServers = [...state.servers];
           const existingServer = updatedServers[existingServerIndex];
           updatedServers[existingServerIndex] = {
             ...existingServer,
             ...server,
-            id: existingServer.id, // Keep the original ID
+            id: existingServer.id,
           };
           return {
             servers: updatedServers,
-            isConnecting: false,
+            connectingServerId: server.id,
           };
         }
         return {
           servers: [...state.servers, server],
-          isConnecting: false,
+          connectingServerId: server.id,
         };
       });
 
@@ -1059,9 +1063,9 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   disconnect: (serverId) => {
+    clearServerConnectionTimeout(serverId);
     ircClient.disconnect(serverId);
 
-    // Update the state to reflect disconnection
     set((state) => {
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
@@ -1074,15 +1078,12 @@ const useStore = create<AppState>((set, get) => ({
         return server;
       });
 
-      // Update selected server/channel if we were on the disconnected server
       let newUi = { ...state.ui };
       if (state.ui.selectedServerId === serverId) {
-        // Find another connected server, or set to null
         const nextServer = updatedServers.find(
           (s) => s.isConnected && s.id !== serverId,
         );
         if (nextServer) {
-          // Restore the previously selected tab for the new server
           const serverSelection = getServerSelection(state, nextServer.id);
           newUi = {
             ...newUi,
@@ -1101,8 +1102,14 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
 
+      const clearConnectionState =
+        state.connectingServerId === serverId
+          ? { isConnecting: false, connectingServerId: null }
+          : {};
+
       return {
         servers: updatedServers,
+        ...clearConnectionState,
         ui: newUi,
       };
     });
@@ -2212,12 +2219,14 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   deleteServer: (serverId) => {
+    clearServerConnectionTimeout(serverId);
+    ircClient.removeServer(serverId);
+
     set((state) => {
       const serverToDelete = state.servers.find(
         (server) => server.id === serverId,
       );
 
-      // Remove server from localStorage
       const savedServers = loadSavedServers();
       const updatedServers = savedServers.filter(
         (s) =>
@@ -2225,20 +2234,24 @@ const useStore = create<AppState>((set, get) => ({
       );
       saveServersToLocalStorage(updatedServers);
 
-      // Remove server's metadata from localStorage
       const savedMetadata = loadSavedMetadata();
       delete savedMetadata[serverId];
       saveMetadataToLocalStorage(savedMetadata);
 
-      // Update state
       const remainingServers = state.servers.filter(
         (server) => server.id !== serverId,
       );
       const newSelectedServerId =
         remainingServers.length > 0 ? remainingServers[0].id : null;
 
+      const clearConnectionState =
+        state.connectingServerId === serverId
+          ? { isConnecting: false, connectingServerId: null }
+          : {};
+
       return {
         servers: remainingServers,
+        ...clearConnectionState,
         ui: {
           ...state.ui,
           selectedServerId: newSelectedServerId,
@@ -2248,8 +2261,6 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
-
-    ircClient.disconnect(serverId);
   },
 
   updateServer: (serverId, config) => {
