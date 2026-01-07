@@ -17,6 +17,7 @@ import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
+import { useAutoUpdater } from "./hooks/useAutoUpdater";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import { parseIrcUrl } from "./lib/ircUrlParser";
@@ -96,6 +97,9 @@ const App: React.FC = () => {
     clearProfileViewRequest,
     messages,
   } = useStore();
+
+  // Initialize auto-updater (only works in Tauri desktop app)
+  useAutoUpdater();
 
   // Local state for User Profile modal
   const [userProfileModalState, setUserProfileModalState] = useState<{
