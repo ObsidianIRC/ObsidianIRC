@@ -73,7 +73,11 @@ const createTouchEvent = (
     pageY: clientY,
     identifier: 0,
     target: document.createElement("div"),
-  } as Touch;
+    force: 0,
+    radiusX: 0,
+    radiusY: 0,
+    rotationAngle: 0,
+  } as unknown as Touch;
 
   return new TouchEvent(type, {
     bubbles: true,
@@ -126,6 +130,7 @@ describe("AppLayout Swipe Navigation", () => {
         serverNoticesPopupMinimized: false,
         profileViewRequest: null,
         settingsNavigation: null,
+        shouldFocusChatInput: false,
       },
       messages: {},
       isConnecting: false,
