@@ -11,7 +11,10 @@ import {
   extractMentions,
   showMentionNotification,
 } from "../lib/notifications";
-import { registerAllProtocolHandlers } from "../protocol";
+import {
+  clearServerConnectionTimeout,
+  registerAllProtocolHandlers,
+} from "../protocol";
 import type {
   Channel,
   Message,
@@ -460,6 +463,7 @@ export interface AppState {
   servers: Server[];
   currentUser: User | null;
   isConnecting: boolean;
+  connectingServerId: string | null;
   selectedServerId: string | null;
   connectionError: string | null;
   messages: Record<string, Message[]>;
@@ -705,6 +709,7 @@ export interface AppState {
   ) => void;
   hideContextMenu: () => void;
   setMobileViewActiveColumn: (column: layoutColumn) => void;
+  setMobileView: (view: layoutColumn) => void;
   // Server notices popup actions
   toggleServerNoticesPopup: (isOpen?: boolean) => void;
   minimizeServerNoticesPopup: (isMinimized?: boolean) => void;
@@ -777,6 +782,7 @@ const useStore = create<AppState>((set, get) => ({
   servers: [],
   currentUser: null,
   isConnecting: false,
+  connectingServerId: null,
   connectionError: null,
   messages: {},
   typingUsers: {},
@@ -952,22 +958,21 @@ const useStore = create<AppState>((set, get) => ({
           (s) => s.host === host && s.port === port,
         );
         if (existingServerIndex !== -1) {
-          // Update existing server properties
           const updatedServers = [...state.servers];
           const existingServer = updatedServers[existingServerIndex];
           updatedServers[existingServerIndex] = {
             ...existingServer,
             ...server,
-            id: existingServer.id, // Keep the original ID
+            id: existingServer.id,
           };
           return {
             servers: updatedServers,
-            isConnecting: false,
+            connectingServerId: server.id,
           };
         }
         return {
           servers: [...state.servers, server],
-          isConnecting: false,
+          connectingServerId: server.id,
         };
       });
 
@@ -1058,9 +1063,9 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   disconnect: (serverId) => {
+    clearServerConnectionTimeout(serverId);
     ircClient.disconnect(serverId);
 
-    // Update the state to reflect disconnection
     set((state) => {
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
@@ -1073,15 +1078,12 @@ const useStore = create<AppState>((set, get) => ({
         return server;
       });
 
-      // Update selected server/channel if we were on the disconnected server
       let newUi = { ...state.ui };
       if (state.ui.selectedServerId === serverId) {
-        // Find another connected server, or set to null
         const nextServer = updatedServers.find(
           (s) => s.isConnected && s.id !== serverId,
         );
         if (nextServer) {
-          // Restore the previously selected tab for the new server
           const serverSelection = getServerSelection(state, nextServer.id);
           newUi = {
             ...newUi,
@@ -1100,8 +1102,14 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
 
+      const clearConnectionState =
+        state.connectingServerId === serverId
+          ? { isConnecting: false, connectingServerId: null }
+          : {};
+
       return {
         servers: updatedServers,
+        ...clearConnectionState,
         ui: newUi,
       };
     });
@@ -1483,6 +1491,7 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       // Special case for server notices
       if (channelId === "server-notices") {
+        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
         return {
           ui: {
             ...state.ui,
@@ -1495,7 +1504,9 @@ const useStore = create<AppState>((set, get) => ({
               },
             ),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: "chatView",
+            mobileViewActiveColumn: isNarrowView
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
           },
         };
       }
@@ -1539,6 +1550,7 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
+        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
         return {
           servers: updatedServers,
           ui: {
@@ -1549,11 +1561,14 @@ const useStore = create<AppState>((set, get) => ({
               selectedPrivateChatId: null,
             }),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: "chatView",
+            mobileViewActiveColumn: isNarrowView
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
       return {
         ui: {
           ...state.ui,
@@ -1566,7 +1581,9 @@ const useStore = create<AppState>((set, get) => ({
             },
           ),
           isMobileMenuOpen: false,
-          mobileViewActiveColumn: "chatView",
+          mobileViewActiveColumn: isNarrowView
+            ? "chatView"
+            : state.ui.mobileViewActiveColumn,
         },
       };
     });
@@ -1691,6 +1708,7 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
+        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
         return {
           servers: updatedServers,
           ui: {
@@ -1701,11 +1719,14 @@ const useStore = create<AppState>((set, get) => ({
               selectedPrivateChatId: privateChatId,
             }),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: "chatView",
+            mobileViewActiveColumn: isNarrowView
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
       return {
         ui: {
           ...state.ui,
@@ -1718,7 +1739,9 @@ const useStore = create<AppState>((set, get) => ({
             },
           ),
           isMobileMenuOpen: false,
-          mobileViewActiveColumn: "chatView",
+          mobileViewActiveColumn: isNarrowView
+            ? "chatView"
+            : state.ui.mobileViewActiveColumn,
         },
       };
     });
@@ -2196,12 +2219,14 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   deleteServer: (serverId) => {
+    clearServerConnectionTimeout(serverId);
+    ircClient.removeServer(serverId);
+
     set((state) => {
       const serverToDelete = state.servers.find(
         (server) => server.id === serverId,
       );
 
-      // Remove server from localStorage
       const savedServers = loadSavedServers();
       const updatedServers = savedServers.filter(
         (s) =>
@@ -2209,20 +2234,24 @@ const useStore = create<AppState>((set, get) => ({
       );
       saveServersToLocalStorage(updatedServers);
 
-      // Remove server's metadata from localStorage
       const savedMetadata = loadSavedMetadata();
       delete savedMetadata[serverId];
       saveMetadataToLocalStorage(savedMetadata);
 
-      // Update state
       const remainingServers = state.servers.filter(
         (server) => server.id !== serverId,
       );
       const newSelectedServerId =
         remainingServers.length > 0 ? remainingServers[0].id : null;
 
+      const clearConnectionState =
+        state.connectingServerId === serverId
+          ? { isConnecting: false, connectingServerId: null }
+          : {};
+
       return {
         servers: remainingServers,
+        ...clearConnectionState,
         ui: {
           ...state.ui,
           selectedServerId: newSelectedServerId,
@@ -2232,8 +2261,6 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
-
-    ircClient.disconnect(serverId);
   },
 
   updateServer: (serverId, config) => {
@@ -2367,23 +2394,20 @@ const useStore = create<AppState>((set, get) => ({
   toggleMemberList: (isOpen) => {
     set((state) => {
       const openState =
-        isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+        isOpen !== undefined ? isOpen : !state.ui.isMemberListVisible;
 
-      // Only change mobileViewActiveColumn if we're not on the serverList view
-      // This prevents desktop member list toggles from affecting mobile navigation
-      const shouldUpdateMobileColumn =
-        state.ui.mobileViewActiveColumn !== "serverList";
+      // Only update mobileViewActiveColumn if actually in narrow view
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
 
       return {
         ui: {
           ...state.ui,
-          isMemberListVisible:
-            openState !== undefined ? openState : !state.ui.isMemberListVisible,
-          mobileViewActiveColumn: shouldUpdateMobileColumn
+          isMemberListVisible: openState,
+          mobileViewActiveColumn: isNarrowView
             ? openState
               ? "memberList"
               : "chatView"
-            : state.ui.mobileViewActiveColumn,
+            : state.ui.mobileViewActiveColumn, // Don't change on desktop
         },
       };
     });
@@ -2393,13 +2417,18 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       const openState =
         isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
+
+      // Only update mobileViewActiveColumn if actually in narrow view
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+
       return {
         ui: {
           ...state.ui,
           isChannelListVisible: openState,
-          mobileViewActiveColumn: openState
-            ? "serverList"
-            : state.ui.mobileViewActiveColumn,
+          mobileViewActiveColumn:
+            isNarrowView && openState
+              ? "serverList"
+              : state.ui.mobileViewActiveColumn, // Don't change on desktop
         },
       };
     });
@@ -2469,6 +2498,39 @@ const useStore = create<AppState>((set, get) => ({
         mobileViewActiveColumn: column,
       },
     }));
+  },
+
+  // Single source of truth for mobile navigation - syncs all related states
+  setMobileView: (view: layoutColumn) => {
+    set((state) => {
+      // Only execute in narrow view
+      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+      if (!isNarrowView) return state;
+
+      // Sync all related states based on the active column
+      const updates = {
+        serverList: {
+          isChannelListVisible: true,
+          isMemberListVisible: false,
+        },
+        chatView: {
+          isChannelListVisible: false,
+          isMemberListVisible: false,
+        },
+        memberList: {
+          isChannelListVisible: false,
+          isMemberListVisible: true,
+        },
+      }[view];
+
+      return {
+        ui: {
+          ...state.ui,
+          mobileViewActiveColumn: view,
+          ...updates,
+        },
+      };
+    });
   },
 
   toggleServerNoticesPopup: (isOpen) => {

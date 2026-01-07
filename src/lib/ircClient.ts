@@ -566,12 +566,13 @@ export class IRCClient {
         // to ensure connection is fully established before sending PINGs
 
         socket.onclose = () => {
-          console.log(`WebSocket onclose for server ${actualHost}`);
-          // Stop WebSocket ping timers
+          if (!this.servers.has(server.id)) {
+            return;
+          }
+
           this.stopWebSocketPing(server.id);
           this.sockets.delete(server.id);
           server.isConnected = false;
-          // Only start reconnection if not already reconnecting (e.g., from ERROR handler)
           const wasReconnecting = server.connectionState === "reconnecting";
           server.connectionState = "disconnected";
           this.triggerEvent("connectionStateChange", {
@@ -579,7 +580,6 @@ export class IRCClient {
             connectionState: "disconnected",
           });
           this.pendingConnections.delete(connectionKey);
-          // Start reconnection logic only if not already reconnecting
           if (!wasReconnecting) {
             this.startReconnection(
               server.id,
@@ -654,6 +654,15 @@ export class IRCClient {
     }
     // Stop WebSocket ping timers
     this.stopWebSocketPing(serverId);
+  }
+
+  removeServer(serverId: string): void {
+    this.disconnect(serverId);
+    this.servers.delete(serverId);
+    this.capNegotiationComplete.delete(serverId);
+    this.pendingCapReqs.delete(serverId);
+    this.capLsAccumulated.delete(serverId);
+    this.saslMechanisms.delete(serverId);
   }
 
   private startReconnection(
