@@ -571,7 +571,10 @@ jobs:
 
   # Publish CrabNebula release after all desktop builds complete (tags only)
   publish-crabnebula:
-    if: github.ref_type == 'tag'
+    if: |
+      github.ref_type == 'tag' &&
+      needs.publish-tauri.result == 'success' &&
+      needs.publish-linux-arm.result == 'success'
     needs: [collect-version, publish-tauri, publish-linux-arm]
     runs-on: ubuntu-latest
     steps:
