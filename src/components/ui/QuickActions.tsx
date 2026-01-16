@@ -8,6 +8,7 @@ import {
   FaTimes,
   FaUser,
 } from "react-icons/fa";
+import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import { fuzzyMatch } from "../../lib/fuzzySearch";
 import ircClient from "../../lib/ircClient";
 import { settingsRegistry } from "../../lib/settings";
@@ -48,10 +49,11 @@ const QuickActions: React.FC = () => {
     selectChannel,
     selectPrivateChat,
     selectServer,
-    joinChannel,
     openPrivateChat,
     requestChatInputFocus,
   } = useStore();
+
+  const joinAndSelectChannel = useJoinAndSelectChannel();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -399,7 +401,7 @@ const QuickActions: React.FC = () => {
             const channelName = (result.data as { channelName: string })
               .channelName;
             selectServer(result.serverId);
-            joinChannel(result.serverId, channelName);
+            joinAndSelectChannel(result.serverId, channelName);
           }
           break;
         }
@@ -431,7 +433,7 @@ const QuickActions: React.FC = () => {
       selectChannel,
       selectPrivateChat,
       handleClose,
-      joinChannel,
+      joinAndSelectChannel,
       openPrivateChat,
     ],
   );
