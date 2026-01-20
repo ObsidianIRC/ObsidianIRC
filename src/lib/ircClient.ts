@@ -2558,9 +2558,27 @@ export class IRCClient {
         setTimeout(() => {
           if (this.pendingCapReqs.has(serverId)) {
             this.pendingCapReqs.delete(serverId);
-            this.sendRaw(serverId, "CAP END");
-            this.capNegotiationComplete.set(serverId, true);
-            this.userOnConnect(serverId);
+
+            // Check if SASL is in progress before timing out
+            const saslEnabled = this.saslEnabled.get(serverId) ?? false;
+            const server = this.servers.get(serverId);
+            const saslAcknowledged =
+              server?.capabilities?.includes("sasl") ?? false;
+
+            if (saslEnabled && saslAcknowledged) {
+              console.log(
+                `[CAP TIMEOUT] SASL in progress for ${serverId}, not timing out CAP negotiation`,
+              );
+              // Don't send CAP END - let SASL complete naturally
+            } else {
+              // No SASL in progress - safe to timeout
+              console.log(
+                `[CAP TIMEOUT] Timeout reached for ${serverId}, ending CAP negotiation`,
+              );
+              this.sendRaw(serverId, "CAP END");
+              this.capNegotiationComplete.set(serverId, true);
+              this.userOnConnect(serverId);
+            }
           }
         }, 5000); // 5 second timeout
 
@@ -2631,15 +2649,23 @@ export class IRCClient {
         // All CAP REQ batches acknowledged
         this.pendingCapReqs.delete(serverId);
 
-        // Send CAP END to complete negotiation
-        this.sendRaw(serverId, "CAP END");
-        this.capNegotiationComplete.set(serverId, true);
+        // Check if SASL is enabled and was acknowledged
+        const saslEnabled = this.saslEnabled.get(serverId) ?? false;
+        const saslAcknowledged =
+          server?.capabilities?.includes("sasl") ?? false;
 
-        // Send USER command now that CAP negotiation is complete
-        this.userOnConnect(serverId);
-
-        // Note: SASL authentication is handled by the store's event handlers
-        // The store will check capabilities and initiate SASL if needed
+        if (saslEnabled && saslAcknowledged) {
+          // SASL is enabled and was acknowledged - wait for SASL authentication to complete
+          // The SASL completion handlers (903/904-907) will send CAP END
+          console.log(
+            `[CAP ACK] SASL enabled for ${serverId}, waiting for SASL authentication`,
+          );
+        } else {
+          // No SASL or SASL not acknowledged - complete CAP negotiation now
+          this.sendRaw(serverId, "CAP END");
+          this.capNegotiationComplete.set(serverId, true);
+          this.userOnConnect(serverId);
+        }
       } else {
         this.pendingCapReqs.set(serverId, newCount);
       }
