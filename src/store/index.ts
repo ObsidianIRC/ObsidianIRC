@@ -32,6 +32,32 @@ const LOCAL_STORAGE_SETTINGS_KEY = "globalSettings";
 const LOCAL_STORAGE_CHANNEL_ORDER_KEY = "channelOrder";
 const LOCAL_STORAGE_PINNED_PMS_KEY = "pinnedPrivateChats";
 
+// Helper function to normalize host for comparison (extract hostname from URL or return as-is)
+function normalizeHost(host: string): string {
+  if (host.includes("://")) {
+    // Extract hostname from URL format
+    const withoutProtocol = host.replace(/^(irc|ircs|ws|wss):\/\//, "");
+    return withoutProtocol.split(":")[0]; // Get just hostname, strip port if present
+  }
+  return host;
+}
+
+// Helper function to ensure host is in URL format
+function ensureUrlFormat(host: string, port: number): string {
+  if (host.includes("://")) {
+    return host; // Already in URL format
+  }
+  // Convert old hostname-only format to URL
+  const isLocalhost =
+    host === "localhost" || host === "127.0.0.1" || host === "::1";
+  const scheme = isLocalhost
+    ? "ws"
+    : port === 6697 || port === 9999 || port === 443 || port === 993
+      ? "wss"
+      : "ws";
+  return `${scheme}://${host}:${port}`;
+}
+
 // Type for saved metadata structure: serverId -> target -> key -> metadata
 type SavedMetadata = Record<
   string,
@@ -896,7 +922,10 @@ const useStore = create<AppState>((set, get) => ({
     // Check if already connected to this server
     const state = get();
     const existingServer = state.servers.find(
-      (s) => s.host === host && s.port === port && s.isConnected,
+      (s) =>
+        normalizeHost(s.host) === normalizeHost(host) &&
+        s.port === port &&
+        s.isConnected,
     );
     if (existingServer) {
       // Already connected, just return the existing server
@@ -909,7 +938,7 @@ const useStore = create<AppState>((set, get) => ({
       // Look up saved server to get its ID
       const existingSavedServers: ServerConfig[] = loadSavedServers();
       const existingSavedServer = existingSavedServers.find(
-        (s) => s.host === host && s.port === port,
+        (s) => normalizeHost(s.host) === normalizeHost(host) && s.port === port,
       );
 
       const server = await ircClient.connect(
@@ -925,18 +954,27 @@ const useStore = create<AppState>((set, get) => ({
 
       // Save server to localStorage
       const savedServers: ServerConfig[] = loadSavedServers();
+
+      // Ensure host is in URL format for storage
+      const urlHost = ensureUrlFormat(host, port);
+
+      // Find existing server using normalized comparison
       const savedServer = savedServers.find(
-        (s) => s.host === host && s.port === port,
+        (s) =>
+          normalizeHost(s.host) === normalizeHost(urlHost) && s.port === port,
       );
       const channelsToJoin = savedServer?.channels || [];
 
+      // Remove existing server entry using normalized comparison
       const updatedServers = savedServers.filter(
-        (s) => s.host !== host || s.port !== port,
+        (s) =>
+          normalizeHost(s.host) !== normalizeHost(urlHost) || s.port !== port,
       );
+
       updatedServers.push({
-        id: server.id, // Include the server ID here
-        name: server.name, // Save the server name
-        host,
+        id: server.id,
+        name: server.name,
+        host: urlHost, // Always save as full URL
         port,
         nickname,
         saslEnabled: !!saslPassword,
@@ -955,7 +993,9 @@ const useStore = create<AppState>((set, get) => ({
 
       set((state) => {
         const existingServerIndex = state.servers.findIndex(
-          (s) => s.host === host && s.port === port,
+          (s) =>
+            normalizeHost(s.host) === normalizeHost(server.host) &&
+            s.port === port,
         );
         if (existingServerIndex !== -1) {
           const updatedServers = [...state.servers];
@@ -981,7 +1021,8 @@ const useStore = create<AppState>((set, get) => ({
       if (isLocalhost) {
         const savedServers = loadSavedServers();
         const serverConfig = savedServers.find(
-          (s) => s.host === host && s.port === port,
+          (s) =>
+            normalizeHost(s.host) === normalizeHost(host) && s.port === port,
         );
 
         // Only show warning if not already skipped
@@ -1033,7 +1074,8 @@ const useStore = create<AppState>((set, get) => ({
 
       set((state) => {
         const existingServerIndex = state.servers.findIndex(
-          (s) => s.host === host && s.port === port,
+          (s) =>
+            normalizeHost(s.host) === normalizeHost(host) && s.port === port,
         );
         if (existingServerIndex !== -1) {
           // Update existing server to disconnected
@@ -1142,7 +1184,9 @@ const useStore = create<AppState>((set, get) => ({
         const currentServer = state.servers.find((s) => s.id === serverId);
         const savedServer = savedServers.find(
           (s) =>
-            s.host === currentServer?.host && s.port === currentServer?.port,
+            normalizeHost(s.host) ===
+              normalizeHost(currentServer?.host || "") &&
+            s.port === currentServer?.port,
         );
         if (savedServer && !savedServer.channels.includes(channel.name)) {
           savedServer.channels.push(channel.name);
@@ -1215,7 +1259,9 @@ const useStore = create<AppState>((set, get) => ({
       const savedServers = loadSavedServers();
       const currentServer = updatedServers.find((s) => s.id === serverId);
       const savedServer = savedServers.find(
-        (s) => s.host === currentServer?.host && s.port === currentServer?.port,
+        (s) =>
+          normalizeHost(s.host) === normalizeHost(currentServer?.host || "") &&
+          s.port === currentServer?.port,
       );
       if (savedServer) {
         savedServer.channels = currentServer?.channels.map((c) => c.name) || [];
@@ -1627,7 +1673,9 @@ const useStore = create<AppState>((set, get) => ({
       if (server) {
         const savedServers = loadSavedServers();
         const savedServer = savedServers.find(
-          (s) => s.host === server.host && s.port === server.port,
+          (s) =>
+            normalizeHost(s.host) === normalizeHost(server.host) &&
+            s.port === server.port,
         );
 
         if (savedServer) {
@@ -2113,17 +2161,21 @@ const useStore = create<AppState>((set, get) => ({
         saslPassword,
       } = savedServer;
 
-      // Check if server already exists in store
+      // Ensure host is in URL format (handles old hostname-only entries)
+      const urlHost = ensureUrlFormat(host, port);
+
+      // Check if server already exists in store using normalized comparison
       const existingServer = get().servers.find(
-        (s) => s.host === host && s.port === port,
+        (s) =>
+          normalizeHost(s.host) === normalizeHost(urlHost) && s.port === port,
       );
 
       if (!existingServer) {
         // Add server to store with connecting state
         const connectingServer: Server = {
           id,
-          name: name || host,
-          host,
+          name: name || normalizeHost(urlHost),
+          host: normalizeHost(urlHost), // Store normalized hostname in state
           port,
           channels: [],
           privateChats: [],
@@ -2139,8 +2191,8 @@ const useStore = create<AppState>((set, get) => ({
 
       try {
         await get().connect(
-          name || host,
-          host,
+          name || normalizeHost(urlHost),
+          urlHost, // Use full URL
           port,
           nickname,
           saslEnabled,
@@ -2149,11 +2201,11 @@ const useStore = create<AppState>((set, get) => ({
           saslPassword,
         );
       } catch (error) {
-        console.error(`Failed to reconnect to server ${host}:${port}`, error);
-        // Update server state to disconnected
+        console.error(`Failed to reconnect to server ${urlHost}`, error);
+        // Update server state to disconnected using normalized comparison
         set((state) => ({
           servers: state.servers.map((s) =>
-            s.host === host && s.port === port
+            normalizeHost(s.host) === normalizeHost(urlHost) && s.port === port
               ? { ...s, connectionState: "disconnected" as const }
               : s,
           ),
@@ -2183,7 +2235,9 @@ const useStore = create<AppState>((set, get) => ({
       // Get saved server config to get credentials
       const savedServers = loadSavedServers();
       const savedServer = savedServers.find(
-        (s) => s.host === server.host && s.port === server.port,
+        (s) =>
+          normalizeHost(s.host) === normalizeHost(server.host) &&
+          s.port === server.port,
       );
 
       if (!savedServer) {
@@ -2195,9 +2249,12 @@ const useStore = create<AppState>((set, get) => ({
         throw new Error(`No saved configuration found for server ${serverId}`);
       }
 
+      // Ensure host is in URL format (handles old hostname-only entries)
+      const urlHost = ensureUrlFormat(savedServer.host, savedServer.port);
+
       await get().connect(
-        savedServer.name || savedServer.host,
-        savedServer.host,
+        savedServer.name || normalizeHost(savedServer.host),
+        urlHost, // Use full URL
         savedServer.port,
         savedServer.nickname,
         savedServer.saslEnabled,
@@ -2230,7 +2287,8 @@ const useStore = create<AppState>((set, get) => ({
       const savedServers = loadSavedServers();
       const updatedServers = savedServers.filter(
         (s) =>
-          s.host !== serverToDelete?.host || s.port !== serverToDelete?.port,
+          normalizeHost(s.host) !== normalizeHost(serverToDelete?.host || "") ||
+          s.port !== serverToDelete?.port,
       );
       saveServersToLocalStorage(updatedServers);
 
@@ -5770,7 +5828,8 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
       const serverConfig = currentServer
         ? savedServers.find(
             (s) =>
-              s.host === currentServer.host && s.port === currentServer.port,
+              normalizeHost(s.host) === normalizeHost(currentServer.host) &&
+              s.port === currentServer.port,
           )
         : undefined;
 
