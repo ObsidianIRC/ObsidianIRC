@@ -88,6 +88,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
   const servers = useStore((state) => state.servers);
+  const mobileViewActiveColumn = useStore(
+    (state) => state.ui.mobileViewActiveColumn,
+  );
 
   // Get global settings for media controls
   const { showSafeMedia, showExternalContent } = useStore(
@@ -240,12 +243,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     );
   })();
 
-  // Reset search expanded state when channel changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to reset when channel changes
+  // Reset search expanded state and overflow menu when channel or mobile view changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to reset when channel or page changes
   useEffect(() => {
     setIsSearchExpanded(false);
     setIsOverflowMenuOpen(false);
-  }, [selectedChannelId]);
+  }, [selectedChannelId, mobileViewActiveColumn]);
 
   // Define overflow menu items based on context
   const overflowMenuItems: HeaderOverflowMenuItem[] = [
@@ -634,7 +637,43 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </button>
           )}
 
-          {/* Search - icon on mobile, input on desktop */}
+          {/* Desktop - action buttons */}
+          {selectedChannel && (
+            <>
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={onOpenChannelSettings}
+                title="Channel Settings"
+              >
+                <FaPenAlt />
+              </button>
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={onOpenInviteUser}
+                title="Invite User"
+              >
+                <FaUserPlus />
+              </button>
+            </>
+          )}
+          <button
+            className="hidden md:block hover:text-discord-text-normal"
+            onClick={() => toggleChannelListModal(true)}
+            title="Server Channels"
+          >
+            <FaList />
+          </button>
+          {selectedChannel && isOperator && (
+            <button
+              className="hidden md:block hover:text-discord-text-normal"
+              onClick={() => toggleChannelRenameModal(true)}
+              title="Rename Channel"
+            >
+              <FaEdit />
+            </button>
+          )}
+
+          {/* Search - icon on mobile, input on desktop (rightmost on desktop) */}
           <div className="relative">
             <button
               className="md:hidden hover:text-discord-text-normal"
@@ -714,42 +753,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             <FaEllipsisV />
           </button>
-
-          {/* Desktop - original buttons */}
-          {selectedChannel && (
-            <>
-              <button
-                className="hidden md:block hover:text-discord-text-normal"
-                onClick={onOpenChannelSettings}
-                title="Channel Settings"
-              >
-                <FaPenAlt />
-              </button>
-              <button
-                className="hidden md:block hover:text-discord-text-normal"
-                onClick={onOpenInviteUser}
-                title="Invite User"
-              >
-                <FaUserPlus />
-              </button>
-            </>
-          )}
-          <button
-            className="hidden md:block hover:text-discord-text-normal"
-            onClick={() => toggleChannelListModal(true)}
-            title="Server Channels"
-          >
-            <FaList />
-          </button>
-          {selectedChannel && isOperator && (
-            <button
-              className="hidden md:block hover:text-discord-text-normal"
-              onClick={() => toggleChannelRenameModal(true)}
-              title="Rename Channel"
-            >
-              <FaEdit />
-            </button>
-          )}
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import type React from "react";
 import { type ReactNode, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 export interface HeaderOverflowMenuItem {
   label: string;
@@ -67,7 +68,7 @@ export const HeaderOverflowMenu: React.FC<HeaderOverflowMenuProps> = ({
     onClose();
   };
 
-  return (
+  const menuContent = (
     <div
       ref={menuRef}
       role="menu"
@@ -93,6 +94,8 @@ export const HeaderOverflowMenu: React.FC<HeaderOverflowMenuProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(menuContent, document.body);
 };
 
 export default HeaderOverflowMenu;
