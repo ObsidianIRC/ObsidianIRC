@@ -179,7 +179,6 @@ export const UserSettings: React.FC = React.memo(() => {
     () => (currentServer ? serverSupportsMetadata(currentServer.id) : false),
     [currentServer],
   );
-  const isHostedChatMode = __HIDE_SERVER_LIST__;
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Category state
@@ -631,8 +630,8 @@ export const UserSettings: React.FC = React.memo(() => {
       reader.readAsDataURL(notificationSoundFile);
     }
 
-    // Save oper settings if in hosted chat mode
-    if (isHostedChatMode && serverConfig) {
+    // Save oper settings for the current server
+    if (serverConfig) {
       updateServer(serverConfig.id, {
         ...serverConfig,
         operUsername: operName,
@@ -657,7 +656,6 @@ export const UserSettings: React.FC = React.memo(() => {
     currentUser,
     settings,
     notificationSoundFile,
-    isHostedChatMode,
     serverConfig,
     operName,
     operOnConnect,
@@ -1007,10 +1005,10 @@ export const UserSettings: React.FC = React.memo(() => {
 
   // Render account settings
   const renderAccountFields = () => {
-    if (!isHostedChatMode) {
+    if (!currentServer || !serverConfig) {
       return (
         <div className="text-discord-text-muted text-sm italic">
-          Account settings are only available in hosted chat mode.
+          Connect to a server to manage operator settings.
         </div>
       );
     }
