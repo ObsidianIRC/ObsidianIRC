@@ -5,8 +5,6 @@
 
 ## <img src="https://cdn-icons-png.freepik.com/512/8999/8999462.png" alt="description" width="70"> ObsidianIRC - Next Generation IRC Client
 ### React + TypeScript + TailwindCSS
- 
-*Important:* Only websockets are supported
 
 ![ObsidianIRC Screenshot](screenshots/screenshot1.png)
 
