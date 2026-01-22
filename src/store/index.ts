@@ -31,6 +31,7 @@ const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 const LOCAL_STORAGE_SETTINGS_KEY = "globalSettings";
 const LOCAL_STORAGE_CHANNEL_ORDER_KEY = "channelOrder";
 const LOCAL_STORAGE_PINNED_PMS_KEY = "pinnedPrivateChats";
+const NARROW_VIEW_QUERY = "(max-width: 768px)";
 
 // Helper function to normalize host for comparison (extract hostname from URL or return as-is)
 function normalizeHost(host: string): string {
@@ -1496,13 +1497,17 @@ const useStore = create<AppState>((set, get) => ({
       // Find the server
       const server = state.servers.find((s) => s.id === serverId);
 
-      // Get the previously selected tab for this server, or default to first channel
+      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       const serverSelection = getServerSelection(state, serverId);
       let selectedChannelId = serverSelection.selectedChannelId;
       let selectedPrivateChatId = serverSelection.selectedPrivateChatId;
 
-      // If no previous selection or the selected items no longer exist, default to first channel
-      if (server) {
+      if (isNarrowView) {
+        // On mobile, never auto-select channels to avoid navigation state mismatch
+        selectedChannelId = null;
+        selectedPrivateChatId = null;
+      } else if (server) {
+        // On desktop, restore previous selection or select first channel
         const channelExists =
           selectedChannelId &&
           server.channels.some((c) => c.id === selectedChannelId);
@@ -1537,7 +1542,7 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       // Special case for server notices
       if (channelId === "server-notices") {
-        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+        const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
         return {
           ui: {
             ...state.ui,
@@ -1596,7 +1601,7 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
-        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+        const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
         return {
           servers: updatedServers,
           ui: {
@@ -1614,7 +1619,7 @@ const useStore = create<AppState>((set, get) => ({
         };
       }
 
-      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       return {
         ui: {
           ...state.ui,
@@ -1756,7 +1761,7 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
-        const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+        const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
         return {
           servers: updatedServers,
           ui: {
@@ -1774,7 +1779,7 @@ const useStore = create<AppState>((set, get) => ({
         };
       }
 
-      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       return {
         ui: {
           ...state.ui,
@@ -2455,7 +2460,7 @@ const useStore = create<AppState>((set, get) => ({
         isOpen !== undefined ? isOpen : !state.ui.isMemberListVisible;
 
       // Only update mobileViewActiveColumn if actually in narrow view
-      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
 
       return {
         ui: {
@@ -2477,7 +2482,7 @@ const useStore = create<AppState>((set, get) => ({
         isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
 
       // Only update mobileViewActiveColumn if actually in narrow view
-      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
 
       return {
         ui: {
@@ -2562,7 +2567,7 @@ const useStore = create<AppState>((set, get) => ({
   setMobileView: (view: layoutColumn) => {
     set((state) => {
       // Only execute in narrow view
-      const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       if (!isNarrowView) return state;
 
       // Sync all related states based on the active column
