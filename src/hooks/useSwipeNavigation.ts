@@ -46,6 +46,12 @@ export function useSwipeNavigation({
   });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Ignore if the touch target is a context menu trigger
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-no-swipe]")) {
+      return;
+    }
+
     const touch = e.touches[0];
     touchState.current = {
       startX: touch.clientX,

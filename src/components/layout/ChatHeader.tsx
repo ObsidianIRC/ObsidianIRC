@@ -31,6 +31,7 @@ import type { Channel, PrivateChat, User } from "../../types";
 import HeaderOverflowMenu, {
   type HeaderOverflowMenuItem,
 } from "../ui/HeaderOverflowMenu";
+import TopicModal from "../ui/TopicModal";
 import UserProfileModal from "../ui/UserProfileModal";
 
 interface ChatHeaderProps {
@@ -85,6 +86,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
+  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
   const servers = useStore((state) => state.servers);
@@ -408,31 +410,37 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <button
                 onClick={() => {
                   if (selectedChannel) {
-                    const currentUserInChannel = selectedChannel.users.find(
-                      (u) => u.username === currentUser?.username,
-                    );
-                    if (hasOpPermission(currentUserInChannel?.status)) {
-                      setEditedTopic(selectedChannel.topic || "");
-                      setIsEditingTopic(true);
+                    if (isNarrowView) {
+                      setIsTopicModalOpen(true);
+                    } else {
+                      const currentUserInChannel = selectedChannel.users.find(
+                        (u) => u.username === currentUser?.username,
+                      );
+                      if (hasOpPermission(currentUserInChannel?.status)) {
+                        setEditedTopic(selectedChannel.topic || "");
+                        setIsEditingTopic(true);
+                      }
                     }
                   }
                 }}
                 className="text-discord-text-muted text-xs md:text-sm hover:text-white truncate min-w-0 md:max-w-md mt-0.5 mb-1 md:mt-0 md:mb-0"
                 title={
-                  selectedChannel.topic
-                    ? `Topic: ${selectedChannel.topic}${
-                        selectedChannel.users.find(
-                          (u) => u.username === currentUser?.username,
-                        ) &&
-                        hasOpPermission(
+                  isNarrowView
+                    ? selectedChannel.topic || "No topic set"
+                    : selectedChannel.topic
+                      ? `Topic: ${selectedChannel.topic}${
                           selectedChannel.users.find(
                             (u) => u.username === currentUser?.username,
-                          )?.status,
-                        )
-                          ? " (Click to edit)"
-                          : ""
-                      }`
-                    : "No topic set"
+                          ) &&
+                          hasOpPermission(
+                            selectedChannel.users.find(
+                              (u) => u.username === currentUser?.username,
+                            )?.status,
+                          )
+                            ? " (Click to edit)"
+                            : ""
+                        }`
+                      : "No topic set"
                 }
               >
                 {selectedChannel.topic || "No topic"}
@@ -790,6 +798,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           onClose={() => setUserProfileModalOpen(false)}
           serverId={selectedServerId}
           username={selectedPrivateChat.username}
+        />
+      )}
+
+      {/* Topic Modal */}
+      {selectedChannel && selectedServerId && (
+        <TopicModal
+          isOpen={isTopicModalOpen}
+          onClose={() => setIsTopicModalOpen(false)}
+          channel={selectedChannel}
+          serverId={selectedServerId}
+          currentUser={currentUser}
         />
       )}
     </div>

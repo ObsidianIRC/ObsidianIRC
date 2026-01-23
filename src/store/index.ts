@@ -1602,6 +1602,11 @@ const useStore = create<AppState>((set, get) => ({
         });
 
         const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
+        const isChannelAlreadySelected =
+          state.ui.selectedServerId === serverId &&
+          state.ui.perServerSelections[serverId]?.selectedChannelId ===
+            channelId;
+
         return {
           servers: updatedServers,
           ui: {
@@ -1612,29 +1617,32 @@ const useStore = create<AppState>((set, get) => ({
               selectedPrivateChatId: null,
             }),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: isNarrowView
-              ? "chatView"
-              : state.ui.mobileViewActiveColumn,
+            mobileViewActiveColumn:
+              isNarrowView && !isChannelAlreadySelected
+                ? "chatView"
+                : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
       const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
+      const currentServerId = state.ui.selectedServerId || "";
+      const isChannelAlreadySelected =
+        state.ui.perServerSelections[currentServerId]?.selectedChannelId ===
+        channelId;
+
       return {
         ui: {
           ...state.ui,
-          perServerSelections: setServerSelection(
-            state,
-            state.ui.selectedServerId || "",
-            {
-              selectedChannelId: channelId,
-              selectedPrivateChatId: null,
-            },
-          ),
+          perServerSelections: setServerSelection(state, currentServerId, {
+            selectedChannelId: channelId,
+            selectedPrivateChatId: null,
+          }),
           isMobileMenuOpen: false,
-          mobileViewActiveColumn: isNarrowView
-            ? "chatView"
-            : state.ui.mobileViewActiveColumn,
+          mobileViewActiveColumn:
+            isNarrowView && !isChannelAlreadySelected
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
         },
       };
     });
@@ -1762,6 +1770,11 @@ const useStore = create<AppState>((set, get) => ({
         });
 
         const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
+        const isPrivateChatAlreadySelected =
+          state.ui.selectedServerId === serverId &&
+          state.ui.perServerSelections[serverId]?.selectedPrivateChatId ===
+            privateChatId;
+
         return {
           servers: updatedServers,
           ui: {
@@ -1772,29 +1785,32 @@ const useStore = create<AppState>((set, get) => ({
               selectedPrivateChatId: privateChatId,
             }),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: isNarrowView
-              ? "chatView"
-              : state.ui.mobileViewActiveColumn,
+            mobileViewActiveColumn:
+              isNarrowView && !isPrivateChatAlreadySelected
+                ? "chatView"
+                : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
       const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
+      const currentServerId = state.ui.selectedServerId || "";
+      const isPrivateChatAlreadySelected =
+        state.ui.perServerSelections[currentServerId]?.selectedPrivateChatId ===
+        privateChatId;
+
       return {
         ui: {
           ...state.ui,
-          perServerSelections: setServerSelection(
-            state,
-            state.ui.selectedServerId || "",
-            {
-              selectedChannelId: null,
-              selectedPrivateChatId: privateChatId,
-            },
-          ),
+          perServerSelections: setServerSelection(state, currentServerId, {
+            selectedChannelId: null,
+            selectedPrivateChatId: privateChatId,
+          }),
           isMobileMenuOpen: false,
-          mobileViewActiveColumn: isNarrowView
-            ? "chatView"
-            : state.ui.mobileViewActiveColumn,
+          mobileViewActiveColumn:
+            isNarrowView && !isPrivateChatAlreadySelected
+              ? "chatView"
+              : state.ui.mobileViewActiveColumn,
         },
       };
     });
