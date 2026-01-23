@@ -255,7 +255,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     if (existingChannel) {
       // Just switch to the channel
-      selectChannel(existingChannel.id);
+      selectChannel(existingChannel.id, { navigate: true });
     } else {
       // Join the channel - it will be added to the server's channels
       joinChannel(serverId, channelName);
@@ -268,7 +268,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           (ch) => ch.name === channelName,
         );
         if (newChannel) {
-          selectChannel(newChannel.id);
+          selectChannel(newChannel.id, { navigate: true });
         }
       }, 100);
     }
@@ -632,7 +632,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       (pc) => pc.username === username,
                     );
                     if (privateChat) {
-                      selectPrivateChat(privateChat.id);
+                      selectPrivateChat(privateChat.id, { navigate: true });
                     }
                     onClose();
                   }}

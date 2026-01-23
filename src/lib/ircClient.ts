@@ -471,6 +471,14 @@ export class IRCClient {
         protocol = parsed.scheme;
         actualHost = parsed.host;
         actualPort = parsed.port;
+      } else if (host.startsWith("ws://") || host.startsWith("wss://")) {
+        // Parse ws/wss URLs
+        const urlMatch = host.match(/^(wss?):\/\/([^:]+)(?::(\d+))?/);
+        if (urlMatch) {
+          protocol = urlMatch[1] as "ws" | "wss";
+          actualHost = urlMatch[2];
+          actualPort = urlMatch[3] ? Number.parseInt(urlMatch[3], 10) : port;
+        }
       }
 
       const url = `${protocol}://${actualHost}:${actualPort}`;

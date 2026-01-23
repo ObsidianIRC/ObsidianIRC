@@ -501,7 +501,7 @@ export const ChannelList: React.FC<{
                 px-2 py-1 mb-1 rounded flex items-center gap-2 cursor-pointer
                 ${selectedChannelId === null ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
               `}
-              onClick={() => selectChannel(null)}
+              onClick={() => selectChannel(null, { navigate: true })}
             >
               Discover
             </div>
@@ -612,7 +612,9 @@ export const ChannelList: React.FC<{
                           }
                           ${draggedChannelId === channel.id ? "opacity-50" : ""}
                         `}
-                          onClick={() => selectChannel(channel.id)}
+                          onClick={() =>
+                            selectChannel(channel.id, { navigate: true })
+                          }
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             {/* Avatar or Hash Icon */}
@@ -917,7 +919,7 @@ export const ChannelList: React.FC<{
                         onClick={() => {
                           if (lastSelectedPM.current === privateChat.id) return;
                           lastSelectedPM.current = privateChat.id;
-                          selectPrivateChat(privateChat.id);
+                          selectPrivateChat(privateChat.id, { navigate: true });
                         }}
                       >
                         <div className="flex items-center gap-2 truncate">
@@ -1259,7 +1261,9 @@ export const ChannelList: React.FC<{
                     transition-all duration-200 ease-in-out
                     ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                   `}
-                  onClick={() => selectChannel("server-notices")}
+                  onClick={() =>
+                    selectChannel("server-notices", { navigate: true })
+                  }
                 >
                   <div className="flex items-center gap-2 truncate">
                     <FaHashtag

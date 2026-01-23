@@ -24,6 +24,9 @@ describe("useSwipeNavigation", () => {
     const event = {
       touches: type !== "touchend" ? [{ clientX, clientY }] : [],
       preventDefault: vi.fn(),
+      target: {
+        closest: vi.fn(() => null),
+      },
     } as unknown as React.TouchEvent;
     return event;
   };

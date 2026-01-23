@@ -38,7 +38,7 @@ export const useJoinAndSelectChannel = () => {
 
         if (channel) {
           // Channel found! Select it to open in the UI
-          selectChannel(channel.id);
+          selectChannel(channel.id, { navigate: true });
         } else {
           // Channel not found yet, poll again in 100ms
           setTimeout(() => pollForChannel(attempts + 1), 100);

@@ -383,13 +383,13 @@ const QuickActions: React.FC = () => {
         case "channel": {
           const channel = result.data as Channel;
           selectServer(result.serverId || null);
-          selectChannel(channel.id);
+          selectChannel(channel.id, { navigate: true });
           break;
         }
         case "dm": {
           const pm = result.data as PrivateChat;
           selectServer(result.serverId || null);
-          selectPrivateChat(pm.id);
+          selectPrivateChat(pm.id, { navigate: true });
           break;
         }
         case "server": {
@@ -418,7 +418,7 @@ const QuickActions: React.FC = () => {
               (pc) => pc.username === username,
             );
             if (privateChat) {
-              selectPrivateChat(privateChat.id);
+              selectPrivateChat(privateChat.id, { navigate: true });
             }
           }
           break;

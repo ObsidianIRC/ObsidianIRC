@@ -684,8 +684,14 @@ export interface AppState {
   removeGlobalNotification: (notificationId: string) => void;
   clearGlobalNotifications: () => void;
   selectServer: (serverId: string | null) => void;
-  selectChannel: (channelId: string | null) => void;
-  selectPrivateChat: (privateChatId: string | null) => void;
+  selectChannel: (
+    channelId: string | null,
+    options?: { navigate?: boolean },
+  ) => void;
+  selectPrivateChat: (
+    privateChatId: string | null,
+    options?: { navigate?: boolean },
+  ) => void;
   openPrivateChat: (serverId: string, username: string) => void;
   deletePrivateChat: (serverId: string, privateChatId: string) => void;
   pinPrivateChat: (serverId: string, privateChatId: string) => void;
@@ -1538,7 +1544,7 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  selectChannel: (channelId) => {
+  selectChannel: (channelId, options) => {
     set((state) => {
       // Special case for server notices
       if (channelId === "server-notices") {
@@ -1555,9 +1561,10 @@ const useStore = create<AppState>((set, get) => ({
               },
             ),
             isMobileMenuOpen: false,
-            mobileViewActiveColumn: isNarrowView
-              ? "chatView"
-              : state.ui.mobileViewActiveColumn,
+            mobileViewActiveColumn:
+              isNarrowView && options?.navigate
+                ? "chatView"
+                : state.ui.mobileViewActiveColumn,
           },
         };
       }
@@ -1602,10 +1609,6 @@ const useStore = create<AppState>((set, get) => ({
         });
 
         const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
-        const isChannelAlreadySelected =
-          state.ui.selectedServerId === serverId &&
-          state.ui.perServerSelections[serverId]?.selectedChannelId ===
-            channelId;
 
         return {
           servers: updatedServers,
@@ -1618,7 +1621,7 @@ const useStore = create<AppState>((set, get) => ({
             }),
             isMobileMenuOpen: false,
             mobileViewActiveColumn:
-              isNarrowView && !isChannelAlreadySelected
+              isNarrowView && options?.navigate
                 ? "chatView"
                 : state.ui.mobileViewActiveColumn,
           },
@@ -1627,9 +1630,6 @@ const useStore = create<AppState>((set, get) => ({
 
       const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       const currentServerId = state.ui.selectedServerId || "";
-      const isChannelAlreadySelected =
-        state.ui.perServerSelections[currentServerId]?.selectedChannelId ===
-        channelId;
 
       return {
         ui: {
@@ -1640,7 +1640,7 @@ const useStore = create<AppState>((set, get) => ({
           }),
           isMobileMenuOpen: false,
           mobileViewActiveColumn:
-            isNarrowView && !isChannelAlreadySelected
+            isNarrowView && options?.navigate
               ? "chatView"
               : state.ui.mobileViewActiveColumn,
         },
@@ -1722,7 +1722,7 @@ const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  selectPrivateChat: (privateChatId) => {
+  selectPrivateChat: (privateChatId, options) => {
     set((state) => {
       // Find which server this private chat belongs to
       let serverId = state.ui.selectedServerId;
@@ -1770,10 +1770,6 @@ const useStore = create<AppState>((set, get) => ({
         });
 
         const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
-        const isPrivateChatAlreadySelected =
-          state.ui.selectedServerId === serverId &&
-          state.ui.perServerSelections[serverId]?.selectedPrivateChatId ===
-            privateChatId;
 
         return {
           servers: updatedServers,
@@ -1786,7 +1782,7 @@ const useStore = create<AppState>((set, get) => ({
             }),
             isMobileMenuOpen: false,
             mobileViewActiveColumn:
-              isNarrowView && !isPrivateChatAlreadySelected
+              isNarrowView && options?.navigate
                 ? "chatView"
                 : state.ui.mobileViewActiveColumn,
           },
@@ -1795,9 +1791,6 @@ const useStore = create<AppState>((set, get) => ({
 
       const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       const currentServerId = state.ui.selectedServerId || "";
-      const isPrivateChatAlreadySelected =
-        state.ui.perServerSelections[currentServerId]?.selectedPrivateChatId ===
-        privateChatId;
 
       return {
         ui: {
@@ -1808,7 +1801,7 @@ const useStore = create<AppState>((set, get) => ({
           }),
           isMobileMenuOpen: false,
           mobileViewActiveColumn:
-            isNarrowView && !isPrivateChatAlreadySelected
+            isNarrowView && options?.navigate
               ? "chatView"
               : state.ui.mobileViewActiveColumn,
         },
