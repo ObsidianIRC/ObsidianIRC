@@ -55,6 +55,7 @@ export const SearchableModal: React.FC<SearchableModalProps> = (props) => {
     renderItem,
     renderEmptyState,
     filterPredicate,
+    isOpen,
     ...baseModalProps
   } = props;
   const [query, setQuery] = useState("");
@@ -183,12 +184,12 @@ export const SearchableModal: React.FC<SearchableModalProps> = (props) => {
 
   // Auto-focus search input when modal opens
   useEffect(() => {
-    if (baseModalProps.isOpen && autoFocus) {
+    if (isOpen && autoFocus) {
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
     }
-  }, [baseModalProps.isOpen, autoFocus]);
+  }, [isOpen, autoFocus]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -260,7 +261,7 @@ export const SearchableModal: React.FC<SearchableModalProps> = (props) => {
   );
 
   return (
-    <BaseModal {...baseModalProps}>
+    <BaseModal isOpen={isOpen} {...baseModalProps}>
       <div className="flex flex-col h-[60vh] max-h-[600px]">
         {/* Search Input */}
         <div className="p-4 border-b border-base-100">
