@@ -174,38 +174,33 @@ export const AppLayout: React.FC = () => {
 
   // Sync mobile/desktop view states
   useEffect(() => {
-    // Debounce to prevent flickering during resize
-    const timer = setTimeout(() => {
-      if (!isNarrowView) {
-        // Desktop: auto-hide member list only if too narrow
-        if (isTooNarrowForMemberList && isMemberListVisible) {
-          toggleMemberList(false);
-        }
-        // Ensure channel list is visible on desktop
-        if (!isChannelListVisible) {
-          toggleChannelList(true);
-        }
-        return;
+    if (!isNarrowView) {
+      // Desktop: auto-hide member list only if too narrow
+      if (isTooNarrowForMemberList && isMemberListVisible) {
+        toggleMemberList(false);
       }
-
-      // Mobile: sync toggles with mobileViewActiveColumn
-      switch (mobileViewActiveColumn) {
-        case "serverList":
-          if (!isChannelListVisible) toggleChannelList(true);
-          if (isMemberListVisible) toggleMemberList(false);
-          break;
-        case "chatView":
-          if (isChannelListVisible) toggleChannelList(false);
-          if (isMemberListVisible) toggleMemberList(false);
-          break;
-        case "memberList":
-          if (isChannelListVisible) toggleChannelList(false);
-          if (!isMemberListVisible) toggleMemberList(true);
-          break;
+      // Ensure channel list is visible on desktop
+      if (!isChannelListVisible) {
+        toggleChannelList(true);
       }
-    }, 50); // Small debounce to prevent rapid state changes
+      return;
+    }
 
-    return () => clearTimeout(timer);
+    // Mobile: sync toggles with mobileViewActiveColumn
+    switch (mobileViewActiveColumn) {
+      case "serverList":
+        if (!isChannelListVisible) toggleChannelList(true);
+        if (isMemberListVisible) toggleMemberList(false);
+        break;
+      case "chatView":
+        if (isChannelListVisible) toggleChannelList(false);
+        if (isMemberListVisible) toggleMemberList(false);
+        break;
+      case "memberList":
+        if (isChannelListVisible) toggleChannelList(false);
+        if (!isMemberListVisible) toggleMemberList(true);
+        break;
+    }
   }, [
     isNarrowView,
     isTooNarrowForMemberList,
