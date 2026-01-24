@@ -500,16 +500,24 @@ export const ChatArea: React.FC<{
   // Auto scroll to bottom on new messages
   // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
   useEffect(() => {
-    // Only auto-scroll if user was at the bottom before new messages arrived
-    if (wasAtBottomRef.current) {
+    const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+    const isChatVisible =
+      !isNarrowView || ui.mobileViewActiveColumn === "chatView";
+
+    // Only auto-scroll if:
+    // 1. User was at bottom before messages arrived
+    // 2. Chat is currently visible (not on channel list in mobile)
+    if (wasAtBottomRef.current && isChatVisible) {
       scrollDown();
     }
-  }, [displayedMessages]);
+  }, [displayedMessages, ui.mobileViewActiveColumn]);
 
-  // Check if scrolled away from bottom
+  // Check if scrolled away from bottom using IntersectionObserver
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to re-run when channel changes to observe new DOM elements
   useEffect(() => {
     const container = messagesContainerRef.current;
-    if (!container) return;
+    const endElement = messagesEndRef.current;
+    if (!container || !endElement) return;
 
     const checkIfScrolledToBottom = () => {
       const atBottom =
@@ -519,10 +527,60 @@ export const ChatArea: React.FC<{
       wasAtBottomRef.current = atBottom;
     };
 
-    container.addEventListener("scroll", checkIfScrolledToBottom);
-    return () =>
+    // Use IntersectionObserver for reliable detection (works on mobile)
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const isVisible = entries[0].isIntersecting;
+        setIsScrolledUp(!isVisible);
+        wasAtBottomRef.current = isVisible;
+      },
+      {
+        root: container,
+        threshold: 0,
+        rootMargin: "30px", // 30px tolerance like before
+      },
+    );
+
+    observer.observe(endElement);
+
+    // Also check on mount
+    checkIfScrolledToBottom();
+
+    // Fallback: scroll events for desktop browsers
+    container.addEventListener("scroll", checkIfScrolledToBottom, {
+      passive: true,
+    });
+
+    // Fallback: touch events for mobile
+    container.addEventListener("touchend", checkIfScrolledToBottom, {
+      passive: true,
+    });
+
+    return () => {
+      observer.disconnect();
       container.removeEventListener("scroll", checkIfScrolledToBottom);
-  }, []);
+      container.removeEventListener("touchend", checkIfScrolledToBottom);
+    };
+  }, [selectedChannelId, selectedPrivateChatId]);
+
+  // Re-check scroll position when messages change (container height changes)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to re-check scroll position when messages cause container resize
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const checkAfterResize = () => {
+      const atBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        30;
+      setIsScrolledUp(!atBottom);
+      wasAtBottomRef.current = atBottom;
+    };
+
+    // Use requestAnimationFrame to check after DOM update
+    const rafId = requestAnimationFrame(checkAfterResize);
+    return () => cancelAnimationFrame(rafId);
+  }, [displayedMessages]);
 
   // Close plus menu on outside click
   useEffect(() => {

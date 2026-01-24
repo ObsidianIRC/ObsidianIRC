@@ -683,7 +683,10 @@ export interface AppState {
   }) => void;
   removeGlobalNotification: (notificationId: string) => void;
   clearGlobalNotifications: () => void;
-  selectServer: (serverId: string | null) => void;
+  selectServer: (
+    serverId: string | null,
+    options?: { clearSelection?: boolean },
+  ) => void;
   selectChannel: (
     channelId: string | null,
     options?: { navigate?: boolean },
@@ -1487,7 +1490,7 @@ const useStore = create<AppState>((set, get) => ({
     }));
   },
 
-  selectServer: (serverId) => {
+  selectServer: (serverId, options) => {
     set((state) => {
       // If selecting null (no server), just update the selectedServerId
       if (serverId === null) {
@@ -1508,11 +1511,11 @@ const useStore = create<AppState>((set, get) => ({
       let selectedChannelId = serverSelection.selectedChannelId;
       let selectedPrivateChatId = serverSelection.selectedPrivateChatId;
 
-      if (isNarrowView) {
-        // On mobile, never auto-select channels to avoid navigation state mismatch
+      // Only clear selection on mobile if explicitly requested (user-initiated server switch)
+      if (isNarrowView && options?.clearSelection) {
         selectedChannelId = null;
         selectedPrivateChatId = null;
-      } else if (server) {
+      } else if (!isNarrowView && server) {
         // On desktop, restore previous selection or select first channel
         const channelExists =
           selectedChannelId &&
@@ -4786,14 +4789,32 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
       }
     }
 
-    // Update the UI state to reflect the first joined channel
-    useStore.setState((state) => ({
-      ui: {
-        ...state.ui,
-        selectedServerId: serverId,
-        selectedChannelId: savedServer.channels[0] || null,
-      },
-    }));
+    // Only auto-select welcome page for NEW servers (no saved channels)
+    // Existing servers with channels should not auto-select (preserves user's view)
+    const isNewServer = savedServer.channels.length === 0;
+
+    useStore.setState((state) => {
+      // Only update selectedServerId if no server is selected
+      if (!state.ui.selectedServerId) {
+        return {
+          ui: {
+            ...state.ui,
+            selectedServerId: serverId,
+            perServerSelections: isNewServer
+              ? {
+                  ...state.ui.perServerSelections,
+                  [serverId]: {
+                    selectedChannelId: null,
+                    selectedPrivateChatId: null,
+                  },
+                }
+              : state.ui.perServerSelections,
+          },
+        };
+      }
+
+      return state;
+    });
   } else {
   }
 

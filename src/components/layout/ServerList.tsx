@@ -56,7 +56,7 @@ export const ServerList: React.FC = () => {
           transition-all duration-200 group relative
           ${selectedServerId === null ? "bg-discord-primary " : "bg-discord-dark-400 hover:bg-discord-primary"}
         `}
-        onClick={() => selectServer(null)}
+        onClick={() => selectServer(null, { clearSelection: true })}
       >
         <div
           className={`
@@ -113,7 +113,7 @@ export const ServerList: React.FC = () => {
               ${selectedServerId === server.id ? "bg-discord-primary" : "bg-discord-dark-400 hover:bg-discord-primary"}
               ${shimmeringServers.has(server.id) ? "shimmer" : ""}
             `}
-              onClick={() => selectServer(server.id)}
+              onClick={() => selectServer(server.id, { clearSelection: true })}
             >
               {/* Grey overlay for disconnected/connecting states */}
               {(server.connectionState === "disconnected" ||
