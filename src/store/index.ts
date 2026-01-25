@@ -526,6 +526,8 @@ export interface AppState {
     password: string,
   ) => void;
   verifyAccount: (serverId: string, account: string, code: string) => void;
+  setAway: (serverId: string, message?: string) => void;
+  clearAway: (serverId: string) => void;
   warnUser: (
     serverId: string,
     channelName: string,
@@ -831,6 +833,9 @@ const useStore = create<AppState>((set, get) => ({
     showExternalContent: false,
     // Markdown settings
     enableMarkdownRendering: false,
+    // Status messages
+    awayMessage: "",
+    quitMessage: "ObsidianIRC - Bringing IRC to the future",
     ...loadSavedGlobalSettings(), // Load saved settings from localStorage
   },
 
@@ -1042,7 +1047,8 @@ const useStore = create<AppState>((set, get) => ({
 
   disconnect: (serverId) => {
     clearServerConnectionTimeout(serverId);
-    ircClient.disconnect(serverId);
+    const quitMessage = get().globalSettings.quitMessage;
+    ircClient.disconnect(serverId, quitMessage);
 
     set((state) => {
       const updatedServers = state.servers.map((server) => {
@@ -1219,6 +1225,15 @@ const useStore = create<AppState>((set, get) => ({
 
   verifyAccount: (serverId: string, account: string, code: string) => {
     ircClient.verifyAccount(serverId, account, code);
+  },
+
+  setAway: (serverId, message) => {
+    const awayMsg = message || get().globalSettings.awayMessage || "Away";
+    ircClient.setAway(serverId, awayMsg);
+  },
+
+  clearAway: (serverId) => {
+    ircClient.clearAway(serverId);
   },
 
   warnUser: (serverId, channelName, username, reason) => {

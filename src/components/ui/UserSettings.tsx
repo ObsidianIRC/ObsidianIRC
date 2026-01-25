@@ -287,6 +287,10 @@ export const UserSettings: React.FC = React.memo(() => {
     serverConfig?.operOnConnect || false,
   );
 
+  // Status messages state
+  const [awayMessage, setAwayMessage] = useState("");
+  const [quitMessage, setQuitMessage] = useState("");
+
   // Original values for change tracking
   const [originalValues, setOriginalValues] = useState<Record<
     string,
@@ -306,6 +310,8 @@ export const UserSettings: React.FC = React.memo(() => {
   const botInputRef = useRef<HTMLInputElement>(null);
   const realnameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const awayMessageInputRef = useRef<HTMLInputElement>(null);
+  const quitMessageInputRef = useRef<HTMLInputElement>(null);
 
   // Track if we've initialized for this modal open
   const initializedRef = useRef(false);
@@ -381,6 +387,12 @@ export const UserSettings: React.FC = React.memo(() => {
     setOperPassword(initialOperPassword);
     setOperOnConnect(initialOperOnConnect);
 
+    const initialAwayMessage = globalSettings.awayMessage || "";
+    const initialQuitMessage =
+      globalSettings.quitMessage || "ObsidianIRC - Bringing IRC to the future";
+    setAwayMessage(initialAwayMessage);
+    setQuitMessage(initialQuitMessage);
+
     setOriginalValues({
       ...deepClone(initialSettings),
       avatar: initialAvatar,
@@ -394,6 +406,8 @@ export const UserSettings: React.FC = React.memo(() => {
       operName: initialOperName,
       operPassword: initialOperPassword,
       operOnConnect: initialOperOnConnect,
+      awayMessage: initialAwayMessage,
+      quitMessage: initialQuitMessage,
     });
   }, [
     ui.isSettingsModalOpen,
@@ -419,7 +433,9 @@ export const UserSettings: React.FC = React.memo(() => {
       newNickname !== originalValues.newNickname ||
       operName !== originalValues.operName ||
       operPassword !== originalValues.operPassword ||
-      operOnConnect !== originalValues.operOnConnect
+      operOnConnect !== originalValues.operOnConnect ||
+      awayMessage !== originalValues.awayMessage ||
+      quitMessage !== originalValues.quitMessage
     ) {
       return true;
     }
@@ -446,6 +462,8 @@ export const UserSettings: React.FC = React.memo(() => {
     operName,
     operPassword,
     operOnConnect,
+    awayMessage,
+    quitMessage,
   ]);
 
   const handleSettingChange = useCallback(
@@ -554,6 +572,20 @@ export const UserSettings: React.FC = React.memo(() => {
     [],
   );
 
+  const handleAwayMessageChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setAwayMessage(e.target.value);
+    },
+    [],
+  );
+
+  const handleQuitMessageChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setQuitMessage(e.target.value);
+    },
+    [],
+  );
+
   const handleOperUp = () => {
     if (operName.trim() && operPassword.trim() && currentServer) {
       sendRaw(
@@ -613,7 +645,11 @@ export const UserSettings: React.FC = React.memo(() => {
       }
     }
 
-    updateGlobalSettings(settings as Partial<GlobalSettings>);
+    updateGlobalSettings({
+      ...(settings as Partial<GlobalSettings>),
+      awayMessage,
+      quitMessage,
+    });
 
     // Save notification sound file
     if (notificationSoundFile) {
@@ -654,6 +690,8 @@ export const UserSettings: React.FC = React.memo(() => {
     serverConfig,
     operName,
     operOnConnect,
+    awayMessage,
+    quitMessage,
     sendRaw,
     setName,
     changeNick,
@@ -986,6 +1024,46 @@ export const UserSettings: React.FC = React.memo(() => {
             </div>
           </>
         )}
+
+        <div className="space-y-4 mt-6 pt-6 border-t border-discord-dark-400">
+          <h3 className="text-sm font-semibold text-discord-text-normal uppercase">
+            Status Messages
+          </h3>
+
+          <div className="space-y-2">
+            <label className="block text-discord-text-normal text-sm font-medium">
+              Away Message
+            </label>
+            <p className="text-discord-text-muted text-xs">
+              Default message when marking yourself as away
+            </p>
+            <input
+              ref={awayMessageInputRef}
+              type="text"
+              value={awayMessage}
+              onChange={handleAwayMessageChange}
+              placeholder="Away from keyboard"
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-discord-text-normal text-sm font-medium">
+              Quit Message
+            </label>
+            <p className="text-discord-text-muted text-xs">
+              Message shown when you disconnect from the server
+            </p>
+            <input
+              ref={quitMessageInputRef}
+              type="text"
+              value={quitMessage}
+              onChange={handleQuitMessageChange}
+              placeholder="ObsidianIRC - Bringing IRC to the future"
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+            />
+          </div>
+        </div>
       </div>
     );
   };

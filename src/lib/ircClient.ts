@@ -646,10 +646,11 @@ export class IRCClient {
     return connectionPromise;
   }
 
-  disconnect(serverId: string): void {
+  disconnect(serverId: string, quitMessage?: string): void {
     const socket = this.sockets.get(serverId);
     if (socket) {
-      socket.send("QUIT :ObsidianIRC - Bringing IRC into the future");
+      const message = quitMessage || "ObsidianIRC - Bringing IRC to the future";
+      socket.send(`QUIT :${message}`);
       socket.close();
       this.sockets.delete(serverId);
     }
@@ -1218,6 +1219,14 @@ export class IRCClient {
 
   monitorStatus(serverId: string): void {
     this.sendRaw(serverId, "MONITOR S");
+  }
+
+  setAway(serverId: string, message: string): void {
+    this.sendRaw(serverId, `AWAY :${message}`);
+  }
+
+  clearAway(serverId: string): void {
+    this.sendRaw(serverId, "AWAY");
   }
 
   markChannelAsRead(serverId: string, channelId: string): void {

@@ -49,6 +49,8 @@ export interface GlobalSettings {
   showSafeMedia: boolean;
   showExternalContent: boolean;
   enableMarkdownRendering: boolean;
+  awayMessage: string;
+  quitMessage: string;
 }
 
 export interface UISelections {
