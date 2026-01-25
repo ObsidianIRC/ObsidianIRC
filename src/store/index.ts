@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import { create } from "zustand";
 import { isUserIgnored } from "../lib/ignoreUtils";
 import ircClient from "../lib/ircClient";
@@ -31,7 +31,19 @@ const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
 const LOCAL_STORAGE_SETTINGS_KEY = "globalSettings";
 const LOCAL_STORAGE_CHANNEL_ORDER_KEY = "channelOrder";
 const LOCAL_STORAGE_PINNED_PMS_KEY = "pinnedPrivateChats";
+const LOCAL_STORAGE_UI_SELECTION_KEY = "uiSelections";
 const NARROW_VIEW_QUERY = "(max-width: 768px)";
+
+// Namespace UUID for generating deterministic channel/chat IDs
+const CHANNEL_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+
+/**
+ * Generate a deterministic UUID for a channel or private chat
+ * based on the server ID and channel/chat name
+ */
+function generateDeterministicId(serverId: string, name: string): string {
+  return uuidv5(`${serverId}:${name}`, CHANNEL_NAMESPACE);
+}
 
 // Helper function to normalize host for comparison (extract hostname from URL or return as-is)
 function normalizeHost(host: string): string {
@@ -195,6 +207,39 @@ function savePinnedPrivateChats(pinnedChats: PinnedPrivateChatsMap) {
   localStorage.setItem(
     LOCAL_STORAGE_PINNED_PMS_KEY,
     JSON.stringify(pinnedChats),
+  );
+}
+
+// Load UI selections from localStorage
+function loadUISelections(): {
+  selectedServerId: string | null;
+  perServerSelections: Record<
+    string,
+    { selectedChannelId: string | null; selectedPrivateChatId: string | null }
+  >;
+} {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_UI_SELECTION_KEY);
+    if (!saved) {
+      return { selectedServerId: null, perServerSelections: {} };
+    }
+    return JSON.parse(saved);
+  } catch {
+    return { selectedServerId: null, perServerSelections: {} };
+  }
+}
+
+// Save UI selections to localStorage
+function saveUISelections(
+  selectedServerId: string | null,
+  perServerSelections: Record<
+    string,
+    { selectedChannelId: string | null; selectedPrivateChatId: string | null }
+  >,
+) {
+  localStorage.setItem(
+    LOCAL_STORAGE_UI_SELECTION_KEY,
+    JSON.stringify({ selectedServerId, perServerSelections }),
   );
 }
 
@@ -491,6 +536,7 @@ export interface AppState {
   currentUser: User | null;
   isConnecting: boolean;
   connectingServerId: string | null;
+  isAddingNewServer: boolean;
   selectedServerId: string | null;
   connectionError: string | null;
   messages: Record<string, Message[]>;
@@ -590,6 +636,7 @@ export interface AppState {
     registerAccount?: boolean,
     registerEmail?: string,
     registerPassword?: string,
+    isNewServer?: boolean,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
@@ -819,6 +866,7 @@ const useStore = create<AppState>((set, get) => ({
   currentUser: null,
   isConnecting: false,
   connectingServerId: null,
+  isAddingNewServer: false,
   connectionError: null,
   messages: {},
   typingUsers: {},
@@ -845,8 +893,8 @@ const useStore = create<AppState>((set, get) => ({
 
   // UI state
   ui: {
-    selectedServerId: null,
-    perServerSelections: {},
+    selectedServerId: loadUISelections().selectedServerId, // Load immediately from localStorage
+    perServerSelections: loadUISelections().perServerSelections, // Load immediately from localStorage
     isAddServerModalOpen: false,
     isEditServerModalOpen: false,
     editServerId: null,
@@ -859,7 +907,7 @@ const useStore = create<AppState>((set, get) => ({
     isChannelListVisible: true,
     isChannelListModalOpen: false,
     isChannelRenameModalOpen: false,
-    mobileViewActiveColumn: "serverList", // Default to server list in mobile mode on open
+    mobileViewActiveColumn: "serverList", // Always start on server/channel list, never auto-navigate to chat
     isServerMenuOpen: false,
     contextMenu: {
       isOpen: false,
@@ -928,6 +976,7 @@ const useStore = create<AppState>((set, get) => ({
     registerAccount,
     registerEmail,
     registerPassword,
+    isNewServer = false,
   ) => {
     // Check if already connected to this server
     const state = get();
@@ -942,7 +991,11 @@ const useStore = create<AppState>((set, get) => ({
       return existingServer;
     }
 
-    set({ isConnecting: true, connectionError: null });
+    set({
+      isConnecting: true,
+      isAddingNewServer: isNewServer,
+      connectionError: null,
+    });
 
     try {
       // Look up saved server to get its ID
@@ -1212,38 +1265,14 @@ const useStore = create<AppState>((set, get) => ({
           };
           saveChannelOrder(newChannelOrder);
 
-          // Update the selected channel if the server matches the current selection
-          const isCurrentServer = state.ui.selectedServerId === serverId;
-
           return {
             servers: updatedServers,
             channelOrder: newChannelOrder,
-            ui: {
-              ...state.ui,
-              perServerSelections: setServerSelection(state, serverId, {
-                selectedChannelId: getCurrentSelection(state).selectedChannelId,
-                selectedPrivateChatId:
-                  getCurrentSelection(state).selectedPrivateChatId,
-              }),
-            },
           };
         }
 
-        // Update the selected channel if the server matches the current selection
-        const isCurrentServer = state.ui.selectedServerId === serverId;
-
         return {
           servers: updatedServers,
-          ui: {
-            ...state.ui,
-            perServerSelections: setServerSelection(state, serverId, {
-              selectedChannelId: isCurrentServer
-                ? channel.id
-                : getCurrentSelection(state).selectedChannelId,
-              selectedPrivateChatId:
-                getCurrentSelection(state).selectedPrivateChatId,
-            }),
-          },
         };
       });
     }
@@ -1494,6 +1523,8 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       // If selecting null (no server), just update the selectedServerId
       if (serverId === null) {
+        // Save cleared selection to localStorage
+        saveUISelections(null, state.ui.perServerSelections);
         return {
           ui: {
             ...state.ui,
@@ -1542,9 +1573,17 @@ const useStore = create<AppState>((set, get) => ({
             },
           },
           isMobileMenuOpen: false,
+          // Don't auto-navigate when selecting a server - let user stay on channel list
         },
       };
     });
+
+    // Save UI selections to localStorage
+    const newState = get();
+    saveUISelections(
+      newState.ui.selectedServerId,
+      newState.ui.perServerSelections,
+    );
   },
 
   selectChannel: (channelId, options) => {
@@ -1649,6 +1688,13 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+
+    // Save UI selections to localStorage
+    const newState = get();
+    saveUISelections(
+      newState.ui.selectedServerId,
+      newState.ui.perServerSelections,
+    );
   },
 
   markChannelAsRead: (serverId, channelId) => {
@@ -1810,6 +1856,13 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+
+    // Save UI selections to localStorage
+    const newState = get();
+    saveUISelections(
+      newState.ui.selectedServerId,
+      newState.ui.perServerSelections,
+    );
   },
 
   openPrivateChat: (serverId, username) => {
@@ -1902,7 +1955,7 @@ const useStore = create<AppState>((set, get) => ({
 
       // Create new private chat
       const newPrivateChat: PrivateChat = {
-        id: uuidv4(),
+        id: generateDeterministicId(serverId, username),
         username,
         serverId,
         unreadCount: 0,
@@ -2164,6 +2217,8 @@ const useStore = create<AppState>((set, get) => ({
     set({ hasConnectedToSavedServers: true });
 
     const savedServers = loadSavedServers();
+    const connectionPromises = [];
+
     for (const savedServer of savedServers) {
       const {
         id,
@@ -2206,8 +2261,8 @@ const useStore = create<AppState>((set, get) => ({
         }));
       }
 
-      try {
-        await get().connect(
+      const connectionPromise = get()
+        .connect(
           name || normalizeHost(urlHost),
           urlHost, // Use full URL
           port,
@@ -2216,19 +2271,28 @@ const useStore = create<AppState>((set, get) => ({
           password,
           saslAccountName,
           saslPassword,
-        );
-      } catch (error) {
-        console.error(`Failed to reconnect to server ${urlHost}`, error);
-        // Update server state to disconnected using normalized comparison
-        set((state) => ({
-          servers: state.servers.map((s) =>
-            normalizeHost(s.host) === normalizeHost(urlHost) && s.port === port
-              ? { ...s, connectionState: "disconnected" as const }
-              : s,
-          ),
-        }));
-      }
+        )
+        .catch((error) => {
+          console.error(`Failed to reconnect to server ${urlHost}`, error);
+          // Update server state to disconnected using normalized comparison
+          set((state) => ({
+            servers: state.servers.map((s) =>
+              normalizeHost(s.host) === normalizeHost(urlHost) &&
+              s.port === port
+                ? { ...s, connectionState: "disconnected" as const }
+                : s,
+            ),
+          }));
+        });
+
+      connectionPromises.push(connectionPromise);
     }
+
+    // Wait for all connections to complete
+    await Promise.all(connectionPromises);
+
+    // Note: UI selection is now loaded immediately from localStorage in initial state,
+    // so no need for delayed restoration here
   },
 
   reconnectServer: async (serverId: string) => {
@@ -2471,7 +2535,6 @@ const useStore = create<AppState>((set, get) => ({
       const openState =
         isOpen !== undefined ? isOpen : !state.ui.isMemberListVisible;
 
-      // Only update mobileViewActiveColumn if actually in narrow view
       const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
 
       return {
@@ -2481,8 +2544,10 @@ const useStore = create<AppState>((set, get) => ({
           mobileViewActiveColumn: isNarrowView
             ? openState
               ? "memberList"
-              : "chatView"
-            : state.ui.mobileViewActiveColumn, // Don't change on desktop
+              : state.ui.mobileViewActiveColumn === "memberList"
+                ? "chatView"
+                : state.ui.mobileViewActiveColumn
+            : state.ui.mobileViewActiveColumn,
         },
       };
     });
@@ -2577,9 +2642,16 @@ const useStore = create<AppState>((set, get) => ({
 
   // Single source of truth for mobile navigation - syncs all related states
   setMobileView: (view: layoutColumn) => {
+    console.log(
+      "[SET_MOBILE_VIEW] called with:",
+      view,
+      "stack:",
+      new Error().stack,
+    );
     set((state) => {
       // Only execute in narrow view
       const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
+      console.log("[SET_MOBILE_VIEW] isNarrowView:", isNarrowView);
       if (!isNarrowView) return state;
 
       // Sync all related states based on the active column
@@ -2597,6 +2669,8 @@ const useStore = create<AppState>((set, get) => ({
           isMemberListVisible: true,
         },
       }[view];
+
+      console.log("[SET_MOBILE_VIEW] setting mobileViewActiveColumn to:", view);
 
       return {
         ui: {
@@ -3304,7 +3378,7 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       );
       if (!privateChat) {
         const newPrivateChat = {
-          id: uuidv4(),
+          id: generateDeterministicId(server.id, sender),
           username: sender,
           serverId: server.id,
           unreadCount: 0,
@@ -4206,7 +4280,7 @@ ircClient.on(
       if (!channelData) {
         // Channel doesn't exist in store, create it (similar to joinChannel)
         const newChannel = {
-          id: uuidv4(),
+          id: generateDeterministicId(serverId, channelName),
           name: channelName,
           topic: "",
           isPrivate: false,
@@ -4835,7 +4909,7 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
       // Create private chat objects for pinned users
       const restoredPrivateChats: PrivateChat[] = sortedPinnedChats.map(
         ({ username, order }) => ({
-          id: uuidv4(),
+          id: generateDeterministicId(serverId, username),
           username,
           serverId,
           unreadCount: 0,

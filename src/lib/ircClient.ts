@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import type {
   BaseIRCEvent,
   BaseMessageEvent,
@@ -18,6 +18,17 @@ import {
   parseNamesResponse,
 } from "./ircUtils";
 import { createSocket, type ISocket } from "./socket";
+
+// Namespace UUID for generating deterministic channel/chat IDs
+const CHANNEL_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+
+/**
+ * Generate a deterministic UUID for a channel or private chat
+ * based on the server ID and channel/chat name
+ */
+function generateDeterministicId(serverId: string, name: string): string {
+  return uuidv5(`${serverId}:${name}`, CHANNEL_NAMESPACE);
+}
 
 export interface EventMap {
   ready: BaseIRCEvent & { serverName: string; nickname: string };
@@ -858,7 +869,7 @@ export class IRCClient {
       }
 
       const channel: Channel = {
-        id: uuidv4(),
+        id: generateDeterministicId(serverId, channelName),
         name: channelName,
         topic: "",
         isPrivate: false,

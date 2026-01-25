@@ -26,10 +26,40 @@ export function registerAllProtocolHandlers(
 
   ircClient.on("ready", ({ serverId }) => {
     clearConnectionTimeout(serverId);
+
+    const state = useStore.getState();
+    const isNewlyAdded =
+      state.isAddingNewServer && state.connectingServerId === serverId;
+
     useStore.setState({
       isConnecting: false,
       connectingServerId: null,
+      isAddingNewServer: false,
     });
+
+    if (isNewlyAdded) {
+      const isNarrowView =
+        typeof window !== "undefined" &&
+        window.matchMedia("(max-width: 768px)").matches;
+
+      if (isNarrowView) {
+        useStore.setState((state) => ({
+          ui: {
+            ...state.ui,
+            selectedServerId: serverId,
+            mobileViewActiveColumn: "chatView",
+          },
+        }));
+      } else {
+        useStore.setState((state) => ({
+          ui: {
+            ...state.ui,
+            selectedServerId: serverId,
+          },
+        }));
+      }
+    }
+
     requestAnimationFrame(() => {
       useStore.getState().triggerServerShimmer(serverId);
     });
