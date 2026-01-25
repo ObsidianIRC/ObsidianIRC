@@ -24,14 +24,15 @@ import type {
   User,
   WhoisData,
 } from "../types";
-import type { ConnectionDetails, layoutColumn } from "./types";
+import * as storage from "./localStorage";
+import { runPendingMigrations } from "./migrations";
+import type {
+  ChannelOrderMap,
+  ConnectionDetails,
+  GlobalSettings,
+  layoutColumn,
+} from "./types";
 
-const LOCAL_STORAGE_SERVERS_KEY = "savedServers";
-const LOCAL_STORAGE_METADATA_KEY = "serverMetadata";
-const LOCAL_STORAGE_SETTINGS_KEY = "globalSettings";
-const LOCAL_STORAGE_CHANNEL_ORDER_KEY = "channelOrder";
-const LOCAL_STORAGE_PINNED_PMS_KEY = "pinnedPrivateChats";
-const LOCAL_STORAGE_UI_SELECTION_KEY = "uiSelections";
 const NARROW_VIEW_QUERY = "(max-width: 768px)";
 
 // Namespace UUID for generating deterministic channel/chat IDs
@@ -70,21 +71,6 @@ function ensureUrlFormat(host: string, port: number): string {
       : "ws";
   return `${scheme}://${host}:${port}`;
 }
-
-// Type for saved metadata structure: serverId -> target -> key -> metadata
-type SavedMetadata = Record<
-  string,
-  Record<string, Record<string, { value: string; visibility: string }>>
->;
-
-// Type for pinned private chats: serverId -> array of {username, order}
-type PinnedPrivateChatsMap = Record<
-  string,
-  Array<{ username: string; order: number }>
->;
-
-// Type for channel order: serverId -> array of channel names in order
-type ChannelOrderMap = Record<string, string[]>;
 
 // Types for batch event processing
 interface JoinBatchEvent {
@@ -147,103 +133,26 @@ export const findChannelMessageById = (
   const messages = getChannelMessages(serverId, channelId);
   return messages.find((message) => message.msgid === messageId);
 };
-// Load saved servers from localStorage
-export function loadSavedServers(): ServerConfig[] {
-  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_SERVERS_KEY) || "[]");
-}
 
-// Load saved metadata from localStorage
-export function loadSavedMetadata(): SavedMetadata {
-  return JSON.parse(localStorage.getItem(LOCAL_STORAGE_METADATA_KEY) || "{}");
-}
+// ============================================================================
+// LocalStorage Operations
+// ============================================================================
 
-// Save metadata to localStorage
-function saveMetadataToLocalStorage(metadata: SavedMetadata) {
-  localStorage.setItem(LOCAL_STORAGE_METADATA_KEY, JSON.stringify(metadata));
-}
+// Servers
+export const loadSavedServers = storage.servers.load;
+export const saveServersToLocalStorage = storage.servers.save;
+export const loadSavedMetadata = storage.metadata.load;
+const saveMetadataToLocalStorage = storage.metadata.save;
+const loadSavedGlobalSettings = storage.settings.load;
+const saveGlobalSettingsToLocalStorage = storage.settings.save;
+const loadChannelOrder = storage.channelOrder.load;
+const saveChannelOrder = storage.channelOrder.save;
+const loadPinnedPrivateChats = storage.pinnedChats.load;
+const savePinnedPrivateChats = storage.pinnedChats.save;
+const loadUISelections = storage.uiSelections.load;
+const saveUISelections = storage.uiSelections.save;
 
-// Load saved global settings from localStorage
-function loadSavedGlobalSettings(): Partial<GlobalSettings> {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-// Save global settings to localStorage
-function saveGlobalSettingsToLocalStorage(settings: GlobalSettings) {
-  localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(settings));
-}
-
-// Load channel order from localStorage
-function loadChannelOrder(): ChannelOrderMap {
-  return JSON.parse(
-    localStorage.getItem(LOCAL_STORAGE_CHANNEL_ORDER_KEY) || "{}",
-  );
-}
-
-// Save channel order to localStorage
-function saveChannelOrder(channelOrder: ChannelOrderMap) {
-  localStorage.setItem(
-    LOCAL_STORAGE_CHANNEL_ORDER_KEY,
-    JSON.stringify(channelOrder),
-  );
-}
-
-// Load pinned private chats from localStorage
-function loadPinnedPrivateChats(): PinnedPrivateChatsMap {
-  try {
-    return JSON.parse(
-      localStorage.getItem(LOCAL_STORAGE_PINNED_PMS_KEY) || "{}",
-    );
-  } catch {
-    return {};
-  }
-}
-
-// Save pinned private chats to localStorage
-function savePinnedPrivateChats(pinnedChats: PinnedPrivateChatsMap) {
-  localStorage.setItem(
-    LOCAL_STORAGE_PINNED_PMS_KEY,
-    JSON.stringify(pinnedChats),
-  );
-}
-
-// Load UI selections from localStorage
-function loadUISelections(): {
-  selectedServerId: string | null;
-  perServerSelections: Record<
-    string,
-    { selectedChannelId: string | null; selectedPrivateChatId: string | null }
-  >;
-} {
-  try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_UI_SELECTION_KEY);
-    if (!saved) {
-      return { selectedServerId: null, perServerSelections: {} };
-    }
-    return JSON.parse(saved);
-  } catch {
-    return { selectedServerId: null, perServerSelections: {} };
-  }
-}
-
-// Save UI selections to localStorage
-function saveUISelections(
-  selectedServerId: string | null,
-  perServerSelections: Record<
-    string,
-    { selectedChannelId: string | null; selectedPrivateChatId: string | null }
-  >,
-) {
-  localStorage.setItem(
-    LOCAL_STORAGE_UI_SELECTION_KEY,
-    JSON.stringify({ selectedServerId, perServerSelections }),
-  );
-}
-
-// Check if a server supports metadata
+function serverSupportsMetadata(serverId: string): boolean;
 function serverSupportsMetadata(serverId: string): boolean {
   const state = useStore.getState();
   const server = state.servers.find((s) => s.id === serverId);
@@ -264,14 +173,6 @@ function serverSupportsMultiline(serverId: string): boolean {
 
 export { serverSupportsMetadata, serverSupportsMultiline };
 
-function saveServersToLocalStorage(servers: ServerConfig[]) {
-  localStorage.setItem(LOCAL_STORAGE_SERVERS_KEY, JSON.stringify(servers));
-}
-
-// Export the function
-export { saveServersToLocalStorage };
-
-// Restore metadata for a server from localStorage
 function restoreServerMetadata(serverId: string) {
   const savedMetadata = loadSavedMetadata();
   const serverMetadata = savedMetadata[serverId];
@@ -499,37 +400,7 @@ interface UIState {
   shouldFocusChatInput: boolean;
 }
 
-export interface GlobalSettings {
-  enableNotifications: boolean;
-  notificationSound: string;
-  enableNotificationSounds: boolean;
-  notificationVolume: number; // 0-1, where 0 is muted
-  enableHighlights: boolean;
-  sendTypingNotifications: boolean;
-  // Event visibility settings
-  showEvents: boolean;
-  showNickChanges: boolean;
-  showJoinsParts: boolean;
-  showQuits: boolean;
-  showKicks: boolean;
-  // Custom mentions
-  customMentions: string[];
-  // Ignore list
-  ignoreList: string[];
-  // Hosted chat mode settings
-  nickname: string;
-  accountName: string;
-  accountPassword: string;
-  // Multiline settings
-  enableMultilineInput: boolean;
-  multilineOnShiftEnter: boolean;
-  autoFallbackToSingleLine: boolean;
-  // Media settings
-  showSafeMedia: boolean;
-  showExternalContent: boolean;
-  // Markdown settings
-  enableMarkdownRendering: boolean;
-}
+export type { GlobalSettings };
 
 export interface AppState {
   servers: Server[];
@@ -1051,6 +922,8 @@ const useStore = create<AppState>((set, get) => ({
         operOnConnect: savedServer?.operOnConnect,
         skipLocalhostWarning: savedServer?.skipLocalhostWarning,
         skipLinkSecurityWarning: savedServer?.skipLinkSecurityWarning,
+        // Preserve existing addedAt timestamp or set current time for new servers
+        addedAt: savedServer?.addedAt || Date.now(),
       });
       saveServersToLocalStorage(updatedServers);
 
@@ -1524,7 +1397,10 @@ const useStore = create<AppState>((set, get) => ({
       // If selecting null (no server), just update the selectedServerId
       if (serverId === null) {
         // Save cleared selection to localStorage
-        saveUISelections(null, state.ui.perServerSelections);
+        saveUISelections({
+          selectedServerId: null,
+          perServerSelections: state.ui.perServerSelections,
+        });
         return {
           ui: {
             ...state.ui,
@@ -1580,10 +1456,10 @@ const useStore = create<AppState>((set, get) => ({
 
     // Save UI selections to localStorage
     const newState = get();
-    saveUISelections(
-      newState.ui.selectedServerId,
-      newState.ui.perServerSelections,
-    );
+    saveUISelections({
+      selectedServerId: newState.ui.selectedServerId,
+      perServerSelections: newState.ui.perServerSelections,
+    });
   },
 
   selectChannel: (channelId, options) => {
@@ -1691,10 +1567,10 @@ const useStore = create<AppState>((set, get) => ({
 
     // Save UI selections to localStorage
     const newState = get();
-    saveUISelections(
-      newState.ui.selectedServerId,
-      newState.ui.perServerSelections,
-    );
+    saveUISelections({
+      selectedServerId: newState.ui.selectedServerId,
+      perServerSelections: newState.ui.perServerSelections,
+    });
   },
 
   markChannelAsRead: (serverId, channelId) => {
@@ -1859,10 +1735,10 @@ const useStore = create<AppState>((set, get) => ({
 
     // Save UI selections to localStorage
     const newState = get();
-    saveUISelections(
-      newState.ui.selectedServerId,
-      newState.ui.perServerSelections,
-    );
+    saveUISelections({
+      selectedServerId: newState.ui.selectedServerId,
+      perServerSelections: newState.ui.perServerSelections,
+    });
   },
 
   openPrivateChat: (serverId, username) => {
@@ -2215,6 +2091,8 @@ const useStore = create<AppState>((set, get) => ({
     }
 
     set({ hasConnectedToSavedServers: true });
+
+    runPendingMigrations();
 
     const savedServers = loadSavedServers();
     const connectionPromises = [];
