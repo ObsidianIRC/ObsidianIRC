@@ -152,7 +152,6 @@ const UserItem: React.FC<{
 
   return (
     <div
-      data-no-swipe
       className="flex items-center gap-3 py-2 px-3 mx-2 mb-1 rounded cursor-pointer bg-discord-dark-400/30 hover:bg-discord-dark-400/50 transition-colors"
       onClick={(e) => {
         const avatarElement = e.currentTarget.querySelector(".w-10.h-10");
