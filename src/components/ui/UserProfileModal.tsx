@@ -90,6 +90,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const toggleUserProfileModal = useStore(
     (state) => state.toggleUserProfileModal,
   );
+  const setAway = useStore((state) => state.setAway);
+  const clearAway = useStore((state) => state.clearAway);
   const server = servers.find((s) => s.id === serverId);
 
   // Get user metadata from channels
@@ -497,6 +499,28 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     </div>
                   )}
 
+                  {/* Away Status */}
+                  {user?.isAway && (
+                    <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4 hover:bg-yellow-900/30 transition-colors">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-yellow-400">●</span>
+                        <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wide">
+                          Away
+                        </span>
+                      </div>
+                      {user.awayMessage && (
+                        <div className="text-white text-sm">
+                          {user.awayMessage}
+                        </div>
+                      )}
+                      {!user.awayMessage && (
+                        <div className="text-discord-text-muted text-sm italic">
+                          User is away
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Channels - Full width */}
                   {whoisData.channels && (
                     <div className="bg-discord-dark-300 rounded-lg p-4 hover:bg-discord-dark-400 transition-colors md:col-span-2">
@@ -612,15 +636,33 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="px-6 py-4 bg-discord-dark-300 border-t border-discord-dark-400">
             <div className="flex justify-between items-center gap-3">
               {isOwnProfile && (
-                <button
-                  onClick={() => {
-                    onClose();
-                    toggleUserProfileModal(true);
-                  }}
-                  className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
-                >
-                  Edit Profile
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      toggleUserProfileModal(true);
+                    }}
+                    className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
+                  >
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (server?.isAway) {
+                        clearAway(serverId);
+                      } else {
+                        setAway(serverId);
+                      }
+                    }}
+                    className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                      server?.isAway
+                        ? "bg-green-600 hover:bg-green-700 text-white hover:shadow-lg hover:shadow-green-600/20"
+                        : "bg-yellow-600 hover:bg-yellow-700 text-white hover:shadow-lg hover:shadow-yellow-600/20"
+                    }`}
+                  >
+                    {server?.isAway ? "I'm Back" : "Set Away"}
+                  </button>
+                </>
               )}
               {!isOwnProfile && (
                 <button
