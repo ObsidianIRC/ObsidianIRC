@@ -362,6 +362,11 @@ export interface EventMap {
     serverId: string;
     nick: string;
   };
+  rateLimited: {
+    serverId: string;
+    message: string;
+    retryAfter: number;
+  };
 }
 
 type EventKey = keyof EventMap;
@@ -382,6 +387,7 @@ export class IRCClient {
   private capNegotiationComplete: Map<string, boolean> = new Map(); // Track if CAP negotiation is complete
   private reconnectionAttempts: Map<string, number> = new Map(); // Track reconnection attempts per server
   private reconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map(); // Track reconnection timeouts per server
+  private rateLimitedServers: Map<string, number> = new Map(); // Track rate-limited servers (serverId -> timestamp)
   private pingTimers: Map<string, NodeJS.Timeout> = new Map(); // Track ping timers per server
   private pongTimeouts: Map<string, NodeJS.Timeout> = new Map(); // Track pong timeouts per server
   private activeBatches: Map<
@@ -699,7 +705,19 @@ export class IRCClient {
     const server = this.servers.get(serverId);
     if (!server) return;
 
-    // Cancel any existing reconnection
+    const rateLimitTime = this.rateLimitedServers.get(serverId);
+    if (rateLimitTime) {
+      const waitTime = 600000;
+      const elapsed = Date.now() - rateLimitTime;
+      if (elapsed < waitTime) {
+        console.log(
+          `Server ${serverId} is rate-limited. ${Math.ceil((waitTime - elapsed) / 1000)}s remaining.`,
+        );
+        return;
+      }
+      this.rateLimitedServers.delete(serverId);
+    }
+
     const existingTimeout = this.reconnectionTimeouts.get(serverId);
     if (existingTimeout) {
       clearTimeout(existingTimeout);
@@ -708,18 +726,8 @@ export class IRCClient {
     const attempts = this.reconnectionAttempts.get(serverId) || 0;
     this.reconnectionAttempts.set(serverId, attempts + 1);
 
-    // Calculate delay based on attempt count
-    let delay = 0;
-    if (attempts === 0) {
-      delay = 0; // Immediate retry for testing
-    } else if (attempts === 1) {
-      delay = 15000; // 15 seconds
-    } else if (attempts === 2) {
-      delay = 30000; // 30 seconds
-    } else if (attempts <= 100) {
-      delay = 60000; // 60 seconds for attempts 3-100
-    } else {
-      // After 100 attempts, stop trying
+    const maxAttempts = 100;
+    if (attempts >= maxAttempts) {
       server.connectionState = "disconnected";
       this.triggerEvent("connectionStateChange", {
         serverId: server.id,
@@ -727,6 +735,12 @@ export class IRCClient {
       });
       return;
     }
+
+    const baseDelay = 2000;
+    const maxDelay = 300000;
+    const delay = Math.min(baseDelay * 2 ** attempts, maxDelay);
+    const jitter = Math.random() * 1000;
+    const finalDelay = delay + jitter;
 
     server.connectionState = "reconnecting";
     this.triggerEvent("connectionStateChange", {
@@ -747,7 +761,7 @@ export class IRCClient {
           saslAccountName,
           saslPassword,
         );
-      }, delay),
+      }, finalDelay),
     );
   }
 
@@ -854,6 +868,18 @@ export class IRCClient {
       clearTimeout(pongTimeout);
       this.pongTimeouts.delete(serverId);
     }
+  }
+
+  private isRateLimitError(message: string): boolean {
+    const rateLimitPatterns = [
+      /too many.*connect/i,
+      /connect.*too many/i,
+      /throttled/i,
+      /rate limit/i,
+      /wait.*while/i,
+      /try again later/i,
+    ];
+    return rateLimitPatterns.some((pattern) => pattern.test(message));
   }
 
   joinChannel(serverId: string, channelName: string): Channel {
@@ -1346,11 +1372,36 @@ export class IRCClient {
           this.pongTimeouts.delete(serverId);
         }
       } else if (command === "ERROR") {
-        // Server is closing the connection - let onclose handler handle reconnection
         const errorMessage = parv.join(" ");
         console.log(`IRC ERROR from server ${serverId}: ${errorMessage}`);
 
-        // Don't close the socket here, let the server close it and onclose handle reconnection
+        if (this.isRateLimitError(errorMessage)) {
+          console.log(
+            `Server ${serverId} rate-limited. Stopping reconnection attempts.`,
+          );
+          this.rateLimitedServers.set(serverId, Date.now());
+
+          const timeout = this.reconnectionTimeouts.get(serverId);
+          if (timeout) {
+            clearTimeout(timeout);
+            this.reconnectionTimeouts.delete(serverId);
+          }
+
+          const server = this.servers.get(serverId);
+          if (server) {
+            server.connectionState = "disconnected";
+            this.triggerEvent("connectionStateChange", {
+              serverId: server.id,
+              connectionState: "disconnected",
+            });
+          }
+
+          this.triggerEvent("rateLimited", {
+            serverId,
+            message: errorMessage,
+            retryAfter: 600000,
+          });
+        }
       } else if (command === "001") {
         const serverName = source;
         const nickname = parv[0]; // Our actual nick as assigned by the server
