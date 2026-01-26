@@ -816,16 +816,31 @@ export const UserSettings: React.FC = React.memo(() => {
     return settingsRegistry.getByCategory(activeCategory);
   }, [activeCategory]);
 
+  const getProfileSetting = (settingId: string) => {
+    return settingsRegistry.get(settingId);
+  };
+
   // Render profile metadata fields
   const renderProfileFields = () => {
+    const nicknameSetting = getProfileSetting("profile.nickname");
+    const realnameSetting = getProfileSetting("profile.realname");
+    const displayNameSetting = getProfileSetting("profile.displayName");
+    const avatarSetting = getProfileSetting("profile.avatar");
+    const homepageSetting = getProfileSetting("profile.homepage");
+    const statusSetting = getProfileSetting("profile.status");
+    const colorSetting = getProfileSetting("profile.color");
+    const botSetting = getProfileSetting("profile.bot");
+    const awayMessageSetting = getProfileSetting("profile.awayMessage");
+    const quitMessageSetting = getProfileSetting("profile.quitMessage");
+
     return (
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="block text-discord-text-normal text-sm font-medium">
-            Nickname
+            {nicknameSetting?.title || "Nickname"}
           </label>
           <p className="text-discord-text-muted text-xs">
-            Your unique identifier on this server
+            {nicknameSetting?.description}
           </p>
           <input
             ref={nicknameInputRef}
@@ -838,228 +853,260 @@ export const UserSettings: React.FC = React.memo(() => {
 
         <div className="space-y-2">
           <label className="block text-discord-text-normal text-sm font-medium">
-            Real Name
+            {realnameSetting?.title || "Real Name"}
           </label>
           <p className="text-discord-text-muted text-xs">
-            Your real or full name
+            {realnameSetting?.description}
           </p>
           <input
             ref={realnameInputRef}
             type="text"
             value={realname}
             onChange={handleRealnameChange}
-            placeholder="Enter real name"
+            placeholder={realnameSetting?.placeholder || "Enter real name"}
             className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
           />
         </div>
 
-        {!supportsMetadata && (
-          <div className="p-4 bg-discord-dark-400 rounded">
-            <p className="text-discord-text-muted text-sm">
-              This server does not support extended profile metadata (IRCv3
-              METADATA extension). Additional fields like avatar, display name,
-              and status are not available.
-            </p>
-          </div>
-        )}
+        <div className="space-y-4 mt-6 pt-6 border-t border-discord-dark-400">
+          <h3 className="text-sm font-semibold text-discord-text-normal uppercase">
+            Extended Profile
+          </h3>
 
-        {supportsMetadata && (
-          <>
-            <div
-              id="setting-profile.displayName"
-              className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
-                highlightedSetting === "profile.displayName"
-                  ? "bg-yellow-400/20 ring-2 ring-yellow-400"
-                  : ""
-              }`}
-            >
-              <label className="block text-discord-text-normal text-sm font-medium">
-                Display Name
-              </label>
-              <p className="text-discord-text-muted text-xs">
-                Your preferred display name
+          {!supportsMetadata && (
+            <div className="p-4 bg-discord-dark-400 rounded">
+              <p className="text-discord-text-muted text-sm">
+                This server does not support extended profile metadata (IRCv3
+                METADATA extension). Additional fields like avatar, display
+                name, and status are not available.
               </p>
-              <input
-                ref={displayNameInputRef}
-                type="text"
-                value={displayName}
-                onChange={handleDisplayNameChange}
-                placeholder="Enter display name"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-              />
             </div>
+          )}
 
-            <div
-              id="setting-profile.avatar"
-              className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
-                highlightedSetting === "profile.avatar"
-                  ? "bg-yellow-400/20 ring-2 ring-yellow-400"
-                  : ""
-              }`}
-            >
-              <label className="block text-discord-text-normal text-sm font-medium">
-                Avatar URL
-              </label>
-              <p className="text-discord-text-muted text-xs">
-                URL to your avatar image
-              </p>
-              <input
-                ref={avatarInputRef}
-                type="text"
-                value={avatar}
-                onChange={handleAvatarChange}
-                placeholder="https://example.com/avatar.png"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-              />
-              {currentServer && (
-                <AvatarUpload
-                  currentAvatarUrl={avatar}
-                  onAvatarUrlChange={handleAvatarUrlChange}
-                  serverId={currentServer.id}
-                />
-              )}
-            </div>
-
-            <div
-              id="setting-profile.homepage"
-              className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
-                highlightedSetting === "profile.homepage"
-                  ? "bg-yellow-400/20 ring-2 ring-yellow-400"
-                  : ""
-              }`}
-            >
-              <label className="block text-discord-text-normal text-sm font-medium">
-                Homepage
-              </label>
-              <p className="text-discord-text-muted text-xs">
-                Your personal website or homepage URL
-              </p>
-              <input
-                type="text"
-                value={homepage}
-                onChange={handleHomepageChange}
-                placeholder="https://example.com"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-              />
-            </div>
-
-            <div
-              id="setting-profile.status"
-              className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
-                highlightedSetting === "profile.status"
-                  ? "bg-yellow-400/20 ring-2 ring-yellow-400"
-                  : ""
-              }`}
-            >
-              <label className="block text-discord-text-normal text-sm font-medium">
-                Status
-              </label>
-              <p className="text-discord-text-muted text-xs">
-                Your current status message
-              </p>
-              <input
-                ref={statusInputRef}
-                type="text"
-                value={status}
-                onChange={handleStatusChange}
-                placeholder="What's on your mind?"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-              />
-            </div>
-
-            <div
-              id="setting-profile.color"
-              className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
-                highlightedSetting === "profile.color"
-                  ? "bg-yellow-400/20 ring-2 ring-yellow-400"
-                  : ""
-              }`}
-            >
-              <label className="block text-discord-text-normal text-sm font-medium">
-                Color
-              </label>
-              <p className="text-discord-text-muted text-xs">
-                Your preferred color code
-              </p>
-              <div className="flex space-x-2">
+          {supportsMetadata && (
+            <>
+              <div
+                id="setting-profile.displayName"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.displayName"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {displayNameSetting?.title || "Display Name"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {displayNameSetting?.description}
+                </p>
                 <input
-                  type="color"
-                  value={color || "#000000"}
-                  onChange={handleColorChange}
-                  className="w-12 h-8 rounded border-none cursor-pointer"
-                />
-                <input
-                  ref={colorInputRef}
+                  ref={displayNameInputRef}
                   type="text"
-                  value={color}
-                  onChange={handleColorChange}
-                  placeholder="#000000"
-                  className="flex-1 bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                  value={displayName}
+                  onChange={handleDisplayNameChange}
+                  placeholder={
+                    displayNameSetting?.placeholder || "Enter display name"
+                  }
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
               </div>
-            </div>
 
-            <div
-              id="setting-profile.bot"
-              className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
-                highlightedSetting === "profile.bot"
-                  ? "bg-yellow-400/20 ring-2 ring-yellow-400"
-                  : ""
-              }`}
-            >
-              <label className="block text-discord-text-normal text-sm font-medium">
-                Bot
-              </label>
-              <p className="text-discord-text-muted text-xs">
-                Mark as bot - usually 'on' or empty
-              </p>
-              <input
-                ref={botInputRef}
-                type="text"
-                value={bot}
-                onChange={handleBotChange}
-                placeholder="on"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
-              />
-            </div>
-          </>
-        )}
+              <div
+                id="setting-profile.avatar"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.avatar"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {avatarSetting?.title || "Avatar"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {avatarSetting?.description}
+                </p>
+                <input
+                  ref={avatarInputRef}
+                  type="text"
+                  value={avatar}
+                  onChange={handleAvatarChange}
+                  placeholder={
+                    avatarSetting?.placeholder ||
+                    "https://example.com/avatar.png"
+                  }
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+                {currentServer && (
+                  <AvatarUpload
+                    currentAvatarUrl={avatar}
+                    onAvatarUrlChange={handleAvatarUrlChange}
+                    serverId={currentServer.id}
+                  />
+                )}
+              </div>
+
+              <div
+                id="setting-profile.homepage"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.homepage"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {homepageSetting?.title || "Homepage"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {homepageSetting?.description}
+                </p>
+                <input
+                  type="text"
+                  value={homepage}
+                  onChange={handleHomepageChange}
+                  placeholder={
+                    homepageSetting?.placeholder || "https://example.com"
+                  }
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+              </div>
+
+              <div
+                id="setting-profile.status"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.status"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {statusSetting?.title || "Status"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {statusSetting?.description}
+                </p>
+                <input
+                  ref={statusInputRef}
+                  type="text"
+                  value={status}
+                  onChange={handleStatusChange}
+                  placeholder="What's on your mind?"
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+              </div>
+
+              <div
+                id="setting-profile.color"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.color"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {colorSetting?.title || "Color"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {colorSetting?.description}
+                </p>
+                <div className="flex space-x-2">
+                  <input
+                    type="color"
+                    value={color || "#000000"}
+                    onChange={handleColorChange}
+                    className="w-12 h-8 rounded border-none cursor-pointer"
+                  />
+                  <input
+                    ref={colorInputRef}
+                    type="text"
+                    value={color}
+                    onChange={handleColorChange}
+                    placeholder="#000000"
+                    className="flex-1 bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                  />
+                </div>
+              </div>
+
+              <div
+                id="setting-profile.bot"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.bot"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {botSetting?.title || "Bot"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {botSetting?.description}
+                </p>
+                <input
+                  ref={botInputRef}
+                  type="text"
+                  value={bot}
+                  onChange={handleBotChange}
+                  placeholder={botSetting?.placeholder || "on"}
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="space-y-4 mt-6 pt-6 border-t border-discord-dark-400">
           <h3 className="text-sm font-semibold text-discord-text-normal uppercase">
-            Status Messages
+            {awayMessageSetting?.subcategory || "Status Messages"}
           </h3>
 
-          <div className="space-y-2">
+          <div
+            id="setting-profile.awayMessage"
+            className={`space-y-2 ${
+              highlightedSetting === "profile.awayMessage"
+                ? "bg-yellow-400/20 ring-2 ring-yellow-400 rounded-lg p-4"
+                : ""
+            }`}
+          >
             <label className="block text-discord-text-normal text-sm font-medium">
-              Away Message
+              {awayMessageSetting?.title || "Away Message"}
             </label>
             <p className="text-discord-text-muted text-xs">
-              Default message when marking yourself as away
+              {awayMessageSetting?.description}
             </p>
             <input
               ref={awayMessageInputRef}
               type="text"
               value={awayMessage}
               onChange={handleAwayMessageChange}
-              placeholder="Away from keyboard"
+              placeholder={
+                awayMessageSetting?.placeholder || "Away from keyboard"
+              }
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
           </div>
 
-          <div className="space-y-2">
+          <div
+            id="setting-profile.quitMessage"
+            className={`space-y-2 ${
+              highlightedSetting === "profile.quitMessage"
+                ? "bg-yellow-400/20 ring-2 ring-yellow-400 rounded-lg p-4"
+                : ""
+            }`}
+          >
             <label className="block text-discord-text-normal text-sm font-medium">
-              Quit Message
+              {quitMessageSetting?.title || "Quit Message"}
             </label>
             <p className="text-discord-text-muted text-xs">
-              Message shown when you disconnect from the server
+              {quitMessageSetting?.description}
             </p>
             <input
               ref={quitMessageInputRef}
               type="text"
               value={quitMessage}
               onChange={handleQuitMessageChange}
-              placeholder="ObsidianIRC - Bringing IRC to the future"
+              placeholder={
+                quitMessageSetting?.placeholder ||
+                "ObsidianIRC - Bringing IRC to the future"
+              }
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
           </div>
