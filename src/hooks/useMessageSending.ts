@@ -43,7 +43,7 @@ export function useMessageSending({
   selectedFormatting,
   localReplyTo,
 }: UseMessageSendingOptions): UseMessageSendingReturn {
-  const { globalSettings } = useStore();
+  const { globalSettings, setAway, clearAway } = useStore();
 
   /**
    * Handle IRC commands like /join, /part, /nick, etc.
@@ -85,13 +85,22 @@ export function useMessageSending({
           selectedServerId,
           `PRIVMSG ${selectedChannel?.name || ""} :\u0001ACTION ${actionMessage}\u0001`,
         );
+      } else if (commandName === "away") {
+        const message = args.join(" ");
+        if (message) {
+          setAway(selectedServerId, message);
+        } else {
+          setAway(selectedServerId);
+        }
+      } else if (commandName === "back") {
+        clearAway(selectedServerId);
       } else {
         const fullCommand =
           args.length > 0 ? `${commandName} ${args.join(" ")}` : commandName;
         ircClient.sendRaw(selectedServerId, fullCommand);
       }
     },
-    [selectedServerId, selectedChannel, currentUser],
+    [selectedServerId, selectedChannel, currentUser, setAway, clearAway],
   );
 
   /**

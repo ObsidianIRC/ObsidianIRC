@@ -8,6 +8,7 @@ import {
   FaTimes,
   FaUser,
 } from "react-icons/fa";
+import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import { fuzzyMatch } from "../../lib/fuzzySearch";
 import ircClient from "../../lib/ircClient";
 import { settingsRegistry } from "../../lib/settings";
@@ -48,10 +49,11 @@ const QuickActions: React.FC = () => {
     selectChannel,
     selectPrivateChat,
     selectServer,
-    joinChannel,
     openPrivateChat,
     requestChatInputFocus,
   } = useStore();
+
+  const joinAndSelectChannel = useJoinAndSelectChannel();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -381,13 +383,13 @@ const QuickActions: React.FC = () => {
         case "channel": {
           const channel = result.data as Channel;
           selectServer(result.serverId || null);
-          selectChannel(channel.id);
+          selectChannel(channel.id, { navigate: true });
           break;
         }
         case "dm": {
           const pm = result.data as PrivateChat;
           selectServer(result.serverId || null);
-          selectPrivateChat(pm.id);
+          selectPrivateChat(pm.id, { navigate: true });
           break;
         }
         case "server": {
@@ -399,7 +401,7 @@ const QuickActions: React.FC = () => {
             const channelName = (result.data as { channelName: string })
               .channelName;
             selectServer(result.serverId);
-            joinChannel(result.serverId, channelName);
+            joinAndSelectChannel(result.serverId, channelName);
           }
           break;
         }
@@ -416,7 +418,7 @@ const QuickActions: React.FC = () => {
               (pc) => pc.username === username,
             );
             if (privateChat) {
-              selectPrivateChat(privateChat.id);
+              selectPrivateChat(privateChat.id, { navigate: true });
             }
           }
           break;
@@ -431,7 +433,7 @@ const QuickActions: React.FC = () => {
       selectChannel,
       selectPrivateChat,
       handleClose,
-      joinChannel,
+      joinAndSelectChannel,
       openPrivateChat,
     ],
   );

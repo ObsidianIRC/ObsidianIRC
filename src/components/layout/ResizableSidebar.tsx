@@ -112,9 +112,17 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     >
       {/* Resize handle */}
       <div
-        className={`absolute top-0 w-1 h-full transition-colors group ${handleStyle} ${
+        className={`absolute top-0 w-1 h-full transition-all duration-150 group ${handleStyle} ${
           !isVisible ? "hidden" : ""
-        } hover:shadow-[0_0_5px_rgba(0,0,0,0.4)] ${side === "left" ? "hover:shadow-[4px_0_4px_-1px_rgba(0,0,0,0.3)]" : "hover:shadow-[-4px_0_4px_-1px_rgba(0,0,0,0.3)]"}`}
+        } ${
+          isResizing
+            ? side === "left"
+              ? "shadow-[inset_-3px_0_8px_rgba(0,0,0,0.5)]"
+              : "shadow-[inset_3px_0_8px_rgba(0,0,0,0.5)]"
+            : side === "left"
+              ? "hover:shadow-[inset_-2px_0_6px_rgba(0,0,0,0.35)]"
+              : "hover:shadow-[inset_2px_0_6px_rgba(0,0,0,0.35)]"
+        }`}
         onMouseDown={handleResizeStart}
         data-testid="resize-handle"
       >

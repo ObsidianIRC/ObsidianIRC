@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createIgnorePattern, isUserIgnored } from "../../lib/ignoreUtils";
 import useStore from "../../store";
 import type { ModerationAction } from "./ModerationModal";
@@ -184,7 +185,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   const adjustedX = Math.min(x, window.innerWidth - 200);
   const adjustedY = Math.min(y, window.innerHeight - menuHeight - 10); // Leave 10px margin from bottom
 
-  return (
+  const menuContent = (
     <div
       ref={menuRef}
       className="fixed z-[100000] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl w-[200px] max-h-[400px] overflow-y-auto"
@@ -394,6 +395,8 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(menuContent, document.body);
 };
 
 export default UserContextMenu;

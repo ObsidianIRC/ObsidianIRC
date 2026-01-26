@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import type {
   BaseIRCEvent,
   BaseMessageEvent,
@@ -18,6 +18,17 @@ import {
   parseNamesResponse,
 } from "./ircUtils";
 import { createSocket, type ISocket } from "./socket";
+
+// Namespace UUID for generating deterministic channel/chat IDs
+const CHANNEL_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+
+/**
+ * Generate a deterministic UUID for a channel or private chat
+ * based on the server ID and channel/chat name
+ */
+function generateDeterministicId(serverId: string, name: string): string {
+  return uuidv5(`${serverId}:${name}`, CHANNEL_NAMESPACE);
+}
 
 export interface EventMap {
   ready: BaseIRCEvent & { serverName: string; nickname: string };
@@ -471,6 +482,14 @@ export class IRCClient {
         protocol = parsed.scheme;
         actualHost = parsed.host;
         actualPort = parsed.port;
+      } else if (host.startsWith("ws://") || host.startsWith("wss://")) {
+        // Parse ws/wss URLs
+        const urlMatch = host.match(/^(wss?):\/\/([^:]+)(?::(\d+))?/);
+        if (urlMatch) {
+          protocol = urlMatch[1] as "ws" | "wss";
+          actualHost = urlMatch[2];
+          actualPort = urlMatch[3] ? Number.parseInt(urlMatch[3], 10) : port;
+        }
       }
 
       const url = `${protocol}://${actualHost}:${actualPort}`;
@@ -566,12 +585,13 @@ export class IRCClient {
         // to ensure connection is fully established before sending PINGs
 
         socket.onclose = () => {
-          console.log(`WebSocket onclose for server ${actualHost}`);
-          // Stop WebSocket ping timers
+          if (!this.servers.has(server.id)) {
+            return;
+          }
+
           this.stopWebSocketPing(server.id);
           this.sockets.delete(server.id);
           server.isConnected = false;
-          // Only start reconnection if not already reconnecting (e.g., from ERROR handler)
           const wasReconnecting = server.connectionState === "reconnecting";
           server.connectionState = "disconnected";
           this.triggerEvent("connectionStateChange", {
@@ -579,7 +599,6 @@ export class IRCClient {
             connectionState: "disconnected",
           });
           this.pendingConnections.delete(connectionKey);
-          // Start reconnection logic only if not already reconnecting
           if (!wasReconnecting) {
             this.startReconnection(
               server.id,
@@ -627,10 +646,11 @@ export class IRCClient {
     return connectionPromise;
   }
 
-  disconnect(serverId: string): void {
+  disconnect(serverId: string, quitMessage?: string): void {
     const socket = this.sockets.get(serverId);
     if (socket) {
-      socket.send("QUIT :ObsidianIRC - Bringing IRC into the future");
+      const message = quitMessage || "ObsidianIRC - Bringing IRC to the future";
+      socket.send(`QUIT :${message}`);
       socket.close();
       this.sockets.delete(serverId);
     }
@@ -654,6 +674,15 @@ export class IRCClient {
     }
     // Stop WebSocket ping timers
     this.stopWebSocketPing(serverId);
+  }
+
+  removeServer(serverId: string): void {
+    this.disconnect(serverId);
+    this.servers.delete(serverId);
+    this.capNegotiationComplete.delete(serverId);
+    this.pendingCapReqs.delete(serverId);
+    this.capLsAccumulated.delete(serverId);
+    this.saslMechanisms.delete(serverId);
   }
 
   private startReconnection(
@@ -841,7 +870,7 @@ export class IRCClient {
       }
 
       const channel: Channel = {
-        id: uuidv4(),
+        id: generateDeterministicId(serverId, channelName),
         name: channelName,
         topic: "",
         isPrivate: false,
@@ -1190,6 +1219,14 @@ export class IRCClient {
 
   monitorStatus(serverId: string): void {
     this.sendRaw(serverId, "MONITOR S");
+  }
+
+  setAway(serverId: string, message: string): void {
+    this.sendRaw(serverId, `AWAY :${message}`);
+  }
+
+  clearAway(serverId: string): void {
+    this.sendRaw(serverId, "AWAY");
   }
 
   markChannelAsRead(serverId: string, channelId: string): void {

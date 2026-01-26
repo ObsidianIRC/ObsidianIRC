@@ -160,7 +160,6 @@ export function useReactions({
       currentUser,
       findServerAndTarget,
       closeReactionModal,
-      set,
     ],
   );
 
@@ -211,7 +210,7 @@ export function useReactions({
         });
       }
     },
-    [selectedServerId, findServerAndTarget, currentUser, set],
+    [selectedServerId, findServerAndTarget, currentUser],
   );
 
   /**
@@ -256,7 +255,7 @@ export function useReactions({
         });
       }
     },
-    [selectedServerId, findServerAndTarget, currentUser, set],
+    [selectedServerId, findServerAndTarget, currentUser],
   );
 
   return {

@@ -14,6 +14,7 @@ import ChannelListModal from "./components/ui/ChannelListModal";
 import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
+import LoadingOverlay from "./components/ui/LoadingOverlay";
 import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
@@ -95,6 +96,7 @@ const App: React.FC = () => {
     toggleServerNoticesPopup,
     clearProfileViewRequest,
     messages,
+    isConnecting,
   } = useStore();
 
   // Local state for User Profile modal
@@ -245,6 +247,7 @@ const App: React.FC = () => {
                   joinChannel={joinChannel}
                 />
               )}
+              {isConnecting && <LoadingOverlay />}
             </>
           }
         />

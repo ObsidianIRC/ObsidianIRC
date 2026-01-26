@@ -57,7 +57,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
       (pc) => pc.username === username,
     );
     if (privateChat) {
-      selectPrivateChat(privateChat.id);
+      selectPrivateChat(privateChat.id, { navigate: true });
     }
     setSearchTerm("");
     onClose();
