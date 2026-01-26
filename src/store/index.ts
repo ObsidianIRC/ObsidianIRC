@@ -3060,14 +3060,16 @@ ircClient.on("CHANMSG", (response) => {
       // If message has bot tag, mark user as bot
       if (mtags?.bot !== undefined) {
         useStore.setState((state) => {
+          let hasChanges = false;
           const updatedServers = state.servers.map((s) => {
             if (s.id === server.id) {
               const updatedChannels = s.channels.map((channel) => {
                 const updatedUsers = channel.users.map((user) => {
-                  if (user.username === response.sender) {
+                  if (user.username === response.sender && !user.isBot) {
+                    hasChanges = true;
                     return {
                       ...user,
-                      isBot: true, // Set bot flag from message tags
+                      isBot: true,
                       metadata: {
                         ...user.metadata,
                         bot: { value: "true", visibility: "public" },
@@ -3076,17 +3078,84 @@ ircClient.on("CHANMSG", (response) => {
                   }
                   return user;
                 });
-                return { ...channel, users: updatedUsers };
+                if (updatedUsers !== channel.users) {
+                  return { ...channel, users: updatedUsers };
+                }
+                return channel;
               });
-              return { ...s, channels: updatedChannels };
+              if (updatedChannels !== s.channels) {
+                return { ...s, channels: updatedChannels };
+              }
             }
             return s;
           });
-          return { servers: updatedServers };
+          return hasChanges ? { servers: updatedServers } : {};
         });
       }
 
-      useStore.getState().addMessage(newMessage);
+      // Combine message addition, message ID tracking, and typing user removal into single state update
+      useStore.setState((state) => {
+        const channelKey = `${newMessage.serverId}-${newMessage.channelId}`;
+        const currentMessages = state.messages[channelKey] || [];
+
+        // Check for duplicate messages
+        const isDuplicate = currentMessages.some((existingMessage) => {
+          return (
+            existingMessage.id === newMessage.id ||
+            (existingMessage.content === newMessage.content &&
+              existingMessage.timestamp === newMessage.timestamp &&
+              existingMessage.userId === newMessage.userId)
+          );
+        });
+
+        if (isDuplicate) {
+          return state;
+        }
+
+        // Add message and sort chronologically
+        const updatedMessages = [...currentMessages, newMessage].sort(
+          (a, b) => {
+            const timeA =
+              a.timestamp instanceof Date
+                ? a.timestamp.getTime()
+                : new Date(a.timestamp).getTime();
+            const timeB =
+              b.timestamp instanceof Date
+                ? b.timestamp.getTime()
+                : new Date(b.timestamp).getTime();
+            return timeA - timeB;
+          },
+        );
+
+        // Remove typing user
+        const typingKey = `${server.id}-${channel.id}`;
+        const currentTypingUsers = state.typingUsers[typingKey] || [];
+        const updatedTypingUsers = currentTypingUsers.filter(
+          (u) => u.username !== response.sender,
+        );
+
+        // Build combined state update
+        const newState: Partial<AppState> = {
+          messages: {
+            ...state.messages,
+            [channelKey]: updatedMessages,
+          },
+          typingUsers: {
+            ...state.typingUsers,
+            [typingKey]: updatedTypingUsers,
+          },
+        };
+
+        // Add processed message ID if present
+        if (mtags?.msgid) {
+          newState.processedMessageIds = new Set([
+            ...state.processedMessageIds,
+            mtags.msgid,
+          ]);
+        }
+
+        return newState;
+      });
 
       // Play notification sound if appropriate (but not for historical messages)
       if (!isHistoricalMessage) {
@@ -3102,28 +3171,6 @@ ircClient.on("CHANMSG", (response) => {
           playNotificationSound(state.globalSettings);
         }
       }
-
-      // Mark this message ID as processed to prevent duplicates
-      if (mtags?.msgid) {
-        useStore.setState((state) => ({
-          processedMessageIds: new Set([
-            ...state.processedMessageIds,
-            mtags.msgid,
-          ]),
-        }));
-      }
-
-      // Remove any typing users from the state
-      useStore.setState((state) => {
-        const key = `${server.id}-${channel.id}`;
-        const currentUsers = state.typingUsers[key] || [];
-        return {
-          typingUsers: {
-            ...state.typingUsers,
-            [key]: currentUsers.filter((u) => u.username !== response.sender),
-          },
-        };
-      });
     }
   }
 });
@@ -6887,6 +6934,8 @@ ircClient.on(
         // If server has the key but no value, and we have a local value, we'll send ours later
       }
 
+      let hasChanges = false;
+
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
           // Update metadata for users in channels
@@ -6899,18 +6948,32 @@ ircClient.on(
 
             const updatedUsers = channel.users.map((user) => {
               if (user.username === resolvedTarget) {
-                const metadata = { ...(user.metadata || {}) };
-                // Only update metadata if value is present (not empty/null)
+                const existingValue = user.metadata?.[key]?.value;
+                const existingVisibility = user.metadata?.[key]?.visibility;
+
+                // Check if value actually changed
                 if (value !== null && value !== undefined && value !== "") {
-                  metadata[key] = { value, visibility };
+                  if (
+                    existingValue !== value ||
+                    existingVisibility !== visibility
+                  ) {
+                    hasChanges = true;
+                    const metadata = { ...(user.metadata || {}) };
+                    metadata[key] = { value, visibility };
+                    return { ...user, metadata };
+                  }
                 } else {
-                  // If server sends empty/null, remove the key (it's not set on server)
-                  // But only if we're not in fetch mode - during fetch, keep local values
-                  if (!isFetchingOwn || target !== "*") {
+                  // Deleting key
+                  if (
+                    (!isFetchingOwn || target !== "*") &&
+                    existingValue !== undefined
+                  ) {
+                    hasChanges = true;
+                    const metadata = { ...(user.metadata || {}) };
                     delete metadata[key];
+                    return { ...user, metadata };
                   }
                 }
-                return { ...user, metadata };
               }
               return user;
             });
@@ -6918,13 +6981,33 @@ ircClient.on(
             // Update metadata for the channel itself if target matches channel name
             let updatedChannelMetadata = channel.metadata || {};
             if (resolvedTarget === channel.name) {
-              // Only update THIS channel's metadata if the target matches exactly
-              updatedChannelMetadata = { ...updatedChannelMetadata };
+              const existingValue = updatedChannelMetadata[key]?.value;
+              const existingVisibility =
+                updatedChannelMetadata[key]?.visibility;
+
               if (value !== null && value !== undefined && value !== "") {
-                updatedChannelMetadata[key] = { value, visibility };
+                if (
+                  existingValue !== value ||
+                  existingVisibility !== visibility
+                ) {
+                  hasChanges = true;
+                  updatedChannelMetadata = { ...updatedChannelMetadata };
+                  updatedChannelMetadata[key] = { value, visibility };
+                }
               } else {
-                delete updatedChannelMetadata[key];
+                if (existingValue !== undefined) {
+                  hasChanges = true;
+                  updatedChannelMetadata = { ...updatedChannelMetadata };
+                  delete updatedChannelMetadata[key];
+                }
               }
+            }
+
+            if (
+              updatedUsers === channel.users &&
+              updatedChannelMetadata === channel.metadata
+            ) {
+              return channel;
             }
 
             return {
@@ -6933,6 +7016,10 @@ ircClient.on(
               metadata: updatedChannelMetadata,
             };
           });
+
+          if (updatedChannels === server.channels) {
+            return server;
+          }
 
           return {
             ...server,
@@ -6945,25 +7032,38 @@ ircClient.on(
       // Update current user metadata
       let updatedCurrentUser = state.currentUser;
       if (state.currentUser?.username === resolvedTarget) {
-        const metadata = { ...(state.currentUser.metadata || {}) };
-        // Only update metadata if value is present (not empty/null)
+        const existingValue = state.currentUser.metadata?.[key]?.value;
+        const existingVisibility =
+          state.currentUser.metadata?.[key]?.visibility;
+
         if (value !== null && value !== undefined && value !== "") {
-          metadata[key] = { value, visibility };
+          if (existingValue !== value || existingVisibility !== visibility) {
+            hasChanges = true;
+            const metadata = { ...(state.currentUser.metadata || {}) };
+            metadata[key] = { value, visibility };
+            updatedCurrentUser = { ...state.currentUser, metadata };
+            console.log(
+              `[METADATA_KEYVALUE] Updated current user ${resolvedTarget} with ${key}=${value}`,
+            );
+          }
         } else {
-          // If server sends empty/null, remove the key (it's not set on server)
-          // But only if we're not in fetch mode - during fetch, keep local values
-          if (!isFetchingOwn || target !== "*") {
+          if (
+            (!isFetchingOwn || target !== "*") &&
+            existingValue !== undefined
+          ) {
+            hasChanges = true;
+            const metadata = { ...(state.currentUser.metadata || {}) };
             delete metadata[key];
+            updatedCurrentUser = { ...state.currentUser, metadata };
+            console.log(
+              `[METADATA_KEYVALUE] Removed key ${key} from current user ${resolvedTarget}`,
+            );
           }
         }
-        updatedCurrentUser = { ...state.currentUser, metadata };
-        console.log(
-          `[METADATA_KEYVALUE] Updated current user ${resolvedTarget} with ${key}=${value}`,
-        );
       }
 
       // Save metadata to localStorage (unless we're in fetch mode - already saved above)
-      if (!isFetchingOwn || target !== "*") {
+      if (hasChanges && (!isFetchingOwn || target !== "*")) {
         const savedMetadata = loadSavedMetadata();
         if (!savedMetadata[serverId]) {
           savedMetadata[serverId] = {};
@@ -7010,7 +7110,9 @@ ircClient.on(
               ...state.channelMetadataFetchQueue,
               [serverId]: newQueue,
             },
-            metadataChangeCounter: state.metadataChangeCounter + 1,
+            ...(hasChanges && {
+              metadataChangeCounter: state.metadataChangeCounter + 1,
+            }),
           };
         }
 
@@ -7018,14 +7120,27 @@ ircClient.on(
           servers: updatedServers,
           currentUser: updatedCurrentUser,
           channelMetadataCache: updatedCache,
-          metadataChangeCounter: state.metadataChangeCounter + 1,
+          ...(hasChanges && {
+            metadataChangeCounter: state.metadataChangeCounter + 1,
+          }),
         };
+      }
+
+      // Only return new state if something actually changed
+      if (
+        !hasChanges &&
+        updatedServers === state.servers &&
+        updatedCurrentUser === state.currentUser
+      ) {
+        return {};
       }
 
       return {
         servers: updatedServers,
         currentUser: updatedCurrentUser,
-        metadataChangeCounter: state.metadataChangeCounter + 1,
+        ...(hasChanges && {
+          metadataChangeCounter: state.metadataChangeCounter + 1,
+        }),
       };
     });
   },
@@ -7128,13 +7243,16 @@ ircClient.on("METADATA_SUBS", ({ serverId, keys }) => {
 });
 
 ircClient.on("BATCH_START", ({ serverId, batchId, type }) => {
-  // Start a batch
-  useStore.setState((state) => ({
-    metadataBatches: {
-      ...state.metadataBatches,
-      [batchId]: { type, messages: [] },
-    },
-  }));
+  const state = useStore.getState();
+
+  if (!state.metadataBatches[batchId]) {
+    useStore.setState((state) => ({
+      metadataBatches: {
+        ...state.metadataBatches,
+        [batchId]: { type, messages: [] },
+      },
+    }));
+  }
 });
 
 ircClient.on("BATCH_END", ({ serverId, batchId }) => {
@@ -7854,6 +7972,14 @@ ircClient.on(
             return ch;
           });
 
+          // Only return new server object if something actually changed
+          if (
+            updatedPrivateChats === s.privateChats &&
+            updatedChannels === s.channels
+          ) {
+            return s;
+          }
+
           return {
             ...s,
             privateChats: updatedPrivateChats,
@@ -7894,17 +8020,18 @@ ircClient.on(
 ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
   // Update user objects in channels
   useStore.setState((state) => {
+    let hasChanges = false;
     const updatedServers = state.servers.map((s) => {
       if (s.id === serverId) {
         const updatedChannels = s.channels.map((channel) => {
           const updatedUsers = channel.users.map((user) => {
-            if (user.username === target) {
+            if (user.username === target && !user.isBot) {
+              hasChanges = true;
               return {
                 ...user,
-                isBot: true, // Set the WHOIS-detected bot flag
+                isBot: true,
                 metadata: {
                   ...user.metadata,
-                  // Keep bot metadata if it exists, but don't require it for display
                   bot: user.metadata?.bot || {
                     value: "true",
                     visibility: "public",
@@ -7914,12 +8041,22 @@ ircClient.on("WHOIS_BOT", ({ serverId, target }) => {
             }
             return user;
           });
-          return { ...channel, users: updatedUsers };
+          if (updatedUsers !== channel.users) {
+            return { ...channel, users: updatedUsers };
+          }
+          return channel;
         });
-        return { ...s, channels: updatedChannels };
+        if (updatedChannels !== s.channels) {
+          return { ...s, channels: updatedChannels };
+        }
       }
       return s;
     });
+
+    if (!hasChanges || updatedServers === state.servers) {
+      return {};
+    }
+
     return { servers: updatedServers };
   });
 });
@@ -7929,33 +8066,66 @@ ircClient.on("AWAY", ({ serverId, username, awayMessage }) => {
   useStore.setState((state) => {
     const updatedServers = state.servers.map((s) => {
       if (s.id === serverId) {
-        // Update user in all channels they're in
         const updatedChannels = s.channels.map((channel) => {
           const updatedUsers = channel.users.map((user) => {
             if (user.username === username) {
+              const newIsAway = !!awayMessage;
+              const newAwayMessage = awayMessage || undefined;
+
+              if (
+                user.isAway === newIsAway &&
+                user.awayMessage === newAwayMessage
+              ) {
+                return user;
+              }
+
               return {
                 ...user,
-                isAway: !!awayMessage,
-                awayMessage: awayMessage || undefined,
+                isAway: newIsAway,
+                awayMessage: newAwayMessage,
               };
             }
             return user;
           });
+
+          if (updatedUsers === channel.users) {
+            return channel;
+          }
+
           return { ...channel, users: updatedUsers };
         });
+
+        if (updatedChannels === s.channels) {
+          return s;
+        }
+
         return { ...s, channels: updatedChannels };
       }
       return s;
     });
 
-    // Update current user if this is us
     let updatedCurrentUser = state.currentUser;
     if (state.currentUser?.username === username) {
-      updatedCurrentUser = {
-        ...state.currentUser,
-        isAway: !!awayMessage,
-        awayMessage: awayMessage || undefined,
-      };
+      const newIsAway = !!awayMessage;
+      const newAwayMessage = awayMessage || undefined;
+
+      if (
+        state.currentUser.isAway !== newIsAway ||
+        state.currentUser.awayMessage !== newAwayMessage
+      ) {
+        updatedCurrentUser = {
+          ...state.currentUser,
+          isAway: newIsAway,
+          awayMessage: newAwayMessage,
+        };
+      }
+    }
+
+    if (
+      updatedServers === state.servers &&
+      updatedCurrentUser === state.currentUser
+    ) {
+      return {};
     }
 
     return { servers: updatedServers, currentUser: updatedCurrentUser };
@@ -7967,10 +8137,9 @@ ircClient.on("CHGHOST", ({ serverId, username, newUser, newHost }) => {
   useStore.setState((state) => {
     const updatedServers = state.servers.map((s) => {
       if (s.id === serverId) {
-        // Update user in all channels they're in
         const updatedChannels = s.channels.map((channel) => {
           const updatedUsers = channel.users.map((user) => {
-            if (user.username === username) {
+            if (user.username === username && user.hostname !== newHost) {
               return {
                 ...user,
                 hostname: newHost,
@@ -7978,12 +8147,16 @@ ircClient.on("CHGHOST", ({ serverId, username, newUser, newHost }) => {
             }
             return user;
           });
+
+          if (updatedUsers === channel.users) {
+            return channel;
+          }
+
           return { ...channel, users: updatedUsers };
         });
 
-        // Update user in server-level users list if present
         const updatedServerUsers = s.users.map((user) => {
-          if (user.username === username) {
+          if (user.username === username && user.hostname !== newHost) {
             return {
               ...user,
               hostname: newHost,
@@ -7992,18 +8165,31 @@ ircClient.on("CHGHOST", ({ serverId, username, newUser, newHost }) => {
           return user;
         });
 
+        if (updatedChannels === s.channels && updatedServerUsers === s.users) {
+          return s;
+        }
+
         return { ...s, channels: updatedChannels, users: updatedServerUsers };
       }
       return s;
     });
 
-    // Update current user if this is us
     let updatedCurrentUser = state.currentUser;
-    if (state.currentUser?.username === username) {
+    if (
+      state.currentUser?.username === username &&
+      state.currentUser.hostname !== newHost
+    ) {
       updatedCurrentUser = {
         ...state.currentUser,
         hostname: newHost,
       };
+    }
+
+    if (
+      updatedServers === state.servers &&
+      updatedCurrentUser === state.currentUser
+    ) {
+      return {};
     }
 
     return { servers: updatedServers, currentUser: updatedCurrentUser };
