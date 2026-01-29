@@ -102,6 +102,7 @@ describe("AppLayout Swipe Navigation", () => {
             selectedPrivateChatId: null,
           },
         },
+        isNarrowView: true, // Mobile view test
         isMemberListVisible: false,
         isChannelListVisible: true,
         isAddServerModalOpen: false,

@@ -361,6 +361,7 @@ interface UIState {
   isQuickActionsOpen: boolean;
   isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
+  isNarrowView: boolean;
   isMobileMenuOpen: boolean;
   isMemberListVisible: boolean;
   isChannelListVisible: boolean;
@@ -657,6 +658,7 @@ export interface AppState {
   toggleChannelListModal: (isOpen?: boolean) => void;
   toggleChannelRenameModal: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
+  setIsNarrowView: (isNarrow: boolean) => void;
   showContextMenu: (
     x: number,
     y: number,
@@ -774,7 +776,11 @@ const useStore = create<AppState>((set, get) => ({
     isSettingsModalOpen: false,
     isQuickActionsOpen: false,
     isUserProfileModalOpen: false,
-    isDarkMode: true, // Discord-like default is dark mode
+    isDarkMode: true,
+    isNarrowView:
+      typeof window !== "undefined"
+        ? window.matchMedia(NARROW_VIEW_QUERY).matches
+        : false,
     isMobileMenuOpen: false,
     isMemberListVisible: true,
     isChannelListVisible: true,
@@ -1428,16 +1434,15 @@ const useStore = create<AppState>((set, get) => ({
       // Find the server
       const server = state.servers.find((s) => s.id === serverId);
 
-      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       const serverSelection = getServerSelection(state, serverId);
       let selectedChannelId = serverSelection.selectedChannelId;
       let selectedPrivateChatId = serverSelection.selectedPrivateChatId;
 
       // Only clear selection on mobile if explicitly requested (user-initiated server switch)
-      if (isNarrowView && options?.clearSelection) {
+      if (state.ui.isNarrowView && options?.clearSelection) {
         selectedChannelId = null;
         selectedPrivateChatId = null;
-      } else if (!isNarrowView && server) {
+      } else if (!state.ui.isNarrowView && server) {
         // On desktop, restore previous selection or select first channel
         const channelExists =
           selectedChannelId &&
@@ -1481,7 +1486,6 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => {
       // Special case for server notices
       if (channelId === "server-notices") {
-        const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
         return {
           ui: {
             ...state.ui,
@@ -1495,7 +1499,7 @@ const useStore = create<AppState>((set, get) => ({
             ),
             isMobileMenuOpen: false,
             mobileViewActiveColumn:
-              isNarrowView && options?.navigate
+              state.ui.isNarrowView && options?.navigate
                 ? "chatView"
                 : state.ui.mobileViewActiveColumn,
           },
@@ -1541,8 +1545,6 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
-        const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
-
         return {
           servers: updatedServers,
           ui: {
@@ -1554,14 +1556,13 @@ const useStore = create<AppState>((set, get) => ({
             }),
             isMobileMenuOpen: false,
             mobileViewActiveColumn:
-              isNarrowView && options?.navigate
+              state.ui.isNarrowView && options?.navigate
                 ? "chatView"
                 : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
-      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       const currentServerId = state.ui.selectedServerId || "";
 
       return {
@@ -1573,7 +1574,7 @@ const useStore = create<AppState>((set, get) => ({
           }),
           isMobileMenuOpen: false,
           mobileViewActiveColumn:
-            isNarrowView && options?.navigate
+            state.ui.isNarrowView && options?.navigate
               ? "chatView"
               : state.ui.mobileViewActiveColumn,
         },
@@ -1709,8 +1710,6 @@ const useStore = create<AppState>((set, get) => ({
           return server;
         });
 
-        const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
-
         return {
           servers: updatedServers,
           ui: {
@@ -1722,14 +1721,13 @@ const useStore = create<AppState>((set, get) => ({
             }),
             isMobileMenuOpen: false,
             mobileViewActiveColumn:
-              isNarrowView && options?.navigate
+              state.ui.isNarrowView && options?.navigate
                 ? "chatView"
                 : state.ui.mobileViewActiveColumn,
           },
         };
       }
 
-      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
       const currentServerId = state.ui.selectedServerId || "";
 
       return {
@@ -1741,7 +1739,7 @@ const useStore = create<AppState>((set, get) => ({
           }),
           isMobileMenuOpen: false,
           mobileViewActiveColumn:
-            isNarrowView && options?.navigate
+            state.ui.isNarrowView && options?.navigate
               ? "chatView"
               : state.ui.mobileViewActiveColumn,
         },
@@ -2428,13 +2426,11 @@ const useStore = create<AppState>((set, get) => ({
       const openState =
         isOpen !== undefined ? isOpen : !state.ui.isMemberListVisible;
 
-      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
-
       return {
         ui: {
           ...state.ui,
           isMemberListVisible: openState,
-          mobileViewActiveColumn: isNarrowView
+          mobileViewActiveColumn: state.ui.isNarrowView
             ? openState
               ? "memberList"
               : state.ui.mobileViewActiveColumn === "memberList"
@@ -2451,17 +2447,10 @@ const useStore = create<AppState>((set, get) => ({
       const openState =
         isOpen !== undefined ? isOpen : !state.ui.isChannelListVisible;
 
-      // Only update mobileViewActiveColumn if actually in narrow view
-      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
-
       return {
         ui: {
           ...state.ui,
           isChannelListVisible: openState,
-          mobileViewActiveColumn:
-            isNarrowView && openState
-              ? "serverList"
-              : state.ui.mobileViewActiveColumn, // Don't change on desktop
         },
       };
     });
@@ -2495,6 +2484,47 @@ const useStore = create<AppState>((set, get) => ({
           isOpen !== undefined ? isOpen : !state.ui.isServerMenuOpen,
       },
     }));
+  },
+
+  setIsNarrowView: (isNarrow: boolean) => {
+    set((state) => {
+      if (state.ui.isNarrowView === isNarrow) return state;
+
+      if (isNarrow) {
+        const isResizingFromDesktop = !state.ui.isNarrowView;
+        const shouldShowChat =
+          isResizingFromDesktop &&
+          state.ui.selectedServerId &&
+          state.ui.mobileViewActiveColumn === "serverList";
+
+        const activeColumn = shouldShowChat
+          ? "chatView"
+          : state.ui.mobileViewActiveColumn || "serverList";
+
+        return {
+          ui: {
+            ...state.ui,
+            isNarrowView: true,
+            isChannelListVisible: false,
+            isMemberListVisible: false,
+            mobileViewActiveColumn: activeColumn,
+          },
+        };
+      }
+
+      return {
+        ui: {
+          ...state.ui,
+          isNarrowView:
+            typeof window !== "undefined"
+              ? window.matchMedia(NARROW_VIEW_QUERY).matches
+              : false,
+          isChannelListVisible: true,
+          isMemberListVisible: !window.matchMedia("(max-width: 1080px)")
+            .matches,
+        },
+      };
+    });
   },
 
   showContextMenu: (x, y, type, itemId) => {
@@ -2543,7 +2573,7 @@ const useStore = create<AppState>((set, get) => ({
     );
     set((state) => {
       // Only execute in narrow view
-      const isNarrowView = window.matchMedia(NARROW_VIEW_QUERY).matches;
+      const isNarrowView = state.ui.isNarrowView;
       console.log("[SET_MOBILE_VIEW] isNarrowView:", isNarrowView);
       if (!isNarrowView) return state;
 

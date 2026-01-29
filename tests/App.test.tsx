@@ -34,6 +34,7 @@ const mockStoreState = {
   ui: {
     selectedServerId: null,
     perServerSelections: {},
+    isNarrowView: false,
     isAddServerModalOpen: false,
     isEditServerModalOpen: false,
     editServerId: null,
@@ -69,6 +70,7 @@ const mockStoreState = {
   toggleChannelList: vi.fn(),
   connectToSavedServers: vi.fn(),
   toggleMemberList: vi.fn(),
+  setIsNarrowView: vi.fn(),
   toggleAddServerModal: vi.fn((open?: boolean) => {
     mockStoreState.ui.isAddServerModalOpen =
       open ?? !mockStoreState.ui.isAddServerModalOpen;

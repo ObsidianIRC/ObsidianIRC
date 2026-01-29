@@ -131,6 +131,7 @@ describe("Metadata Display Features", () => {
             selectedPrivateChatId: null,
           },
         },
+        isNarrowView: false,
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,

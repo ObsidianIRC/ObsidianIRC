@@ -24,6 +24,7 @@ export const AppLayout: React.FC = () => {
     toggleMemberList,
     toggleChannelList,
     setMobileViewActiveColumn,
+    setIsNarrowView,
   } = useStore();
 
   const selectedServerId = ui.selectedServerId;
@@ -73,8 +74,9 @@ export const AppLayout: React.FC = () => {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [isMobileMenuOpen, toggleMobileMenu]);
 
-  const isNarrowView = useMediaQuery();
+  const isNarrowViewFromHook = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
+  const isNarrowView = ui.isNarrowView;
 
   const currentPageIndex = getPageIndex(mobileViewActiveColumn);
   const totalPages = selectedServerId ? 3 : 2;
@@ -142,7 +144,13 @@ export const AppLayout: React.FC = () => {
           >
             <ChatArea
               isChanListVisible={isChannelListVisible}
-              onToggleChanList={() => toggleChannelList(!isChannelListVisible)}
+              onToggleChanList={() => {
+                if (isNarrowView) {
+                  setMobileViewActiveColumn("serverList");
+                } else {
+                  toggleChannelList(!isChannelListVisible);
+                }
+              }}
             />
           </div>
         );
@@ -172,48 +180,36 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  // Sync mobile/desktop view states
+  // Sync media query hook to store
   useEffect(() => {
-    if (!isNarrowView) {
-      // Desktop: auto-hide member list only if too narrow
-      if (isTooNarrowForMemberList && isMemberListVisible) {
-        toggleMemberList(false);
-      }
-      // Ensure channel list is visible on desktop
-      if (!isChannelListVisible) {
-        toggleChannelList(true);
-      }
-      return;
-    }
+    setIsNarrowView(isNarrowViewFromHook);
+  }, [isNarrowViewFromHook, setIsNarrowView]);
 
-    // Mobile: sync toggles with mobileViewActiveColumn
-    switch (mobileViewActiveColumn) {
-      case "serverList":
-        if (!isChannelListVisible) toggleChannelList(true);
-        if (isMemberListVisible) toggleMemberList(false);
-        break;
-      case "chatView":
-        if (isChannelListVisible) toggleChannelList(false);
-        if (isMemberListVisible) toggleMemberList(false);
-        break;
-      case "memberList":
-        if (isChannelListVisible) toggleChannelList(false);
-        if (!isMemberListVisible) toggleMemberList(true);
-        break;
+  // Auto-hide member list on desktop if too narrow
+  useEffect(() => {
+    if (!isNarrowView && isTooNarrowForMemberList && isMemberListVisible) {
+      toggleMemberList(false);
     }
   }, [
     isNarrowView,
     isTooNarrowForMemberList,
-    mobileViewActiveColumn,
-    isChannelListVisible,
     isMemberListVisible,
-    toggleChannelList,
     toggleMemberList,
   ]);
 
   const getLayoutColumn = (column: layoutColumn) => {
-    // On mobile, only show the active column
-    if (isNarrowView && column !== mobileViewActiveColumn) return null;
+    // Desktop: use explicit visibility flags
+    if (!isNarrowView) {
+      if (column === "serverList") return getLayoutColumnElement("serverList");
+      if (column === "chatView") return getLayoutColumnElement("chatView");
+      if (column === "memberList" && shouldShowMemberList) {
+        return getLayoutColumnElement("memberList");
+      }
+      return null;
+    }
+
+    // Mobile: only show active column
+    if (column !== mobileViewActiveColumn) return null;
     return getLayoutColumnElement(column);
   };
 

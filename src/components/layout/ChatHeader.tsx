@@ -283,7 +283,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <div className="min-h-[56px] px-4 border-b border-discord-dark-400 flex flex-wrap items-start md:items-center justify-between shadow-sm py-2 md:py-0 md:h-12 gap-y-2">
       <div className="flex items-center flex-1 min-w-0 w-full md:w-auto">
-        {!isChanListVisible && (
+        {(isNarrowView || !isChanListVisible) && (
           <button
             onClick={onToggleChanList}
             className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
