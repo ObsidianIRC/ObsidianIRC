@@ -2,6 +2,7 @@ import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
 import { useEffect } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
 import useStore from "../../store";
 import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
@@ -11,6 +12,11 @@ import { MemberList } from "./MemberList";
 import { ResizableSidebar } from "./ResizableSidebar";
 import { ServerList } from "./ServerList";
 
+const PAGE_ORDER: layoutColumn[] = ["serverList", "chatView", "memberList"];
+const getPageIndex = (column: layoutColumn): number =>
+  PAGE_ORDER.indexOf(column);
+const getColumnFromPage = (page: number): layoutColumn => PAGE_ORDER[page];
+
 export const AppLayout: React.FC = () => {
   const {
     ui,
@@ -18,6 +24,7 @@ export const AppLayout: React.FC = () => {
     toggleMemberList,
     toggleChannelList,
     setMobileViewActiveColumn,
+    setIsNarrowView,
   } = useStore();
 
   const selectedServerId = ui.selectedServerId;
@@ -67,30 +74,54 @@ export const AppLayout: React.FC = () => {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [isMobileMenuOpen, toggleMobileMenu]);
 
-  const isNarrowView = useMediaQuery();
+  const isNarrowViewFromHook = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
+  const isNarrowView = ui.isNarrowView;
+
+  const currentPageIndex = getPageIndex(mobileViewActiveColumn);
+  const totalPages = selectedServerId ? 3 : 2;
+
+  const {
+    containerRef,
+    offset,
+    isTransitioning,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+  } = useSwipeNavigation({
+    currentPage: currentPageIndex,
+    totalPages,
+    onPageChange: (page) => setMobileViewActiveColumn(getColumnFromPage(page)),
+  });
 
   const getLayoutColumnElement = (column: layoutColumn) => {
     switch (column) {
       case "serverList":
+        if (isNarrowView) {
+          return (
+            <div className="flex w-full h-full">
+              {__HIDE_SERVER_LIST__ ? null : (
+                <div className="w-[72px] flex-shrink-0 h-full bg-discord-dark-300">
+                  <ServerList />
+                </div>
+              )}
+              <div className="w-[calc(100vw-72px)] h-full bg-discord-dark-100">
+                <ChannelList
+                  onToggle={() => toggleChannelList(!isChannelListVisible)}
+                />
+              </div>
+            </div>
+          );
+        }
         return (
           <>
             {__HIDE_SERVER_LIST__ ? null : (
-              <div
-                className={`server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 ${
-                  isNarrowView && mobileViewActiveColumn === "serverList"
-                    ? "w-[72px]"
-                    : isNarrowView
-                      ? "w-0"
-                      : "w-[72px]"
-                }`}
-              >
+              <div className="server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 w-[72px]">
                 <ServerList />
               </div>
             )}
-
             <ResizableSidebar
-              bypass={isNarrowView && mobileViewActiveColumn === "serverList"}
+              bypass={false}
               isVisible={isChannelListVisible}
               defaultWidth={264}
               minWidth={80}
@@ -98,13 +129,9 @@ export const AppLayout: React.FC = () => {
               side="left"
               onMinReached={() => toggleChannelList(false)}
             >
-              <div
-                className={`channel-list ${isNarrowView ? "w-[calc(100vw-72px)]" : "w-full"} h-full bg-discord-dark-100 md:block z-20`}
-              >
+              <div className="channel-list w-full h-full bg-discord-dark-100 md:block z-20">
                 <ChannelList
-                  onToggle={() => {
-                    toggleChannelList(!isChannelListVisible);
-                  }}
+                  onToggle={() => toggleChannelList(!isChannelListVisible)}
                 />
               </div>
             </ResizableSidebar>
@@ -112,19 +139,32 @@ export const AppLayout: React.FC = () => {
         );
       case "chatView":
         return (
-          <div className="flex-grow h-full bg-discord-dark-200 flex flex-col min-w-0 z-10">
+          <div
+            className={`${isNarrowView ? "w-full" : "flex-grow"} h-full bg-discord-dark-200 flex flex-col min-w-0 z-10`}
+          >
             <ChatArea
               isChanListVisible={isChannelListVisible}
               onToggleChanList={() => {
-                toggleChannelList(!isChannelListVisible);
+                if (isNarrowView) {
+                  setMobileViewActiveColumn("serverList");
+                } else {
+                  toggleChannelList(!isChannelListVisible);
+                }
               }}
             />
           </div>
         );
       case "memberList":
+        if (isNarrowView) {
+          return (
+            <div className="w-full h-full bg-discord-dark-100">
+              <MemberList />
+            </div>
+          );
+        }
         return (
           <ResizableSidebar
-            bypass={isNarrowView && mobileViewActiveColumn === "memberList"}
+            bypass={false}
             isVisible={shouldShowMemberList}
             defaultWidth={280}
             minWidth={80}
@@ -140,42 +180,36 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  // Set correct state for mobile view
+  // Sync media query hook to store
   useEffect(() => {
-    if (!isNarrowView) return;
-    switch (mobileViewActiveColumn) {
-      case "serverList":
-        toggleChannelList(true);
-        break;
-      case "chatView":
-        toggleChannelList(false);
-        toggleMemberList(false);
-        break;
-      case "memberList":
-        toggleChannelList(false);
-        break;
+    setIsNarrowView(isNarrowViewFromHook);
+  }, [isNarrowViewFromHook, setIsNarrowView]);
+
+  // Auto-hide member list on desktop if too narrow
+  useEffect(() => {
+    if (!isNarrowView && isTooNarrowForMemberList && isMemberListVisible) {
+      toggleMemberList(false);
     }
   }, [
     isNarrowView,
-    mobileViewActiveColumn,
-    toggleChannelList,
+    isTooNarrowForMemberList,
+    isMemberListVisible,
     toggleMemberList,
   ]);
 
-  // Show channel list if the screen is resized
-  useEffect(() => {
-    toggleChannelList(true);
-  }, [toggleChannelList]);
-
-  // Hide member list if the screen is too narrow
-  useEffect(() => {
-    if (isNarrowView) return;
-    toggleMemberList(!isTooNarrowForMemberList);
-  }, [isTooNarrowForMemberList, toggleMemberList, isNarrowView]);
-
   const getLayoutColumn = (column: layoutColumn) => {
-    // On mobile, only show the active column
-    if (isNarrowView && column !== mobileViewActiveColumn) return null;
+    // Desktop: use explicit visibility flags
+    if (!isNarrowView) {
+      if (column === "serverList") return getLayoutColumnElement("serverList");
+      if (column === "chatView") return getLayoutColumnElement("chatView");
+      if (column === "memberList" && shouldShowMemberList) {
+        return getLayoutColumnElement("memberList");
+      }
+      return null;
+    }
+
+    // Mobile: only show active column
+    if (column !== mobileViewActiveColumn) return null;
     return getLayoutColumnElement(column);
   };
 
@@ -211,9 +245,48 @@ export const AppLayout: React.FC = () => {
         paddingLeft: "var(--safe-area-inset-left)",
       }}
     >
-      {getLayoutColumn("serverList")}
-      {getLayoutColumn("chatView")}
-      {selectedServerId && getLayoutColumn("memberList")}
+      {isNarrowView ? (
+        <div
+          ref={containerRef}
+          className="relative w-full h-full overflow-hidden"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            touchAction: "pan-y",
+            willChange: "transform",
+          }}
+        >
+          <div
+            className="flex h-full"
+            style={{
+              transform: `translateX(calc(-${currentPageIndex * 100}vw + ${offset}px))`,
+              transition: isTransitioning
+                ? "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                : "none",
+            }}
+          >
+            {PAGE_ORDER.filter(
+              (col) => col !== "memberList" || selectedServerId,
+            ).map((column) => (
+              <div
+                key={column}
+                className="h-full flex-shrink-0"
+                style={{ width: "100vw" }}
+                data-swipe-page={column}
+              >
+                {getLayoutColumnElement(column)}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {getLayoutColumn("serverList")}
+          {getLayoutColumn("chatView")}
+          {selectedServerId && getLayoutColumn("memberList")}
+        </>
+      )}
       <GlobalNotifications />
     </div>
   );

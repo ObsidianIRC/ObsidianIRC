@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaUser,
 } from "react-icons/fa";
+import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
@@ -32,7 +33,6 @@ export const ChannelList: React.FC<{
   const {
     selectChannel,
     selectPrivateChat,
-    joinChannel,
     leaveChannel,
     deletePrivateChat,
     pinPrivateChat,
@@ -42,6 +42,8 @@ export const ChannelList: React.FC<{
     setMobileViewActiveColumn,
     reorderChannels,
   } = useStore();
+
+  const joinAndSelectChannel = useJoinAndSelectChannel();
 
   const selectedServerId = useStore((state) => state.ui.selectedServerId);
   const selectedChannelId = useStore((state) => {
@@ -321,7 +323,7 @@ export const ChannelList: React.FC<{
         ? newChannelName.trim()
         : `#${newChannelName.trim()}`;
 
-      joinChannel(selectedServerId, channelName);
+      joinAndSelectChannel(selectedServerId, channelName);
       setNewChannelName("");
     }
   };
@@ -499,7 +501,7 @@ export const ChannelList: React.FC<{
                 px-2 py-1 mb-1 rounded flex items-center gap-2 cursor-pointer
                 ${selectedChannelId === null ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
               `}
-              onClick={() => selectChannel(null)}
+              onClick={() => selectChannel(null, { navigate: true })}
             >
               Discover
             </div>
@@ -610,7 +612,9 @@ export const ChannelList: React.FC<{
                           }
                           ${draggedChannelId === channel.id ? "opacity-50" : ""}
                         `}
-                          onClick={() => selectChannel(channel.id)}
+                          onClick={() =>
+                            selectChannel(channel.id, { navigate: true })
+                          }
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             {/* Avatar or Hash Icon */}
@@ -915,7 +919,7 @@ export const ChannelList: React.FC<{
                         onClick={() => {
                           if (lastSelectedPM.current === privateChat.id) return;
                           lastSelectedPM.current = privateChat.id;
-                          selectPrivateChat(privateChat.id);
+                          selectPrivateChat(privateChat.id, { navigate: true });
                         }}
                       >
                         <div className="flex items-center gap-2 truncate">
@@ -1257,7 +1261,9 @@ export const ChannelList: React.FC<{
                     transition-all duration-200 ease-in-out
                     ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                   `}
-                  onClick={() => selectChannel("server-notices")}
+                  onClick={() =>
+                    selectChannel("server-notices", { navigate: true })
+                  }
                 >
                   <div className="flex items-center gap-2 truncate">
                     <FaHashtag
@@ -1273,7 +1279,7 @@ export const ChannelList: React.FC<{
           </>
         )}
       </div>
-      <div className="mt-auto mb-2 px-2">
+      <div className="mt-auto mb-6 md:mb-2 px-2">
         <div
           className="py-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full transition-all duration-200 ease-in-out shadow-sm bg-discord-dark-400/50 hover:bg-discord-primary/70"
           onClick={() => toggleSettingsModal(true)}

@@ -131,6 +131,7 @@ describe("Metadata Display Features", () => {
             selectedPrivateChatId: null,
           },
         },
+        isNarrowView: false,
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,
@@ -189,6 +190,8 @@ describe("Metadata Display Features", () => {
         showSafeMedia: true,
         showExternalContent: true,
         enableMarkdownRendering: false,
+        awayMessage: "",
+        quitMessage: "ObsidianIRC - Bringing IRC to the future",
       },
     });
 

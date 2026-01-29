@@ -69,6 +69,7 @@ describe("ChatArea Tab Completion Integration", () => {
             selectedPrivateChatId: null,
           },
         },
+        isNarrowView: false,
         isMemberListVisible: true,
         isChannelListVisible: true,
         isAddServerModalOpen: false,

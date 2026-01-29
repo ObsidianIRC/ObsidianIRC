@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { FaEllipsisH, FaPencilAlt, FaRedo, FaTrash } from "react-icons/fa";
+import { FaPencilAlt, FaPlus, FaRedo, FaTrash } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Server } from "../../types";
@@ -17,12 +17,9 @@ export const ServerList: React.FC = () => {
     toggleEditServerModal, // Add toggleEditServerModal action
   } = useStore();
 
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [shimmeringServers, setShimmeringServers] = useState<Set<string>>(
     new Set(),
   );
-
-  const toggleOptions = () => setIsOptionsOpen((prev) => !prev);
 
   // Generate initial for server icon
   const getServerInitial = (server: Server): string => {
@@ -51,7 +48,7 @@ export const ServerList: React.FC = () => {
   }, []);
 
   return (
-    <div className="py-3 flex flex-col items-center h-full overflow-visible relative">
+    <div className="pt-3 pb-6 md:pb-3 flex flex-col items-center h-full overflow-visible relative">
       {/* Home button - in Discord this would be DMs */}
       <div
         className={`
@@ -59,7 +56,7 @@ export const ServerList: React.FC = () => {
           transition-all duration-200 group relative
           ${selectedServerId === null ? "bg-discord-primary " : "bg-discord-dark-400 hover:bg-discord-primary"}
         `}
-        onClick={() => selectServer(null)}
+        onClick={() => selectServer(null, { clearSelection: true })}
       >
         <div
           className={`
@@ -81,33 +78,18 @@ export const ServerList: React.FC = () => {
 
       <div className="w-8 h-0.5 bg-discord-dark-100 rounded-full my-2" />
 
-      {/* Options Button */}
+      {/* Add Server Button */}
       <div className="relative mb-2">
         <div
-          className="w-12 h-12 bg-discord-dark-400 hover:bg-discord-green rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer group"
-          onClick={toggleOptions}
-          data-testid="server-list-options-button"
+          className="w-12 h-12 bg-discord-dark-100 hover:bg-discord-primary/80 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer group hover:rounded-xl"
+          onClick={() => toggleAddServerModal(true)}
+          data-testid="server-list-add-button"
         >
-          <FaEllipsisH className="text-discord-green group-hover:text-discord-dark-600" />
-        </div>
-
-        {/* Dropdown Menu */}
-        {isOptionsOpen && (
-          <div
-            className="absolute top-14 left-0 bg-discord-dark-400 text-white rounded shadow-lg w-40 z-50"
-            style={{ zIndex: 9999 }} // Ensure it renders above other components
-          >
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-discord-dark-300"
-              onClick={() => {
-                toggleAddServerModal(true);
-                setIsOptionsOpen(false);
-              }}
-            >
-              Add Server
-            </button>
+          <FaPlus className="group-hover:text-white text-2xl font-extrabold transition-colors duration-200" />
+          <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
+            Add Server
           </div>
-        )}
+        </div>
       </div>
 
       {/* Server list */}
@@ -131,7 +113,7 @@ export const ServerList: React.FC = () => {
               ${selectedServerId === server.id ? "bg-discord-primary" : "bg-discord-dark-400 hover:bg-discord-primary"}
               ${shimmeringServers.has(server.id) ? "shimmer" : ""}
             `}
-              onClick={() => selectServer(server.id)}
+              onClick={() => selectServer(server.id, { clearSelection: true })}
             >
               {/* Grey overlay for disconnected/connecting states */}
               {(server.connectionState === "disconnected" ||

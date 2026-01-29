@@ -10,6 +10,10 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
+import {
+  isScrolledToBottom,
+  useScrollToBottom,
+} from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
@@ -82,8 +86,6 @@ export const ChatArea: React.FC<{
   const [selectedFormatting, setSelectedFormatting] = useState<
     FormattingType[]
   >([]);
-  const [isScrolledUp, setIsScrolledUp] = useState(false);
-  const wasAtBottomRef = useRef(true); // Track if user was at bottom before new messages
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -112,9 +114,7 @@ export const ChatArea: React.FC<{
 
   const handleServerNoticesScroll = () => {
     if (serverNoticesScrollRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        serverNoticesScrollRef.current;
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+      const isAtBottom = isScrolledToBottom(serverNoticesScrollRef.current, 30);
       setShouldAutoScrollServerNotices(isAtBottom);
     }
   };
@@ -205,6 +205,12 @@ export const ChatArea: React.FC<{
   } = ui;
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
+    messagesContainerRef,
+    messagesEndRef,
+    { channelId: selectedChannelId || selectedPrivateChatId },
+  );
 
   // Get the current user for the selected server with metadata from store
   const currentUser = useMemo(() => {
@@ -474,14 +480,6 @@ export const ChatArea: React.FC<{
     [displayedMessages],
   );
 
-  const scrollDown = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Force complete scroll after animation
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-    }, 500);
-  };
-
   // Scroll down on channel change
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedServerId): We want to scroll down only if server or channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): We want to scroll down only if server or channel changes
@@ -490,9 +488,6 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
-    // Reset scroll state and visible message count when changing channels
-    setIsScrolledUp(false);
-    wasAtBottomRef.current = true;
     setVisibleMessageCount(100);
     setSearchQuery("");
   }, [selectedServerId, selectedChannelId]);
@@ -500,29 +495,17 @@ export const ChatArea: React.FC<{
   // Auto scroll to bottom on new messages
   // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
   useEffect(() => {
-    // Only auto-scroll if user was at the bottom before new messages arrived
-    if (wasAtBottomRef.current) {
-      scrollDown();
+    const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
+    const isChatVisible =
+      !isNarrowView || ui.mobileViewActiveColumn === "chatView";
+
+    // Only auto-scroll if:
+    // 1. User was at bottom before messages arrived
+    // 2. Chat is currently visible (not on channel list in mobile)
+    if (wasAtBottomRef.current && isChatVisible) {
+      scrollToBottom();
     }
-  }, [displayedMessages]);
-
-  // Check if scrolled away from bottom
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const checkIfScrolledToBottom = () => {
-      const atBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight <
-        30;
-      setIsScrolledUp(!atBottom);
-      wasAtBottomRef.current = atBottom;
-    };
-
-    container.addEventListener("scroll", checkIfScrolledToBottom);
-    return () =>
-      container.removeEventListener("scroll", checkIfScrolledToBottom);
-  }, []);
+  }, [displayedMessages, ui.mobileViewActiveColumn, scrollToBottom]);
 
   // Close plus menu on outside click
   useEffect(() => {
@@ -539,7 +522,7 @@ export const ChatArea: React.FC<{
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
 
-    scrollDown();
+    scrollToBottom();
     sendMessage(messageText);
 
     // Cleanup after sending
@@ -1238,7 +1221,7 @@ export const ChatArea: React.FC<{
         (pc) => pc.username === username,
       );
       if (privateChat) {
-        selectPrivateChat(privateChat.id);
+        selectPrivateChat(privateChat.id, { navigate: true });
       }
     }
   };
@@ -1504,10 +1487,19 @@ export const ChatArea: React.FC<{
               )}
               {/* Search results indicator */}
               {searchQuery && (
-                <div className="flex justify-center py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
-                  Found {filteredMessages.length} message
-                  {filteredMessages.length === 1 ? "" : "s"} matching "
-                  {searchQuery}"
+                <div className="flex justify-center items-center gap-2 py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
+                  <span>
+                    Found {filteredMessages.length} message
+                    {filteredMessages.length === 1 ? "" : "s"} matching "
+                    {searchQuery}"
+                  </span>
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-red-400 hover:text-red-300"
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
               {eventGroups.map((group) => {
@@ -1603,7 +1595,7 @@ export const ChatArea: React.FC<{
       )}
       {!selectedServer && <DiscoverGrid />}
       {/* Scroll to bottom button */}
-      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollDown} />
+      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollToBottom} />
 
       {/* Input area */}
       {(selectedChannel || selectedPrivateChat) && (

@@ -114,6 +114,7 @@ export const AddServerModal: React.FC = () => {
         registerAccount,
         registerEmail,
         registerPassword,
+        true,
       );
       toggleAddServerModal(false);
     } catch (err) {

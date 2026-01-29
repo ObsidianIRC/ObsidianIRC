@@ -514,7 +514,7 @@ export const MemberList: React.FC = () => {
         (pc) => pc.username === username,
       );
       if (privateChat) {
-        selectPrivateChat(privateChat.id);
+        selectPrivateChat(privateChat.id, { navigate: true });
       }
     }
   };

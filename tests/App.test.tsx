@@ -34,6 +34,7 @@ const mockStoreState = {
   ui: {
     selectedServerId: null,
     perServerSelections: {},
+    isNarrowView: false,
     isAddServerModalOpen: false,
     isEditServerModalOpen: false,
     editServerId: null,
@@ -69,6 +70,7 @@ const mockStoreState = {
   toggleChannelList: vi.fn(),
   connectToSavedServers: vi.fn(),
   toggleMemberList: vi.fn(),
+  setIsNarrowView: vi.fn(),
   toggleAddServerModal: vi.fn((open?: boolean) => {
     mockStoreState.ui.isAddServerModalOpen =
       open ?? !mockStoreState.ui.isAddServerModalOpen;
@@ -116,9 +118,8 @@ describe("App", () => {
       );
       const user = userEvent.setup();
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called with true
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
@@ -145,9 +146,8 @@ describe("App", () => {
         capabilities: [],
       });
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
@@ -166,9 +166,8 @@ describe("App", () => {
         new Error("Connection failed"),
       );
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
@@ -187,9 +186,8 @@ describe("App", () => {
         new Error("Connection failed"),
       );
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);

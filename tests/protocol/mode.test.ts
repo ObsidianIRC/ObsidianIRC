@@ -25,6 +25,7 @@ describe("MODE Protocol Handler", () => {
       ui: {
         selectedServerId: null,
         perServerSelections: {},
+        isNarrowView: false,
         isAddServerModalOpen: false,
         isEditServerModalOpen: false,
         editServerId: null,

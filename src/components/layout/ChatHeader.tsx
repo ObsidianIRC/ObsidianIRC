@@ -1,6 +1,6 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaBell,
   FaBellSlash,
@@ -8,12 +8,14 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
+  FaEllipsisV,
   FaHashtag,
   FaInfoCircle,
   FaList,
   FaPenAlt,
   FaSearch,
   FaThumbtack,
+  FaTimes,
   FaUser,
   FaUserPlus,
 } from "react-icons/fa";
@@ -26,6 +28,10 @@ import {
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
+import HeaderOverflowMenu, {
+  type HeaderOverflowMenuItem,
+} from "../ui/HeaderOverflowMenu";
+import TopicModal from "../ui/TopicModal";
 import UserProfileModal from "../ui/UserProfileModal";
 
 interface ChatHeaderProps {
@@ -78,8 +84,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [editedTopic, setEditedTopic] = useState("");
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
+  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
+  const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
   const servers = useStore((state) => state.servers);
+  const mobileViewActiveColumn = useStore(
+    (state) => state.ui.mobileViewActiveColumn,
+  );
 
   // Get global settings for media controls
   const { showSafeMedia, showExternalContent } = useStore(
@@ -232,10 +245,45 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     );
   })();
 
+  // Reset search expanded state and overflow menu when channel or mobile view changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to reset when channel or page changes
+  useEffect(() => {
+    setIsSearchExpanded(false);
+    setIsOverflowMenuOpen(false);
+  }, [selectedChannelId, mobileViewActiveColumn]);
+
+  // Define overflow menu items based on context
+  const overflowMenuItems: HeaderOverflowMenuItem[] = [
+    {
+      label: "Channel Settings",
+      icon: <FaPenAlt />,
+      onClick: onOpenChannelSettings,
+      show: !!selectedChannel,
+    },
+    {
+      label: "Invite User",
+      icon: <FaUserPlus />,
+      onClick: onOpenInviteUser,
+      show: !!selectedChannel,
+    },
+    {
+      label: "Server Channels",
+      icon: <FaList />,
+      onClick: () => toggleChannelListModal(true),
+      show: true,
+    },
+    {
+      label: "Rename Channel",
+      icon: <FaEdit />,
+      onClick: () => toggleChannelRenameModal(true),
+      show: !!(selectedChannel && isOperator),
+    },
+  ].filter((item) => item.show);
+
   return (
     <div className="min-h-[56px] px-4 border-b border-discord-dark-400 flex flex-wrap items-start md:items-center justify-between shadow-sm py-2 md:py-0 md:h-12 gap-y-2">
       <div className="flex items-center flex-1 min-w-0 w-full md:w-auto">
-        {!isChanListVisible && (
+        {(isNarrowView || !isChanListVisible) && (
           <button
             onClick={onToggleChanList}
             className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
@@ -362,31 +410,37 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <button
                 onClick={() => {
                   if (selectedChannel) {
-                    const currentUserInChannel = selectedChannel.users.find(
-                      (u) => u.username === currentUser?.username,
-                    );
-                    if (hasOpPermission(currentUserInChannel?.status)) {
-                      setEditedTopic(selectedChannel.topic || "");
-                      setIsEditingTopic(true);
+                    if (isNarrowView) {
+                      setIsTopicModalOpen(true);
+                    } else {
+                      const currentUserInChannel = selectedChannel.users.find(
+                        (u) => u.username === currentUser?.username,
+                      );
+                      if (hasOpPermission(currentUserInChannel?.status)) {
+                        setEditedTopic(selectedChannel.topic || "");
+                        setIsEditingTopic(true);
+                      }
                     }
                   }
                 }}
                 className="text-discord-text-muted text-xs md:text-sm hover:text-white truncate min-w-0 md:max-w-md mt-0.5 mb-1 md:mt-0 md:mb-0"
                 title={
-                  selectedChannel.topic
-                    ? `Topic: ${selectedChannel.topic}${
-                        selectedChannel.users.find(
-                          (u) => u.username === currentUser?.username,
-                        ) &&
-                        hasOpPermission(
+                  isNarrowView
+                    ? selectedChannel.topic || "No topic set"
+                    : selectedChannel.topic
+                      ? `Topic: ${selectedChannel.topic}${
                           selectedChannel.users.find(
                             (u) => u.username === currentUser?.username,
-                          )?.status,
-                        )
-                          ? " (Click to edit)"
-                          : ""
-                      }`
-                    : "No topic set"
+                          ) &&
+                          hasOpPermission(
+                            selectedChannel.users.find(
+                              (u) => u.username === currentUser?.username,
+                            )?.status,
+                          )
+                            ? " (Click to edit)"
+                            : ""
+                        }`
+                      : "No topic set"
                 }
               >
                 {selectedChannel.topic || "No topic"}
@@ -549,9 +603,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
       {!!selectedServerId && selectedChannelId !== "server-notices" && (
         <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
+          {/* Bell - always visible */}
           <button
             className="hover:text-discord-text-normal"
             onClick={onToggleNotificationVolume}
+            aria-label={
+              globalSettings.notificationVolume > 0
+                ? "Mute notifications"
+                : "Enable notifications"
+            }
             title={
               globalSettings.notificationVolume > 0
                 ? "Mute notifications"
@@ -564,71 +624,168 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <FaBellSlash />
             )}
           </button>
+
+          {/* Users - visible for channels */}
           {selectedChannel && (
             <button
               className="hover:text-discord-text-normal"
-              onClick={onOpenChannelSettings}
-              title="Channel Settings"
-            >
-              <FaPenAlt />
-            </button>
-          )}
-          {selectedChannel && (
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={onOpenInviteUser}
-              title="Invite User"
-            >
-              <FaUserPlus />
-            </button>
-          )}
-          <button
-            className="hover:text-discord-text-normal"
-            onClick={() => toggleChannelListModal(true)}
-            title="List Channels"
-          >
-            <FaList />
-          </button>
-          {selectedChannel && isOperator && (
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => toggleChannelRenameModal(true)}
-              title="Rename Channel"
-            >
-              <FaEdit />
-            </button>
-          )}
-          {/* Only show member list toggle for channels, not private chats */}
-          {selectedChannel && (
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => toggleMemberList(!isMemberListVisible)}
+              onClick={() => {
+                if (isNarrowView) {
+                  // Read fresh state to avoid stale closure when rapidly swiping + clicking
+                  const currentColumn =
+                    useStore.getState().ui.mobileViewActiveColumn;
+                  const isOnMemberPage = currentColumn === "memberList";
+                  toggleMemberList(!isOnMemberPage);
+                } else {
+                  toggleMemberList(!isMemberListVisible);
+                }
+              }}
               aria-label={
                 isMemberListVisible
                   ? "Collapse member list"
                   : "Expand member list"
               }
               data-testid="toggle-member-list"
+              data-no-swipe
             >
-              {isMemberListVisible ? (
+              {(
+                isNarrowView
+                  ? mobileViewActiveColumn === "memberList"
+                  : isMemberListVisible
+              ) ? (
                 <UsersIcon className="w-4 h-4 text-white" />
               ) : (
                 <UsersIcon className="w-4 h-4 text-gray" />
               )}
             </button>
           )}
+
+          {/* Desktop - action buttons */}
+          {selectedChannel && (
+            <>
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={onOpenChannelSettings}
+                title="Channel Settings"
+              >
+                <FaPenAlt />
+              </button>
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={onOpenInviteUser}
+                title="Invite User"
+              >
+                <FaUserPlus />
+              </button>
+            </>
+          )}
+          <button
+            className="hidden md:block hover:text-discord-text-normal"
+            onClick={() => toggleChannelListModal(true)}
+            title="Server Channels"
+          >
+            <FaList />
+          </button>
+          {selectedChannel && isOperator && (
+            <button
+              className="hidden md:block hover:text-discord-text-normal"
+              onClick={() => toggleChannelRenameModal(true)}
+              title="Rename Channel"
+            >
+              <FaEdit />
+            </button>
+          )}
+
+          {/* Search - icon on mobile, input on desktop (rightmost on desktop) */}
           <div className="relative">
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-20 md:w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-            />
-            <FaSearch className="absolute right-2 top-1.5 text-xs" />
+            <button
+              className="md:hidden hover:text-discord-text-normal"
+              onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+              aria-label="Toggle search"
+              title="Search"
+            >
+              <FaSearch />
+            </button>
+
+            {/* Desktop search - always visible */}
+            <div className="hidden md:block relative">
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => onSearchQueryChange(e.target.value)}
+                className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+              />
+              {searchQuery && (
+                <button
+                  className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
+                  onClick={() => onSearchQueryChange("")}
+                  title="Clear search"
+                >
+                  <FaTimes />
+                </button>
+              )}
+              <FaSearch className="absolute right-2 top-1.5 text-xs" />
+            </div>
+
+            {/* Mobile expanded search */}
+            {isSearchExpanded && (
+              <div className="md:hidden absolute right-0 top-0 z-50">
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Search"
+                    value={searchQuery}
+                    onChange={(e) => onSearchQueryChange(e.target.value)}
+                    onBlur={() => setIsSearchExpanded(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setIsSearchExpanded(false);
+                      }
+                    }}
+                    className="bg-discord-dark-400 text-white text-sm rounded px-2 py-1 pr-8 w-40 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                  />
+                  <button
+                    className={`absolute right-2 text-xs ${searchQuery ? "text-red-400 hover:text-red-300" : "text-discord-text-muted hover:text-white"}`}
+                    onClick={() => {
+                      if (searchQuery) {
+                        onSearchQueryChange("");
+                      } else {
+                        setIsSearchExpanded(false);
+                      }
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    title={searchQuery ? "Clear search" : "Close search"}
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Overflow menu button - mobile only */}
+          <button
+            ref={overflowButtonRef}
+            className="md:hidden hover:text-discord-text-normal"
+            onClick={() => setIsOverflowMenuOpen(!isOverflowMenuOpen)}
+            aria-label="More actions"
+            aria-expanded={isOverflowMenuOpen}
+            title="More"
+          >
+            <FaEllipsisV />
+          </button>
         </div>
       )}
+
+      {/* Overflow Menu Component */}
+      <HeaderOverflowMenu
+        isOpen={isOverflowMenuOpen}
+        onClose={() => setIsOverflowMenuOpen(false)}
+        menuItems={overflowMenuItems}
+        anchorElement={overflowButtonRef.current}
+      />
       {selectedChannelId === "server-notices" && (
         <div className="flex items-center gap-4 text-discord-text-muted">
           {/* TODO: Re-enable pop out button for server notices
@@ -656,6 +813,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           onClose={() => setUserProfileModalOpen(false)}
           serverId={selectedServerId}
           username={selectedPrivateChat.username}
+        />
+      )}
+
+      {/* Topic Modal */}
+      {selectedChannel && selectedServerId && (
+        <TopicModal
+          isOpen={isTopicModalOpen}
+          onClose={() => setIsTopicModalOpen(false)}
+          channel={selectedChannel}
+          serverId={selectedServerId}
+          currentUser={currentUser}
         />
       )}
     </div>

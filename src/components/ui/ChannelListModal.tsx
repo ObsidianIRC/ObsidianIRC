@@ -1,6 +1,7 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaTimes, FaUsers } from "react-icons/fa";
+import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import ircClient from "../../lib/ircClient";
 import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
 import useStore from "../../store";
@@ -16,8 +17,9 @@ const ChannelListModal: React.FC = () => {
     listChannels,
     updateChannelListFilters,
     toggleChannelListModal,
-    joinChannel,
   } = useStore();
+
+  const joinAndSelectChannel = useJoinAndSelectChannel();
 
   const selectedServer = servers.find((s) => s.id === selectedServerId);
   const elist = (selectedServer?.elist || "").toUpperCase();
@@ -252,8 +254,8 @@ const ChannelListModal: React.FC = () => {
 
   const handleJoinChannel = (channelName: string) => {
     if (selectedServerId) {
-      joinChannel(selectedServerId, channelName);
-      toggleChannelListModal(false); // Optionally close modal after joining
+      joinAndSelectChannel(selectedServerId, channelName);
+      toggleChannelListModal(false);
     }
   };
 
