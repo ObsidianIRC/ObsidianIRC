@@ -10,6 +10,10 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
+import {
+  isScrolledToBottom,
+  useScrollToBottom,
+} from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
@@ -82,8 +86,6 @@ export const ChatArea: React.FC<{
   const [selectedFormatting, setSelectedFormatting] = useState<
     FormattingType[]
   >([]);
-  const [isScrolledUp, setIsScrolledUp] = useState(false);
-  const wasAtBottomRef = useRef(true); // Track if user was at bottom before new messages
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -112,9 +114,7 @@ export const ChatArea: React.FC<{
 
   const handleServerNoticesScroll = () => {
     if (serverNoticesScrollRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        serverNoticesScrollRef.current;
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+      const isAtBottom = isScrolledToBottom(serverNoticesScrollRef.current, 30);
       setShouldAutoScrollServerNotices(isAtBottom);
     }
   };
@@ -205,6 +205,12 @@ export const ChatArea: React.FC<{
   } = ui;
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
+    messagesContainerRef,
+    messagesEndRef,
+    { channelId: selectedChannelId || selectedPrivateChatId },
+  );
 
   // Get the current user for the selected server with metadata from store
   const currentUser = useMemo(() => {
@@ -474,14 +480,6 @@ export const ChatArea: React.FC<{
     [displayedMessages],
   );
 
-  const scrollDown = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Force complete scroll after animation
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-    }, 500);
-  };
-
   // Scroll down on channel change
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedServerId): We want to scroll down only if server or channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): We want to scroll down only if server or channel changes
@@ -490,9 +488,6 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
-    // Reset scroll state and visible message count when changing channels
-    setIsScrolledUp(false);
-    wasAtBottomRef.current = true;
     setVisibleMessageCount(100);
     setSearchQuery("");
   }, [selectedServerId, selectedChannelId]);
@@ -508,79 +503,9 @@ export const ChatArea: React.FC<{
     // 1. User was at bottom before messages arrived
     // 2. Chat is currently visible (not on channel list in mobile)
     if (wasAtBottomRef.current && isChatVisible) {
-      scrollDown();
+      scrollToBottom();
     }
-  }, [displayedMessages, ui.mobileViewActiveColumn]);
-
-  // Check if scrolled away from bottom using IntersectionObserver
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to re-run when channel changes to observe new DOM elements
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    const endElement = messagesEndRef.current;
-    if (!container || !endElement) return;
-
-    const checkIfScrolledToBottom = () => {
-      const atBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight <
-        30;
-      setIsScrolledUp(!atBottom);
-      wasAtBottomRef.current = atBottom;
-    };
-
-    // Use IntersectionObserver for reliable detection (works on mobile)
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const isVisible = entries[0].isIntersecting;
-        setIsScrolledUp(!isVisible);
-        wasAtBottomRef.current = isVisible;
-      },
-      {
-        root: container,
-        threshold: 0,
-        rootMargin: "30px", // 30px tolerance like before
-      },
-    );
-
-    observer.observe(endElement);
-
-    // Also check on mount
-    checkIfScrolledToBottom();
-
-    // Fallback: scroll events for desktop browsers
-    container.addEventListener("scroll", checkIfScrolledToBottom, {
-      passive: true,
-    });
-
-    // Fallback: touch events for mobile
-    container.addEventListener("touchend", checkIfScrolledToBottom, {
-      passive: true,
-    });
-
-    return () => {
-      observer.disconnect();
-      container.removeEventListener("scroll", checkIfScrolledToBottom);
-      container.removeEventListener("touchend", checkIfScrolledToBottom);
-    };
-  }, [selectedChannelId, selectedPrivateChatId]);
-
-  // Re-check scroll position when messages change (container height changes)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to re-check scroll position when messages cause container resize
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const checkAfterResize = () => {
-      const atBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight <
-        30;
-      setIsScrolledUp(!atBottom);
-      wasAtBottomRef.current = atBottom;
-    };
-
-    // Use requestAnimationFrame to check after DOM update
-    const rafId = requestAnimationFrame(checkAfterResize);
-    return () => cancelAnimationFrame(rafId);
-  }, [displayedMessages]);
+  }, [displayedMessages, ui.mobileViewActiveColumn, scrollToBottom]);
 
   // Close plus menu on outside click
   useEffect(() => {
@@ -597,7 +522,7 @@ export const ChatArea: React.FC<{
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
 
-    scrollDown();
+    scrollToBottom();
     sendMessage(messageText);
 
     // Cleanup after sending
@@ -1670,7 +1595,7 @@ export const ChatArea: React.FC<{
       )}
       {!selectedServer && <DiscoverGrid />}
       {/* Scroll to bottom button */}
-      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollDown} />
+      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollToBottom} />
 
       {/* Input area */}
       {(selectedChannel || selectedPrivateChat) && (
