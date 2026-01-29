@@ -2559,6 +2559,12 @@ const useStore = create<AppState>((set, get) => ({
       ui: {
         ...state.ui,
         mobileViewActiveColumn: column,
+        isMemberListVisible:
+          state.ui.isNarrowView && column === "memberList"
+            ? true
+            : state.ui.isNarrowView && column !== "memberList"
+              ? false
+              : state.ui.isMemberListVisible,
       },
     }));
   },

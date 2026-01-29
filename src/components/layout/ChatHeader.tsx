@@ -629,15 +629,30 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           {selectedChannel && (
             <button
               className="hover:text-discord-text-normal"
-              onClick={() => toggleMemberList(!isMemberListVisible)}
+              onClick={() => {
+                if (isNarrowView) {
+                  // Read fresh state to avoid stale closure when rapidly swiping + clicking
+                  const currentColumn =
+                    useStore.getState().ui.mobileViewActiveColumn;
+                  const isOnMemberPage = currentColumn === "memberList";
+                  toggleMemberList(!isOnMemberPage);
+                } else {
+                  toggleMemberList(!isMemberListVisible);
+                }
+              }}
               aria-label={
                 isMemberListVisible
                   ? "Collapse member list"
                   : "Expand member list"
               }
               data-testid="toggle-member-list"
+              data-no-swipe
             >
-              {isMemberListVisible ? (
+              {(
+                isNarrowView
+                  ? mobileViewActiveColumn === "memberList"
+                  : isMemberListVisible
+              ) ? (
                 <UsersIcon className="w-4 h-4 text-white" />
               ) : (
                 <UsersIcon className="w-4 h-4 text-gray" />

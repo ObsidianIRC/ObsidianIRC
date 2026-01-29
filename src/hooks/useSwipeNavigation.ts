@@ -46,7 +46,6 @@ export function useSwipeNavigation({
   });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // Ignore if the touch target is a context menu trigger
     const target = e.target as HTMLElement;
     if (target.closest("[data-no-swipe]")) {
       return;
@@ -85,15 +84,44 @@ export function useSwipeNavigation({
       }
 
       if (touchState.current.isHorizontal === true) {
-        e.preventDefault();
+        try {
+          e.preventDefault();
+        } catch {
+          // Passive event listener warning - can be safely ignored
+        }
         touchState.current.isDragging = true;
 
         let newOffset = deltaX;
+        const containerWidth =
+          containerRef.current?.offsetWidth || window.innerWidth;
 
+        // At boundary pages (first/last), apply rubber banding to prevent going off-screen
         if (currentPage === 0 && deltaX > 0) {
           newOffset = deltaX * rubberBandStrength;
         } else if (currentPage === totalPages - 1 && deltaX < 0) {
           newOffset = deltaX * rubberBandStrength;
+        } else {
+          // For middle pages, apply progressive rubber banding
+          // - Light rubber banding starts at 60% of screen width
+          // - Strong rubber banding starts at 85% of screen width
+          // - Very strong rubber banding beyond 85% to prevent any overshoot
+          const lightThreshold = containerWidth * 0.6;
+          const strongThreshold = containerWidth * 0.85;
+          const absDeltaX = Math.abs(deltaX);
+
+          if (absDeltaX > strongThreshold) {
+            // Beyond 85% screen width: extremely strong rubber banding (0.05)
+            const excessDistance = absDeltaX - strongThreshold;
+            const sign = deltaX > 0 ? 1 : -1;
+            newOffset = sign * (strongThreshold + excessDistance * 0.05);
+          } else if (absDeltaX > lightThreshold) {
+            // Between 60-85%: moderate rubber banding (0.3)
+            const excessDistance = absDeltaX - lightThreshold;
+            const sign = deltaX > 0 ? 1 : -1;
+            newOffset =
+              sign * (lightThreshold + excessDistance * rubberBandStrength);
+          }
+          // else: under 60%, no rubber banding (newOffset = deltaX)
         }
 
         setOffset(newOffset);
