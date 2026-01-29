@@ -85,7 +85,7 @@ export const ServerList: React.FC = () => {
           onClick={() => toggleAddServerModal(true)}
           data-testid="server-list-add-button"
         >
-          <FaPlus className="group-hover:text-white text-3xl font-extrabold transition-colors duration-200" />
+          <FaPlus className="group-hover:text-white text-2xl font-extrabold transition-colors duration-200" />
           <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
             Add Server
           </div>

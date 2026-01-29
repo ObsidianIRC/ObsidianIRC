@@ -161,6 +161,10 @@ const App: React.FC = () => {
   // Handle deeplinks
   useEffect(() => {
     const setupDeepLinkHandler = async () => {
+      if (typeof window === "undefined" || !window.__TAURI__) {
+        return;
+      }
+
       try {
         // Register handler for when app is already running
         await onOpenUrl((urls) => {
