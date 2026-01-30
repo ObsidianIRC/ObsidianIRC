@@ -14,13 +14,21 @@
 
 /* Arrow flip animations */
 @keyframes arrow-flip-expand {
-  0% { transform: rotateX(0deg); }
-  100% { transform: rotateX(180deg); }
+  0% {
+    transform: rotateX(0deg);
+  }
+  100% {
+    transform: rotateX(180deg);
+  }
 }
 
 @keyframes arrow-flip-collapse {
-  0% { transform: rotateX(180deg); }
-  100% { transform: rotateX(0deg); }
+  0% {
+    transform: rotateX(180deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
 }
 
 .arrow-flip-expand {
@@ -49,8 +57,9 @@
 }
 
 body {
-  font-family: "Roboto Mono", monospace;
+  font-family: 'Roboto Mono', monospace;
   width: 100%;
+  font-size: 14px;
 }
 
 /* iOS safe area support for modals */
@@ -128,7 +137,7 @@ body {
   body {
     overflow: hidden;
   }
-  
+
   #root {
     height: 100vh;
     height: calc(100vh - var(--keyboard-height, 0px));
@@ -200,7 +209,8 @@ body {
 
 /* Settings highlight blink - one time only */
 @keyframes blink {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -284,11 +294,13 @@ body {
   padding: 0.25rem 0.45rem;
   border-radius: 0.125rem;
   font-size: 0.875rem;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Inconsolata, 'Roboto Mono',
+    monospace;
 }
 
 .dark .markdown-content code {
-  background-color: rgb(31 41 55);;
+  background-color: rgb(31 41 55);
 }
 
 .markdown-content pre {
@@ -301,7 +313,7 @@ body {
 }
 
 .dark .markdown-content pre {
-  background-color: rgb(31 41 55);;
+  background-color: rgb(31 41 55);
 }
 
 .markdown-content pre code {
@@ -321,7 +333,9 @@ body {
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Inconsolata, 'Roboto Mono',
+    monospace;
   border-radius: 0.25rem 0.25rem 0 0;
   border-bottom: 1px solid rgb(75 85 99);
   position: relative;
@@ -349,7 +363,9 @@ body {
   padding: 0.0625rem;
   cursor: pointer;
   opacity: 1;
-  transition: opacity 0.2s ease, background-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -405,7 +421,9 @@ body {
   padding: 0.125rem;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s ease, background-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -455,7 +473,7 @@ body {
   padding: 0 !important;
   margin-bottom: 0.125rem !important;
   margin-top: -0.125rem !important;
-  line-height: 1.0 !important;
+  line-height: 1 !important;
   display: block;
   box-sizing: border-box;
   height: auto !important;
@@ -509,7 +527,7 @@ body {
   margin-bottom: 0.0625rem;
 }
 
-.markdown-content input[type="checkbox"] {
+.markdown-content input[type='checkbox'] {
   margin-right: 0.25rem;
   vertical-align: middle;
 }
