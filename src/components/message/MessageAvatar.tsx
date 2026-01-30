@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { isUrlFromFilehost } from "../../lib/ircUtils";
+import { isUrlFromTrustedSource } from "../../lib/ircUtils";
 import useStore from "../../store";
 
 interface MessageAvatarProps {
@@ -37,14 +37,12 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
     ? useStore.getState().servers.find((s) => s.id === serverId)
     : null;
 
-  // Check if avatar is from our trusted FILEHOST
-  const isFilehostAvatar =
-    avatarUrl &&
-    server?.filehost &&
-    isUrlFromFilehost(avatarUrl, server.filehost);
-  // Show avatar if it's from FILEHOST (trusted) and safe media is enabled, or if external content is allowed
+  // Check if avatar is from a trusted source (server filehost or globally configured trusted URLs)
+  const isTrustedAvatar =
+    avatarUrl && isUrlFromTrustedSource(avatarUrl, server?.filehost);
+  // Show avatar if it's from a trusted source and safe media is enabled, or if external content is allowed
   const shouldShowAvatar =
-    avatarUrl && ((isFilehostAvatar && showSafeMedia) || showExternalContent);
+    avatarUrl && ((isTrustedAvatar && showSafeMedia) || showExternalContent);
 
   if (!showHeader) {
     return (
