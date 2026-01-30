@@ -205,6 +205,7 @@ export const ChatArea: React.FC<{
   } = ui;
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const isCompactInput = useMediaQuery("(max-width: 900px)");
 
   const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
     messagesContainerRef,
@@ -1604,9 +1605,9 @@ export const ChatArea: React.FC<{
             serverId={selectedServerId ?? ""}
             channelId={selectedChannelId || selectedPrivateChatId || ""}
           />
-          <div className="bg-discord-dark-100 rounded-lg flex items-center relative">
+          <div className="bg-discord-dark-100 rounded-lg flex items-center relative flex-nowrap">
             <button
-              className="px-4 text-discord-text-muted hover:text-discord-text-normal"
+              className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
               onClick={() => setShowPlusMenu((prev) => !prev)}
             >
               <FaPlus />
@@ -1628,7 +1629,9 @@ export const ChatArea: React.FC<{
               placeholder={
                 selectedChannel
                   ? `Message #${selectedChannel.name.replace(/^#/, "")}${
-                      globalSettings.enableMultilineInput && !isMobile
+                      globalSettings.enableMultilineInput &&
+                      !isMobile &&
+                      !isCompactInput
                         ? globalSettings.multilineOnShiftEnter
                           ? " (Shift+Enter for new line)"
                           : " (Enter for new line, Shift+Enter to send)"
@@ -1636,7 +1639,9 @@ export const ChatArea: React.FC<{
                     }`
                   : selectedPrivateChat
                     ? `Message @${selectedPrivateChat.username}${
-                        globalSettings.enableMultilineInput && !isMobile
+                        globalSettings.enableMultilineInput &&
+                        !isMobile &&
+                        !isCompactInput
                           ? globalSettings.multilineOnShiftEnter
                             ? " (Shift+Enter for new line)"
                             : " (Enter for new line, Shift+Enter to send)"
@@ -1648,7 +1653,7 @@ export const ChatArea: React.FC<{
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-32 overflow-y-auto"
+              className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-32 overflow-y-auto placeholder:truncate"
               style={getPreviewStyles({
                 color: selectedColor || "inherit",
                 formatting: selectedFormatting,

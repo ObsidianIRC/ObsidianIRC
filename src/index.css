@@ -658,3 +658,22 @@ body {
   color: #ffdcd7;
   background-color: #67060c;
 }
+
+/* Chat input textarea - hide scrollbar when content fits */
+textarea.resize-none {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+textarea.resize-none::-webkit-scrollbar {
+  width: 6px;
+}
+
+textarea.resize-none::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+textarea.resize-none::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
