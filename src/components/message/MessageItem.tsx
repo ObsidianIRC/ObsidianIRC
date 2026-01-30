@@ -963,6 +963,7 @@ export const MessageItem = (props: MessageItemProps) => {
                 imageUrl={message.linkPreviewMeta}
                 theme={theme}
                 messageContent={message.content}
+                serverId={serverId}
               />
             )}
           </div>
