@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaUser,
 } from "react-icons/fa";
+import { useDragReorder } from "../../hooks/useDragReorder";
 import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
@@ -123,12 +124,6 @@ export const ChannelList: React.FC<{
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [clickedPM, setClickedPM] = useState<string | null>(null);
   const lastSelectedPM = useRef<string | null>(null);
-  const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
-  const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(
-    null,
-  );
-  const [draggedPMId, setDraggedPMId] = useState<string | null>(null);
-  const [dragOverPMId, setDragOverPMId] = useState<string | null>(null);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
@@ -317,6 +312,21 @@ export const ChannelList: React.FC<{
     });
   }, [selectedServer]);
 
+  // Drag and drop hooks
+  const channelDrag = useDragReorder({
+    items: sortedChannels.filter((c) => !c.isPrivate),
+    getItemId: (c) => c.id,
+    onReorder: (ids) =>
+      selectedServerId && reorderChannels(selectedServerId, ids),
+  });
+
+  const pmDrag = useDragReorder({
+    items: sortedPrivateChats,
+    getItemId: (pm) => pm.id,
+    onReorder: (ids) =>
+      selectedServerId && reorderPrivateChats(selectedServerId, ids),
+  });
+
   const handleAddChannel = () => {
     if (selectedServerId && newChannelName.trim()) {
       const channelName = newChannelName.trim().startsWith("#")
@@ -333,124 +343,6 @@ export const ChannelList: React.FC<{
       e.preventDefault();
       handleAddChannel();
     }
-  };
-
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, channelId: string) => {
-    setDraggedChannelId(channelId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/html", e.currentTarget.innerHTML);
-  };
-
-  const handleDragOver = (e: React.DragEvent, channelId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverChannelId(channelId);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverChannelId(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, targetChannelId: string) => {
-    e.preventDefault();
-
-    if (
-      !draggedChannelId ||
-      !selectedServerId ||
-      draggedChannelId === targetChannelId
-    ) {
-      setDraggedChannelId(null);
-      setDragOverChannelId(null);
-      return;
-    }
-
-    // Get the current order of non-private channels
-    const nonPrivateChannels = sortedChannels.filter((c) => !c.isPrivate);
-    const draggedIndex = nonPrivateChannels.findIndex(
-      (c) => c.id === draggedChannelId,
-    );
-    const targetIndex = nonPrivateChannels.findIndex(
-      (c) => c.id === targetChannelId,
-    );
-
-    if (draggedIndex === -1 || targetIndex === -1) {
-      setDraggedChannelId(null);
-      setDragOverChannelId(null);
-      return;
-    }
-
-    // Reorder the channels
-    const reordered = [...nonPrivateChannels];
-    const [removed] = reordered.splice(draggedIndex, 1);
-    reordered.splice(targetIndex, 0, removed);
-
-    // Update the store with the new order
-    const newOrder = reordered.map((c) => c.id);
-    reorderChannels(selectedServerId, newOrder);
-
-    setDraggedChannelId(null);
-    setDragOverChannelId(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedChannelId(null);
-    setDragOverChannelId(null);
-  };
-
-  // Private message drag and drop handlers
-  const handlePMDragStart = (e: React.DragEvent, pmId: string) => {
-    setDraggedPMId(pmId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/html", e.currentTarget.innerHTML);
-  };
-
-  const handlePMDragOver = (e: React.DragEvent, pmId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverPMId(pmId);
-  };
-
-  const handlePMDragLeave = () => {
-    setDragOverPMId(null);
-  };
-
-  const handlePMDrop = (e: React.DragEvent, targetPMId: string) => {
-    e.preventDefault();
-
-    if (!draggedPMId || !selectedServerId || draggedPMId === targetPMId) {
-      setDraggedPMId(null);
-      setDragOverPMId(null);
-      return;
-    }
-
-    // Get sorted private chats
-    const privateChats = sortedPrivateChats;
-    const draggedIndex = privateChats.findIndex((pm) => pm.id === draggedPMId);
-    const targetIndex = privateChats.findIndex((pm) => pm.id === targetPMId);
-
-    if (draggedIndex === -1 || targetIndex === -1) {
-      setDraggedPMId(null);
-      setDragOverPMId(null);
-      return;
-    }
-
-    // Reorder the private chats
-    const reordered = [...privateChats];
-    const [removed] = reordered.splice(draggedIndex, 1);
-    reordered.splice(targetIndex, 0, removed);
-
-    // Update the store with the new order
-    const newOrder = reordered.map((pm) => pm.id);
-    reorderPrivateChats(selectedServerId, newOrder);
-
-    setDraggedPMId(null);
-    setDragOverPMId(null);
-  };
-
-  const handlePMDragEnd = () => {
-    setDraggedPMId(null);
-    setDragOverPMId(null);
   };
 
   const isNarrowView = useMediaQuery();
@@ -595,14 +487,12 @@ export const ChannelList: React.FC<{
                         ]}
                       >
                         <div
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, channel.id)}
-                          onDragOver={(e) => handleDragOver(e, channel.id)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDrop(e, channel.id)}
-                          onDragEnd={handleDragEnd}
+                          onPointerMove={channelDrag.handlePointerMove}
+                          onPointerUp={channelDrag.handlePointerUp}
+                          {...channelDrag.getItemProps(channel.id)}
                           className={`
-                          px-2 py-1 mb-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full
+                          group
+                          px-2 py-1 mb-1 rounded-md flex items-center justify-between
                           transition-all duration-200 ease-in-out
                           shadow-sm
                           ${
@@ -610,8 +500,17 @@ export const ChannelList: React.FC<{
                               ? "bg-black text-white"
                               : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
                           }
-                          ${draggedChannelId === channel.id ? "opacity-50" : ""}
+                          ${channelDrag.getItemProps(channel.id).className}
                         `}
+                          style={
+                            {
+                              "--bg-color":
+                                selectedChannelId === channel.id
+                                  ? "#000"
+                                  : "rgba(47, 49, 54, 0.5)",
+                              ...channelDrag.getItemProps(channel.id).style,
+                            } as React.CSSProperties
+                          }
                           onClick={() =>
                             selectChannel(channel.id, { navigate: true })
                           }
@@ -889,33 +788,49 @@ export const ChannelList: React.FC<{
                       ]}
                     >
                       <div
-                        draggable={privateChat.isPinned}
-                        onDragStart={(e) =>
-                          privateChat.isPinned &&
-                          handlePMDragStart(e, privateChat.id)
+                        onPointerMove={
+                          privateChat.isPinned
+                            ? pmDrag.handlePointerMove
+                            : undefined
                         }
-                        onDragOver={(e) => handlePMDragOver(e, privateChat.id)}
-                        onDragLeave={handlePMDragLeave}
-                        onDrop={(e) => handlePMDrop(e, privateChat.id)}
-                        onDragEnd={handlePMDragEnd}
+                        onPointerUp={
+                          privateChat.isPinned
+                            ? pmDrag.handlePointerUp
+                            : undefined
+                        }
+                        {...(privateChat.isPinned
+                          ? pmDrag.getItemProps(privateChat.id)
+                          : {})}
                         className={`
-                          px-2 py-1 mb-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full
+                          px-2 py-1 mb-1 rounded-md flex items-center justify-between max-w-full
                           ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
-                          ${draggedPMId === privateChat.id ? "opacity-50" : ""}
-                          ${dragOverPMId === privateChat.id && draggedPMId !== privateChat.id ? "border-t-2 border-discord-blurple" : ""}
+                          ${privateChat.isPinned ? pmDrag.getItemProps(privateChat.id).className : ""}
                         `}
-                        style={{
-                          transition:
-                            "background-color 150ms ease-in, color 150ms ease-in, opacity 200ms ease-in-out",
-                          backgroundColor:
-                            selectedPrivateChatId !== privateChat.id
-                              ? privateChat.isOnline
-                                ? privateChat.isAway
-                                  ? "rgba(234, 179, 8, 0.12)" // yellow tint
-                                  : "rgba(34, 197, 94, 0.12)" // green tint
-                                : "rgba(107, 114, 128, 0.08)" // gray tint
-                              : undefined,
-                        }}
+                        style={
+                          {
+                            transition:
+                              "background-color 150ms ease-in, color 150ms ease-in, opacity 200ms ease-in-out",
+                            backgroundColor:
+                              selectedPrivateChatId !== privateChat.id
+                                ? privateChat.isOnline
+                                  ? privateChat.isAway
+                                    ? "rgba(234, 179, 8, 0.12)" // yellow tint
+                                    : "rgba(34, 197, 94, 0.12)" // green tint
+                                  : "rgba(107, 114, 128, 0.08)" // gray tint
+                                : undefined,
+                            "--bg-color":
+                              selectedPrivateChatId === privateChat.id
+                                ? "rgba(47, 49, 54, 1)"
+                                : privateChat.isOnline
+                                  ? privateChat.isAway
+                                    ? "rgba(234, 179, 8, 0.12)"
+                                    : "rgba(34, 197, 94, 0.12)"
+                                  : "rgba(107, 114, 128, 0.08)",
+                            ...(privateChat.isPinned
+                              ? pmDrag.getItemProps(privateChat.id).style
+                              : {}),
+                          } as React.CSSProperties
+                        }
                         onClick={() => {
                           if (lastSelectedPM.current === privateChat.id) return;
                           lastSelectedPM.current = privateChat.id;

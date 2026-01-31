@@ -677,3 +677,64 @@ textarea.resize-none::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
+
+/* Drag and drop styles */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.no-touch-action {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.draggable-item {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  will-change: transform;
+}
+
+.draggable-item img,
+.draggable-item svg {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  -moz-user-drag: none;
+  user-drag: none;
+}
+
+.draggable-item:active {
+  cursor: grabbing;
+}
+
+.draggable-item.is-dragging {
+  opacity: 0.9 !important;
+  /* transform moved to inline style for dynamic translateY */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  position: relative;
+  transition: none !important;
+}
+
+.draggable-item.is-dragging * {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -moz-user-drag: none;
+  user-drag: none;
+}
+
+.draggable-item.is-drop-target-above {
+  border-top: 3px solid #5865F2 !important;
+  margin-top: 2px !important;
+}
+
+.draggable-item.is-drop-target-below {
+  border-bottom: 3px solid #5865F2 !important;
+  margin-bottom: 2px !important;
+}
+
