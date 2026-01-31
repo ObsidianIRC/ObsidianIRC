@@ -7,6 +7,7 @@ import {
   isUserVerified,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import { openExternalUrl } from "../../lib/openUrl";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
@@ -301,9 +302,9 @@ const ImageWithFallback: React.FC<{
           src={displayUrl}
           alt={isFilehostImage ? "Filehost image" : "GIF"}
           className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.preventDefault();
-            window.open(url, "_blank"); // Always open original URL for sharing
+            await openExternalUrl(url);
           }}
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageError(true)}

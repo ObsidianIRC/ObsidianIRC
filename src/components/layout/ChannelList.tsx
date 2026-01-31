@@ -473,18 +473,25 @@ export const ChannelList: React.FC<{
                     .map((channel) => (
                       <TouchableContextMenu
                         key={channel.id}
-                        menuItems={[
-                          {
-                            label: "Delete Channel",
-                            icon: <FaTrash size={14} />,
-                            onClick: () => {
-                              if (selectedServerId) {
-                                leaveChannel(selectedServerId, channel.name);
-                              }
-                            },
-                            className: "text-red-400",
-                          },
-                        ]}
+                        menuItems={
+                          isNarrowView
+                            ? [] // No context menu on mobile - trash icon handles deletion
+                            : [
+                                {
+                                  label: "Delete Channel",
+                                  icon: <FaTrash size={14} />,
+                                  onClick: () => {
+                                    if (selectedServerId) {
+                                      leaveChannel(
+                                        selectedServerId,
+                                        channel.name,
+                                      );
+                                    }
+                                  },
+                                  className: "text-red-400",
+                                },
+                              ]
+                        }
                       >
                         <div
                           onPointerMove={channelDrag.handlePointerMove}
@@ -688,7 +695,11 @@ export const ChannelList: React.FC<{
                             {/* Trash Button */}
                             {selectedChannelId === channel.id && (
                               <button
-                                className="hidden group-hover:block text-discord-red hover:text-white"
+                                className={`text-discord-red hover:text-white ${
+                                  isNarrowView
+                                    ? "block" // Always visible on mobile
+                                    : "hidden group-hover:block" // Show on hover on desktop
+                                }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (selectedServerId) {

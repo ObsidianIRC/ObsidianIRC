@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { openExternalUrl } from "../../lib/openUrl";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 
 interface EnhancedLinkWrapperProps {
@@ -67,9 +68,9 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
     }
   };
 
-  const handleConfirmOpen = () => {
+  const handleConfirmOpen = async () => {
     if (pendingUrl) {
-      window.open(pendingUrl, "_blank", "noopener,noreferrer");
+      await openExternalUrl(pendingUrl);
     }
     setPendingUrl(null);
   };

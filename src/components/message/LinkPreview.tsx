@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { openExternalUrl } from "../../lib/openUrl";
 import useStore from "../../store";
 import ExternalLinkWarningModal from "../ui/ExternalLinkWarningModal";
 
@@ -39,9 +40,9 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
     }
   };
 
-  const handleConfirmOpen = () => {
+  const handleConfirmOpen = async () => {
     if (firstUrl) {
-      window.open(firstUrl, "_blank", "noopener,noreferrer");
+      await openExternalUrl(firstUrl);
     }
     setShowWarningModal(false);
   };
