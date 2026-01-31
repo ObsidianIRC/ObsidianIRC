@@ -58,7 +58,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config zsync
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -91,6 +91,42 @@ jobs:
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}
 
+      - name: Generate zsync files for AppImages
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          # Find AppImage files
+          APPIMAGE_DIR="./src-tauri/target/release/bundle/appimage"
+          if [ -d "$APPIMAGE_DIR" ]; then
+            for appimage in $APPIMAGE_DIR/*.AppImage; do
+              if [ -f "$appimage" ]; then
+                echo "Generating zsync for $appimage"
+                zsyncmake -o "${appimage}.zsync" "$appimage"
+              fi
+            done
+          fi
+
+      - name: Embed update information in AppImages
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          APPIMAGE_DIR="./src-tauri/target/release/bundle/appimage"
+          if [ -d "$APPIMAGE_DIR" ]; then
+            for appimage in $APPIMAGE_DIR/*_amd64.AppImage; do
+              if [ -f "$appimage" ]; then
+                echo "Embedding update info in $appimage"
+                printf 'gh-releases-zsync|ObsidianIRC|ObsidianIRC|latest|ObsidianIRC_*_amd64.AppImage.zsync' | \
+                  dd of="$appimage" bs=1 seek=33651 count=512 conv=notrunc
+              fi
+            done
+          fi
+
+      - name: Upload zsync files
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.collect-version.outputs.tag_name }}
+          files: |
+            ./src-tauri/target/release/bundle/appimage/*.zsync
+
   publish-linux-arm:
     runs-on: ubuntu-22.04-arm # Use 22.04 for glibc 2.35 compatibility
     needs: collect-version
@@ -101,7 +137,7 @@ jobs:
       - name: install dependencies (ubuntu only)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file pkg-config xdg-utils
+          sudo apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file pkg-config xdg-utils zsync
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -123,6 +159,23 @@ jobs:
       - name: Build app
         run: npm run tauri build -- --verbose
 
+      - name: Generate zsync files
+        run: |
+          APPIMAGE_PATH="./src-tauri/target/release/bundle/appimage/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage"
+          if [ -f "$APPIMAGE_PATH" ]; then
+            echo "Generating zsync for $APPIMAGE_PATH"
+            zsyncmake -o "${APPIMAGE_PATH}.zsync" "$APPIMAGE_PATH"
+          fi
+
+      - name: Embed update information in AppImage
+        run: |
+          APPIMAGE_PATH="./src-tauri/target/release/bundle/appimage/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage"
+          if [ -f "$APPIMAGE_PATH" ]; then
+            echo "Embedding update info in $APPIMAGE_PATH"
+            printf 'gh-releases-zsync|ObsidianIRC|ObsidianIRC|latest|ObsidianIRC_*_aarch64.AppImage.zsync' | \
+              dd of="$APPIMAGE_PATH" bs=1 seek=33651 count=512 conv=notrunc
+          fi
+
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
@@ -137,6 +190,7 @@ jobs:
             ./src-tauri/target/release/bundle/deb/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_arm64.deb
             ./src-tauri/target/release/bundle/rpm/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-1.aarch64.rpm
             ./src-tauri/target/release/bundle/appimage/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage
+            ./src-tauri/target/release/bundle/appimage/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage.zsync
 
   publish-android:
     runs-on: ubuntu-latest
