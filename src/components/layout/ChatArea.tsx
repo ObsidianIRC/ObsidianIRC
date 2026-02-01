@@ -24,6 +24,7 @@ import {
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
@@ -1402,8 +1403,7 @@ export const ChatArea: React.FC<{
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Only focus when channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Only focus when private chat changes
   useEffect(() => {
-    if ("__TAURI__" in window && ["android", "ios"].includes(platform()))
-      return;
+    if (isTauri() && ["android", "ios"].includes(platform())) return;
     // Don't steal focus if any modal is open
     if (
       isSettingsModalOpen ||

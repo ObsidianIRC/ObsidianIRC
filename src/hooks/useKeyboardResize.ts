@@ -1,5 +1,6 @@
 import { platform } from "@tauri-apps/plugin-os";
 import { useEffect } from "react";
+import { isTauri } from "../lib/platformUtils";
 
 // Hook to handle keyboard visibility and viewport resizing on mobile platforms
 export const useKeyboardResize = () => {
@@ -16,7 +17,7 @@ export const useKeyboardResize = () => {
     }
 
     // If we're in Tauri, check the platform
-    if ("__TAURI__" in window) {
+    if (isTauri()) {
       try {
         const currentPlatform = platform();
         if (!["android", "ios"].includes(currentPlatform)) {

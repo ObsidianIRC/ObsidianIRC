@@ -3,6 +3,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
@@ -215,8 +216,7 @@ export const AppLayout: React.FC = () => {
 
   // Handle mobile back button
   // TODO: ios
-  if ("__TAURI__" in window && platform() === "android") {
-    // @ts-expect-error
+  if (isTauri() && platform() === "android") {
     window.androidBackCallback = () => {
       switch (mobileViewActiveColumn) {
         case "chatView":

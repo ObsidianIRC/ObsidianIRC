@@ -393,7 +393,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(useStore.getState().ui.mobileViewActiveColumn).toBe("serverList");
@@ -411,7 +410,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(useStore.getState().ui.mobileViewActiveColumn).toBe("chatView");
@@ -428,7 +426,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(result).toBe(true);

@@ -3,6 +3,7 @@ import { marked } from "marked";
 import React from "react";
 /* eslint-disable no-control-regex */
 import type { Server, User } from "../types";
+import { isTauri } from "./platformUtils";
 
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
@@ -611,9 +612,12 @@ function processUrlsInText(
   keyPrefix = "",
   elementIndexRef?: { current: number },
 ): React.ReactNode[] {
-  // URL regex pattern - matches http://, https://, and www. URLs
+  // Check if running in Tauri native environment
+  const isTauriEnv = isTauri();
+
+  // URL regex pattern - matches http://, https://, irc://, ircs://, and www. URLs
   const urlRegex =
-    /(https?:\/\/[^\s<>"{}|\\^`[\]]+|www\.[^\s<>"{}|\\^`[\]]+)/gi;
+    /((?:https?|ircs?):\/\/[^\s<>"{}|\\^`[\]]+|www\.[^\s<>"{}|\\^`[\]]+)/gi;
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -631,32 +635,49 @@ function processUrlsInText(
     }
 
     const url = match[0];
+    const isIrcLink = url.startsWith("irc://") || url.startsWith("ircs://");
+
     // Ensure URL has protocol
     const fullUrl = url.startsWith("http") ? url : `https://${url}`;
 
     // Truncate long URLs for display
     const displayText = url.length > 50 ? `${url.slice(0, 47)}...` : url;
 
-    // Add security class for external HTTP/HTTPS links
-    const isExternalLink =
-      fullUrl.startsWith("http://") || fullUrl.startsWith("https://");
-    const linkClass = isExternalLink
-      ? "text-blue-500 hover:text-blue-700 underline external-link-security"
-      : "text-blue-500 hover:text-blue-700 underline";
+    // IRC links: only make clickable on Tauri, otherwise show as plain text
+    if (isIrcLink && !isTauriEnv) {
+      parts.push(
+        <span
+          key={`${keyPrefix}text-${elementIndex++}`}
+          style={style}
+          className="text-discord-text-muted"
+        >
+          {url}
+        </span>,
+      );
+    } else {
+      // Add appropriate class based on link type
+      const isExternalLink =
+        fullUrl.startsWith("http://") || fullUrl.startsWith("https://");
+      const linkClass = isIrcLink
+        ? "text-blue-500 hover:text-blue-700 underline irc-link"
+        : isExternalLink
+          ? "text-blue-500 hover:text-blue-700 underline external-link-security"
+          : "text-blue-500 hover:text-blue-700 underline";
 
-    parts.push(
-      <a
-        key={`${keyPrefix}url-${elementIndex++}`}
-        href={fullUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={linkClass}
-        style={style}
-        title={url}
-      >
-        {displayText}
-      </a>,
-    );
+      parts.push(
+        <a
+          key={`${keyPrefix}url-${elementIndex++}`}
+          href={isIrcLink ? url : fullUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={linkClass}
+          style={style}
+          title={url}
+        >
+          {displayText}
+        </a>,
+      );
+    }
 
     lastIndex = match.index + match[0].length;
     match = urlRegex.exec(text);

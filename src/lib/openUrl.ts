@@ -1,14 +1,5 @@
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
-
-/**
- * Detects if running in Tauri native environment
- */
-export function isTauri(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    (window as { __TAURI__?: unknown }).__TAURI__ !== undefined
-  );
-}
+import { isTauri } from "./platformUtils";
 
 /**
  * Opens URL in system browser (native) or new tab (web)
