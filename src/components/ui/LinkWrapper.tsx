@@ -32,6 +32,7 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
       while (element) {
         if (element.classList.contains("external-link-security")) {
           e.preventDefault();
+          e.stopPropagation();
           const url = element.getAttribute("href");
           if (url) {
             setPendingUrl(url);
@@ -44,9 +45,10 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
 
     const container = containerRef.current;
     if (container) {
-      container.addEventListener("click", handleExternalLinkClick);
+      // Use capture phase to intercept before the link's default behavior
+      container.addEventListener("click", handleExternalLinkClick, true);
       return () =>
-        container.removeEventListener("click", handleExternalLinkClick);
+        container.removeEventListener("click", handleExternalLinkClick, true);
     }
   }, []);
 

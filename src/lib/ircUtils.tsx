@@ -216,7 +216,13 @@ export function renderMarkdown(
 
     if (!showExternalContent) {
       // Return a placeholder or link instead of the image
-      return `<a href="${sanitizedHref}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 underline">[Image: ${text || sanitizedHref}]</a>`;
+      const isExternalLink =
+        sanitizedHref.startsWith("http://") ||
+        sanitizedHref.startsWith("https://");
+      const linkClass = isExternalLink
+        ? "text-blue-500 hover:text-blue-700 underline external-link-security"
+        : "text-blue-500 hover:text-blue-700 underline";
+      return `<a href="${sanitizedHref}" target="_blank" rel="noopener noreferrer" class="${linkClass}">[Image: ${text || sanitizedHref}]</a>`;
     }
     // Allow the image to render normally, but make it clickable
     const titleAttr = title ? ` title="${title.replace(/"/g, "&quot;")}"` : "";
@@ -631,13 +637,20 @@ function processUrlsInText(
     // Truncate long URLs for display
     const displayText = url.length > 50 ? `${url.slice(0, 47)}...` : url;
 
+    // Add security class for external HTTP/HTTPS links
+    const isExternalLink =
+      fullUrl.startsWith("http://") || fullUrl.startsWith("https://");
+    const linkClass = isExternalLink
+      ? "text-blue-500 hover:text-blue-700 underline external-link-security"
+      : "text-blue-500 hover:text-blue-700 underline";
+
     parts.push(
       <a
         key={`${keyPrefix}url-${elementIndex++}`}
         href={fullUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-blue-500 hover:text-blue-700 underline"
+        className={linkClass}
         style={style}
         title={url}
       >
