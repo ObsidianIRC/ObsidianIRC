@@ -1,6 +1,8 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { FaQuestionCircle, FaTimes } from "react-icons/fa";
+import { FaQuestionCircle } from "react-icons/fa";
+import BaseModal from "../../lib/modal/BaseModal";
+import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 
@@ -10,7 +12,7 @@ export const AddServerModal: React.FC = () => {
     connect,
     isConnecting,
     connectionError,
-    ui: { prefillServerDetails },
+    ui: { prefillServerDetails, isAddServerModalOpen },
   } = useStore();
 
   const [serverName, setServerName] = useState(
@@ -144,23 +146,15 @@ export const AddServerModal: React.FC = () => {
   const hideServerInfo = prefillServerDetails?.ui?.hideServerInfo;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 modal-container">
-      <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl font-bold">
-            {prefillServerDetails?.ui?.title || "Add IRC Server"}
-          </h2>
-          {!prefillServerDetails?.ui?.hideClose && (
-            <button
-              onClick={() => toggleAddServerModal(false)}
-              className="text-discord-text-muted hover:text-white"
-            >
-              <FaTimes />
-            </button>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit}>
+    <BaseModal
+      isOpen={!!isAddServerModalOpen}
+      onClose={() => toggleAddServerModal(false)}
+      title={prefillServerDetails?.ui?.title || "Add IRC Server"}
+      maxWidth="md"
+      showCloseButton={!prefillServerDetails?.ui?.hideClose}
+    >
+      <form onSubmit={handleSubmit}>
+        <ModalBody scrollable className="max-h-[60vh]">
           {!hideServerInfo && (
             <>
               <div className="mb-4">
@@ -417,32 +411,28 @@ export const AddServerModal: React.FC = () => {
           )}
 
           {(error || connectionError) && (
-            <div className="mb-4 text-discord-red text-sm">
+            <div className="text-discord-red text-sm">
               {error || connectionError}
             </div>
           )}
+        </ModalBody>
 
-          <div className="flex justify-end">
-            {!prefillServerDetails?.ui?.hideClose && (
-              <button
-                type="button"
-                onClick={() => toggleAddServerModal(false)}
-                className="mr-3 px-4 py-2 bg-discord-dark-300 text-discord-text-normal rounded hover:bg-discord-dark-400 border border-discord-dark-400 transition-colors"
-              >
-                Cancel
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={isConnecting}
-              className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-80"}`}
+        <ModalFooter>
+          {!prefillServerDetails?.ui?.hideClose && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => toggleAddServerModal(false)}
             >
-              {isConnecting ? "Connecting..." : "Connect"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" variant="primary" disabled={isConnecting}>
+            {isConnecting ? "Connecting..." : "Connect"}
+          </Button>
+        </ModalFooter>
+      </form>
+    </BaseModal>
   );
 };
 

@@ -2,6 +2,9 @@
  * Modal for previewing and uploading images
  */
 
+import BaseModal from "../../lib/modal/BaseModal";
+import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
+
 interface ImagePreviewModalProps {
   isOpen: boolean;
   file: File | null;
@@ -20,41 +23,36 @@ export function ImagePreviewModal({
   onCancel,
   onUpload,
 }: ImagePreviewModalProps) {
-  if (!isOpen || !previewUrl) return null;
+  if (!previewUrl) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-container">
-      <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-md w-full mx-4">
-        <div className="p-4">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Upload Image
-          </h3>
-          <div className="flex justify-center mb-4">
-            <img
-              src={previewUrl}
-              alt="Preview"
-              className="max-w-full max-h-96 rounded-lg"
-            />
-          </div>
-          <p className="text-sm text-discord-text-muted mb-4">
-            File: {file?.name} ({(file?.size || 0) / 1024} KB)
-          </p>
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onCancel}
+      title="Upload Image"
+      maxWidth="md"
+    >
+      <ModalBody>
+        <div className="flex justify-center mb-4">
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="max-w-full max-h-96 rounded-lg"
+          />
         </div>
-        <div className="flex justify-end gap-2 p-4 border-t border-discord-dark-300">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-discord-text-muted hover:text-white rounded"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onUpload}
-            className="px-4 py-2 bg-discord-accent text-white rounded hover:bg-discord-accent-hover"
-          >
-            Upload
-          </button>
-        </div>
-      </div>
-    </div>
+        <p className="text-sm text-discord-text-muted">
+          File: {file?.name} ({((file?.size || 0) / 1024).toFixed(1)} KB)
+        </p>
+      </ModalBody>
+
+      <ModalFooter>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={onUpload}>
+          Upload
+        </Button>
+      </ModalFooter>
+    </BaseModal>
   );
 }
