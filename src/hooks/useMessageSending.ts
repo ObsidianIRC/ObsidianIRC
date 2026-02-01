@@ -79,6 +79,23 @@ export function useMessageSending({
         const [target, ...messageParts] = args;
         const message = messageParts.join(" ");
         ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
+      } else if (commandName === "whisper") {
+        const [targetUser, ...messageParts] = args;
+        if (!selectedChannel) {
+          console.error("Whispers can only be sent from a channel");
+          return;
+        }
+        if (!targetUser || messageParts.length === 0) {
+          console.error("Usage: /whisper <username> <message>");
+          return;
+        }
+        const message = messageParts.join(" ");
+        ircClient.sendWhisper(
+          selectedServerId,
+          targetUser,
+          selectedChannel.name,
+          message,
+        );
       } else if (commandName === "me") {
         const actionMessage = cleanedText.substring(4).trim();
         ircClient.sendRaw(
