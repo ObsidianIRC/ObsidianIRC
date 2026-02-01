@@ -758,45 +758,49 @@ export const ChannelList: React.FC<{
                   {sortedPrivateChats.map((privateChat) => (
                     <TouchableContextMenu
                       key={privateChat.id}
-                      menuItems={[
-                        {
-                          label: privateChat.isPinned
-                            ? "Unpin Private Chat"
-                            : "Pin Private Chat",
-                          icon: <FaThumbtack size={14} />,
-                          onClick: () => {
-                            if (selectedServerId) {
-                              if (privateChat.isPinned) {
-                                unpinPrivateChat(
-                                  selectedServerId,
-                                  privateChat.id,
-                                );
-                              } else {
-                                pinPrivateChat(
-                                  selectedServerId,
-                                  privateChat.id,
-                                );
-                              }
-                            }
-                          },
-                          className: privateChat.isPinned
-                            ? "text-yellow-400"
-                            : "",
-                        },
-                        {
-                          label: "Delete Private Chat",
-                          icon: <FaTrash size={14} />,
-                          onClick: () => {
-                            if (selectedServerId) {
-                              deletePrivateChat(
-                                selectedServerId,
-                                privateChat.id,
-                              );
-                            }
-                          },
-                          className: "text-red-400",
-                        },
-                      ]}
+                      menuItems={
+                        isNarrowView
+                          ? [] // No context menu on mobile - buttons handle actions
+                          : [
+                              {
+                                label: privateChat.isPinned
+                                  ? "Unpin Private Chat"
+                                  : "Pin Private Chat",
+                                icon: <FaThumbtack size={14} />,
+                                onClick: () => {
+                                  if (selectedServerId) {
+                                    if (privateChat.isPinned) {
+                                      unpinPrivateChat(
+                                        selectedServerId,
+                                        privateChat.id,
+                                      );
+                                    } else {
+                                      pinPrivateChat(
+                                        selectedServerId,
+                                        privateChat.id,
+                                      );
+                                    }
+                                  }
+                                },
+                                className: privateChat.isPinned
+                                  ? "text-yellow-400"
+                                  : "",
+                              },
+                              {
+                                label: "Delete Private Chat",
+                                icon: <FaTrash size={14} />,
+                                onClick: () => {
+                                  if (selectedServerId) {
+                                    deletePrivateChat(
+                                      selectedServerId,
+                                      privateChat.id,
+                                    );
+                                  }
+                                },
+                                className: "text-red-400",
+                              },
+                            ]
+                      }
                     >
                       <div
                         onPointerMove={
@@ -813,6 +817,7 @@ export const ChannelList: React.FC<{
                           ? pmDrag.getItemProps(privateChat.id)
                           : {})}
                         className={`
+                          group
                           px-2 py-1 mb-1 rounded-md flex items-center justify-between max-w-full
                           ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
                           ${privateChat.isPinned ? pmDrag.getItemProps(privateChat.id).className : ""}
@@ -1113,13 +1118,18 @@ export const ChannelList: React.FC<{
                           {selectedPrivateChatId === privateChat.id && (
                             <>
                               <button
-                                className={`hidden group-hover:block ${
+                                className={`${
+                                  isNarrowView
+                                    ? "block" // Always visible on mobile
+                                    : "hidden group-hover:block" // Show on hover on desktop
+                                } ${
                                   privateChat.isPinned
                                     ? "text-green-500 hover:text-green-400"
                                     : "text-discord-text-muted hover:text-yellow-400"
                                 }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  e.preventDefault();
                                   if (selectedServerId) {
                                     if (privateChat.isPinned) {
                                       unpinPrivateChat(
@@ -1134,6 +1144,14 @@ export const ChannelList: React.FC<{
                                     }
                                   }
                                 }}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                }}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                }}
                                 title={privateChat.isPinned ? "Unpin" : "Pin"}
                               >
                                 <FaThumbtack
@@ -1147,21 +1165,36 @@ export const ChannelList: React.FC<{
                                   }
                                 />
                               </button>
-                              <button
-                                className="hidden group-hover:block text-discord-red hover:text-white"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (selectedServerId) {
-                                    deletePrivateChat(
-                                      selectedServerId,
-                                      privateChat.id,
-                                    );
-                                  }
-                                }}
-                                title="Close"
-                              >
-                                <FaTrash />
-                              </button>
+                              {!privateChat.isPinned && (
+                                <button
+                                  className={`text-discord-red hover:text-white ${
+                                    isNarrowView
+                                      ? "block" // Always visible on mobile
+                                      : "hidden group-hover:block" // Show on hover on desktop
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    if (selectedServerId) {
+                                      deletePrivateChat(
+                                        selectedServerId,
+                                        privateChat.id,
+                                      );
+                                    }
+                                  }}
+                                  onMouseDown={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                  }}
+                                  onPointerDown={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                  }}
+                                  title="Close"
+                                >
+                                  <FaTrash />
+                                </button>
+                              )}
                             </>
                           )}
                         </div>

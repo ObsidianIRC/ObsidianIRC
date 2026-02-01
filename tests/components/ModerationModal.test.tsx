@@ -59,7 +59,7 @@ describe("ModerationModal", () => {
 
     // Check button color for kick action (should be red)
     const confirmButton = screen.getByRole("button", { name: "Kick User" });
-    expect(confirmButton).toHaveClass("bg-red-600");
+    expect(confirmButton).toHaveClass("bg-discord-red");
   });
 
   test("renders ban-nick modal correctly", () => {
@@ -78,7 +78,7 @@ describe("ModerationModal", () => {
     const confirmButton = screen.getByRole("button", {
       name: "Ban User (by Nickname)",
     });
-    expect(confirmButton).toHaveClass("bg-red-600");
+    expect(confirmButton).toHaveClass("bg-discord-red");
   });
 
   test("renders ban-hostmask modal correctly", () => {
@@ -97,13 +97,13 @@ describe("ModerationModal", () => {
     const confirmButton = screen.getByRole("button", {
       name: "Ban User (by Hostmask)",
     });
-    expect(confirmButton).toHaveClass("bg-red-600");
+    expect(confirmButton).toHaveClass("bg-discord-red");
   });
 
   test("calls onClose when close button is clicked", () => {
     renderModal("warn");
 
-    const closeButton = screen.getByRole("button", { name: "" }); // Close button has no accessible name
+    const closeButton = screen.getByRole("button", { name: /Close modal/ });
     fireEvent.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -148,7 +148,7 @@ describe("ModerationModal", () => {
     fireEvent.change(reasonInput, { target: { value: "Test reason" } });
 
     // Close modal
-    const closeButton = screen.getByRole("button", { name: "" }); // Close button has no accessible name
+    const closeButton = screen.getByRole("button", { name: /Close modal/ });
     fireEvent.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);

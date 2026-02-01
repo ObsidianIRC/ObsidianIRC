@@ -248,6 +248,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     setIsOverflowMenuOpen(false);
   }, [selectedChannelId, mobileViewActiveColumn]);
 
+  // Don't render header on welcome page
+  if (
+    selectedServerId &&
+    !selectedChannel &&
+    !selectedPrivateChat &&
+    selectedChannelId !== "server-notices"
+  ) {
+    return null;
+  }
+
   // Define overflow menu items based on context
   const overflowMenuItems: HeaderOverflowMenuItem[] = [
     {
@@ -277,15 +287,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   ].filter((item) => item.show);
 
   return (
-    <div className="px-4 border-b border-discord-dark-400 shadow-sm py-2 flex flex-col">
+    <div className="px-4 py-2.5 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
       {/* CHANNELS */}
       {selectedChannel && (
-        <div className="flex items-stretch justify-between w-full gap-2">
+        <div className="flex items-center justify-between w-full gap-2">
           {/* Left: Back button */}
           {(isNarrowView || !isChanListVisible) && (
             <button
               onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white flex-shrink-0 mt-1"
+              className="text-discord-channels-default hover:text-white flex-shrink-0"
               aria-label="Expand channel list"
             >
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
@@ -314,7 +324,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <img
                   src={avatarUrl}
                   alt={selectedChannel.name}
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-10 h-10 rounded-full object-cover"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                     const parent = e.currentTarget.parentElement;
