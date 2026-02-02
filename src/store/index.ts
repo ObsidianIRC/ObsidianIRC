@@ -354,6 +354,10 @@ interface UIState {
       selectedPrivateChatId: string | null;
     }
   >;
+  sidebarPreferences?: {
+    channelList: { isVisible: boolean; width: number };
+    memberList: { isVisible: boolean; width: number };
+  };
   isAddServerModalOpen: boolean | undefined;
   isEditServerModalOpen: boolean;
   editServerId: string | null;
@@ -655,6 +659,10 @@ export interface AppState {
   toggleMobileMenu: (isOpen?: boolean) => void;
   toggleMemberList: (isVisible?: boolean) => void;
   toggleChannelList: (isOpen?: boolean) => void;
+  updateSidebarPreferences: (preferences: {
+    channelList?: { isVisible: boolean; width: number };
+    memberList?: { isVisible: boolean; width: number };
+  }) => void;
   toggleChannelListModal: (isOpen?: boolean) => void;
   toggleChannelRenameModal: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
@@ -770,6 +778,10 @@ const useStore = create<AppState>((set, get) => ({
   ui: {
     selectedServerId: loadUISelections().selectedServerId, // Load immediately from localStorage
     perServerSelections: loadUISelections().perServerSelections, // Load immediately from localStorage
+    sidebarPreferences: loadUISelections().sidebarPreferences || {
+      channelList: { isVisible: true, width: 264 },
+      memberList: { isVisible: true, width: 280 },
+    },
     isAddServerModalOpen: false,
     isEditServerModalOpen: false,
     editServerId: null,
@@ -782,8 +794,10 @@ const useStore = create<AppState>((set, get) => ({
         ? window.matchMedia(NARROW_VIEW_QUERY).matches
         : false,
     isMobileMenuOpen: false,
-    isMemberListVisible: true,
-    isChannelListVisible: true,
+    isMemberListVisible:
+      loadUISelections().sidebarPreferences?.memberList.isVisible ?? true,
+    isChannelListVisible:
+      loadUISelections().sidebarPreferences?.channelList.isVisible ?? true,
     isChannelListModalOpen: false,
     isChannelRenameModalOpen: false,
     mobileViewActiveColumn: "serverList", // Always start on server/channel list, never auto-navigate to chat
@@ -2452,6 +2466,30 @@ const useStore = create<AppState>((set, get) => ({
           ...state.ui,
           isChannelListVisible: openState,
         },
+      };
+    });
+  },
+
+  updateSidebarPreferences: (preferences) => {
+    set((state) => {
+      const currentPrefs = state.ui.sidebarPreferences || {
+        channelList: { isVisible: true, width: 264 },
+        memberList: { isVisible: true, width: 280 },
+      };
+
+      const newPrefs = {
+        channelList: preferences.channelList || currentPrefs.channelList,
+        memberList: preferences.memberList || currentPrefs.memberList,
+      };
+
+      saveUISelections({
+        selectedServerId: state.ui.selectedServerId,
+        perServerSelections: state.ui.perServerSelections,
+        sidebarPreferences: newPrefs,
+      });
+
+      return {
+        ui: { ...state.ui, sidebarPreferences: newPrefs },
       };
     });
   },
@@ -4843,9 +4881,15 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     // Existing servers with channels should not auto-select (preserves user's view)
     const isNewServer = savedServer.channels.length === 0;
 
-    useStore.setState((state) => {
-      // Only update selectedServerId if no server is selected
-      if (!state.ui.selectedServerId) {
+    const currentState = useStore.getState();
+
+    // If this is the saved selected server, restore its selection now that channels are joined
+    if (currentState.ui.selectedServerId === serverId) {
+      // Call selectServer to restore channel selection from perServerSelections
+      useStore.getState().selectServer(serverId);
+    } else if (!currentState.ui.selectedServerId) {
+      // No server selected - select this one
+      useStore.setState((state) => {
         return {
           ui: {
             ...state.ui,
@@ -4861,10 +4905,8 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
               : state.ui.perServerSelections,
           },
         };
-      }
-
-      return state;
-    });
+      });
+    }
   } else {
   }
 

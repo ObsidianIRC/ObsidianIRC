@@ -248,14 +248,27 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     setIsOverflowMenuOpen(false);
   }, [selectedChannelId, mobileViewActiveColumn]);
 
-  // Don't render header on welcome page
+  // Minimal header for blank page (server selected but no channel) or home page
   if (
-    selectedServerId &&
     !selectedChannel &&
     !selectedPrivateChat &&
     selectedChannelId !== "server-notices"
   ) {
-    return null;
+    const title = selectedServerId ? "Select a channel" : "Home";
+    return (
+      <div className="px-4 py-2.5 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
+        {(isNarrowView || !isChanListVisible) && (
+          <button
+            onClick={onToggleChanList}
+            className="text-discord-channels-default hover:text-white flex-shrink-0"
+            aria-label="Expand channel list"
+          >
+            {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
+          </button>
+        )}
+        <h2 className="ml-4 font-bold text-white">{title}</h2>
+      </div>
+    );
   }
 
   // Define overflow menu items based on context
@@ -287,7 +300,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   ].filter((item) => item.show);
 
   return (
-    <div className="px-4 py-2.5 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
+    <div className="px-4 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
       {/* CHANNELS */}
       {selectedChannel && (
         <div className="flex items-center justify-between w-full gap-2">

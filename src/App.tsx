@@ -164,7 +164,7 @@ const App: React.FC = () => {
     toggleAddServerModal,
     joinChannel, // Auto-reconnect to saved servers on app startup
     connectToSavedServers,
-  ]); // Removed connectToSavedServers from dependencies
+  ]);
 
   // Handle deeplinks
   useEffect(() => {

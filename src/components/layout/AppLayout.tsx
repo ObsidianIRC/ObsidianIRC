@@ -1,6 +1,6 @@
 import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
 import { isTauri } from "../../lib/platformUtils";
@@ -26,7 +26,15 @@ export const AppLayout: React.FC = () => {
     toggleChannelList,
     setMobileViewActiveColumn,
     setIsNarrowView,
+    updateSidebarPreferences,
   } = useStore();
+
+  const [channelListWidth, setChannelListWidth] = useState<number>(
+    ui.sidebarPreferences?.channelList.width ?? 264,
+  );
+  const [memberListWidth, setMemberListWidth] = useState<number>(
+    ui.sidebarPreferences?.memberList.width ?? 280,
+  );
 
   const selectedServerId = ui.selectedServerId;
   const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
@@ -44,6 +52,32 @@ export const AppLayout: React.FC = () => {
 
   // Hide member list for private chats
   const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
+
+  const handleChannelListWidthChange = useCallback(
+    (width: number) => {
+      setChannelListWidth(width);
+      updateSidebarPreferences({
+        channelList: {
+          isVisible: isChannelListVisible,
+          width,
+        },
+      });
+    },
+    [isChannelListVisible, updateSidebarPreferences],
+  );
+
+  const handleMemberListWidthChange = useCallback(
+    (width: number) => {
+      setMemberListWidth(width);
+      updateSidebarPreferences({
+        memberList: {
+          isVisible: shouldShowMemberList,
+          width,
+        },
+      });
+    },
+    [shouldShowMemberList, updateSidebarPreferences],
+  );
 
   // Set theme class on body
   useEffect(() => {
@@ -125,10 +159,12 @@ export const AppLayout: React.FC = () => {
               bypass={false}
               isVisible={isChannelListVisible}
               defaultWidth={264}
+              initialWidth={channelListWidth}
               minWidth={80}
               maxWidth={400}
               side="left"
               onMinReached={() => toggleChannelList(false)}
+              onWidthChange={handleChannelListWidthChange}
             >
               <div className="channel-list w-full h-full bg-discord-dark-100 md:block z-20">
                 <ChannelList
@@ -168,10 +204,12 @@ export const AppLayout: React.FC = () => {
             bypass={false}
             isVisible={shouldShowMemberList}
             defaultWidth={280}
+            initialWidth={memberListWidth}
             minWidth={80}
             maxWidth={400}
             side="right"
             onMinReached={() => toggleMemberList(false)}
+            onWidthChange={handleMemberListWidthChange}
           >
             <div className="flex-1 overflow-hidden h-full bg-discord-dark-100">
               <MemberList />
@@ -180,6 +218,40 @@ export const AppLayout: React.FC = () => {
         );
     }
   };
+
+  // Persist channel list visibility changes (desktop only)
+  useEffect(() => {
+    if (!isNarrowView) {
+      updateSidebarPreferences({
+        channelList: {
+          isVisible: isChannelListVisible,
+          width: channelListWidth,
+        },
+      });
+    }
+  }, [
+    isChannelListVisible,
+    channelListWidth,
+    isNarrowView,
+    updateSidebarPreferences,
+  ]);
+
+  // Persist member list visibility changes (desktop only)
+  useEffect(() => {
+    if (!isNarrowView) {
+      updateSidebarPreferences({
+        memberList: {
+          isVisible: shouldShowMemberList,
+          width: memberListWidth,
+        },
+      });
+    }
+  }, [
+    shouldShowMemberList,
+    memberListWidth,
+    isNarrowView,
+    updateSidebarPreferences,
+  ]);
 
   // Sync media query hook to store
   useEffect(() => {

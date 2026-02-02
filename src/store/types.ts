@@ -59,4 +59,8 @@ export interface UISelections {
     string,
     { selectedChannelId: string | null; selectedPrivateChatId: string | null }
   >;
+  sidebarPreferences?: {
+    channelList: { isVisible: boolean; width: number };
+    memberList: { isVisible: boolean; width: number };
+  };
 }
