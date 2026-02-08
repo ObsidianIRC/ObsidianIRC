@@ -363,7 +363,6 @@ interface UIState {
   editServerId: string | null;
   isSettingsModalOpen: boolean;
   isQuickActionsOpen: boolean;
-  isUserProfileModalOpen: boolean;
   isDarkMode: boolean;
   isNarrowView: boolean;
   isMobileMenuOpen: boolean;
@@ -389,6 +388,7 @@ interface UIState {
   serverNoticesPopupMinimized: boolean;
   // Profile view request - set when we want to open a user profile after closing settings
   profileViewRequest: { serverId: string; username: string } | null;
+  topicModalRequest: { serverId: string; channelId: string } | null;
   // Settings navigation - for Quick Actions to specify which category and setting to open/highlight
   settingsNavigation: {
     category?:
@@ -403,6 +403,10 @@ interface UIState {
   serverShimmer?: Set<string>; // Set of server IDs that should show shimmer
   // Request focus on chat input (used when closing modals)
   shouldFocusChatInput: boolean;
+  isUserProfileModalOpen: boolean;
+  // Request state for ChatArea modals (using request pattern)
+  channelSettingsRequest: { serverId: string; channelId: string } | null;
+  inviteUserRequest: { serverId: string; channelId: string } | null;
 }
 
 export type { GlobalSettings };
@@ -645,6 +649,8 @@ export interface AppState {
   toggleUserProfileModal: (isOpen?: boolean) => void;
   setProfileViewRequest: (serverId: string, username: string) => void;
   clearProfileViewRequest: () => void;
+  setTopicModalRequest: (serverId: string, channelId: string) => void;
+  clearTopicModalRequest: () => void;
   setSettingsNavigation: (navigation: {
     category?:
       | "profile"
@@ -666,6 +672,24 @@ export interface AppState {
   toggleChannelListModal: (isOpen?: boolean) => void;
   toggleChannelRenameModal: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
+  // New modal actions for QuickActions
+  toggleTopicModal: (
+    isOpen: boolean,
+    context?: { serverId: string; channelId: string },
+  ) => void;
+  toggleUserProfileModalWithContext: (
+    isOpen: boolean,
+    context?: { serverId: string; username: string },
+  ) => void;
+  setChannelSettingsRequest: (
+    serverId: string | null,
+    channelId: string | null,
+  ) => void;
+  setInviteUserRequest: (
+    serverId: string | null,
+    channelId: string | null,
+  ) => void;
+  toggleNotificationVolume: () => void;
   setIsNarrowView: (isNarrow: boolean) => void;
   showContextMenu: (
     x: number,
@@ -787,7 +811,6 @@ const useStore = create<AppState>((set, get) => ({
     editServerId: null,
     isSettingsModalOpen: false,
     isQuickActionsOpen: false,
-    isUserProfileModalOpen: false,
     isDarkMode: true,
     isNarrowView:
       typeof window !== "undefined"
@@ -818,10 +841,15 @@ const useStore = create<AppState>((set, get) => ({
     serverNoticesPopupMinimized: false,
     // Profile view request
     profileViewRequest: null,
+    topicModalRequest: null,
     // Settings navigation
     settingsNavigation: null,
     // Chat input focus request
     shouldFocusChatInput: false,
+    isUserProfileModalOpen: false,
+    // Request state for ChatArea modals
+    channelSettingsRequest: null,
+    inviteUserRequest: null,
   },
   globalSettings: {
     enableNotifications: false,
@@ -2374,8 +2402,8 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => ({
       ui: {
         ...state.ui,
-        isUserProfileModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isUserProfileModalOpen,
+        isSettingsModalOpen:
+          isOpen !== undefined ? isOpen : !state.ui.isSettingsModalOpen,
       },
     }));
   },
@@ -2394,6 +2422,25 @@ const useStore = create<AppState>((set, get) => ({
       ui: {
         ...state.ui,
         profileViewRequest: null,
+        topicModalRequest: null,
+      },
+    }));
+  },
+
+  setTopicModalRequest: (serverId, channelId) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        topicModalRequest: { serverId, channelId },
+      },
+    }));
+  },
+
+  clearTopicModalRequest: () => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        topicModalRequest: null,
       },
     }));
   },
@@ -2522,6 +2569,60 @@ const useStore = create<AppState>((set, get) => ({
           isOpen !== undefined ? isOpen : !state.ui.isServerMenuOpen,
       },
     }));
+  },
+
+  toggleTopicModal: (isOpen, context) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isTopicModalOpen: isOpen,
+        topicModalContext: isOpen && context ? context : null,
+      },
+    }));
+  },
+
+  toggleUserProfileModalWithContext: (isOpen, context) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isSettingsModalOpen: isOpen,
+        userProfileModalContext: isOpen && context ? context : null,
+      },
+    }));
+  },
+
+  setChannelSettingsRequest: (serverId, channelId) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        channelSettingsRequest:
+          serverId && channelId ? { serverId, channelId } : null,
+      },
+    }));
+  },
+
+  setInviteUserRequest: (serverId, channelId) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        inviteUserRequest:
+          serverId && channelId ? { serverId, channelId } : null,
+      },
+    }));
+  },
+
+  toggleNotificationVolume: () => {
+    set((state) => {
+      const newVolume = state.globalSettings.notificationVolume > 0 ? 0 : 0.4;
+      const newGlobalSettings = {
+        ...state.globalSettings,
+        notificationVolume: newVolume,
+      };
+      saveGlobalSettingsToLocalStorage(newGlobalSettings);
+      return {
+        globalSettings: newGlobalSettings,
+      };
+    });
   },
 
   setIsNarrowView: (isNarrow: boolean) => {

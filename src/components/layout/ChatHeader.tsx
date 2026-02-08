@@ -30,7 +30,6 @@ import HeaderOverflowMenu, {
   type HeaderOverflowMenuItem,
 } from "../ui/HeaderOverflowMenu";
 import TopicModal from "../ui/TopicModal";
-import UserProfileModal from "../ui/UserProfileModal";
 
 interface ChatHeaderProps {
   selectedChannel: Channel | null;
@@ -77,12 +76,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     toggleMemberList,
     pinPrivateChat,
     unpinPrivateChat,
+    setTopicModalRequest,
+    clearTopicModalRequest,
+    setProfileViewRequest,
+    toggleUserProfileModal,
   } = useStore();
+  const ui = useStore((state) => state.ui);
+  const topicModalRequest = useStore((state) => state.ui.topicModalRequest);
+  const profileViewRequest = useStore((state) => state.ui.profileViewRequest);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
-  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
-  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
   const servers = useStore((state) => state.servers);
@@ -390,7 +394,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             {/* Topic (only if exists) */}
             {selectedChannel.topic && (
               <button
-                onClick={() => setIsTopicModalOpen(true)}
+                onClick={() => {
+                  if (selectedServerId && selectedChannel.id) {
+                    setTopicModalRequest(selectedServerId, selectedChannel.id);
+                  }
+                }}
                 className="text-discord-text-muted text-xs hover:text-white truncate text-left"
                 title={selectedChannel.topic}
               >
@@ -712,7 +720,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             {selectedServerId && (
               <button
                 className="ml-2 text-discord-text-muted hover:text-white"
-                onClick={() => setUserProfileModalOpen(true)}
+                onClick={() => {
+                  if (selectedServerId && selectedPrivateChat) {
+                    setProfileViewRequest(
+                      selectedServerId,
+                      selectedPrivateChat.username,
+                    );
+                    toggleUserProfileModal(true);
+                  }
+                }}
                 title="User Profile"
               >
                 <FaInfoCircle />
@@ -840,26 +856,22 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         anchorElement={overflowButtonRef.current}
       />
 
-      {/* User Profile Modal */}
-      {userProfileModalOpen && selectedPrivateChat && selectedServerId && (
-        <UserProfileModal
-          isOpen={userProfileModalOpen}
-          onClose={() => setUserProfileModalOpen(false)}
-          serverId={selectedServerId}
-          username={selectedPrivateChat.username}
-        />
-      )}
-
       {/* Topic Modal */}
-      {selectedChannel && selectedServerId && (
-        <TopicModal
-          isOpen={isTopicModalOpen}
-          onClose={() => setIsTopicModalOpen(false)}
-          channel={selectedChannel}
-          serverId={selectedServerId}
-          currentUser={currentUser}
-        />
-      )}
+      {topicModalRequest &&
+        (() => {
+          const channel = servers
+            .find((s) => s.id === topicModalRequest.serverId)
+            ?.channels.find((c) => c.id === topicModalRequest.channelId);
+          return channel ? (
+            <TopicModal
+              isOpen={true}
+              onClose={() => clearTopicModalRequest()}
+              channel={channel}
+              serverId={topicModalRequest.serverId}
+              currentUser={currentUser}
+            />
+          ) : null;
+        })()}
     </div>
   );
 };

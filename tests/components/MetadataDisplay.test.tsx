@@ -5,6 +5,7 @@ import { MemberList } from "../../src/components/layout/MemberList";
 import { getColorStyle } from "../../src/lib/ircUtils";
 import useStore from "../../src/store";
 import type { Channel, Server, User } from "../../src/types";
+import { defaultUIExtensions } from "../fixtures/uiState";
 
 vi.mock("../../src/lib/ircClient", () => ({
   default: {
@@ -139,7 +140,6 @@ describe("Metadata Display Features", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
@@ -162,6 +162,7 @@ describe("Metadata Display Features", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
       messages: {
         "server1-channel1": mockChannel.messages,

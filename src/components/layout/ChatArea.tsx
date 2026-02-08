@@ -180,6 +180,28 @@ export const ChatArea: React.FC<{
   const shouldFocusChatInput = useStore(
     (state) => state.ui.shouldFocusChatInput,
   );
+  const channelSettingsRequest = useStore(
+    (state) => state.ui.channelSettingsRequest,
+  );
+  const inviteUserRequest = useStore((state) => state.ui.inviteUserRequest);
+  const setChannelSettingsRequest = useStore(
+    (state) => state.setChannelSettingsRequest,
+  );
+  const setInviteUserRequest = useStore((state) => state.setInviteUserRequest);
+
+  useEffect(() => {
+    if (channelSettingsRequest) {
+      setChannelSettingsModalOpen(true);
+      setChannelSettingsRequest(null, null);
+    }
+  }, [channelSettingsRequest, setChannelSettingsRequest]);
+
+  useEffect(() => {
+    if (inviteUserRequest) {
+      setInviteUserModalOpen(true);
+      setInviteUserRequest(null, null);
+    }
+  }, [inviteUserRequest, setInviteUserRequest]);
 
   // Focus chat input when requested by other components (e.g., modals closing)
   useEffect(() => {
@@ -198,7 +220,6 @@ export const ChatArea: React.FC<{
   const {
     isMemberListVisible,
     isSettingsModalOpen,
-    isUserProfileModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
     isChannelRenameModalOpen,
@@ -1407,7 +1428,7 @@ export const ChatArea: React.FC<{
     // Don't steal focus if any modal is open
     if (
       isSettingsModalOpen ||
-      isUserProfileModalOpen ||
+      userProfileModalOpen ||
       isAddServerModalOpen ||
       isChannelListModalOpen ||
       isChannelRenameModalOpen
@@ -1418,7 +1439,7 @@ export const ChatArea: React.FC<{
     selectedChannelId,
     selectedPrivateChatId,
     isSettingsModalOpen,
-    isUserProfileModalOpen,
+    userProfileModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
     isChannelRenameModalOpen,
