@@ -112,7 +112,7 @@ export function useMessageSending({
 
       const batchId = createBatchId();
       const replyPrefix = localReplyTo
-        ? `@+draft/reply=${localReplyTo.msgid};`
+        ? `@+draft/reply=${localReplyTo.msgid} `
         : "";
 
       ircClient.sendRaw(
