@@ -545,7 +545,7 @@ export const ChatArea: React.FC<{
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
 
-    scrollToBottom();
+    wasAtBottomRef.current = true;
     sendMessage(messageText);
 
     // Cleanup after sending
