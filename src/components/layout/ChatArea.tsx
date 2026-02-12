@@ -1686,6 +1686,12 @@ export const ChatArea: React.FC<{
                 serverId={selectedServerId ?? ""}
                 channelId={selectedChannelId || selectedPrivateChatId || ""}
               />
+              {localReplyTo && (
+                <ReplyBadge
+                  replyTo={localReplyTo}
+                  onClose={() => setLocalReplyTo(null)}
+                />
+              )}
               <div className="bg-discord-dark-100 rounded-lg flex items-center relative flex-nowrap">
                 <button
                   className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
@@ -1694,12 +1700,6 @@ export const ChatArea: React.FC<{
                   <FaPlus />
                 </button>
 
-                {localReplyTo && (
-                  <ReplyBadge
-                    replyTo={localReplyTo}
-                    onClose={() => setLocalReplyTo(null)}
-                  />
-                )}
                 <textarea
                   ref={inputRef}
                   value={messageText}

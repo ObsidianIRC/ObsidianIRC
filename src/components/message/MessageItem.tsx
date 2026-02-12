@@ -1,6 +1,7 @@
 import exifr from "exifr";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
   isUrlFromFilehost,
@@ -28,6 +29,7 @@ import {
   SystemMessage,
   WhisperMessage,
 } from "./index";
+import { SwipeableMessage } from "./SwipeableMessage";
 
 // Function to extract JPEG COM (comment) marker data
 function extractJpegComment(uint8Array: Uint8Array): string | null {
@@ -415,6 +417,7 @@ export const MessageItem = (props: MessageItemProps) => {
   } = props;
   const pmUserCache = useRef(new Map<string, User>());
   const EMPTY_MESSAGES = useRef<MessageType[]>([]).current;
+  const isNarrowView = useMediaQuery();
 
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
@@ -890,101 +893,116 @@ export const MessageItem = (props: MessageItemProps) => {
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
       )}
 
-      <div className="flex">
-        <MessageAvatar
-          userId={message.userId}
-          avatarUrl={avatarUrl}
-          userStatus={userStatus}
-          isAway={messageUser?.isAway}
-          theme={theme}
-          showHeader={showHeader}
-          onClick={handleAvatarClick}
-          isClickable={isClickable}
-          serverId={message.serverId}
-        />
+      <SwipeableMessage
+        onReply={() => setReplyTo(message)}
+        onReact={(el) => onReactClick(message, el)}
+        onDelete={canRedact ? () => onRedactMessage?.(message) : undefined}
+        canReply={!!message.msgid}
+        canDelete={canRedact}
+        isNarrowView={isNarrowView}
+      >
+        <div className="flex">
+          <MessageAvatar
+            userId={message.userId}
+            avatarUrl={avatarUrl}
+            userStatus={userStatus}
+            isAway={messageUser?.isAway}
+            theme={theme}
+            showHeader={showHeader}
+            onClick={handleAvatarClick}
+            isClickable={isClickable}
+            serverId={message.serverId}
+          />
 
-        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
-          {showHeader && (
-            <MessageHeader
-              userId={message.userId}
-              displayName={displayName}
-              userColor={userColor}
-              timestamp={new Date(message.timestamp)}
-              theme={theme}
-              isClickable={isClickable}
-              onClick={handleUsernameClick}
-              isBot={isBot}
-              isVerified={isVerified}
-              isIrcOp={isIrcOp}
-            />
-          )}
-
-          <div className="relative">
-            {message.replyMessage && (
-              <MessageReply
-                replyMessage={message.replyMessage}
+          <div
+            className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}
+          >
+            {showHeader && (
+              <MessageHeader
+                userId={message.userId}
+                displayName={displayName}
+                userColor={userColor}
+                timestamp={new Date(message.timestamp)}
                 theme={theme}
-                onUsernameClick={handleReplyUsernameClick}
-                onIrcLinkClick={onIrcLinkClick}
-                onReplyClick={handleScrollToReply}
+                isClickable={isClickable}
+                onClick={handleUsernameClick}
+                isBot={isBot}
+                isVerified={isVerified}
+                isIrcOp={isIrcOp}
               />
             )}
 
-            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {(isImageUrl && showSafeMedia) ||
-              (isGifUrl && showExternalContent) ||
-              (isExternalImageUrl && showExternalContent) ? (
-                <ImageWithFallback
-                  url={message.content}
-                  isFilehostImage={isImageUrl}
-                  serverId={message.serverId}
-                  onOpenProfile={onOpenProfile}
+            <div className="relative">
+              {message.replyMessage && (
+                <MessageReply
+                  replyMessage={message.replyMessage}
+                  theme={theme}
+                  onUsernameClick={handleReplyUsernameClick}
+                  onIrcLinkClick={onIrcLinkClick}
+                  onReplyClick={handleScrollToReply}
                 />
-              ) : (
-                <div
-                  className="overflow-hidden"
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "break-word",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {collapsibleContent}
-                </div>
               )}
-            </EnhancedLinkWrapper>
 
-            {/* Render link preview if available */}
-            {(message.linkPreviewTitle ||
-              message.linkPreviewSnippet ||
-              message.linkPreviewMeta) && (
-              <LinkPreview
-                title={message.linkPreviewTitle}
-                snippet={message.linkPreviewSnippet}
-                imageUrl={message.linkPreviewMeta}
-                theme={theme}
-                messageContent={message.content}
-              />
-            )}
+              <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+                {(isImageUrl && showSafeMedia) ||
+                (isGifUrl && showExternalContent) ||
+                (isExternalImageUrl && showExternalContent) ? (
+                  <ImageWithFallback
+                    url={message.content}
+                    isFilehostImage={isImageUrl}
+                    serverId={message.serverId}
+                    onOpenProfile={onOpenProfile}
+                  />
+                ) : (
+                  <div
+                    className="overflow-hidden"
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "break-word",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {collapsibleContent}
+                  </div>
+                )}
+              </EnhancedLinkWrapper>
+
+              {/* Render link preview if available */}
+              {(message.linkPreviewTitle ||
+                message.linkPreviewSnippet ||
+                message.linkPreviewMeta) && (
+                <LinkPreview
+                  title={message.linkPreviewTitle}
+                  snippet={message.linkPreviewSnippet}
+                  imageUrl={message.linkPreviewMeta}
+                  theme={theme}
+                  messageContent={message.content}
+                />
+              )}
+            </div>
+
+            <MessageReactions
+              reactions={message.reactions}
+              currentUserUsername={ircCurrentUser?.username}
+              onReactionClick={handleReactionClick}
+            />
           </div>
 
-          <MessageReactions
-            reactions={message.reactions}
-            currentUserUsername={ircCurrentUser?.username}
-            onReactionClick={handleReactionClick}
-          />
+          {!isNarrowView && (
+            <MessageActions
+              message={message}
+              onReplyClick={() => setReplyTo(message)}
+              onReactClick={(buttonElement) =>
+                onReactClick(message, buttonElement)
+              }
+              onRedactClick={
+                canRedact ? () => onRedactMessage?.(message) : undefined
+              }
+              canRedact={canRedact}
+            />
+          )}
         </div>
-
-        <MessageActions
-          message={message}
-          onReplyClick={() => setReplyTo(message)}
-          onReactClick={(buttonElement) => onReactClick(message, buttonElement)}
-          onRedactClick={
-            canRedact ? () => onRedactMessage?.(message) : undefined
-          }
-          canRedact={canRedact}
-        />
-      </div>
+      </SwipeableMessage>
     </div>
   );
 };

@@ -172,6 +172,12 @@ body {
   animation: message-flash 2s ease-in-out;
 }
 
+/* Bottom sheet slide-up animation for mobile message actions */
+@keyframes bottom-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
 .shimmer {
   position: relative;
   overflow: hidden;

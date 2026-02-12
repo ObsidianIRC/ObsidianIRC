@@ -79,7 +79,7 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
         {content}
       </div>
       {needsCollapsing && (
-        <div className="truncation-container">
+        <div className="truncation-container select-none">
           <div className="truncation-line" />
           <div className="mt-1 text-center">
             <button
