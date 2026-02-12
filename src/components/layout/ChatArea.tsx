@@ -1690,6 +1690,12 @@ export const ChatArea: React.FC<{
                 <ReplyBadge
                   replyTo={localReplyTo}
                   onClose={() => setLocalReplyTo(null)}
+                  isWhisper={
+                    !!(
+                      localReplyTo.tags?.["draft/channel-context"] ||
+                      localReplyTo.tags?.["+draft/channel-context"]
+                    )
+                  }
                 />
               )}
               <div className="bg-discord-dark-100 rounded-lg flex items-center relative flex-nowrap">

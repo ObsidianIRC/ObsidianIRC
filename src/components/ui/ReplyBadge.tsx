@@ -4,13 +4,18 @@ import type { Message } from "../../types";
 interface ReplyBadgeProps {
   replyTo: Message;
   onClose: () => void;
+  isWhisper?: boolean;
 }
 
-export function ReplyBadge({ replyTo, onClose }: ReplyBadgeProps) {
+export function ReplyBadge({
+  replyTo,
+  onClose,
+  isWhisper = false,
+}: ReplyBadgeProps) {
   return (
     <div className="bg-discord-dark-100 rounded-t-lg px-4 py-2 flex items-center gap-2 text-sm text-discord-text-muted border-l-2 border-blue-500">
       <span className="truncate">
-        Replying to{" "}
+        {isWhisper ? "Whispering back to" : "Replying to"}{" "}
         <strong className="text-discord-text-normal">{replyTo.userId}</strong>
       </span>
       <button

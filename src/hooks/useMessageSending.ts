@@ -127,6 +127,32 @@ export function useMessageSending({
     (cleanedText: string, target: string, lines: string[]) => {
       if (!selectedServerId) return;
 
+      const isWhisperReply =
+        localReplyTo &&
+        (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]);
+
+      if (isWhisperReply) {
+        const channelContext =
+          localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"];
+        const whisperTarget = localReplyTo.userId;
+
+        lines.forEach((line) => {
+          const formattedLine = formatMessageForIrc(line, {
+            color: selectedColor || "inherit",
+            formatting: selectedFormatting,
+          });
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperTarget,
+            channelContext,
+            formattedLine,
+          );
+        });
+        return;
+      }
+
       const batchId = createBatchId();
       const replyPrefix = localReplyTo
         ? `@+draft/reply=${localReplyTo.msgid};`
@@ -209,6 +235,36 @@ export function useMessageSending({
     (lines: string[], target: string) => {
       if (!selectedServerId) return;
 
+      const isWhisperReply =
+        localReplyTo &&
+        (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]);
+
+      if (isWhisperReply) {
+        const channelContext =
+          localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"];
+        const whisperTarget = localReplyTo.userId;
+
+        lines.forEach((line) => {
+          const formattedLine = formatMessageForIrc(line, {
+            color: selectedColor || "inherit",
+            formatting: selectedFormatting,
+          });
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperTarget,
+            channelContext,
+            formattedLine,
+          );
+        });
+        return;
+      }
+
+      const messagePrefix = localReplyTo
+        ? `@+draft/reply=${localReplyTo.msgid};`
+        : "";
+
       if (globalSettings.autoFallbackToSingleLine) {
         // Concatenate with spaces and send as single message
         const combinedText = lines.join(" ");
@@ -221,7 +277,7 @@ export function useMessageSending({
         splitLines.forEach((line: string) => {
           ircClient.sendRaw(
             selectedServerId,
-            `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+            `${messagePrefix} PRIVMSG ${target} :${line}`,
           );
         });
       } else {
@@ -236,7 +292,7 @@ export function useMessageSending({
           splitLines.forEach((splitLine: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${splitLine}`,
+              `${messagePrefix} PRIVMSG ${target} :${splitLine}`,
             );
           });
         });
@@ -263,13 +319,32 @@ export function useMessageSending({
         formatting: selectedFormatting,
       });
 
-      const splitLines = splitLongMessage(formattedText, target);
-      splitLines.forEach((line: string) => {
-        ircClient.sendRaw(
+      const isWhisperReply =
+        localReplyTo &&
+        (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]);
+
+      if (isWhisperReply) {
+        const channelContext =
+          localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"];
+        const whisperTarget = localReplyTo.userId;
+
+        ircClient.sendWhisper(
           selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+          whisperTarget,
+          channelContext,
+          formattedText,
         );
-      });
+      } else {
+        const splitLines = splitLongMessage(formattedText, target);
+        splitLines.forEach((line: string) => {
+          ircClient.sendRaw(
+            selectedServerId,
+            `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+          );
+        });
+      }
     },
     [selectedServerId, selectedColor, selectedFormatting, localReplyTo],
   );
