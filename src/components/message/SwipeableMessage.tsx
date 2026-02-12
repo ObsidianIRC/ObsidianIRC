@@ -112,7 +112,7 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
         onTouchCancelCapture={() => {
           longPress.onTouchCancel();
         }}
-        className="relative overflow-hidden"
+        className={`relative ${translateX !== 0 ? "overflow-hidden" : ""}`}
       >
         {/* Reply icon behind (left side) */}
         {canReply && translateX > 0 && (
