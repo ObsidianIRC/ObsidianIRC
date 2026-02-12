@@ -113,6 +113,11 @@ export const AppLayout: React.FC = () => {
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
   const isNarrowView = ui.isNarrowView;
 
+  // Desktop narrow: member list shows as overlay in ChatArea instead of sidebar
+  const showMemberListAsOverlay = !isNarrowView && isTooNarrowForMemberList;
+  const shouldShowMemberListSidebar =
+    shouldShowMemberList && !showMemberListAsOverlay;
+
   const currentPageIndex = getPageIndex(mobileViewActiveColumn);
   const totalPages = selectedServerId ? 3 : 2;
 
@@ -202,7 +207,7 @@ export const AppLayout: React.FC = () => {
         return (
           <ResizableSidebar
             bypass={false}
-            isVisible={shouldShowMemberList}
+            isVisible={shouldShowMemberListSidebar}
             defaultWidth={280}
             initialWidth={memberListWidth}
             minWidth={80}
@@ -258,24 +263,12 @@ export const AppLayout: React.FC = () => {
     setIsNarrowView(isNarrowViewFromHook);
   }, [isNarrowViewFromHook, setIsNarrowView]);
 
-  // Auto-hide member list on desktop if too narrow
-  useEffect(() => {
-    if (!isNarrowView && isTooNarrowForMemberList && isMemberListVisible) {
-      toggleMemberList(false);
-    }
-  }, [
-    isNarrowView,
-    isTooNarrowForMemberList,
-    isMemberListVisible,
-    toggleMemberList,
-  ]);
-
   const getLayoutColumn = (column: layoutColumn) => {
     // Desktop: use explicit visibility flags
     if (!isNarrowView) {
       if (column === "serverList") return getLayoutColumnElement("serverList");
       if (column === "chatView") return getLayoutColumnElement("chatView");
-      if (column === "memberList" && shouldShowMemberList) {
+      if (column === "memberList" && shouldShowMemberListSidebar) {
         return getLayoutColumnElement("memberList");
       }
       return null;

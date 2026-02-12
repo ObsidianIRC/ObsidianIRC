@@ -74,6 +74,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     toggleChannelListModal,
     toggleChannelRenameModal,
     toggleMemberList,
+    setMobileViewActiveColumn,
     pinPrivateChat,
     unpinPrivateChat,
     setTopicModalRequest,
@@ -437,11 +438,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 className="hover:text-discord-text-normal"
                 onClick={() => {
                   if (isNarrowView) {
+                    // Mobile: navigate between pages
                     const currentColumn =
                       useStore.getState().ui.mobileViewActiveColumn;
                     const isOnMemberPage = currentColumn === "memberList";
-                    toggleMemberList(!isOnMemberPage);
+
+                    if (isOnMemberPage) {
+                      setMobileViewActiveColumn("chatView");
+                    } else {
+                      setMobileViewActiveColumn("memberList");
+                    }
                   } else {
+                    // Desktop: toggle member list (sidebar or overlay depending on width)
                     toggleMemberList(!isMemberListVisible);
                   }
                 }}
