@@ -818,7 +818,12 @@ const useStore = create<AppState>((set, get) => ({
         : false,
     isMobileMenuOpen: false,
     isMemberListVisible:
-      loadUISelections().sidebarPreferences?.memberList.isVisible ?? true,
+      // Only restore member list on startup if the window is wide enough for the sidebar.
+      // At intermediate widths the member list replaces the chat area which is bad UX on startup.
+      typeof window !== "undefined" &&
+      !window.matchMedia("(max-width: 1080px)").matches
+        ? (loadUISelections().sidebarPreferences?.memberList.isVisible ?? true)
+        : false,
     isChannelListVisible:
       loadUISelections().sidebarPreferences?.channelList.isVisible ?? true,
     isChannelListModalOpen: false,
@@ -2501,6 +2506,23 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+
+    const newState = get();
+    const currentPrefs = newState.ui.sidebarPreferences || {
+      channelList: { isVisible: true, width: 264 },
+      memberList: { isVisible: true, width: 280 },
+    };
+    saveUISelections({
+      selectedServerId: newState.ui.selectedServerId,
+      perServerSelections: newState.ui.perServerSelections,
+      sidebarPreferences: {
+        ...currentPrefs,
+        memberList: {
+          ...currentPrefs.memberList,
+          isVisible: newState.ui.isMemberListVisible,
+        },
+      },
+    });
   },
 
   toggleChannelList: (isOpen) => {
@@ -2514,6 +2536,23 @@ const useStore = create<AppState>((set, get) => ({
           isChannelListVisible: openState,
         },
       };
+    });
+
+    const newState = get();
+    const currentPrefs = newState.ui.sidebarPreferences || {
+      channelList: { isVisible: true, width: 264 },
+      memberList: { isVisible: true, width: 280 },
+    };
+    saveUISelections({
+      selectedServerId: newState.ui.selectedServerId,
+      perServerSelections: newState.ui.perServerSelections,
+      sidebarPreferences: {
+        ...currentPrefs,
+        channelList: {
+          ...currentPrefs.channelList,
+          isVisible: newState.ui.isChannelListVisible,
+        },
+      },
     });
   },
 
@@ -4984,10 +5023,53 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
 
     const currentState = useStore.getState();
 
-    // If this is the saved selected server, restore its selection now that channels are joined
+    // If this is the saved selected server, validate its saved channel selection
     if (currentState.ui.selectedServerId === serverId) {
-      // Call selectServer to restore channel selection from perServerSelections
-      useStore.getState().selectServer(serverId);
+      const serverSelection =
+        currentState.ui.perServerSelections[serverId] || {};
+      const savedChannelId = serverSelection.selectedChannelId;
+      const server = currentState.servers.find((s) => s.id === serverId);
+
+      if (server && savedChannelId) {
+        const channelExists = server.channels.some(
+          (c) => c.id === savedChannelId,
+        );
+        if (!channelExists) {
+          // Saved channel ID is stale - try to find a channel by name match
+          // (handles cases where channel IDs were regenerated)
+          const savedChannelName = server.channels.find((c) =>
+            savedChannelId.includes(c.name),
+          );
+          const fallbackId =
+            savedChannelName?.id || server.channels[0]?.id || null;
+          useStore.setState((state) => ({
+            ui: {
+              ...state.ui,
+              perServerSelections: {
+                ...state.ui.perServerSelections,
+                [serverId]: {
+                  ...state.ui.perServerSelections[serverId],
+                  selectedChannelId: fallbackId,
+                },
+              },
+            },
+          }));
+        }
+      } else if (server && !savedChannelId && server.channels.length > 0) {
+        // No saved channel - select first channel
+        useStore.setState((state) => ({
+          ui: {
+            ...state.ui,
+            perServerSelections: {
+              ...state.ui.perServerSelections,
+              [serverId]: {
+                ...state.ui.perServerSelections[serverId],
+                selectedChannelId: server.channels[0]?.id || null,
+              },
+            },
+          },
+        }));
+      }
     } else if (!currentState.ui.selectedServerId) {
       // No server selected - select this one
       useStore.setState((state) => {

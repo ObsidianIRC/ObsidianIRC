@@ -133,9 +133,8 @@ export function useMessageSending({
           localReplyTo.tags?.["+draft/channel-context"]);
 
       if (isWhisperReply) {
-        const channelContext =
-          localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"];
+        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]) as string;
         const whisperTarget = localReplyTo.userId;
 
         lines.forEach((line) => {
@@ -241,9 +240,8 @@ export function useMessageSending({
           localReplyTo.tags?.["+draft/channel-context"]);
 
       if (isWhisperReply) {
-        const channelContext =
-          localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"];
+        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]) as string;
         const whisperTarget = localReplyTo.userId;
 
         lines.forEach((line) => {
@@ -325,9 +323,8 @@ export function useMessageSending({
           localReplyTo.tags?.["+draft/channel-context"]);
 
       if (isWhisperReply) {
-        const channelContext =
-          localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"];
+        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]) as string;
         const whisperTarget = localReplyTo.userId;
 
         ircClient.sendWhisper(
