@@ -418,6 +418,7 @@ export const MessageItem = (props: MessageItemProps) => {
   const pmUserCache = useRef(new Map<string, User>());
   const EMPTY_MESSAGES = useRef<MessageType[]>([]).current;
   const isNarrowView = useMediaQuery();
+  const isTouchDevice = useMediaQuery("(pointer: coarse)");
 
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
@@ -899,7 +900,7 @@ export const MessageItem = (props: MessageItemProps) => {
         onDelete={canRedact ? () => onRedactMessage?.(message) : undefined}
         canReply={!!message.msgid}
         canDelete={canRedact}
-        isNarrowView={isNarrowView}
+        isNarrowView={isTouchDevice}
       >
         <div className="flex">
           <MessageAvatar
@@ -988,7 +989,7 @@ export const MessageItem = (props: MessageItemProps) => {
             />
           </div>
 
-          {!isNarrowView && (
+          {!isTouchDevice && (
             <MessageActions
               message={message}
               onReplyClick={() => setReplyTo(message)}
