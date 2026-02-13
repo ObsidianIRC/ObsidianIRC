@@ -18,7 +18,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   canRedact = false,
 }) => {
   return (
-    <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
+    <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2 select-none">
       {canRedact && onRedactClick && (
         <button
           className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"

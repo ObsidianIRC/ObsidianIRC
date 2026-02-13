@@ -16,7 +16,7 @@ vi.mock("../../src/store", () => ({
       },
     ],
     ui: {
-      showChannelRenameModal: true,
+      isChannelRenameModalOpen: true,
       selectedServerId: "server1",
       perServerSelections: {
         server1: {
@@ -82,7 +82,7 @@ describe("ChannelRenameModal", () => {
   test("does not render when modal is closed", () => {
     vi.mocked(useStore).mockReturnValue({
       servers: [],
-      ui: { showChannelRenameModal: false },
+      ui: { isChannelRenameModalOpen: false },
       renameChannel: vi.fn(),
       toggleChannelRenameModal: vi.fn(),
     });

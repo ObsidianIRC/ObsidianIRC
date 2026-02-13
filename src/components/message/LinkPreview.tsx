@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { openExternalUrl } from "../../lib/openUrl";
 import useStore from "../../store";
 import ExternalLinkWarningModal from "../ui/ExternalLinkWarningModal";
 
@@ -39,9 +40,9 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
     }
   };
 
-  const handleConfirmOpen = () => {
+  const handleConfirmOpen = async () => {
     if (firstUrl) {
-      window.open(firstUrl, "_blank", "noopener,noreferrer");
+      await openExternalUrl(firstUrl);
     }
     setShowWarningModal(false);
   };
@@ -59,7 +60,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
         onCancel={handleCancelOpen}
       />
       <div
-        className={`mt-2 rounded-lg border border-${theme}-dark-400 bg-${theme}-dark-200 max-w-lg pl-4 pr-12 py-2 bg-black/20 rounded ${firstUrl ? `cursor-pointer hover:bg-${theme}-dark-300 transition-colors` : ""}`}
+        className={`mt-2 rounded-lg border border-${theme}-dark-400 bg-${theme}-dark-200 max-w-lg pl-4 pr-12 py-2 bg-black/20 rounded select-none ${firstUrl ? `cursor-pointer hover:bg-${theme}-dark-300 transition-colors` : ""}`}
         style={{ height: "100px" }}
         onClick={handleClick}
         role={firstUrl ? "button" : undefined}

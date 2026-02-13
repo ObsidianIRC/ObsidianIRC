@@ -79,6 +79,23 @@ export function useMessageSending({
         const [target, ...messageParts] = args;
         const message = messageParts.join(" ");
         ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
+      } else if (commandName === "whisper") {
+        const [targetUser, ...messageParts] = args;
+        if (!selectedChannel) {
+          console.error("Whispers can only be sent from a channel");
+          return;
+        }
+        if (!targetUser || messageParts.length === 0) {
+          console.error("Usage: /whisper <username> <message>");
+          return;
+        }
+        const message = messageParts.join(" ");
+        ircClient.sendWhisper(
+          selectedServerId,
+          targetUser,
+          selectedChannel.name,
+          message,
+        );
       } else if (commandName === "me") {
         const actionMessage = cleanedText.substring(4).trim();
         ircClient.sendRaw(
@@ -109,6 +126,31 @@ export function useMessageSending({
   const sendMultilineMessage = useCallback(
     (cleanedText: string, target: string, lines: string[]) => {
       if (!selectedServerId) return;
+
+      const isWhisperReply =
+        localReplyTo &&
+        (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]);
+
+      if (isWhisperReply) {
+        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]) as string;
+        const whisperTarget = localReplyTo.userId;
+
+        lines.forEach((line) => {
+          const formattedLine = formatMessageForIrc(line, {
+            color: selectedColor || "inherit",
+            formatting: selectedFormatting,
+          });
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperTarget,
+            channelContext,
+            formattedLine,
+          );
+        });
+        return;
+      }
 
       const batchId = createBatchId();
       const replyPrefix = localReplyTo
@@ -192,6 +234,35 @@ export function useMessageSending({
     (lines: string[], target: string) => {
       if (!selectedServerId) return;
 
+      const isWhisperReply =
+        localReplyTo &&
+        (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]);
+
+      if (isWhisperReply) {
+        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]) as string;
+        const whisperTarget = localReplyTo.userId;
+
+        lines.forEach((line) => {
+          const formattedLine = formatMessageForIrc(line, {
+            color: selectedColor || "inherit",
+            formatting: selectedFormatting,
+          });
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperTarget,
+            channelContext,
+            formattedLine,
+          );
+        });
+        return;
+      }
+
+      const messagePrefix = localReplyTo
+        ? `@+draft/reply=${localReplyTo.msgid};`
+        : "";
+
       if (globalSettings.autoFallbackToSingleLine) {
         // Concatenate with spaces and send as single message
         const combinedText = lines.join(" ");
@@ -204,7 +275,7 @@ export function useMessageSending({
         splitLines.forEach((line: string) => {
           ircClient.sendRaw(
             selectedServerId,
-            `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+            `${messagePrefix} PRIVMSG ${target} :${line}`,
           );
         });
       } else {
@@ -219,7 +290,7 @@ export function useMessageSending({
           splitLines.forEach((splitLine: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${splitLine}`,
+              `${messagePrefix} PRIVMSG ${target} :${splitLine}`,
             );
           });
         });
@@ -246,13 +317,31 @@ export function useMessageSending({
         formatting: selectedFormatting,
       });
 
-      const splitLines = splitLongMessage(formattedText, target);
-      splitLines.forEach((line: string) => {
-        ircClient.sendRaw(
+      const isWhisperReply =
+        localReplyTo &&
+        (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]);
+
+      if (isWhisperReply) {
+        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
+          localReplyTo.tags?.["+draft/channel-context"]) as string;
+        const whisperTarget = localReplyTo.userId;
+
+        ircClient.sendWhisper(
           selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+          whisperTarget,
+          channelContext,
+          formattedText,
         );
-      });
+      } else {
+        const splitLines = splitLongMessage(formattedText, target);
+        splitLines.forEach((line: string) => {
+          ircClient.sendRaw(
+            selectedServerId,
+            `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+          );
+        });
+      }
     },
     [selectedServerId, selectedColor, selectedFormatting, localReplyTo],
   );

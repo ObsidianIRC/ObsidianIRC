@@ -21,6 +21,7 @@ import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import { parseIrcUrl } from "./lib/ircUrlParser";
+import { isTauri } from "./lib/platformUtils";
 import useStore, { loadSavedServers } from "./store";
 import type { ConnectionDetails } from "./store/types";
 
@@ -80,16 +81,17 @@ const App: React.FC = () => {
     toggleQuickActions,
     ui: {
       isAddServerModalOpen,
-      isUserProfileModalOpen,
       isChannelListModalOpen,
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
       isSettingsModalOpen,
       isQuickActionsOpen,
+      isUserProfileModalOpen,
       editServerId,
       linkSecurityWarnings,
       profileViewRequest,
+      prefillServerDetails,
     },
     joinChannel,
     connectToSavedServers,
@@ -140,8 +142,14 @@ const App: React.FC = () => {
   };
 
   const handleIrcLinkClick = (url: string) => {
-    // For now, just log. Could be extended to handle IRC links
-    console.log("IRC link clicked:", url);
+    const parsed = parseIrcUrl(url, "user");
+    toggleAddServerModal(true, {
+      name: parsed.host,
+      host: parsed.host,
+      port: parsed.port.toString(),
+      nickname: parsed.nick || "user",
+      useWebSocket: false,
+    });
   };
 
   // Initialize keyboard resize handling for mobile platforms
@@ -152,16 +160,18 @@ const App: React.FC = () => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);
     // Auto-reconnect to saved servers on app startup
     connectToSavedServers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    toggleAddServerModal,
-    joinChannel, // Auto-reconnect to saved servers on app startup
+    // Auto-reconnect to saved servers on app startup
     connectToSavedServers,
-  ]); // Removed connectToSavedServers from dependencies
+    joinChannel,
+    toggleAddServerModal,
+  ]); // Only run once on mount - store functions are not stable references
 
   // Handle deeplinks
   useEffect(() => {
     const setupDeepLinkHandler = async () => {
-      if (typeof window === "undefined" || !window.__TAURI__) {
+      if (!isTauri()) {
         return;
       }
 
@@ -182,7 +192,7 @@ const App: React.FC = () => {
                   host: parsed.host,
                   port: parsed.port.toString(),
                   nickname: parsed.nick || "user",
-                  useIrcProtocol: true,
+                  useWebSocket: false,
                 });
               } catch (error) {
                 console.error("Failed to parse IRC URL:", error);

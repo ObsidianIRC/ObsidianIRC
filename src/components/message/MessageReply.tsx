@@ -27,7 +27,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
 
   return (
     <div
-      className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2 ${onReplyClick ? "cursor-pointer hover:bg-opacity-80" : ""}`}
+      className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2 select-none ${onReplyClick ? "cursor-pointer hover:bg-opacity-80" : ""}`}
       onClick={onReplyClick}
       title={onReplyClick ? "Click to jump to message" : ""}
     >
