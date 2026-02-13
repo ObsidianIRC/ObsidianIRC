@@ -160,11 +160,13 @@ const App: React.FC = () => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);
     // Auto-reconnect to saved servers on app startup
     connectToSavedServers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    toggleAddServerModal,
-    joinChannel, // Auto-reconnect to saved servers on app startup
+    // Auto-reconnect to saved servers on app startup
     connectToSavedServers,
-  ]);
+    joinChannel,
+    toggleAddServerModal,
+  ]); // Only run once on mount - store functions are not stable references
 
   // Handle deeplinks
   useEffect(() => {

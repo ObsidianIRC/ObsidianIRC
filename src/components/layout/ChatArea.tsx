@@ -990,7 +990,7 @@ export const ChatArea: React.FC<{
     const textarea = e.target;
     textarea.style.height = "auto";
     const scrollHeight = textarea.scrollHeight;
-    const maxHeight = 128; // 8 lines (16px line height * 8)
+    const maxHeight = 200;
     textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
 
     // Reset tab completion if text changed from non-tab input
@@ -1740,7 +1740,7 @@ export const ChatArea: React.FC<{
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-32 overflow-y-auto placeholder:truncate"
+                  className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-[200px] overflow-y-auto placeholder:truncate"
                   style={getPreviewStyles({
                     color: selectedColor || "inherit",
                     formatting: selectedFormatting,

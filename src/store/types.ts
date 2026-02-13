@@ -57,10 +57,20 @@ export interface UISelections {
   selectedServerId: string | null;
   perServerSelections: Record<
     string,
-    { selectedChannelId: string | null; selectedPrivateChatId: string | null }
+    {
+      selectedChannelId: string | null;
+      selectedChannelName?: string | null;
+      selectedPrivateChatId: string | null;
+      selectedPrivateChatUsername?: string | null;
+    }
   >;
   sidebarPreferences?: {
     channelList: { isVisible: boolean; width: number };
     memberList: { isVisible: boolean; width: number };
+  };
+  lastSelection?: {
+    serverHost: string;
+    channelName: string | null;
+    privateChatUsername: string | null;
   };
 }

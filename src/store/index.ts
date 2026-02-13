@@ -351,7 +351,9 @@ interface UIState {
     string,
     {
       selectedChannelId: string | null;
+      selectedChannelName?: string | null;
       selectedPrivateChatId: string | null;
+      selectedPrivateChatUsername?: string | null;
     }
   >;
   sidebarPreferences?: {
@@ -748,7 +750,9 @@ const setServerSelection = (
   serverId: string,
   selection: {
     selectedChannelId: string | null;
+    selectedChannelName?: string | null;
     selectedPrivateChatId: string | null;
+    selectedPrivateChatUsername?: string | null;
   },
 ) => {
   return {
@@ -1102,6 +1106,9 @@ const useStore = create<AppState>((set, get) => ({
     clearServerConnectionTimeout(serverId);
     const quitMessage = get().globalSettings.quitMessage;
     ircClient.disconnect(serverId, quitMessage);
+
+    // Clear ready handler processed flag to allow reconnection
+    readyProcessedServers.delete(serverId);
 
     set((state) => {
       const updatedServers = state.servers.map((server) => {
@@ -1504,6 +1511,12 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
 
+      const selectedChannelName =
+        server?.channels.find((c) => c.id === selectedChannelId)?.name || null;
+      const selectedPrivateChatUsername =
+        server?.privateChats?.find((pc) => pc.id === selectedPrivateChatId)
+          ?.username || null;
+
       return {
         ui: {
           ...state.ui,
@@ -1512,20 +1525,37 @@ const useStore = create<AppState>((set, get) => ({
             ...state.ui.perServerSelections,
             [serverId]: {
               selectedChannelId,
+              selectedChannelName,
               selectedPrivateChatId,
+              selectedPrivateChatUsername,
             },
           },
           isMobileMenuOpen: false,
-          // Don't auto-navigate when selecting a server - let user stay on channel list
         },
       };
     });
 
     // Save UI selections to localStorage
     const newState = get();
+    const selectedServer = newState.servers.find(
+      (s) => s.id === newState.ui.selectedServerId,
+    );
+    const selection =
+      newState.ui.perServerSelections[newState.ui.selectedServerId || ""];
     saveUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
+      lastSelection: {
+        serverHost: selectedServer?.host || "",
+        channelName:
+          selectedServer?.channels.find(
+            (c) => c.id === selection?.selectedChannelId,
+          )?.name || null,
+        privateChatUsername:
+          selectedServer?.privateChats?.find(
+            (pc) => pc.id === selection?.selectedPrivateChatId,
+          )?.username || null,
+      },
     });
   },
 
@@ -1570,6 +1600,10 @@ const useStore = create<AppState>((set, get) => ({
       if (serverId && channelId) {
         ircClient.markChannelAsRead(serverId, channelId);
 
+        const server = state.servers.find((s) => s.id === serverId);
+        const channelName =
+          server?.channels.find((c) => c.id === channelId)?.name || null;
+
         // Update unread state in store
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
@@ -1599,6 +1633,7 @@ const useStore = create<AppState>((set, get) => ({
             selectedServerId: serverId,
             perServerSelections: setServerSelection(state, serverId, {
               selectedChannelId: channelId,
+              selectedChannelName: channelName,
               selectedPrivateChatId: null,
             }),
             isMobileMenuOpen: false,
@@ -1611,12 +1646,16 @@ const useStore = create<AppState>((set, get) => ({
       }
 
       const currentServerId = state.ui.selectedServerId || "";
+      const currentServer = state.servers.find((s) => s.id === currentServerId);
+      const channelName =
+        currentServer?.channels.find((c) => c.id === channelId)?.name || null;
 
       return {
         ui: {
           ...state.ui,
           perServerSelections: setServerSelection(state, currentServerId, {
             selectedChannelId: channelId,
+            selectedChannelName: channelName,
             selectedPrivateChatId: null,
           }),
           isMobileMenuOpen: false,
@@ -1628,11 +1667,24 @@ const useStore = create<AppState>((set, get) => ({
       };
     });
 
-    // Save UI selections to localStorage
+    // Save UI selections to localStorage with name-based fallback
     const newState = get();
+    const selectedServer = newState.servers.find(
+      (s) => s.id === newState.ui.selectedServerId,
+    );
+    const selection =
+      newState.ui.perServerSelections[newState.ui.selectedServerId || ""];
+    const channelObj = selectedServer?.channels.find(
+      (c) => c.id === selection?.selectedChannelId,
+    );
     saveUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
+      lastSelection: {
+        serverHost: selectedServer?.host || "",
+        channelName: channelObj?.name || null,
+        privateChatUsername: null,
+      },
     });
   },
 
@@ -1735,6 +1787,11 @@ const useStore = create<AppState>((set, get) => ({
 
       // Mark private chat as read
       if (serverId && privateChatId) {
+        const server = state.servers.find((s) => s.id === serverId);
+        const pcUsername =
+          server?.privateChats?.find((pc) => pc.id === privateChatId)
+            ?.username || null;
+
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
             const updatedPrivateChats =
@@ -1765,6 +1822,7 @@ const useStore = create<AppState>((set, get) => ({
             perServerSelections: setServerSelection(state, serverId, {
               selectedChannelId: null,
               selectedPrivateChatId: privateChatId,
+              selectedPrivateChatUsername: pcUsername,
             }),
             isMobileMenuOpen: false,
             mobileViewActiveColumn:
@@ -1776,6 +1834,10 @@ const useStore = create<AppState>((set, get) => ({
       }
 
       const currentServerId = state.ui.selectedServerId || "";
+      const currentServer = state.servers.find((s) => s.id === currentServerId);
+      const pcUsername =
+        currentServer?.privateChats?.find((pc) => pc.id === privateChatId)
+          ?.username || null;
 
       return {
         ui: {
@@ -1783,6 +1845,7 @@ const useStore = create<AppState>((set, get) => ({
           perServerSelections: setServerSelection(state, currentServerId, {
             selectedChannelId: null,
             selectedPrivateChatId: privateChatId,
+            selectedPrivateChatUsername: pcUsername,
           }),
           isMobileMenuOpen: false,
           mobileViewActiveColumn:
@@ -1793,11 +1856,24 @@ const useStore = create<AppState>((set, get) => ({
       };
     });
 
-    // Save UI selections to localStorage
+    // Save UI selections to localStorage with name-based fallback
     const newState = get();
+    const selectedServer = newState.servers.find(
+      (s) => s.id === newState.ui.selectedServerId,
+    );
+    const selection =
+      newState.ui.perServerSelections[newState.ui.selectedServerId || ""];
+    const pcObj = selectedServer?.privateChats?.find(
+      (pc) => pc.id === selection?.selectedPrivateChatId,
+    );
     saveUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
+      lastSelection: {
+        serverHost: selectedServer?.host || "",
+        channelName: null,
+        privateChatUsername: pcObj?.username || null,
+      },
     });
   },
 
@@ -4885,7 +4961,19 @@ ircClient.on("QUIT", ({ serverId, username, reason, batchTag }) => {
   }
 });
 
+// Track which servers have had their ready handler run to prevent duplicate processing
+const readyProcessedServers = new Set<string>();
+
 ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
+  // Prevent processing the same server's ready event multiple times
+  if (readyProcessedServers.has(serverId)) {
+    console.log(
+      `[Ready] Already processed ready for ${serverId}, skipping duplicate`,
+    );
+    return;
+  }
+  readyProcessedServers.add(serverId);
+
   // Restore metadata for this server
   restoreServerMetadata(serverId);
 
@@ -5025,9 +5113,9 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
 
     // If this is the saved selected server, validate its saved channel selection
     if (currentState.ui.selectedServerId === serverId) {
-      const serverSelection =
-        currentState.ui.perServerSelections[serverId] || {};
-      const savedChannelId = serverSelection.selectedChannelId;
+      const serverSelection = currentState.ui.perServerSelections[serverId];
+      const savedChannelId = serverSelection?.selectedChannelId;
+      const savedPrivateChatId = serverSelection?.selectedPrivateChatId;
       const server = currentState.servers.find((s) => s.id === serverId);
 
       if (server && savedChannelId) {
@@ -5035,45 +5123,111 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
           (c) => c.id === savedChannelId,
         );
         if (!channelExists) {
-          // Saved channel ID is stale - try to find a channel by name match
-          // (handles cases where channel IDs were regenerated)
-          const savedChannelName = server.channels.find((c) =>
-            savedChannelId.includes(c.name),
-          );
-          const fallbackId =
-            savedChannelName?.id || server.channels[0]?.id || null;
-          useStore.setState((state) => ({
-            ui: {
-              ...state.ui,
-              perServerSelections: {
-                ...state.ui.perServerSelections,
-                [serverId]: {
-                  ...state.ui.perServerSelections[serverId],
-                  selectedChannelId: fallbackId,
-                },
-              },
-            },
-          }));
+          // ID mismatch - try to restore by name
+          const savedName = serverSelection?.selectedChannelName;
+          const matchedByName = savedName
+            ? server.channels.find(
+                (c) => c.name.toLowerCase() === savedName.toLowerCase(),
+              )
+            : null;
+
+          if (matchedByName) {
+            console.log(
+              "[Channel Restore] ID stale, restored by name:",
+              savedName,
+            );
+            useStore.getState().selectChannel(matchedByName.id);
+          } else {
+            console.warn(
+              "[Channel Restore] Saved channel ID is stale and name not found:",
+              savedChannelId,
+              savedName,
+            );
+          }
+        }
+      } else if (server && savedPrivateChatId) {
+        const pcExists = server.privateChats?.some(
+          (pc) => pc.id === savedPrivateChatId,
+        );
+        if (!pcExists) {
+          const savedUsername = serverSelection?.selectedPrivateChatUsername;
+          if (savedUsername) {
+            console.log(
+              "[Channel Restore] Private chat ID stale, restoring by username:",
+              savedUsername,
+            );
+            useStore.getState().openPrivateChat(serverId, savedUsername);
+          }
         }
       } else if (server && !savedChannelId && server.channels.length > 0) {
-        // No saved channel - select first channel
+        // No saved channel - try lastSelection fallback
+        const uiSelections = loadUISelections();
+        const lastSel = uiSelections.lastSelection;
+        if (
+          lastSel &&
+          server.host.toLowerCase() === lastSel.serverHost.toLowerCase()
+        ) {
+          if (lastSel.channelName) {
+            const channel = server.channels.find(
+              (c) =>
+                c.name.toLowerCase() === lastSel.channelName?.toLowerCase(),
+            );
+            if (channel) {
+              console.log(
+                "[Channel Restore] Restored from lastSelection by host+name:",
+                lastSel.channelName,
+              );
+              useStore.getState().selectChannel(channel.id);
+            }
+          } else if (lastSel.privateChatUsername) {
+            console.log(
+              "[Channel Restore] Restored private chat from lastSelection:",
+              lastSel.privateChatUsername,
+            );
+            useStore
+              .getState()
+              .openPrivateChat(serverId, lastSel.privateChatUsername);
+          }
+        }
+      }
+    } else if (!currentState.ui.selectedServerId) {
+      // No server selected - try to match by lastSelection host
+      const uiSelections = loadUISelections();
+      const lastSel = uiSelections.lastSelection;
+      const server = currentState.servers.find((s) => s.id === serverId);
+
+      if (
+        lastSel &&
+        server &&
+        server.host.toLowerCase() === lastSel.serverHost.toLowerCase()
+      ) {
+        // This server matches the last selection by host - select it
         useStore.setState((state) => ({
           ui: {
             ...state.ui,
-            perServerSelections: {
-              ...state.ui.perServerSelections,
-              [serverId]: {
-                ...state.ui.perServerSelections[serverId],
-                selectedChannelId: server.channels[0]?.id || null,
-              },
-            },
+            selectedServerId: serverId,
           },
         }));
-      }
-    } else if (!currentState.ui.selectedServerId) {
-      // No server selected - select this one
-      useStore.setState((state) => {
-        return {
+
+        if (lastSel.channelName) {
+          const channel = server.channels.find(
+            (c) => c.name.toLowerCase() === lastSel.channelName?.toLowerCase(),
+          );
+          if (channel) {
+            console.log(
+              "[Channel Restore] Cross-ID restore by host+name:",
+              lastSel.channelName,
+            );
+            useStore.getState().selectChannel(channel.id);
+          }
+        } else if (lastSel.privateChatUsername) {
+          useStore
+            .getState()
+            .openPrivateChat(serverId, lastSel.privateChatUsername);
+        }
+      } else {
+        // No lastSelection match - select this server
+        useStore.setState((state) => ({
           ui: {
             ...state.ui,
             selectedServerId: serverId,
@@ -5087,8 +5241,8 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
                 }
               : state.ui.perServerSelections,
           },
-        };
-      });
+        }));
+      }
     }
   } else {
   }
