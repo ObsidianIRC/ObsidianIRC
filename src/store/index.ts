@@ -66,7 +66,7 @@ function ensureUrlFormat(host: string, port: number): string {
     host === "localhost" || host === "127.0.0.1" || host === "::1";
   const scheme = isLocalhost
     ? "ws"
-    : port === 6697 || port === 9999 || port === 443 || port === 993
+    : port === 6697 || port === 9999 || port === 443 || port === 993 || port === 8097
       ? "wss"
       : "ws";
   return `${scheme}://${host}:${port}`;
