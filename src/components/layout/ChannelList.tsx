@@ -700,6 +700,9 @@ export const ChannelList: React.FC<{
                                     ? "block" // Always visible on mobile
                                     : "hidden group-hover:block" // Show on hover on desktop
                                 }`}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation();
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (selectedServerId) {

@@ -4,7 +4,7 @@ import {
   requestPermission,
 } from "@tauri-apps/plugin-notification";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
@@ -156,17 +156,13 @@ const App: React.FC = () => {
   useKeyboardResize();
 
   // askPermissions();
+  const hasInitialized = useRef(false);
   useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     initializeEnvSettings(toggleAddServerModal, joinChannel);
-    // Auto-reconnect to saved servers on app startup
     connectToSavedServers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    // Auto-reconnect to saved servers on app startup
-    connectToSavedServers,
-    joinChannel,
-    toggleAddServerModal,
-  ]); // Only run once on mount - store functions are not stable references
+  }, [connectToSavedServers, joinChannel, toggleAddServerModal]);
 
   // Handle deeplinks
   useEffect(() => {

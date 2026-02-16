@@ -1254,10 +1254,42 @@ const useStore = create<AppState>((set, get) => ({
       };
       saveChannelOrder(newChannelOrder);
 
+      // Clear selection if the left channel was the selected one
+      const currentSelection = getServerSelection(state, serverId);
+      const server = state.servers.find((s) => s.id === serverId);
+      const leftChannel = server?.channels.find(
+        (c) => c.name === channelName,
+      );
+
+      let updatedUI = state.ui;
+      if (
+        leftChannel &&
+        currentSelection?.selectedChannelId === leftChannel.id
+      ) {
+        const remainingChannels =
+          updatedServers.find((s) => s.id === serverId)?.channels || [];
+        const nextChannel = remainingChannels[0] || null;
+        updatedUI = {
+          ...state.ui,
+          perServerSelections: setServerSelection(state, serverId, {
+            selectedChannelId: nextChannel?.id || null,
+            selectedChannelName: nextChannel?.name || null,
+            selectedPrivateChatId: null,
+            selectedPrivateChatUsername: null,
+          }),
+        };
+      }
+
       return {
         servers: updatedServers,
         channelOrder: newChannelOrder,
+        ui: updatedUI,
       };
+    });
+
+    saveUISelections({
+      selectedServerId: get().ui.selectedServerId,
+      perServerSelections: get().ui.perServerSelections,
     });
   },
 

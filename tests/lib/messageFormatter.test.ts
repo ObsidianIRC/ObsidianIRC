@@ -386,7 +386,21 @@ console.log('test');
       const result = renderMarkdown(input);
 
       expect(result).toBeDefined();
-      // Should include copy button in the HTML
+    });
+
+    it("should handle inline code with newlines", () => {
+      const input =
+        "hi please type `MOD_LOAD(){return MOD_SUCCESS;}\\nMOD_INIT(){return MOD_SUCCESS;}\\nMOD_UNLOAD(){return MOD_SUCCESS;}` and you're done";
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
+    });
+
+    it("should handle normal inline code without newlines", () => {
+      const input = "Use `console.log()` to debug";
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
     });
   });
 

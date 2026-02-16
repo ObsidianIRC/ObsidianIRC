@@ -56,7 +56,7 @@ export const CollapsedEventMessage: React.FC<CollapsedEventMessageProps> = ({
 
   return (
     <div
-      className="group relative flex items-center px-4 py-1 hover:bg-discord-dark-500 transition-colors duration-75"
+      className="group relative flex items-center px-4 py-1 mt-2 hover:bg-discord-dark-500 transition-colors duration-75"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

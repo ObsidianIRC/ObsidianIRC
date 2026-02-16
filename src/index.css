@@ -174,8 +174,12 @@ body {
 
 /* Bottom sheet slide-up animation for mobile message actions */
 @keyframes bottom-sheet-slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 .shimmer {
@@ -315,7 +319,8 @@ body {
   border-radius: 0.125rem;
   margin-bottom: 0.125rem;
   overflow-x: auto;
-  position: relative; /* For positioning copy buttons */
+  position: relative;
+  white-space: pre;
 }
 
 .dark .markdown-content pre {
@@ -325,12 +330,14 @@ body {
 .markdown-content pre code {
   background-color: transparent;
   padding: 0;
+  white-space: pre;
 }
 
 .code-block-container {
   position: relative;
   margin-bottom: 0.125rem;
-  max-width: 90%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .code-block-header {
@@ -348,6 +355,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 1.5rem;
 }
 
 .dark .code-block-header {
@@ -405,11 +413,16 @@ body {
 .inline-code-container {
   position: relative;
   display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
 }
 
 .inline-code {
   padding-right: 1.5rem;
   transition: padding-right 0.2s ease;
+  white-space: nowrap;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .inline-code-container:hover .inline-code {
@@ -701,7 +714,10 @@ textarea.resize-none::-webkit-scrollbar-thumb {
   cursor: grab;
   user-select: none;
   touch-action: none;
-  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
   will-change: transform;
 }
 
@@ -735,12 +751,11 @@ textarea.resize-none::-webkit-scrollbar-thumb {
 }
 
 .draggable-item.is-drop-target-above {
-  border-top: 3px solid #5865F2 !important;
+  border-top: 3px solid #5865f2 !important;
   margin-top: 2px !important;
 }
 
 .draggable-item.is-drop-target-below {
-  border-bottom: 3px solid #5865F2 !important;
+  border-bottom: 3px solid #5865f2 !important;
   margin-bottom: 2px !important;
 }
-

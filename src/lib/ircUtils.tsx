@@ -259,13 +259,43 @@ export function renderMarkdown(
   // Custom code renderer for inline code
   renderer.codespan = ({ text }) => {
     // Decode HTML entities back to characters for inline code
-    const decodedText = text
+    let decodedText = text
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&amp;/g, "&")
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .replace(/&apos;/g, "'");
+
+    const hasActualNewlines = decodedText.includes("\n");
+    const hasEscapedNewlines = decodedText.includes("\\n");
+
+    if (hasActualNewlines || hasEscapedNewlines) {
+      if (hasEscapedNewlines) {
+        decodedText = decodedText.replace(/\\n/g, "\n");
+      }
+
+      const codeId = `multiline-inline-code-${Math.random().toString(36).substr(2, 9)}`;
+      const escapedForHtml = decodedText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+      return `<div class="code-block-container">
+        <div class="code-block-header">
+          <span class="language-label">text</span>
+          <button class="copy-button" data-code-id="${codeId}" title="Copy to clipboard">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+        <pre><code id="${codeId}">${escapedForHtml}</code></pre>
+      </div>`;
+    }
 
     const codeId = `inline-code-${Math.random().toString(36).substr(2, 9)}`;
     return `<span class="inline-code-container"><code id="${codeId}" class="inline-code">${decodedText}</code><button class="inline-copy-button" data-code-id="${codeId}" title="Copy to clipboard">

@@ -887,7 +887,7 @@ export const MessageItem = (props: MessageItemProps) => {
     <div
       data-message-id={message.id}
       className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
-        showHeader ? "py-2 mt-2" : "py-0.5"
+        showHeader ? "mt-4" : "py-0.5"
       }`}
     >
       {showDate && (

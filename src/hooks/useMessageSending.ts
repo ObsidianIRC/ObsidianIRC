@@ -29,8 +29,66 @@ interface UseMessageSendingReturn {
   sendMessage: (text: string) => void;
 }
 
+interface WhisperContext {
+  isWhisper: boolean;
+  targetUser: string;
+  channelContext: string;
+}
+
+function getWhisperContext(
+  replyTo: Message | null,
+  currentUser: User | null,
+): WhisperContext | null {
+  if (!replyTo) {
+    return null;
+  }
+
+  const channelContext =
+    replyTo.tags?.["draft/channel-context"] ||
+    replyTo.tags?.["+draft/channel-context"];
+
+  if (!channelContext) {
+    return null;
+  }
+
+  const senderUserId = replyTo.userId;
+  const currentUserId = currentUser?.username || currentUser?.id;
+
+  const targetUser =
+    senderUserId === currentUserId
+      ? replyTo.whisperTarget || senderUserId
+      : senderUserId;
+
+  return {
+    isWhisper: true,
+    targetUser,
+    channelContext: channelContext as string,
+  };
+}
+
+type MessageSendCallback = (formattedLine: string) => void;
+
+function sendViaWhisperOrRegular(
+  serverId: string,
+  whisperContext: WhisperContext | null,
+  formattedText: string,
+  sendViaNormalChannel: MessageSendCallback,
+): void {
+  if (whisperContext) {
+    ircClient.sendWhisper(
+      serverId,
+      whisperContext.targetUser,
+      whisperContext.channelContext,
+      formattedText,
+    );
+  } else {
+    sendViaNormalChannel(formattedText);
+  }
+}
+
 /**
- * Handles all message sending logic including commands and multiline
+ * Hook for handling message sending logic including IRC commands,
+ * multiline messages, and protocol formatting
  */
 export function useMessageSending({
   selectedServerId,
@@ -69,12 +127,10 @@ export function useMessageSending({
           console.error("No channel specified for /join command");
         }
       } else if (commandName === "part") {
-        ircClient.leaveChannel(selectedServerId, args[0]);
-        ircClient.triggerEvent("PART", {
-          serverId: selectedServerId,
-          username: currentUser?.username || "",
-          channelName: args[0],
-        });
+        const partTarget = args[0] || selectedChannel?.name;
+        if (partTarget) {
+          useStore.getState().leaveChannel(selectedServerId, partTarget);
+        }
       } else if (commandName === "msg") {
         const [target, ...messageParts] = args;
         const message = messageParts.join(" ");
@@ -127,16 +183,9 @@ export function useMessageSending({
     (cleanedText: string, target: string, lines: string[]) => {
       if (!selectedServerId) return;
 
-      const isWhisperReply =
-        localReplyTo &&
-        (localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"]);
+      const whisperContext = getWhisperContext(localReplyTo, currentUser);
 
-      if (isWhisperReply) {
-        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"]) as string;
-        const whisperTarget = localReplyTo.userId;
-
+      if (whisperContext) {
         lines.forEach((line) => {
           const formattedLine = formatMessageForIrc(line, {
             color: selectedColor || "inherit",
@@ -144,8 +193,8 @@ export function useMessageSending({
           });
           ircClient.sendWhisper(
             selectedServerId,
-            whisperTarget,
-            channelContext,
+            whisperContext.targetUser,
+            whisperContext.channelContext,
             formattedLine,
           );
         });
@@ -165,7 +214,6 @@ export function useMessageSending({
       const hasMultipleLines = lines.length > 1;
 
       if (hasMultipleLines) {
-        // Multi-line message (preserve line breaks)
         lines.forEach((line) => {
           const formattedLine = formatMessageForIrc(line, {
             color: selectedColor || "inherit",
@@ -200,7 +248,6 @@ export function useMessageSending({
           }
         });
       } else {
-        // Single very long line (split and concat)
         const formattedText = formatMessageForIrc(cleanedText, {
           color: selectedColor || "inherit",
           formatting: selectedFormatting,
@@ -224,7 +271,13 @@ export function useMessageSending({
 
       ircClient.sendRaw(selectedServerId, `BATCH -${batchId}`);
     },
-    [selectedServerId, selectedColor, selectedFormatting, localReplyTo],
+    [
+      selectedServerId,
+      selectedColor,
+      selectedFormatting,
+      localReplyTo,
+      currentUser,
+    ],
   );
 
   /**
@@ -234,16 +287,9 @@ export function useMessageSending({
     (lines: string[], target: string) => {
       if (!selectedServerId) return;
 
-      const isWhisperReply =
-        localReplyTo &&
-        (localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"]);
+      const whisperContext = getWhisperContext(localReplyTo, currentUser);
 
-      if (isWhisperReply) {
-        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"]) as string;
-        const whisperTarget = localReplyTo.userId;
-
+      if (whisperContext) {
         lines.forEach((line) => {
           const formattedLine = formatMessageForIrc(line, {
             color: selectedColor || "inherit",
@@ -251,8 +297,8 @@ export function useMessageSending({
           });
           ircClient.sendWhisper(
             selectedServerId,
-            whisperTarget,
-            channelContext,
+            whisperContext.targetUser,
+            whisperContext.channelContext,
             formattedLine,
           );
         });
@@ -264,7 +310,6 @@ export function useMessageSending({
         : "";
 
       if (globalSettings.autoFallbackToSingleLine) {
-        // Concatenate with spaces and send as single message
         const combinedText = lines.join(" ");
         const formattedText = formatMessageForIrc(combinedText, {
           color: selectedColor || "inherit",
@@ -279,7 +324,6 @@ export function useMessageSending({
           );
         });
       } else {
-        // Send as separate messages
         lines.forEach((line) => {
           const formattedLine = formatMessageForIrc(line, {
             color: selectedColor || "inherit",
@@ -301,6 +345,7 @@ export function useMessageSending({
       selectedColor,
       selectedFormatting,
       localReplyTo,
+      currentUser,
       globalSettings,
     ],
   );
@@ -317,33 +362,30 @@ export function useMessageSending({
         formatting: selectedFormatting,
       });
 
-      const isWhisperReply =
-        localReplyTo &&
-        (localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"]);
+      const whisperContext = getWhisperContext(localReplyTo, currentUser);
 
-      if (isWhisperReply) {
-        const channelContext = (localReplyTo.tags?.["draft/channel-context"] ||
-          localReplyTo.tags?.["+draft/channel-context"]) as string;
-        const whisperTarget = localReplyTo.userId;
-
-        ircClient.sendWhisper(
-          selectedServerId,
-          whisperTarget,
-          channelContext,
-          formattedText,
-        );
-      } else {
-        const splitLines = splitLongMessage(formattedText, target);
-        splitLines.forEach((line: string) => {
-          ircClient.sendRaw(
-            selectedServerId,
-            `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
-          );
-        });
-      }
+      sendViaWhisperOrRegular(
+        selectedServerId,
+        whisperContext,
+        formattedText,
+        (formattedLine) => {
+          const splitLines = splitLongMessage(formattedLine, target);
+          splitLines.forEach((line: string) => {
+            ircClient.sendRaw(
+              selectedServerId,
+              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+            );
+          });
+        },
+      );
     },
-    [selectedServerId, selectedColor, selectedFormatting, localReplyTo],
+    [
+      selectedServerId,
+      selectedColor,
+      selectedFormatting,
+      localReplyTo,
+      currentUser,
+    ],
   );
 
   /**
