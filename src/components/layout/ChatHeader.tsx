@@ -29,6 +29,7 @@ import type { Channel, PrivateChat, User } from "../../types";
 import HeaderOverflowMenu, {
   type HeaderOverflowMenuItem,
 } from "../ui/HeaderOverflowMenu";
+import { TextInput } from "../ui/TextInput";
 import TopicModal from "../ui/TopicModal";
 
 interface ChatHeaderProps {
@@ -516,8 +517,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </button>
 
                 <div className="hidden md:block relative">
-                  <input
-                    type="text"
+                  <TextInput
                     placeholder="Search"
                     value={searchQuery}
                     onChange={(e) => onSearchQueryChange(e.target.value)}
@@ -538,8 +538,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 {isSearchExpanded && (
                   <div className="md:hidden absolute right-0 top-0 z-50">
                     <div className="relative flex items-center">
-                      <input
-                        type="text"
+                      <TextInput
                         autoFocus
                         placeholder="Search"
                         value={searchQuery}
@@ -778,8 +777,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </button>
 
                 <div className="hidden md:block relative">
-                  <input
-                    type="text"
+                  <TextInput
                     placeholder="Search"
                     value={searchQuery}
                     onChange={(e) => onSearchQueryChange(e.target.value)}
@@ -800,8 +798,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 {isSearchExpanded && (
                   <div className="md:hidden absolute right-0 top-0 z-50">
                     <div className="relative flex items-center">
-                      <input
-                        type="text"
+                      <TextInput
                         autoFocus
                         placeholder="Search"
                         value={searchQuery}

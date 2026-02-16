@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from "react";
+import { TextInput } from "../../../components/ui/TextInput";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -19,7 +20,7 @@ export const Input: React.FC<InputProps> = ({
         {label}
       </label>
     )}
-    <input
+    <TextInput
       {...props}
       className={`w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${className}`}
     />

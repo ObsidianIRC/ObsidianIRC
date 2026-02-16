@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 const DiscoverGrid = () => {
   const { toggleAddServerModal, connect, isConnecting, connectionError } =
@@ -73,7 +74,7 @@ const DiscoverGrid = () => {
               <FaPlus />
             </a>
           </button>
-          <input
+          <TextInput
             placeholder="Search servers..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}

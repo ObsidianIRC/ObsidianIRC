@@ -27,6 +27,7 @@ import {
   getUIActionIcon,
   UI_ACTIONS,
 } from "./QuickActions/uiActionConfig";
+import { TextInput } from "./TextInput";
 
 const QuickActions: React.FC = () => {
   const {
@@ -643,9 +644,8 @@ const QuickActions: React.FC = () => {
       >
         <div className="flex items-center border-b border-discord-dark-500 p-4">
           <FaSearch className="text-discord-text-muted mr-3" />
-          <input
+          <TextInput
             ref={inputRef}
-            type="text"
             placeholder="Search settings, channels, servers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

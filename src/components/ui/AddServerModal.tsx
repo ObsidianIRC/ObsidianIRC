@@ -5,6 +5,7 @@ import BaseModal from "../../lib/modal/BaseModal";
 import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 export const AddServerModal: React.FC = () => {
   const {
@@ -161,18 +162,13 @@ export const AddServerModal: React.FC = () => {
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Network Name
                 </label>
-                <input
-                  type="text"
+                <TextInput
                   value={serverName || serverHost || ""}
                   onChange={(e) => setServerName(e.target.value)}
                   onFocus={(e) => {
                     e.target.select();
                   }}
                   placeholder="ExampleNET"
-                  autoComplete="off"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -182,18 +178,13 @@ export const AddServerModal: React.FC = () => {
                   <label className="block text-discord-text-muted text-sm font-medium mb-1">
                     Server Host
                   </label>
-                  <input
-                    type="text"
+                  <TextInput
                     value={serverHost || ""}
                     onChange={(e) => setServerHost(e.target.value)}
                     onFocus={(e) => {
                       e.target.select();
                     }}
                     placeholder="irc.example.com"
-                    autoComplete="off"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
                     className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
                       disableServerConnectionInfo
                         ? "bg-gray-700 text-gray-400 cursor-not-allowed"

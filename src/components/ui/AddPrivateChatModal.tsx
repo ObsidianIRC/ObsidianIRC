@@ -5,6 +5,7 @@ import ircClient from "../../lib/ircClient";
 import BaseModal from "../../lib/modal/BaseModal";
 import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 interface AddPrivateChatModalProps {
   isOpen: boolean;
@@ -76,15 +77,10 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
         {/* Search Input */}
         <div className="relative mb-4">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-discord-channels-default" />
-          <input
-            type="text"
+          <TextInput
             placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            autoComplete="off"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
             className="w-full bg-discord-dark-400 border border-discord-dark-500 rounded px-10 py-2 text-white placeholder-discord-channels-default focus:outline-none focus:border-discord-primary"
             autoFocus
           />

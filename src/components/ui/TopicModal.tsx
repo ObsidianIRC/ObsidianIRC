@@ -5,6 +5,7 @@ import { hasOpPermission } from "../../lib/ircUtils";
 import BaseModal from "../../lib/modal/BaseModal";
 import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 import type { Channel, User } from "../../types";
+import { TextArea } from "./TextInput";
 
 interface TopicModalProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ export const TopicModal: React.FC<TopicModalProps> = ({
           <div>
             <label className="block text-white mb-2">{channel.name}</label>
             {isEditing ? (
-              <textarea
+              <TextArea
                 value={editedTopic}
                 onChange={(e) => setEditedTopic(e.target.value)}
                 className="w-full p-2 bg-discord-dark-400 text-white rounded min-h-[100px] resize-y focus:outline-none focus:ring-1 focus:ring-discord-primary"

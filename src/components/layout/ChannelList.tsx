@@ -27,6 +27,7 @@ import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
 import AddPrivateChatModal from "../ui/AddPrivateChatModal";
+import { TextInput } from "../ui/TextInput";
 
 export const ChannelList: React.FC<{
   onToggle: () => void;
@@ -433,8 +434,7 @@ export const ChannelList: React.FC<{
                     <span className="pl-2 pr-1 text-discord-channels-default">
                       <FaHashtag />
                     </span>
-                    <input
-                      type="text"
+                    <TextInput
                       className="bg-transparent border-none outline-none py-1 w-full text-discord-channels-active"
                       placeholder="channel-name"
                       value={

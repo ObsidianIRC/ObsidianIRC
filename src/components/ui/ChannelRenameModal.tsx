@@ -79,6 +79,10 @@ const ChannelRenameModal: React.FC = () => {
             label="Reason (optional)"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
             placeholder="Reason for renaming"
           />
         </div>

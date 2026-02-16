@@ -10,6 +10,7 @@ import { ModalFooter } from "../../lib/modal/components/ModalFooter";
 import useStore, { serverSupportsMetadata } from "../../store";
 import type { Channel } from "../../types";
 import AvatarUpload from "./AvatarUpload";
+import { TextInput } from "./TextInput";
 
 interface ChannelSettingsModalProps {
   isOpen: boolean;
@@ -411,8 +412,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         <div className="flex-1 flex flex-col min-h-0 px-6">
           {/* Add new mask */}
           <div className="flex gap-2 mb-4 flex-shrink-0">
-            <input
-              type="text"
+            <TextInput
               value={newMask}
               onChange={(e) => setNewMask(e.target.value)}
               placeholder={`Add ${activeTab === "b" ? "ban" : activeTab === "e" ? "exception" : "invitation"} mask (e.g., nick!*@*, *!*@host.com)`}
@@ -458,8 +458,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   >
                     <div className="flex-1 min-w-0">
                       {editingMask === mode.mask ? (
-                        <input
-                          type="text"
+                        <TextInput
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           className="w-full p-1 bg-discord-dark-400 text-white rounded text-sm"

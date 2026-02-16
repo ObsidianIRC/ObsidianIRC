@@ -26,6 +26,7 @@ import useStore, {
 } from "../../store";
 import AvatarUpload from "./AvatarUpload";
 import { SettingField } from "./settings/SettingRenderer";
+import { TextInput } from "./TextInput";
 import UserProfileModal from "./UserProfileModal";
 
 // Deep clone utility for settings values
@@ -842,9 +843,8 @@ export const UserSettings: React.FC = React.memo(() => {
           <p className="text-discord-text-muted text-xs">
             {nicknameSetting?.description}
           </p>
-          <input
+          <TextInput
             ref={nicknameInputRef}
-            type="text"
             value={newNickname}
             onChange={handleNewNicknameChange}
             className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
@@ -858,9 +858,8 @@ export const UserSettings: React.FC = React.memo(() => {
           <p className="text-discord-text-muted text-xs">
             {realnameSetting?.description}
           </p>
-          <input
+          <TextInput
             ref={realnameInputRef}
-            type="text"
             value={realname}
             onChange={handleRealnameChange}
             placeholder={realnameSetting?.placeholder || "Enter real name"}
@@ -899,9 +898,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {displayNameSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={displayNameInputRef}
-                  type="text"
                   value={displayName}
                   onChange={handleDisplayNameChange}
                   placeholder={
@@ -925,9 +923,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {avatarSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={avatarInputRef}
-                  type="text"
                   value={avatar}
                   onChange={handleAvatarChange}
                   placeholder={
@@ -959,8 +956,7 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {homepageSetting?.description}
                 </p>
-                <input
-                  type="text"
+                <TextInput
                   value={homepage}
                   onChange={handleHomepageChange}
                   placeholder={
@@ -984,9 +980,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {statusSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={statusInputRef}
-                  type="text"
                   value={status}
                   onChange={handleStatusChange}
                   placeholder="What's on your mind?"
@@ -1015,9 +1010,8 @@ export const UserSettings: React.FC = React.memo(() => {
                     onChange={handleColorChange}
                     className="w-12 h-8 rounded border-none cursor-pointer"
                   />
-                  <input
+                  <TextInput
                     ref={colorInputRef}
-                    type="text"
                     value={color}
                     onChange={handleColorChange}
                     placeholder="#000000"
@@ -1040,9 +1034,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {botSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={botInputRef}
-                  type="text"
                   value={bot}
                   onChange={handleBotChange}
                   placeholder={botSetting?.placeholder || "on"}
@@ -1072,9 +1065,8 @@ export const UserSettings: React.FC = React.memo(() => {
             <p className="text-discord-text-muted text-xs">
               {awayMessageSetting?.description}
             </p>
-            <input
+            <TextInput
               ref={awayMessageInputRef}
-              type="text"
               value={awayMessage}
               onChange={handleAwayMessageChange}
               placeholder={
@@ -1098,9 +1090,8 @@ export const UserSettings: React.FC = React.memo(() => {
             <p className="text-discord-text-muted text-xs">
               {quitMessageSetting?.description}
             </p>
-            <input
+            <TextInput
               ref={quitMessageInputRef}
-              type="text"
               value={quitMessage}
               onChange={handleQuitMessageChange}
               placeholder={
@@ -1138,8 +1129,7 @@ export const UserSettings: React.FC = React.memo(() => {
             <label className="block text-discord-text-normal text-sm font-medium">
               Oper Name
             </label>
-            <input
-              type="text"
+            <TextInput
               value={operName}
               onChange={(e) => setOperName(e.target.value)}
               placeholder="Enter oper username"
@@ -1151,7 +1141,7 @@ export const UserSettings: React.FC = React.memo(() => {
             <label className="block text-discord-text-normal text-sm font-medium">
               Oper Password
             </label>
-            <input
+            <TextInput
               type="password"
               value={operPassword}
               onChange={(e) => setOperPassword(e.target.value)}

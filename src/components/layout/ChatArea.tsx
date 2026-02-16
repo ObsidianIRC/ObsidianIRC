@@ -45,6 +45,7 @@ import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReplyBadge } from "../ui/ReplyBadge";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
+import { TextArea } from "../ui/TextInput";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
 import { ChatHeader } from "./ChatHeader";
@@ -1721,7 +1722,7 @@ export const ChatArea: React.FC<{
                   <FaPlus />
                 </button>
 
-                <textarea
+                <TextArea
                   ref={inputRef}
                   value={messageText}
                   onChange={handleInputChange}
@@ -1751,10 +1752,6 @@ export const ChatArea: React.FC<{
                           }`
                         : "Type a message..."
                   }
-                  autoComplete="off"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
                   className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-[200px] overflow-y-auto placeholder:truncate"
                   style={getPreviewStyles({
                     color: selectedColor || "inherit",
