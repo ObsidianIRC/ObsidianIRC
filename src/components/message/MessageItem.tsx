@@ -1,6 +1,7 @@
 import exifr from "exifr";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaSpinner } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
@@ -299,11 +300,21 @@ const ImageWithFallback: React.FC<{
 
   return (
     <div className="max-w-md">
-      <div className="relative inline-block">
+      <div className="relative inline-block rounded border border-discord-dark-500/50 overflow-hidden">
+        {!imageLoaded && !imageError && (
+          <div
+            className="flex items-center justify-center bg-discord-dark-400/50"
+            style={{ width: "200px", height: "150px" }}
+          >
+            <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
+          </div>
+        )}
         <img
           src={displayUrl}
           alt={isFilehostImage ? "Filehost image" : "GIF"}
-          className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${
+            imageLoaded ? "block" : "hidden"
+          }`}
           onClick={async (e) => {
             e.preventDefault();
             await openExternalUrl(url);
@@ -312,7 +323,7 @@ const ImageWithFallback: React.FC<{
           onError={() => setImageError(true)}
           style={{ maxHeight: "150px" }}
         />
-        {isFilehostImage && exifData && (
+        {isFilehostImage && exifData && imageLoaded && (
           <FilehostImageBanner
             exifData={exifData}
             serverId={serverId}
@@ -677,6 +688,19 @@ export const MessageItem = (props: MessageItemProps) => {
     (message.content.startsWith("http://") ||
       message.content.startsWith("https://"));
 
+  // Extract filehost image URLs embedded in messages with other text
+  const embeddedFilehostImages = useMemo(() => {
+    if (!server?.filehost || !showSafeMedia || isImageUrl) return [];
+    const urlRegex = /https?:\/\/\S+/gi;
+    const urls = message.content.match(urlRegex) || [];
+    return urls.filter(
+      (url) =>
+        isUrlFromFilehost(url, server.filehost!) &&
+        (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url) ||
+          url.includes("/images/")),
+    );
+  }, [message.content, server?.filehost, showSafeMedia, isImageUrl]);
+
   // Handle system messages
   if (isSystem) {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
@@ -967,6 +991,17 @@ export const MessageItem = (props: MessageItemProps) => {
                   </div>
                 )}
               </EnhancedLinkWrapper>
+
+              {/* Render embedded filehost image previews */}
+              {embeddedFilehostImages.map((imgUrl) => (
+                <ImageWithFallback
+                  key={imgUrl}
+                  url={imgUrl}
+                  isFilehostImage
+                  serverId={message.serverId}
+                  onOpenProfile={onOpenProfile}
+                />
+              ))}
 
               {/* Render link preview if available */}
               {(message.linkPreviewTitle ||
