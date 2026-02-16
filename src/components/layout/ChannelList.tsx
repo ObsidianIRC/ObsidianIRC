@@ -822,29 +822,29 @@ export const ChannelList: React.FC<{
                         className={`
                           group
                           px-2 py-1 mb-1 rounded-md flex items-center justify-between max-w-full
-                          ${selectedPrivateChatId === privateChat.id ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                          transition-all duration-200 ease-in-out
+                          shadow-sm
+                          ${
+                            selectedPrivateChatId === privateChat.id
+                              ? "bg-black text-white"
+                              : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
+                          }
                           ${privateChat.isPinned ? pmDrag.getItemProps(privateChat.id).className : ""}
                         `}
                         style={
                           {
-                            transition:
-                              "background-color 150ms ease-in, color 150ms ease-in, opacity 200ms ease-in-out",
                             backgroundColor:
                               selectedPrivateChatId !== privateChat.id
                                 ? privateChat.isOnline
                                   ? privateChat.isAway
-                                    ? "rgba(234, 179, 8, 0.12)" // yellow tint
-                                    : "rgba(34, 197, 94, 0.12)" // green tint
-                                  : "rgba(107, 114, 128, 0.08)" // gray tint
+                                    ? "rgba(234, 179, 8, 0.12)" // yellow tint for away
+                                    : undefined // default like channels
+                                  : "rgba(107, 114, 128, 0.08)" // gray tint for offline
                                 : undefined,
                             "--bg-color":
                               selectedPrivateChatId === privateChat.id
-                                ? "rgba(47, 49, 54, 1)"
-                                : privateChat.isOnline
-                                  ? privateChat.isAway
-                                    ? "rgba(234, 179, 8, 0.12)"
-                                    : "rgba(34, 197, 94, 0.12)"
-                                  : "rgba(107, 114, 128, 0.08)",
+                                ? "#000"
+                                : "rgba(47, 49, 54, 0.5)",
                             ...(privateChat.isPinned
                               ? pmDrag.getItemProps(privateChat.id).style
                               : {}),
