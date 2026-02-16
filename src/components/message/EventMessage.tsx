@@ -39,7 +39,7 @@ export const EventMessage: React.FC<EventMessageProps> = ({
     }).format(date);
   };
 
-  const handleAvatarClick = (e: React.MouseEvent) => { 
+  const handleAvatarClick = (e: React.MouseEvent) => {
     const username = message.userId.split("-")[0];
     onUsernameContextMenu(
       e,

@@ -556,9 +556,24 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
+    wasAtBottomRef.current = true;
     setVisibleMessageCount(100);
     setSearchQuery("");
-  }, [selectedServerId, selectedChannelId]);
+  }, [selectedServerId, selectedChannelId, wasAtBottomRef]);
+
+  // Scroll to bottom after chat history finishes loading
+  const wasLoadingHistoryRef = useRef(false);
+  const isLoadingHistory = selectedChannel?.isLoadingHistory ?? false;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom is stable via useCallback
+  useEffect(() => {
+    if (wasLoadingHistoryRef.current && !isLoadingHistory) {
+      requestAnimationFrame(() => {
+        scrollToBottom();
+        wasAtBottomRef.current = true;
+      });
+    }
+    wasLoadingHistoryRef.current = isLoadingHistory;
+  }, [isLoadingHistory]);
 
   // Auto scroll to bottom on new messages
   // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes

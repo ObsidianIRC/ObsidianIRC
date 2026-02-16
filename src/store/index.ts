@@ -1257,9 +1257,7 @@ const useStore = create<AppState>((set, get) => ({
       // Clear selection if the left channel was the selected one
       const currentSelection = getServerSelection(state, serverId);
       const server = state.servers.find((s) => s.id === serverId);
-      const leftChannel = server?.channels.find(
-        (c) => c.name === channelName,
-      );
+      const leftChannel = server?.channels.find((c) => c.name === channelName);
 
       let updatedUI = state.ui;
       if (
