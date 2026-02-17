@@ -1636,6 +1636,7 @@ export const ChatArea: React.FC<{
                     const previousMessage = channelMessages[originalIndex - 1];
                     const showHeader =
                       !previousMessage ||
+                      previousMessage.type !== "message" ||
                       previousMessage.userId !== message.userId ||
                       new Date(message.timestamp).getTime() -
                         new Date(previousMessage.timestamp).getTime() >
