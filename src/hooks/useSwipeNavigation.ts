@@ -46,6 +46,10 @@ export function useSwipeNavigation({
   });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (document.documentElement.dataset.keyboardVisible) {
+      return;
+    }
+
     const target = e.target as HTMLElement;
     if (target.closest("[data-no-swipe]")) {
       return;

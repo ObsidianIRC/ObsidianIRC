@@ -2840,6 +2840,11 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   setMobileViewActiveColumn: (column: layoutColumn) => {
+    // Dismiss mobile keyboard when navigating away
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     set((state) => ({
       ui: {
         ...state.ui,

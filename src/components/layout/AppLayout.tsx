@@ -300,7 +300,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={`flex h-screen overflow-hidden bg-discord-dark-300 ${
+      className={`flex h-dvh overflow-hidden bg-discord-dark-300 ${
         isDarkMode ? "text-white" : "text-gray-900"
       }`}
       style={{

@@ -18,6 +18,8 @@ export const TextInput = forwardRef<
     autoCorrect="off"
     autoCapitalize="off"
     spellCheck={false}
+    data-form-type="other"
+    data-lpignore="true"
     ref={ref}
     {...props}
   />
@@ -37,6 +39,8 @@ export const TextArea = forwardRef<
     autoCorrect="off"
     autoCapitalize="off"
     spellCheck={false}
+    data-form-type="other"
+    data-lpignore="true"
     ref={ref}
     {...props}
   />
