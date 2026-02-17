@@ -1426,7 +1426,8 @@ const useStore = create<AppState>((set, get) => ({
         return (
           existingMessage.id === message.id ||
           (existingMessage.content === message.content &&
-            existingMessage.timestamp === message.timestamp &&
+            new Date(existingMessage.timestamp).getTime() ===
+              new Date(message.timestamp).getTime() &&
             existingMessage.userId === message.userId)
         );
       });
@@ -3513,9 +3514,9 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
   const { mtags, channelName, sender, message, messageIds, timestamp } =
     response;
 
-  // Check for duplicate messages based on messageIds
+  // Check for duplicate messages based on messageIds or batch msgid
+  const currentState = useStore.getState();
   if (messageIds && messageIds.length > 0) {
-    const currentState = useStore.getState();
     const hasDuplicate = messageIds.some((id) =>
       currentState.processedMessageIds.has(id),
     );
@@ -3525,6 +3526,14 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       );
       return;
     }
+  } else if (
+    mtags?.msgid &&
+    currentState.processedMessageIds.has(mtags.msgid)
+  ) {
+    console.log(
+      `Skipping duplicate multiline message with batch msgid: ${mtags.msgid}`,
+    );
+    return;
   }
 
   // Check if sender is ignored
@@ -3597,11 +3606,17 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       }
 
       // Mark these message IDs as processed to prevent duplicates
-      if (messageIds && messageIds.length > 0) {
+      const idsToTrack =
+        messageIds && messageIds.length > 0
+          ? messageIds
+          : mtags?.msgid
+            ? [mtags.msgid]
+            : [];
+      if (idsToTrack.length > 0) {
         useStore.setState((state) => ({
           processedMessageIds: new Set([
             ...state.processedMessageIds,
-            ...messageIds,
+            ...idsToTrack,
           ]),
         }));
       }
