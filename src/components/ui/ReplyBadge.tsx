@@ -1,4 +1,5 @@
 import { FaTimes } from "react-icons/fa";
+import { stripIrcFormatting } from "../../lib/messageFormatter";
 import type { Message } from "../../types";
 
 interface ReplyBadgeProps {
@@ -17,6 +18,9 @@ export function ReplyBadge({
       <span className="truncate">
         {isWhisper ? "Whispering back to" : "Replying to"}{" "}
         <strong className="text-discord-text-normal">{replyTo.userId}</strong>
+        <span className="ml-2 text-discord-text-muted/60 italic">
+          {stripIrcFormatting(replyTo.content)}
+        </span>
       </span>
       <button
         className="ml-auto flex-shrink-0 p-1 rounded hover:bg-discord-dark-300 text-discord-text-muted hover:text-discord-text-normal transition-colors"

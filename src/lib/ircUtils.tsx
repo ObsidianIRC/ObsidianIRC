@@ -192,6 +192,94 @@ export const ircColors = [
   "inherit", // 99 - Default (not universally supported)
 ];
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: IRC formatting codes
+const IRC_FORMAT_RE = /\x03\d{0,2}(,\d{0,2})?|[\x02\x1D\x1F\x1E\x11\x0F]/g;
+
+/**
+ * Build a map of line index → IRC color style for the original text.
+ * Only tracks the dominant color per line (first color set on that line).
+ * Returns the map and the text with all IRC formatting stripped.
+ */
+function extractIrcColorMap(text: string): {
+  cleaned: string;
+  lineColors: Map<number, string>;
+} {
+  let fg = -1;
+  let bg = -1;
+  let lineIdx = 0;
+  const lineColors = new Map<number, string>();
+
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: IRC control codes
+  const regex = /(\x03(?:\d{1,2}(?:,\d{1,2})?)?|[\x02\x1D\x1F\x1E\x11\x0F])/g;
+
+  const parts = text.split(regex);
+  let cleaned = "";
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (i % 2 === 0) {
+      // Count newlines to track line index
+      for (const ch of part) {
+        if (ch === "\n") lineIdx++;
+      }
+      cleaned += part;
+      continue;
+    }
+    if (part === "\x0F") {
+      fg = -1;
+      bg = -1;
+    } else if (part.startsWith("\x03")) {
+      const nums = part.slice(1);
+      if (nums.length > 0) {
+        const [fgStr, bgStr] = nums.split(",");
+        fg = fgStr !== undefined ? Number(fgStr) : -1;
+        bg = bgStr !== undefined ? Number(bgStr) : -1;
+      } else {
+        fg = -1;
+        bg = -1;
+      }
+    }
+    // Record color for current line (and future lines until changed)
+    if (fg >= 0 && fg < ircColors.length) {
+      const styles = [`color:${ircColors[fg]}`];
+      if (bg >= 0 && bg < ircColors.length) {
+        styles.push(`background-color:${ircColors[bg]}`);
+      }
+      if (!lineColors.has(lineIdx)) {
+        lineColors.set(lineIdx, styles.join(";"));
+      }
+    }
+  }
+
+  return { cleaned, lineColors };
+}
+
+/**
+ * Apply IRC color styles to HTML output from marked, skipping code blocks.
+ * Only wraps content in <p>, <li>, <blockquote> tags — never code blocks.
+ */
+function applyIrcColorsToHtml(
+  htmlStr: string,
+  lineColors: Map<number, string>,
+): string {
+  if (lineColors.size === 0) return htmlStr;
+
+  // Use first color as the dominant color for all prose
+  const style = lineColors.values().next().value;
+  if (!style) return htmlStr;
+
+  // Match <p>...</p>, <li>...</li>, <blockquote>...</blockquote> that do NOT
+  // contain code blocks. Uses [^<]* with inline tags to avoid matching across
+  // block boundaries.
+  return htmlStr.replace(
+    /(<(?:p|li)(?:\s[^>]*)?>)((?:(?!<\/?(?:pre|div)\b)[\s\S])*?)(<\/(?:p|li)>)/g,
+    (match, open, content, close) => {
+      if (!content.trim()) return match;
+      return `${open}<span style="${style}">${content}</span>${close}`;
+    },
+  );
+}
+
 export function renderMarkdown(
   text: string,
   showExternalContent = true,
@@ -206,6 +294,9 @@ export function renderMarkdown(
   if (text.length > maxLength) {
     return <span>{text.substring(0, maxLength)}...</span>;
   }
+
+  // Extract IRC colors and strip formatting before markdown parsing
+  const { cleaned: markdownText, lineColors } = extractIrcColorMap(text);
 
   // Configure marked for safe rendering with custom renderer
   const renderer = new marked.Renderer();
@@ -360,7 +451,7 @@ export function renderMarkdown(
 
   // Temporarily replace blockquote markers to preserve them during HTML escaping
   const blockquotePlaceholder = "__BLOCKQUOTE_MARKER__";
-  const textWithPlaceholders = text.replace(
+  const textWithPlaceholders = markdownText.replace(
     /^> /gm,
     `${blockquotePlaceholder} `,
   );
@@ -393,7 +484,7 @@ export function renderMarkdown(
   const html = marked.parse(finalText) as string;
 
   // Post-process HTML to add copy buttons to code blocks
-  const processedHtml = html.replace(
+  let processedHtml = html.replace(
     /<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g,
     (match, attrs, content) => {
       const codeId = `code-${Math.random().toString(36).substr(2, 9)}`;
@@ -406,6 +497,9 @@ export function renderMarkdown(
       return `<div class="code-block-container"><div class="code-block-header">${displayLanguage}<button class="copy-button" data-code-id="${codeId}" title="Copy to clipboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><pre><code id="${codeId}"${attrs}>${content}</code></pre></div>`;
     },
   );
+
+  // Apply IRC colors to prose (after code blocks are wrapped, so we can skip them)
+  processedHtml = applyIrcColorsToHtml(processedHtml, lineColors);
 
   // Return a div with dangerouslySetInnerHTML
   return (

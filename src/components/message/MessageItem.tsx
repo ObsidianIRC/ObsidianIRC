@@ -427,7 +427,6 @@ export const MessageItem = (props: MessageItemProps) => {
     onRedactMessage,
   } = props;
   const pmUserCache = useRef(new Map<string, User>());
-  const EMPTY_MESSAGES = useRef<MessageType[]>([]).current;
   const isNarrowView = useMediaQuery();
   const isTouchDevice = useMediaQuery("(pointer: coarse)");
 
@@ -588,61 +587,8 @@ export const MessageItem = (props: MessageItemProps) => {
     !!server?.capabilities?.includes("draft/message-redaction") &&
     !!onRedactMessage;
 
-  // Get the channel messages to handle multiline message content
-  const rawChannelMessages = useStore(
-    useCallback(
-      (state) => {
-        if (!serverId || !channelId) return EMPTY_MESSAGES;
-        const server = state.servers.find((s) => s.id === serverId);
-        const channel = server?.channels.find((c) => c.id === channelId);
-        return channel?.messages ?? EMPTY_MESSAGES;
-      },
-      [serverId, channelId, EMPTY_MESSAGES],
-    ),
-  );
-
-  const channelMessages = rawChannelMessages;
-
-  // For multiline messages, combine content from all messages in the group
-  const getMessageContent = () => {
-    if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
-      // Find all messages that are part of this multiline group
-      const multilineMessages = channelMessages.filter((m) =>
-        message.multilineMessageIds?.includes(m.id),
-      );
-
-      // Sort by timestamp to maintain order
-      multilineMessages.sort(
-        (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-      );
-
-      // Only the first message in the group should display content
-      if (multilineMessages[0]?.id !== message.id) {
-        return ""; // Don't display content for subsequent messages in multiline group
-      }
-
-      // Combine content with newlines
-      return multilineMessages.map((m) => m.content).join("\n");
-    }
-    return message.content;
-  };
-
-  const messageContent = getMessageContent();
-
-  // If this is a multiline message and not the first one, don't render anything
-  if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
-    const multilineMessages = channelMessages.filter((m) =>
-      message.multilineMessageIds?.includes(m.id),
-    );
-    multilineMessages.sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
-    if (multilineMessages[0]?.id !== message.id) {
-      return null; // Don't render subsequent messages in multiline group
-    }
-  }
+  // message.content is already combined for multiline messages by the IRC client
+  const messageContent = message.content;
 
   // Convert message content to React elements
   const htmlContent = processMarkdownInText(
@@ -695,7 +641,8 @@ export const MessageItem = (props: MessageItemProps) => {
     const urls = message.content.match(urlRegex) || [];
     return urls.filter(
       (url) =>
-        isUrlFromFilehost(url, server.filehost!) &&
+        server.filehost &&
+        isUrlFromFilehost(url, server.filehost) &&
         (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url) ||
           url.includes("/images/")),
     );

@@ -230,11 +230,12 @@ body {
 
 /* Markdown styling */
 .markdown-content {
-  line-height: 1.2;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .markdown-content > *:not(table) {
-  margin-bottom: -0.0625rem;
+  margin-bottom: 0;
 }
 
 .markdown-content * {
@@ -278,7 +279,7 @@ body {
 }
 
 .markdown-content p {
-  margin-bottom: 0.125rem;
+  margin-bottom: 0;
 }
 
 .markdown-content p:last-child {
@@ -301,12 +302,14 @@ body {
 
 .markdown-content code {
   background-color: rgb(229 231 235);
-  padding: 0.25rem 0.45rem;
+  padding: 0.1rem 0.35rem;
   border-radius: 0.125rem;
   font-size: 0.875rem;
   font-family:
     ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Inconsolata, 'Roboto Mono',
     monospace;
+  vertical-align: baseline;
+  line-height: 1;
 }
 
 .dark .markdown-content code {
@@ -418,15 +421,14 @@ body {
 }
 
 .inline-code {
-  padding-right: 1.5rem;
+  padding-right: 0.35rem;
   transition: padding-right 0.2s ease;
-  white-space: nowrap;
   overflow-wrap: break-word;
   max-width: 100%;
 }
 
 .inline-code-container:hover .inline-code {
-  padding-right: 2.125rem; /* 10px more padding on hover (24px + 10px = 34px) */
+  padding-right: 1.75rem;
 }
 
 .inline-copy-button {

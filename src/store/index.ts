@@ -3252,6 +3252,19 @@ ircClient.on("CHANMSG", (response) => {
       console.log(`Skipping duplicate message with msgid: ${mtags.msgid}`);
       return;
     }
+
+    // Skip if this message is already part of a combined multiline message
+    const server = currentState.servers.find((s) => s.id === response.serverId);
+    const ch = server?.channels.find(
+      (c) => c.name.toLowerCase() === channelName.toLowerCase(),
+    );
+    if (ch) {
+      const channelKey = `${response.serverId}-${ch.id}`;
+      const existing = currentState.messages[channelKey] || [];
+      if (existing.some((m) => m.multilineMessageIds?.includes(mtags.msgid))) {
+        return;
+      }
+    }
   }
 
   // Check if sender is ignored

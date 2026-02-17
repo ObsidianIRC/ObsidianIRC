@@ -107,8 +107,8 @@ export const EventMessage: React.FC<EventMessageProps> = ({
         </span>
       </div>
 
-      {/* Timestamp - only show on hover */}
-      <div className="opacity-0 group-hover:opacity-70 transition-opacity text-xs text-discord-text-muted ml-2">
+      {/* Timestamp */}
+      <div className="opacity-70 transition-opacity text-xs text-discord-text-muted ml-2">
         {formatTime(new Date(message.timestamp))}
       </div>
 
