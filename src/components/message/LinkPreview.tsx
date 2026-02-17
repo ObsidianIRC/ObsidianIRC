@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { stripIrcFormatting } from "../../lib/messageFormatter";
 import { openExternalUrl } from "../../lib/openUrl";
 import useStore from "../../store";
 import ExternalLinkWarningModal from "../ui/ExternalLinkWarningModal";
@@ -29,9 +30,11 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
     return null;
   }
 
-  // Extract the first URL from the message content
+  // Strip IRC formatting codes and markdown bold markers before URL matching,
+  // so URLs wrapped in color codes or **bold** are still detected correctly.
+  const cleanContent = stripIrcFormatting(messageContent).replace(/\*\*/g, "");
   const urlRegex = /\b(?:https?):\/\/[^\s<>"']+/i;
-  const match = messageContent.match(urlRegex);
+  const match = cleanContent.match(urlRegex);
   const firstUrl = match ? match[0] : undefined;
 
   const handleClick = () => {

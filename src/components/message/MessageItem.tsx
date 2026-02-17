@@ -9,6 +9,7 @@ import {
   isUserVerified,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import { stripIrcFormatting } from "../../lib/messageFormatter";
 import { openExternalUrl } from "../../lib/openUrl";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
@@ -604,41 +605,45 @@ export const MessageItem = (props: MessageItemProps) => {
   const theme = localStorage.getItem("theme") || "discord";
   const username = message.userId.split("-")[0];
 
+  // Strip IRC formatting codes so URL/image detection works even when the URL
+  // is wrapped in bold, italic, underline, strikethrough, or color codes.
+  const strippedContent = stripIrcFormatting(message.content);
+
   // Check if message is just an image URL from our filehost
   const isImageUrl =
     !!server?.filehost &&
-    message.content.trim() === message.content &&
-    isUrlFromFilehost(message.content, server.filehost) &&
-    (!!message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")); // check for backend upload URLs
+    strippedContent.trim() === strippedContent &&
+    isUrlFromFilehost(strippedContent, server.filehost) &&
+    (!!strippedContent.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+      strippedContent.includes("/images/")); // check for backend upload URLs
 
   // Check if message is just a GIF URL from GIPHY or Tenor
   const isGifUrl =
-    message.content.trim() === message.content &&
-    (message.content.match(/media\d*\.giphy\.com\/media\//) ||
-      message.content.includes("media.tenor.com/") ||
-      message.content.includes("tenor.googleapis.com/") ||
-      message.content.match(/tenor\.com\/view\//)) &&
-    (message.content.match(/\.(gif)$/i) ||
-      message.content.includes("/giphy.gif") ||
-      message.content.includes("/tinygif") ||
-      message.content.match(/tenor\.com\/view\//));
+    strippedContent.trim() === strippedContent &&
+    (strippedContent.match(/media\d*\.giphy\.com\/media\//) ||
+      strippedContent.includes("media.tenor.com/") ||
+      strippedContent.includes("tenor.googleapis.com/") ||
+      strippedContent.match(/tenor\.com\/view\//)) &&
+    (strippedContent.match(/\.(gif)$/i) ||
+      strippedContent.includes("/giphy.gif") ||
+      strippedContent.includes("/tinygif") ||
+      strippedContent.match(/tenor\.com\/view\//));
 
   // Check if message is just an external image URL (not from filehost)
   const isExternalImageUrl =
-    message.content.trim() === message.content &&
+    strippedContent.trim() === strippedContent &&
     !isImageUrl && // Not a filehost image
     !isGifUrl && // Not a GIF from specific services
-    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")) &&
-    (message.content.startsWith("http://") ||
-      message.content.startsWith("https://"));
+    (strippedContent.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+      strippedContent.includes("/images/")) &&
+    (strippedContent.startsWith("http://") ||
+      strippedContent.startsWith("https://"));
 
   // Extract filehost image URLs embedded in messages with other text
   const embeddedFilehostImages = useMemo(() => {
     if (!server?.filehost || !showSafeMedia || isImageUrl) return [];
     const urlRegex = /https?:\/\/\S+/gi;
-    const urls = message.content.match(urlRegex) || [];
+    const urls = strippedContent.match(urlRegex) || [];
     return urls.filter(
       (url) =>
         server.filehost &&
@@ -646,7 +651,7 @@ export const MessageItem = (props: MessageItemProps) => {
         (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url) ||
           url.includes("/images/")),
     );
-  }, [message.content, server?.filehost, showSafeMedia, isImageUrl]);
+  }, [strippedContent, server?.filehost, showSafeMedia, isImageUrl]);
 
   // Handle system messages
   if (isSystem) {
@@ -920,7 +925,7 @@ export const MessageItem = (props: MessageItemProps) => {
                 (isGifUrl && showExternalContent) ||
                 (isExternalImageUrl && showExternalContent) ? (
                   <ImageWithFallback
-                    url={message.content}
+                    url={strippedContent}
                     isFilehostImage={isImageUrl}
                     serverId={message.serverId}
                     onOpenProfile={onOpenProfile}
