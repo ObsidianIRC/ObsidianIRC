@@ -6667,10 +6667,6 @@ ircClient.on("TAGMSG", (response) => {
     const emoji = mtags["+draft/react"];
     const replyMessageId = mtags["+draft/reply"];
 
-    // Skip processing our own reactions since we handle them optimistically
-    const currentUser = ircClient.getCurrentUser(response.serverId);
-    if (sender === currentUser?.username) return;
-
     const server = useStore
       .getState()
       .servers.find((s) => s.id === response.serverId);
@@ -6697,42 +6693,37 @@ ircClient.on("TAGMSG", (response) => {
       (r) => r.emoji === emoji && r.userId === sender,
     );
 
-    useStore.setState((state) => {
-      const updatedMessages = [...messages];
-      if (existingReactionIndex === -1) {
-        // Add new reaction
+    // Skip self-reactions that already exist — they're an echo of our optimistic update.
+    // If the reaction doesn't exist yet (another session / history playback), add it.
+    const currentUser = ircClient.getCurrentUser(response.serverId);
+    if (sender === currentUser?.username && existingReactionIndex !== -1) {
+      return;
+    }
+
+    if (existingReactionIndex === -1) {
+      useStore.setState((state) => {
+        const updatedMessages = [...messages];
         updatedMessages[messageIndex] = {
           ...message,
           reactions: [...message.reactions, { emoji, userId: sender }],
         };
-      } else {
-        // Remove existing reaction (toggle behavior)
-        updatedMessages[messageIndex] = {
-          ...message,
-          reactions: message.reactions.filter(
-            (_, i) => i !== existingReactionIndex,
-          ),
+        const key = `${server.id}-${channel.id}`;
+        return {
+          messages: {
+            ...state.messages,
+            [key]: updatedMessages,
+          },
         };
-      }
-
-      const key = `${server.id}-${channel.id}`;
-      return {
-        messages: {
-          ...state.messages,
-          [key]: updatedMessages,
-        },
-      };
-    });
+      });
+    }
   }
 
   // Handle unreacts
   if (mtags?.["+draft/unreact"] && mtags["+draft/reply"]) {
     const emoji = mtags["+draft/unreact"];
     const replyMessageId = mtags["+draft/reply"];
-
-    // Skip processing our own unreacts since we handle them optimistically
-    const currentUser = ircClient.getCurrentUser(response.serverId);
-    if (sender === currentUser?.username) return;
+    // No self-skip needed: if the reaction was already removed optimistically,
+    // existingReactionIndex will be -1 and the guard below is a no-op.
 
     const server = useStore
       .getState()

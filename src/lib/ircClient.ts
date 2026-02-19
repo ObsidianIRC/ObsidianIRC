@@ -415,6 +415,7 @@ export class IRCClient {
     "echo-message",
     "userhost-in-names",
     "draft/chathistory",
+    "draft/event-playback",
     "draft/extended-isupport",
     "sasl",
     "cap-notify",
@@ -2796,6 +2797,10 @@ export class IRCClient {
     // If no serverId provided, return null (we need server context now)
     if (!serverId) return null;
     return this.currentUsers.get(serverId) || null;
+  }
+
+  getBatchType(serverId: string, batchId: string): string | undefined {
+    return this.activeBatches.get(serverId)?.get(batchId)?.type;
   }
 
   getAllUsers(serverId: string): User[] {
