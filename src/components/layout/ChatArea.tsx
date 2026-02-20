@@ -163,6 +163,18 @@ export const ChatArea: React.FC<{
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const resizeTextarea = useCallback(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+  }, []);
+
+  // Resize whenever messageText changes — covers typing, paste, and history navigation
+  useEffect(() => {
+    resizeTextarea();
+  }, [resizeTextarea]);
+
   const servers = useStore((state) => state.servers);
   const ui = useStore((state) => state.ui);
   const globalSettings = useStore((state) => state.globalSettings);
@@ -617,18 +629,6 @@ export const ChatArea: React.FC<{
     if (tabCompletion.isActive) {
       tabCompletion.resetCompletion();
     }
-
-    // Reset textarea height to initial single-line state
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.style.height = "auto";
-          const scrollHeight = inputRef.current.scrollHeight;
-          inputRef.current.style.height = `${scrollHeight}px`;
-        }
-      }, 0);
-    }
   };
 
   const handleImageUpload = async (file: File) => {
@@ -1001,13 +1001,6 @@ export const ChatArea: React.FC<{
 
     // Exit history mode if user starts typing
     messageHistory.exitHistory();
-
-    // Auto-resize textarea
-    const textarea = e.target;
-    textarea.style.height = "auto";
-    const scrollHeight = textarea.scrollHeight;
-    const maxHeight = 200;
-    textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
 
     // Reset tab completion if text changed from non-tab input
     if (tabCompletion.isActive) {

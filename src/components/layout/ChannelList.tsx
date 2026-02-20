@@ -695,6 +695,7 @@ export const ChannelList: React.FC<{
                             {/* Trash Button */}
                             {selectedChannelId === channel.id && (
                               <button
+                                title="Leave channel"
                                 className={`text-discord-red hover:text-white ${
                                   isNarrowView
                                     ? "block" // Always visible on mobile

@@ -22,8 +22,9 @@ function extractUrlFromContent(messageContent: string): string | undefined {
 // Replicates the exact logic used in MessageItem.tsx
 function isExternalImageUrl(content: string): boolean {
   const stripped = stripIrcFormatting(content);
+  const isSingleToken = !/\s/.test(stripped.trim());
   return (
-    stripped.trim() === stripped &&
+    isSingleToken &&
     !!stripped.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) &&
     (stripped.startsWith("http://") || stripped.startsWith("https://"))
   );
@@ -32,8 +33,10 @@ function isExternalImageUrl(content: string): boolean {
 // Replicates the exact logic used in embeddedFilehostImages useMemo
 function extractEmbeddedUrls(content: string): string[] {
   const stripped = stripIrcFormatting(content);
-  const urlRegex = /https?:\/\/\S+/gi;
-  return stripped.match(urlRegex) ?? [];
+  const urlRegex = /https?:\/\/[^\s,]+/gi;
+  return (stripped.match(urlRegex) ?? []).map((url) =>
+    url.replace(/[.,!?;:)>\]]+$/, ""),
+  );
 }
 
 const IMG_URL = "https://s.h4ks.com/EDa.png";
@@ -222,6 +225,17 @@ describe("isExternalImageUrl (MessageItem logic)", () => {
   it("returns false when message has surrounding text (not just the URL)", () => {
     expect(isExternalImageUrl(`look at this ${IMG_URL}`)).toBe(false);
   });
+
+  it("returns false when message contains multiple space-separated image URLs", () => {
+    const multi = `${IMG_URL} https://example.com/other.png`;
+    expect(isExternalImageUrl(multi)).toBe(false);
+  });
+
+  it("returns false for multiple filehost URLs space-separated (must not misfire)", () => {
+    const multi =
+      "https://s.h4ks.com/A.png https://s.h4ks.com/B.png https://s.h4ks.com/C.png";
+    expect(isExternalImageUrl(multi)).toBe(false);
+  });
 });
 
 // Simulates what MessageItem passes to ImageWithFallback:
@@ -305,5 +319,33 @@ describe("extractEmbeddedUrls (embeddedFilehostImages logic)", () => {
     const urls = extractEmbeddedUrls(raw);
     expect(urls).toContain(IMG_URL);
     expect(urls).toContain(HTTPS_URL);
+  });
+
+  it("strips trailing period from URL", () => {
+    const urls = extractEmbeddedUrls(`check out ${IMG_URL}.`);
+    expect(urls[0]).toBe(IMG_URL);
+  });
+
+  it("strips trailing comma from URL", () => {
+    const urls = extractEmbeddedUrls(`${IMG_URL}, and ${HTTPS_URL}`);
+    expect(urls[0]).toBe(IMG_URL);
+  });
+
+  it("strips trailing exclamation from URL", () => {
+    const urls = extractEmbeddedUrls(`look at ${IMG_URL}!`);
+    expect(urls[0]).toBe(IMG_URL);
+  });
+
+  it("splits comma-separated URLs without spaces", () => {
+    const url2 = "https://s.h4ks.com/other.png";
+    const urls = extractEmbeddedUrls(`${IMG_URL},${url2}`);
+    expect(urls).toContain(IMG_URL);
+    expect(urls).toContain(url2);
+  });
+
+  it("strips trailing punctuation and still detects image extension", () => {
+    expect(extractEmbeddedUrls(`see ${IMG_URL}.`)[0]).toBe(IMG_URL);
+    expect(extractEmbeddedUrls(`see ${IMG_URL},`)[0]).toBe(IMG_URL);
+    expect(extractEmbeddedUrls(`see ${IMG_URL}?`)[0]).toBe(IMG_URL);
   });
 });

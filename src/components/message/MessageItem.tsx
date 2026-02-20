@@ -609,17 +609,21 @@ export const MessageItem = (props: MessageItemProps) => {
   // is wrapped in bold, italic, underline, strikethrough, or color codes.
   const strippedContent = stripIrcFormatting(message.content);
 
+  // All three "single URL" checks require no whitespace — a message with spaces
+  // contains multiple URLs and must not be treated as a single image URL.
+  const isSingleToken = !/\s/.test(strippedContent.trim());
+
   // Check if message is just an image URL from our filehost
   const isImageUrl =
+    isSingleToken &&
     !!server?.filehost &&
-    strippedContent.trim() === strippedContent &&
-    isUrlFromFilehost(strippedContent, server.filehost) &&
+    isUrlFromFilehost(strippedContent.trim(), server.filehost) &&
     (!!strippedContent.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
       strippedContent.includes("/images/")); // check for backend upload URLs
 
   // Check if message is just a GIF URL from GIPHY or Tenor
   const isGifUrl =
-    strippedContent.trim() === strippedContent &&
+    isSingleToken &&
     (strippedContent.match(/media\d*\.giphy\.com\/media\//) ||
       strippedContent.includes("media.tenor.com/") ||
       strippedContent.includes("tenor.googleapis.com/") ||
@@ -631,7 +635,7 @@ export const MessageItem = (props: MessageItemProps) => {
 
   // Check if message is just an external image URL (not from filehost)
   const isExternalImageUrl =
-    strippedContent.trim() === strippedContent &&
+    isSingleToken &&
     !isImageUrl && // Not a filehost image
     !isGifUrl && // Not a GIF from specific services
     (strippedContent.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
@@ -639,11 +643,15 @@ export const MessageItem = (props: MessageItemProps) => {
     (strippedContent.startsWith("http://") ||
       strippedContent.startsWith("https://"));
 
-  // Extract filehost image URLs embedded in messages with other text
+  // Extract filehost image URLs embedded in messages with other text.
+  // Commas are excluded from URL matches so "url1,url2" splits correctly.
+  // Trailing punctuation (.!?;:)>]) is stripped after matching.
   const embeddedFilehostImages = useMemo(() => {
     if (!server?.filehost || !showSafeMedia || isImageUrl) return [];
-    const urlRegex = /https?:\/\/\S+/gi;
-    const urls = strippedContent.match(urlRegex) || [];
+    const urlRegex = /https?:\/\/[^\s,]+/gi;
+    const urls = (strippedContent.match(urlRegex) ?? []).map((url) =>
+      url.replace(/[.,!?;:)>\]]+$/, ""),
+    );
     return urls.filter(
       (url) =>
         server.filehost &&
@@ -652,6 +660,8 @@ export const MessageItem = (props: MessageItemProps) => {
           url.includes("/images/")),
     );
   }, [strippedContent, server?.filehost, showSafeMedia, isImageUrl]);
+
+  const [showAllImages, setShowAllImages] = useState(false);
 
   // Handle system messages
   if (isSystem) {
@@ -944,16 +954,48 @@ export const MessageItem = (props: MessageItemProps) => {
                 )}
               </EnhancedLinkWrapper>
 
-              {/* Render embedded filehost image previews */}
-              {embeddedFilehostImages.map((imgUrl) => (
-                <ImageWithFallback
-                  key={imgUrl}
-                  url={imgUrl}
-                  isFilehostImage
-                  serverId={message.serverId}
-                  onOpenProfile={onOpenProfile}
-                />
-              ))}
+              {/* Render embedded filehost image previews — first always visible,
+                  rest collapsed behind a "show more" toggle to prevent floods */}
+              {embeddedFilehostImages.length > 0 && (
+                <div>
+                  <ImageWithFallback
+                    url={embeddedFilehostImages[0]}
+                    isFilehostImage
+                    serverId={message.serverId}
+                    onOpenProfile={onOpenProfile}
+                  />
+                  {embeddedFilehostImages.length > 1 &&
+                    (showAllImages ? (
+                      <>
+                        {embeddedFilehostImages.slice(1).map((imgUrl) => (
+                          <ImageWithFallback
+                            key={imgUrl}
+                            url={imgUrl}
+                            isFilehostImage
+                            serverId={message.serverId}
+                            onOpenProfile={onOpenProfile}
+                          />
+                        ))}
+                        <button
+                          type="button"
+                          className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
+                          onClick={() => setShowAllImages(false)}
+                        >
+                          Show less
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
+                        onClick={() => setShowAllImages(true)}
+                      >
+                        Show {embeddedFilehostImages.length - 1} more image
+                        {embeddedFilehostImages.length > 2 ? "s" : ""}
+                      </button>
+                    ))}
+                </div>
+              )}
 
               {/* Render link preview if available */}
               {(message.linkPreviewTitle ||
