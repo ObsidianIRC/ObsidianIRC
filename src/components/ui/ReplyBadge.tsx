@@ -1,28 +1,32 @@
-/**
- * Reply badge component that displays "Replying to X" with close button
- */
 import { FaTimes } from "react-icons/fa";
+import { stripIrcFormatting } from "../../lib/messageFormatter";
 import type { Message } from "../../types";
 
 interface ReplyBadgeProps {
   replyTo: Message;
   onClose: () => void;
+  isWhisper?: boolean;
 }
 
-/**
- * Displays a badge showing who the user is replying to, with a close button
- */
-export function ReplyBadge({ replyTo, onClose }: ReplyBadgeProps) {
+export function ReplyBadge({
+  replyTo,
+  onClose,
+  isWhisper = false,
+}: ReplyBadgeProps) {
   return (
-    <div className="bg-discord-dark-200 rounded text-sm text-discord-text-muted mr-3 flex items-center h-8 px-2">
-      <span className="flex-grow text-center">
-        Replying to <strong>{replyTo.userId}</strong>
+    <div className="bg-discord-dark-100 rounded-t-lg px-4 py-2 flex items-center gap-2 text-sm text-discord-text-muted border-l-2 border-blue-500">
+      <span className="truncate">
+        {isWhisper ? "Whispering back to" : "Replying to"}{" "}
+        <strong className="text-discord-text-normal">{replyTo.userId}</strong>
+        <span className="ml-2 text-discord-text-muted/60 italic">
+          {stripIrcFormatting(replyTo.content)}
+        </span>
       </span>
       <button
-        className="ml-2 text-xs text-discord-text-muted hover:text-discord-text-normal"
+        className="ml-auto flex-shrink-0 p-1 rounded hover:bg-discord-dark-300 text-discord-text-muted hover:text-discord-text-normal transition-colors"
         onClick={onClose}
       >
-        <FaTimes />
+        <FaTimes className="text-xs" />
       </button>
     </div>
   );

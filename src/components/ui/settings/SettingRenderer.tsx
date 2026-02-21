@@ -4,6 +4,7 @@ import type {
   SettingDefinition,
   SettingValue,
 } from "../../../lib/settings/types";
+import { TextArea, TextInput } from "../TextInput";
 
 export interface SettingRendererProps {
   setting: SettingDefinition;
@@ -64,8 +65,7 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
 
     case "text":
       return (
-        <input
-          type="text"
+        <TextInput
           value={value as string}
           onChange={(e) => handleChange(e.target.value)}
           placeholder={setting.placeholder}
@@ -95,7 +95,7 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
 
     case "textarea":
       return (
-        <textarea
+        <TextArea
           value={value as string}
           onChange={(e) => handleChange(e.target.value)}
           placeholder={setting.placeholder}
@@ -166,8 +166,7 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
             disabled={disabled}
             className="w-12 h-8 rounded border-none cursor-pointer disabled:opacity-50"
           />
-          <input
-            type="text"
+          <TextInput
             value={value as string}
             onChange={(e) => handleChange(e.target.value)}
             placeholder={setting.placeholder || "#000000"}

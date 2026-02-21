@@ -54,10 +54,16 @@ describe("useScrollToBottom", () => {
   let mockEndElement: HTMLElement;
   let observerCallbacks: IntersectionObserverCallback[] = [];
   let observedElements: Element[] = [];
+  let resizeObserverCallbacks: ResizeObserverCallback[] = [];
+  let resizeObservedElements: Element[] = [];
+  let resizeDisconnectSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     observerCallbacks = [];
     observedElements = [];
+    resizeObserverCallbacks = [];
+    resizeObservedElements = [];
+    resizeDisconnectSpy = vi.fn();
 
     mockContainer = {
       scrollHeight: 1000,
@@ -67,9 +73,7 @@ describe("useScrollToBottom", () => {
       removeEventListener: vi.fn(),
     } as unknown as HTMLElement;
 
-    mockEndElement = {
-      scrollIntoView: vi.fn(),
-    } as unknown as HTMLElement;
+    mockEndElement = {} as unknown as HTMLElement;
 
     global.IntersectionObserver = vi.fn().mockImplementation((callback) => {
       observerCallbacks.push(callback);
@@ -81,6 +85,15 @@ describe("useScrollToBottom", () => {
         root: null,
         rootMargin: "",
         thresholds: [],
+      };
+    });
+
+    global.ResizeObserver = vi.fn().mockImplementation((callback) => {
+      resizeObserverCallbacks.push(callback);
+      return {
+        observe: vi.fn((element) => resizeObservedElements.push(element)),
+        disconnect: resizeDisconnectSpy,
+        unobserve: vi.fn(),
       };
     });
 
@@ -102,7 +115,7 @@ describe("useScrollToBottom", () => {
     expect(result.current.isScrolledUp).toBe(false);
   });
 
-  it("should provide scrollToBottom function", () => {
+  it("should provide scrollToBottom function that sets scrollTop", () => {
     const { result } = renderHook(() => {
       const containerRef = useRef(mockContainer);
       const endElementRef = useRef(mockEndElement);
@@ -112,9 +125,7 @@ describe("useScrollToBottom", () => {
     expect(result.current.scrollToBottom).toBeInstanceOf(Function);
 
     result.current.scrollToBottom();
-    expect(mockEndElement.scrollIntoView).toHaveBeenCalledWith({
-      behavior: "smooth",
-    });
+    expect(mockContainer.scrollTop).toBe(mockContainer.scrollHeight);
   });
 
   it("should set up IntersectionObserver", () => {
@@ -177,10 +188,10 @@ describe("useScrollToBottom", () => {
   });
 
   it("should clean up on unmount", () => {
-    const disconnectSpy = vi.fn();
+    const intersectionDisconnectSpy = vi.fn();
     global.IntersectionObserver = vi.fn().mockImplementation(() => ({
       observe: vi.fn(),
-      disconnect: disconnectSpy,
+      disconnect: intersectionDisconnectSpy,
       unobserve: vi.fn(),
       takeRecords: vi.fn(),
       root: null,
@@ -196,7 +207,8 @@ describe("useScrollToBottom", () => {
 
     unmount();
 
-    expect(disconnectSpy).toHaveBeenCalled();
+    expect(intersectionDisconnectSpy).toHaveBeenCalled();
+    expect(resizeDisconnectSpy).toHaveBeenCalled();
     expect(mockContainer.removeEventListener).toHaveBeenCalledWith(
       "scroll",
       expect.any(Function),
@@ -248,5 +260,84 @@ describe("useScrollToBottom", () => {
         rootMargin: "50px",
       }),
     );
+  });
+
+  it("should set up ResizeObserver on the container", () => {
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    expect(global.ResizeObserver).toHaveBeenCalled();
+    expect(resizeObservedElements).toContain(mockContainer);
+  });
+
+  it("should scroll to bottom on resize when at bottom", () => {
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // Simulate being at bottom via IntersectionObserver
+    act(() => {
+      observerCallbacks[0](
+        [
+          {
+            isIntersecting: true,
+            target: mockEndElement,
+            boundingClientRect: {} as DOMRectReadOnly,
+            intersectionRatio: 1,
+            intersectionRect: {} as DOMRectReadOnly,
+            rootBounds: null,
+            time: 0,
+          } as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver,
+      );
+    });
+
+    mockContainer.scrollTop = 0;
+
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+
+    expect(mockContainer.scrollTop).toBe(mockContainer.scrollHeight);
+  });
+
+  it("should not scroll on resize when user is scrolled up", () => {
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // Simulate being scrolled up via IntersectionObserver
+    act(() => {
+      observerCallbacks[0](
+        [
+          {
+            isIntersecting: false,
+            target: mockEndElement,
+            boundingClientRect: {} as DOMRectReadOnly,
+            intersectionRatio: 0,
+            intersectionRect: {} as DOMRectReadOnly,
+            rootBounds: null,
+            time: 0,
+          } as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver,
+      );
+    });
+
+    mockContainer.scrollTop = 200;
+
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+
+    expect(mockContainer.scrollTop).toBe(200);
   });
 });

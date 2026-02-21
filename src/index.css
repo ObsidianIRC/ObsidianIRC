@@ -14,13 +14,21 @@
 
 /* Arrow flip animations */
 @keyframes arrow-flip-expand {
-  0% { transform: rotateX(0deg); }
-  100% { transform: rotateX(180deg); }
+  0% {
+    transform: rotateX(0deg);
+  }
+  100% {
+    transform: rotateX(180deg);
+  }
 }
 
 @keyframes arrow-flip-collapse {
-  0% { transform: rotateX(180deg); }
-  100% { transform: rotateX(0deg); }
+  0% {
+    transform: rotateX(180deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
 }
 
 .arrow-flip-expand {
@@ -49,8 +57,12 @@
 }
 
 body {
-  font-family: "Roboto Mono", monospace;
+  font-family: 'Roboto Mono', monospace;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  background-color: #202225;
 }
 
 /* iOS safe area support for modals */
@@ -87,7 +99,6 @@ body {
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
-  --keyboard-height: 0px;
 
   /* iOS safe area insets */
   --safe-area-inset-top: env(safe-area-inset-top);
@@ -123,23 +134,19 @@ body {
   --chart-5: 340 75% 55%;
 }
 
-/* Mobile keyboard handling */
-@media (max-width: 768px) {
-  body {
-    overflow: hidden;
-  }
-  
+/* Mobile viewport handling */
+html, body, #root {
+  height: 100%;
+  background-color: #202225;
+}
+
+@supports (height: 100dvh) {
   #root {
-    height: 100vh;
-    height: calc(100vh - var(--keyboard-height, 0px));
-    transition: height 0.2s ease-in-out;
-    position: relative;
+    height: 100dvh;
   }
 }
 
-/* Ensure chat layout adjusts properly to keyboard */
-@supports (-webkit-touch-callout: none) {
-  /* iOS Safari specific adjustments */
+@supports not (height: 100dvh) {
   #root {
     height: 100vh;
     height: -webkit-fill-available;
@@ -161,6 +168,16 @@ body {
 
 .message-flash {
   animation: message-flash 2s ease-in-out;
+}
+
+/* Bottom sheet slide-up animation for mobile message actions */
+@keyframes bottom-sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 .shimmer {
@@ -200,7 +217,8 @@ body {
 
 /* Settings highlight blink - one time only */
 @keyframes blink {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -210,11 +228,12 @@ body {
 
 /* Markdown styling */
 .markdown-content {
-  line-height: 1.2;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .markdown-content > *:not(table) {
-  margin-bottom: -0.0625rem;
+  margin-bottom: 0;
 }
 
 .markdown-content * {
@@ -258,7 +277,7 @@ body {
 }
 
 .markdown-content p {
-  margin-bottom: 0.125rem;
+  margin-bottom: 0;
 }
 
 .markdown-content p:last-child {
@@ -281,14 +300,18 @@ body {
 
 .markdown-content code {
   background-color: rgb(229 231 235);
-  padding: 0.25rem 0.45rem;
+  padding: 0.1rem 0.35rem;
   border-radius: 0.125rem;
   font-size: 0.875rem;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Inconsolata, 'Roboto Mono',
+    monospace;
+  vertical-align: baseline;
+  line-height: 1;
 }
 
 .dark .markdown-content code {
-  background-color: rgb(31 41 55);;
+  background-color: rgb(31 41 55);
 }
 
 .markdown-content pre {
@@ -297,22 +320,25 @@ body {
   border-radius: 0.125rem;
   margin-bottom: 0.125rem;
   overflow-x: auto;
-  position: relative; /* For positioning copy buttons */
+  position: relative;
+  white-space: pre;
 }
 
 .dark .markdown-content pre {
-  background-color: rgb(31 41 55);;
+  background-color: rgb(31 41 55);
 }
 
 .markdown-content pre code {
   background-color: transparent;
   padding: 0;
+  white-space: pre;
 }
 
 .code-block-container {
   position: relative;
   margin-bottom: 0.125rem;
-  max-width: 90%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .code-block-header {
@@ -321,13 +347,16 @@ body {
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Inconsolata, 'Roboto Mono',
+    monospace;
   border-radius: 0.25rem 0.25rem 0 0;
   border-bottom: 1px solid rgb(75 85 99);
   position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 1.5rem;
 }
 
 .dark .code-block-header {
@@ -349,7 +378,9 @@ body {
   padding: 0.0625rem;
   cursor: pointer;
   opacity: 1;
-  transition: opacity 0.2s ease, background-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -383,15 +414,19 @@ body {
 .inline-code-container {
   position: relative;
   display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
 }
 
 .inline-code {
-  padding-right: 1.5rem;
+  padding-right: 0.35rem;
   transition: padding-right 0.2s ease;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .inline-code-container:hover .inline-code {
-  padding-right: 2.125rem; /* 10px more padding on hover (24px + 10px = 34px) */
+  padding-right: 1.75rem;
 }
 
 .inline-copy-button {
@@ -405,7 +440,9 @@ body {
   padding: 0.125rem;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s ease, background-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -455,7 +492,7 @@ body {
   padding: 0 !important;
   margin-bottom: 0.125rem !important;
   margin-top: -0.125rem !important;
-  line-height: 1.0 !important;
+  line-height: 1 !important;
   display: block;
   box-sizing: border-box;
   height: auto !important;
@@ -509,7 +546,7 @@ body {
   margin-bottom: 0.0625rem;
 }
 
-.markdown-content input[type="checkbox"] {
+.markdown-content input[type='checkbox'] {
   margin-right: 0.25rem;
   vertical-align: middle;
 }
@@ -639,4 +676,86 @@ body {
 .dark .hljs-deletion {
   color: #ffdcd7;
   background-color: #67060c;
+}
+
+/* Chat input textarea - hide scrollbar when content fits */
+textarea.resize-none {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+textarea.resize-none::-webkit-scrollbar {
+  width: 6px;
+}
+
+textarea.resize-none::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+textarea.resize-none::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+/* Drag and drop styles */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.no-touch-action {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.draggable-item {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+  will-change: transform;
+}
+
+.draggable-item img,
+.draggable-item svg {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  -moz-user-drag: none;
+  user-drag: none;
+}
+
+.draggable-item:active {
+  cursor: grabbing;
+}
+
+.draggable-item.is-dragging {
+  opacity: 0.9 !important;
+  /* transform moved to inline style for dynamic translateY */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  position: relative;
+  transition: none !important;
+}
+
+.draggable-item.is-dragging * {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -moz-user-drag: none;
+  user-drag: none;
+}
+
+.draggable-item.is-drop-target-above {
+  border-top: 3px solid #5865f2 !important;
+  margin-top: 2px !important;
+}
+
+.draggable-item.is-drop-target-below {
+  border-bottom: 3px solid #5865f2 !important;
+  margin-bottom: 2px !important;
 }

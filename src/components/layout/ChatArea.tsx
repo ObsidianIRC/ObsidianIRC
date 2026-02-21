@@ -24,6 +24,7 @@ import {
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
@@ -44,9 +45,11 @@ import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReplyBadge } from "../ui/ReplyBadge";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
+import { TextArea } from "../ui/TextInput";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
 import { ChatHeader } from "./ChatHeader";
+import { MemberList } from "./MemberList";
 
 const EMPTY_ARRAY: User[] = [];
 
@@ -179,6 +182,28 @@ export const ChatArea: React.FC<{
   const shouldFocusChatInput = useStore(
     (state) => state.ui.shouldFocusChatInput,
   );
+  const channelSettingsRequest = useStore(
+    (state) => state.ui.channelSettingsRequest,
+  );
+  const inviteUserRequest = useStore((state) => state.ui.inviteUserRequest);
+  const setChannelSettingsRequest = useStore(
+    (state) => state.setChannelSettingsRequest,
+  );
+  const setInviteUserRequest = useStore((state) => state.setInviteUserRequest);
+
+  useEffect(() => {
+    if (channelSettingsRequest) {
+      setChannelSettingsModalOpen(true);
+      setChannelSettingsRequest(null, null);
+    }
+  }, [channelSettingsRequest, setChannelSettingsRequest]);
+
+  useEffect(() => {
+    if (inviteUserRequest) {
+      setInviteUserModalOpen(true);
+      setInviteUserRequest(null, null);
+    }
+  }, [inviteUserRequest, setInviteUserRequest]);
 
   // Focus chat input when requested by other components (e.g., modals closing)
   useEffect(() => {
@@ -197,7 +222,6 @@ export const ChatArea: React.FC<{
   const {
     isMemberListVisible,
     isSettingsModalOpen,
-    isUserProfileModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
     isChannelRenameModalOpen,
@@ -205,11 +229,14 @@ export const ChatArea: React.FC<{
   } = ui;
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const isCompactInput = useMediaQuery("(max-width: 900px)");
 
   const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
     messagesContainerRef,
     messagesEndRef,
-    { channelId: selectedChannelId || selectedPrivateChatId },
+    {
+      channelId: `${selectedChannelId || selectedPrivateChatId}-${isMemberListVisible}`,
+    },
   );
 
   // Get the current user for the selected server with metadata from store
@@ -285,8 +312,9 @@ export const ChatArea: React.FC<{
     enabled: globalSettings.sendTypingNotifications,
   });
 
-  // Media query hook
+  // Media query hooks
   const isNarrowView = useMediaQuery();
+  const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
 
   const handleIrcLinkClick = (rawUrl: string) => {
     const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
@@ -401,6 +429,47 @@ export const ChatArea: React.FC<{
     [selectedServer, selectedPrivateChatId],
   );
 
+  // Member list overlay: show when desktop is too narrow for sidebar
+  const showMemberListOverlay =
+    !isNarrowView &&
+    isTooNarrowForMemberList &&
+    isMemberListVisible &&
+    !!selectedChannel &&
+    !selectedPrivateChat;
+
+  // Track previous width state to detect transitions
+  const prevIsTooNarrowRef = useRef(isTooNarrowForMemberList);
+
+  // Auto-hide/show member list based on screen size transitions (desktop only)
+  useEffect(() => {
+    // Only apply auto-hide/show logic on desktop (not mobile)
+    if (isNarrowView) {
+      prevIsTooNarrowRef.current = isTooNarrowForMemberList;
+      return;
+    }
+
+    const wasWide = !prevIsTooNarrowRef.current;
+    const isNowNarrow = isTooNarrowForMemberList;
+    const wasNarrow = prevIsTooNarrowRef.current;
+    const isNowWide = !isTooNarrowForMemberList;
+
+    // On transition from narrow to wide: auto-show as sidebar
+    if (wasNarrow && isNowWide && !isMemberListVisible) {
+      toggleMemberList(true);
+    }
+    // On transition from wide to narrow: auto-hide
+    else if (wasWide && isNowNarrow && isMemberListVisible) {
+      toggleMemberList(false);
+    }
+
+    prevIsTooNarrowRef.current = isTooNarrowForMemberList;
+  }, [
+    isNarrowView,
+    isTooNarrowForMemberList,
+    isMemberListVisible,
+    toggleMemberList,
+  ]);
+
   // Message sending hook
   const { sendMessage } = useMessageSending({
     selectedServerId,
@@ -488,9 +557,24 @@ export const ChatArea: React.FC<{
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
+    wasAtBottomRef.current = true;
     setVisibleMessageCount(100);
     setSearchQuery("");
-  }, [selectedServerId, selectedChannelId]);
+  }, [selectedServerId, selectedChannelId, wasAtBottomRef]);
+
+  // Scroll to bottom after chat history finishes loading
+  const wasLoadingHistoryRef = useRef(false);
+  const isLoadingHistory = selectedChannel?.isLoadingHistory ?? false;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom is stable via useCallback
+  useEffect(() => {
+    if (wasLoadingHistoryRef.current && !isLoadingHistory) {
+      requestAnimationFrame(() => {
+        scrollToBottom();
+        wasAtBottomRef.current = true;
+      });
+    }
+    wasLoadingHistoryRef.current = isLoadingHistory;
+  }, [isLoadingHistory]);
 
   // Auto scroll to bottom on new messages
   // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
@@ -522,7 +606,7 @@ export const ChatArea: React.FC<{
   const handleSendMessage = () => {
     if (messageText.trim() === "") return;
 
-    scrollToBottom();
+    wasAtBottomRef.current = true;
     sendMessage(messageText);
 
     // Cleanup after sending
@@ -922,7 +1006,7 @@ export const ChatArea: React.FC<{
     const textarea = e.target;
     textarea.style.height = "auto";
     const scrollHeight = textarea.scrollHeight;
-    const maxHeight = 128; // 8 lines (16px line height * 8)
+    const maxHeight = 200;
     textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
 
     // Reset tab completion if text changed from non-tab input
@@ -1401,12 +1485,11 @@ export const ChatArea: React.FC<{
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Only focus when channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Only focus when private chat changes
   useEffect(() => {
-    if ("__TAURI__" in window && ["android", "ios"].includes(platform()))
-      return;
+    if (isTauri() && ["android", "ios"].includes(platform())) return;
     // Don't steal focus if any modal is open
     if (
       isSettingsModalOpen ||
-      isUserProfileModalOpen ||
+      userProfileModalOpen ||
       isAddServerModalOpen ||
       isChannelListModalOpen ||
       isChannelRenameModalOpen
@@ -1417,7 +1500,7 @@ export const ChatArea: React.FC<{
     selectedChannelId,
     selectedPrivateChatId,
     isSettingsModalOpen,
-    isUserProfileModalOpen,
+    userProfileModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
     isChannelRenameModalOpen,
@@ -1445,379 +1528,404 @@ export const ChatArea: React.FC<{
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
 
-      {/* Messages area */}
-      {selectedServer &&
-        !selectedChannel &&
-        !selectedPrivateChat &&
-        selectedChannelId !== "server-notices" && (
-          <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
-            <BlankPage /> {/* Render the blank page */}
-          </div>
-        )}
-      {(selectedChannel ||
-        selectedPrivateChat ||
-        selectedChannelId === "server-notices") && (
-        <div
-          ref={messagesContainerRef}
-          className="flex-grow overflow-y-auto overflow-x-hidden flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
-        >
-          {selectedChannel?.isLoadingHistory ? (
-            // Show loading spinner when channel is loading history
-            <div className="flex-grow flex items-center justify-center">
-              <LoadingSpinner
-                size="lg"
-                text="Loading chat history..."
-                className="text-discord-text-muted"
-              />
-            </div>
-          ) : (
-            // Show messages when not loading
-            <>
-              {/* View older messages button */}
-              {hasMoreMessages && !searchQuery && (
-                <div className="flex justify-center py-4">
-                  <button
-                    onClick={() => setVisibleMessageCount((prev) => prev + 100)}
-                    className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
-                  >
-                    View older messages (
-                    {filteredMessages.length - displayedMessages.length} hidden)
-                  </button>
-                </div>
-              )}
-              {/* Search results indicator */}
-              {searchQuery && (
-                <div className="flex justify-center items-center gap-2 py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
-                  <span>
-                    Found {filteredMessages.length} message
-                    {filteredMessages.length === 1 ? "" : "s"} matching "
-                    {searchQuery}"
-                  </span>
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="text-red-400 hover:text-red-300"
-                    title="Clear search"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              {eventGroups.map((group) => {
-                if (group.type === "eventGroup") {
-                  // Create a stable key from the first and last message IDs in the group
-                  const firstId = group.messages[0]?.id || "";
-                  const lastId =
-                    group.messages[group.messages.length - 1]?.id || "";
-                  const groupKey = `group-${firstId}-${lastId}`;
+      {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}
+      {showMemberListOverlay && (
+        <div className="flex-grow overflow-hidden bg-discord-dark-100">
+          <MemberList />
+        </div>
+      )}
 
-                  return (
-                    <CollapsedEventMessage
-                      key={groupKey}
-                      eventGroup={group}
-                      users={selectedChannel?.users || []}
-                      onUsernameContextMenu={(
-                        e,
-                        username,
-                        serverId,
-                        channelId,
-                        avatarElement,
-                      ) =>
-                        handleUsernameClick(
+      {/* Messages area */}
+      {!showMemberListOverlay && (
+        <>
+          {selectedServer &&
+            !selectedChannel &&
+            !selectedPrivateChat &&
+            selectedChannelId !== "server-notices" && (
+              <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
+                <BlankPage /> {/* Render the blank page */}
+              </div>
+            )}
+          {(selectedChannel ||
+            selectedPrivateChat ||
+            selectedChannelId === "server-notices") && (
+            <div
+              ref={messagesContainerRef}
+              className="flex-grow overflow-y-auto overflow-x-hidden flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+            >
+              {selectedChannel?.isLoadingHistory ? (
+                // Show loading spinner when channel is loading history
+                <div className="flex-grow flex items-center justify-center">
+                  <LoadingSpinner
+                    size="lg"
+                    text="Loading chat history..."
+                    className="text-discord-text-muted"
+                  />
+                </div>
+              ) : (
+                // Show messages when not loading
+                <>
+                  {/* View older messages button */}
+                  {hasMoreMessages && !searchQuery && (
+                    <div className="flex justify-center py-4">
+                      <button
+                        onClick={() =>
+                          setVisibleMessageCount((prev) => prev + 100)
+                        }
+                        className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
+                      >
+                        View older messages (
+                        {filteredMessages.length - displayedMessages.length}{" "}
+                        hidden)
+                      </button>
+                    </div>
+                  )}
+                  {/* Search results indicator */}
+                  {searchQuery && (
+                    <div className="flex justify-center items-center gap-2 py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
+                      <span>
+                        Found {filteredMessages.length} message
+                        {filteredMessages.length === 1 ? "" : "s"} matching "
+                        {searchQuery}"
+                      </span>
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="text-red-400 hover:text-red-300"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {eventGroups.map((group) => {
+                    if (group.type === "eventGroup") {
+                      // Create a stable key from the first and last message IDs in the group
+                      const firstId = group.messages[0]?.id || "";
+                      const lastId =
+                        group.messages[group.messages.length - 1]?.id || "";
+                      const groupKey = `group-${firstId}-${lastId}`;
+
+                      return (
+                        <CollapsedEventMessage
+                          key={groupKey}
+                          eventGroup={group}
+                          users={selectedChannel?.users || []}
+                          onUsernameContextMenu={(
+                            e,
+                            username,
+                            serverId,
+                            channelId,
+                            avatarElement,
+                          ) =>
+                            handleUsernameClick(
+                              e,
+                              username,
+                              serverId,
+                              channelId,
+                              avatarElement,
+                            )
+                          }
+                        />
+                      );
+                    }
+                    // Single message - find its original index for date/header logic
+                    const message = group.messages[0];
+                    const originalIndex = channelMessages.findIndex(
+                      (m) => m.id === message.id,
+                    );
+                    const previousMessage = channelMessages[originalIndex - 1];
+                    const showHeader =
+                      !previousMessage ||
+                      previousMessage.type !== "message" ||
+                      previousMessage.userId !== message.userId ||
+                      new Date(message.timestamp).getTime() -
+                        new Date(previousMessage.timestamp).getTime() >
+                        5 * 60 * 1000;
+
+                    return (
+                      <MessageItem
+                        key={message.id}
+                        message={message}
+                        showDate={
+                          originalIndex === 0 ||
+                          new Date(message.timestamp).toDateString() !==
+                            new Date(
+                              channelMessages[originalIndex - 1]?.timestamp,
+                            ).toDateString()
+                        }
+                        showHeader={showHeader}
+                        setReplyTo={handleSetReplyTo}
+                        onUsernameContextMenu={(
                           e,
                           username,
                           serverId,
                           channelId,
                           avatarElement,
-                        )
-                      }
-                    />
-                  );
-                }
-                // Single message - find its original index for date/header logic
-                const message = group.messages[0];
-                const originalIndex = channelMessages.findIndex(
-                  (m) => m.id === message.id,
-                );
-                const previousMessage = channelMessages[originalIndex - 1];
-                const showHeader =
-                  !previousMessage ||
-                  previousMessage.userId !== message.userId ||
-                  new Date(message.timestamp).getTime() -
-                    new Date(previousMessage.timestamp).getTime() >
-                    5 * 60 * 1000;
-
-                return (
-                  <MessageItem
-                    key={message.id}
-                    message={message}
-                    showDate={
-                      originalIndex === 0 ||
-                      new Date(message.timestamp).toDateString() !==
-                        new Date(
-                          channelMessages[originalIndex - 1]?.timestamp,
-                        ).toDateString()
-                    }
-                    showHeader={showHeader}
-                    setReplyTo={handleSetReplyTo}
-                    onUsernameContextMenu={(
-                      e,
-                      username,
-                      serverId,
-                      channelId,
-                      avatarElement,
-                    ) =>
-                      handleUsernameClick(
-                        e,
-                        username,
-                        serverId,
-                        channelId,
-                        avatarElement,
-                      )
-                    }
-                    onIrcLinkClick={handleIrcLinkClick}
-                    onReactClick={handleReactClick}
-                    joinChannel={joinChannel}
-                    onReactionUnreact={unreact}
-                    onOpenReactionModal={openReactionModal}
-                    onDirectReaction={directReaction}
-                    serverId={selectedServerId || ""}
-                    channelId={selectedChannelId || undefined}
-                    onRedactMessage={handleRedactMessage}
-                    onOpenProfile={handleOpenProfile}
-                  />
-                );
-              })}
-            </>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      )}
-      {!selectedServer && <DiscoverGrid />}
-      {/* Scroll to bottom button */}
-      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollToBottom} />
-
-      {/* Input area */}
-      {(selectedChannel || selectedPrivateChat) && (
-        <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
-          <TypingIndicator
-            serverId={selectedServerId ?? ""}
-            channelId={selectedChannelId || selectedPrivateChatId || ""}
-          />
-          <div className="bg-discord-dark-100 rounded-lg flex items-center relative">
-            <button
-              className="px-4 text-discord-text-muted hover:text-discord-text-normal"
-              onClick={() => setShowPlusMenu((prev) => !prev)}
-            >
-              <FaPlus />
-            </button>
-
-            {localReplyTo && (
-              <ReplyBadge
-                replyTo={localReplyTo}
-                onClose={() => setLocalReplyTo(null)}
-              />
-            )}
-            <textarea
-              ref={inputRef}
-              value={messageText}
-              onChange={handleInputChange}
-              onClick={handleInputClick}
-              onKeyUp={handleInputKeyUp}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                selectedChannel
-                  ? `Message #${selectedChannel.name.replace(/^#/, "")}${
-                      globalSettings.enableMultilineInput && !isMobile
-                        ? globalSettings.multilineOnShiftEnter
-                          ? " (Shift+Enter for new line)"
-                          : " (Enter for new line, Shift+Enter to send)"
-                        : ""
-                    }`
-                  : selectedPrivateChat
-                    ? `Message @${selectedPrivateChat.username}${
-                        globalSettings.enableMultilineInput && !isMobile
-                          ? globalSettings.multilineOnShiftEnter
-                            ? " (Shift+Enter for new line)"
-                            : " (Enter for new line, Shift+Enter to send)"
-                          : ""
-                      }`
-                    : "Type a message..."
-              }
-              autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-32 overflow-y-auto"
-              style={getPreviewStyles({
-                color: selectedColor || "inherit",
-                formatting: selectedFormatting,
-              })}
-              rows={1}
-            />
-            <InputToolbar
-              selectedColor={selectedColor}
-              onEmojiClick={() => {
-                setIsEmojiSelectorOpen((prev) => !prev);
-                setIsColorPickerOpen(false);
-                setShowMembersDropdown(false);
-              }}
-              onColorPickerClick={() => {
-                setIsColorPickerOpen((prev) => !prev);
-                setIsEmojiSelectorOpen(false);
-                setShowMembersDropdown(false);
-              }}
-              onAtClick={handleAtButtonClick}
-            />
-          </div>
-
-          {/* Plus menu */}
-          {showPlusMenu && (
-            <div
-              className="plus-menu absolute bg-discord-dark-200 rounded-lg shadow-lg border border-discord-dark-300 min-w-48 z-50"
-              style={{
-                bottom: "calc(100% + 8px)",
-                left: "16px",
-              }}
-            >
-              {selectedServer?.filehost && (
-                <button
-                  className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
-                  onClick={() => {
-                    // Handle image selection for preview
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = "image/*";
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        // Create preview URL
-                        const previewUrl = URL.createObjectURL(file);
-                        setImagePreview({
-                          isOpen: true,
-                          file,
-                          previewUrl,
-                        });
-                      }
-                    };
-                    input.click();
-                    setShowPlusMenu(false);
-                  }}
-                >
-                  <FaPlus className="mr-2" />
-                  Upload Image
-                </button>
+                        ) =>
+                          handleUsernameClick(
+                            e,
+                            username,
+                            serverId,
+                            channelId,
+                            avatarElement,
+                          )
+                        }
+                        onIrcLinkClick={handleIrcLinkClick}
+                        onReactClick={handleReactClick}
+                        joinChannel={joinChannel}
+                        onReactionUnreact={unreact}
+                        onOpenReactionModal={openReactionModal}
+                        onDirectReaction={directReaction}
+                        serverId={selectedServerId || ""}
+                        channelId={selectedChannelId || undefined}
+                        onRedactMessage={handleRedactMessage}
+                        onOpenProfile={handleOpenProfile}
+                      />
+                    );
+                  })}
+                </>
               )}
-              <button
-                className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
-                onClick={() => {
-                  setIsGifSelectorOpen(true);
-                  setShowPlusMenu(false);
-                }}
-              >
-                <FaGift className="mr-2" />
-                Send a GIF
-              </button>
-              {/* Add more menu items here if needed */}
+
+              <div ref={messagesEndRef} />
             </div>
           )}
-
-          <EmojiPickerModal
-            isOpen={isEmojiSelectorOpen}
-            onEmojiClick={handleEmojiSelect}
-            onClose={() => setIsEmojiSelectorOpen(false)}
-            onBackdropClick={handleEmojiModalBackdropClick}
+          {!selectedServer && <DiscoverGrid />}
+          {/* Scroll to bottom button */}
+          <ScrollToBottomButton
+            isVisible={isScrolledUp}
+            onClick={scrollToBottom}
           />
 
-          <GifSelector
-            isOpen={isGifSelectorOpen}
-            onClose={() => setIsGifSelectorOpen(false)}
-            onSelectGif={(gifUrl) => {
-              // Send the GIF URL directly to the channel
-              handleGifSend(gifUrl);
-              setIsGifSelectorOpen(false);
-            }}
-          />
+          {/* Input area */}
+          {(selectedChannel || selectedPrivateChat) && (
+            <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
+              <TypingIndicator
+                serverId={selectedServerId ?? ""}
+                channelId={selectedChannelId || selectedPrivateChatId || ""}
+              />
+              {localReplyTo && (
+                <ReplyBadge
+                  replyTo={localReplyTo}
+                  onClose={() => setLocalReplyTo(null)}
+                  isWhisper={
+                    !!(
+                      localReplyTo.tags?.["draft/channel-context"] ||
+                      localReplyTo.tags?.["+draft/channel-context"]
+                    )
+                  }
+                />
+              )}
+              <div className="bg-discord-dark-100 rounded-lg flex items-center relative flex-nowrap">
+                <button
+                  className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
+                  onClick={() => setShowPlusMenu((prev) => !prev)}
+                >
+                  <FaPlus />
+                </button>
 
-          {isColorPickerOpen && (
-            <ColorPicker
-              onSelect={(color) => setSelectedColor(color)}
-              onClose={() => setIsColorPickerOpen(false)}
-              selectedColor={selectedColor} // Pass the selected color
-              selectedFormatting={selectedFormatting}
-              toggleFormatting={toggleFormatting}
-            />
+                <TextArea
+                  ref={inputRef}
+                  value={messageText}
+                  onChange={handleInputChange}
+                  onClick={handleInputClick}
+                  onKeyUp={handleInputKeyUp}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    selectedChannel
+                      ? `Message #${selectedChannel.name.replace(/^#/, "")}${
+                          globalSettings.enableMultilineInput &&
+                          !isMobile &&
+                          !isCompactInput
+                            ? globalSettings.multilineOnShiftEnter
+                              ? " (Shift+Enter for new line)"
+                              : " (Enter for new line, Shift+Enter to send)"
+                            : ""
+                        }`
+                      : selectedPrivateChat
+                        ? `Message @${selectedPrivateChat.username}${
+                            globalSettings.enableMultilineInput &&
+                            !isMobile &&
+                            !isCompactInput
+                              ? globalSettings.multilineOnShiftEnter
+                                ? " (Shift+Enter for new line)"
+                                : " (Enter for new line, Shift+Enter to send)"
+                              : ""
+                          }`
+                        : "Type a message..."
+                  }
+                  className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-[200px] overflow-y-auto placeholder:truncate"
+                  style={getPreviewStyles({
+                    color: selectedColor || "inherit",
+                    formatting: selectedFormatting,
+                  })}
+                  rows={1}
+                />
+                <InputToolbar
+                  selectedColor={selectedColor}
+                  onEmojiClick={() => {
+                    setIsEmojiSelectorOpen((prev) => !prev);
+                    setIsColorPickerOpen(false);
+                    setShowMembersDropdown(false);
+                  }}
+                  onColorPickerClick={() => {
+                    setIsColorPickerOpen((prev) => !prev);
+                    setIsEmojiSelectorOpen(false);
+                    setShowMembersDropdown(false);
+                  }}
+                  onAtClick={handleAtButtonClick}
+                />
+              </div>
+
+              {/* Plus menu */}
+              {showPlusMenu && (
+                <div
+                  className="plus-menu absolute bg-discord-dark-200 rounded-lg shadow-lg border border-discord-dark-300 min-w-48 z-50"
+                  style={{
+                    bottom: "calc(100% + 8px)",
+                    left: "16px",
+                  }}
+                >
+                  {selectedServer?.filehost && (
+                    <button
+                      className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
+                      onClick={() => {
+                        // Handle image selection for preview
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = "image/*";
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement)
+                            .files?.[0];
+                          if (file) {
+                            // Create preview URL
+                            const previewUrl = URL.createObjectURL(file);
+                            setImagePreview({
+                              isOpen: true,
+                              file,
+                              previewUrl,
+                            });
+                          }
+                        };
+                        input.click();
+                        setShowPlusMenu(false);
+                      }}
+                    >
+                      <FaPlus className="mr-2" />
+                      Upload Image
+                    </button>
+                  )}
+                  <button
+                    className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
+                    onClick={() => {
+                      setIsGifSelectorOpen(true);
+                      setShowPlusMenu(false);
+                    }}
+                  >
+                    <FaGift className="mr-2" />
+                    Send a GIF
+                  </button>
+                  {/* Add more menu items here if needed */}
+                </div>
+              )}
+
+              <EmojiPickerModal
+                isOpen={isEmojiSelectorOpen}
+                onEmojiClick={handleEmojiSelect}
+                onClose={() => setIsEmojiSelectorOpen(false)}
+                onBackdropClick={handleEmojiModalBackdropClick}
+              />
+
+              <GifSelector
+                isOpen={isGifSelectorOpen}
+                onClose={() => setIsGifSelectorOpen(false)}
+                onSelectGif={(gifUrl) => {
+                  // Send the GIF URL directly to the channel
+                  handleGifSend(gifUrl);
+                  setIsGifSelectorOpen(false);
+                }}
+              />
+
+              {isColorPickerOpen && (
+                <ColorPicker
+                  onSelect={(color) => setSelectedColor(color)}
+                  onClose={() => setIsColorPickerOpen(false)}
+                  selectedColor={selectedColor} // Pass the selected color
+                  selectedFormatting={selectedFormatting}
+                  toggleFormatting={toggleFormatting}
+                />
+              )}
+
+              <AutocompleteDropdown
+                users={
+                  selectedChannel?.users ||
+                  (selectedPrivateChat
+                    ? [
+                        ...(currentUser ? [currentUser] : []),
+                        {
+                          id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                          username: selectedPrivateChat.username,
+                          isOnline: true,
+                        },
+                      ]
+                    : [])
+                }
+                isVisible={showAutocomplete}
+                inputValue={messageText}
+                cursorPosition={cursorPosition}
+                tabCompletionMatches={tabCompletion.matches}
+                currentMatchIndex={tabCompletion.currentIndex}
+                onSelect={handleUsernameSelect}
+                onClose={handleAutocompleteClose}
+                onNavigate={handleAutocompleteNavigate}
+                inputElement={inputRef.current}
+              />
+
+              <EmojiAutocompleteDropdown
+                isVisible={showEmojiAutocomplete || emojiCompletion.isActive}
+                inputValue={messageText}
+                cursorPosition={cursorPosition}
+                emojiMatches={emojiCompletion.matches}
+                currentMatchIndex={emojiCompletion.currentIndex}
+                onSelect={handleEmojiAutocompleteSelect}
+                onClose={handleEmojiAutocompleteClose}
+                onNavigate={handleEmojiAutocompleteNavigate}
+                inputElement={inputRef.current}
+              />
+
+              {/* Members dropdown triggered by @ button */}
+              <AutocompleteDropdown
+                users={
+                  selectedChannel?.users ||
+                  (selectedPrivateChat
+                    ? [
+                        ...(currentUser ? [currentUser] : []),
+                        {
+                          id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
+                          username: selectedPrivateChat.username,
+                          isOnline: true,
+                        },
+                      ]
+                    : [])
+                }
+                isVisible={showMembersDropdown}
+                inputValue={messageText}
+                cursorPosition={cursorPosition}
+                tabCompletionMatches={[]}
+                currentMatchIndex={-1}
+                onSelect={(username) => {
+                  const isAtMessageStart = messageText.trim() === "";
+                  const suffix = isAtMessageStart ? ": " : " ";
+                  setMessageText((prev) => prev + username + suffix);
+                  setShowMembersDropdown(false);
+                }}
+                onClose={() => setShowMembersDropdown(false)}
+                onNavigate={() => {}}
+                inputElement={inputRef.current}
+                isAtButtonTriggered={true}
+              />
+            </div>
           )}
-
-          <AutocompleteDropdown
-            users={
-              selectedChannel?.users ||
-              (selectedPrivateChat
-                ? [
-                    ...(currentUser ? [currentUser] : []),
-                    {
-                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
-                      username: selectedPrivateChat.username,
-                      isOnline: true,
-                    },
-                  ]
-                : [])
-            }
-            isVisible={showAutocomplete}
-            inputValue={messageText}
-            cursorPosition={cursorPosition}
-            tabCompletionMatches={tabCompletion.matches}
-            currentMatchIndex={tabCompletion.currentIndex}
-            onSelect={handleUsernameSelect}
-            onClose={handleAutocompleteClose}
-            onNavigate={handleAutocompleteNavigate}
-            inputElement={inputRef.current}
-          />
-
-          <EmojiAutocompleteDropdown
-            isVisible={showEmojiAutocomplete || emojiCompletion.isActive}
-            inputValue={messageText}
-            cursorPosition={cursorPosition}
-            emojiMatches={emojiCompletion.matches}
-            currentMatchIndex={emojiCompletion.currentIndex}
-            onSelect={handleEmojiAutocompleteSelect}
-            onClose={handleEmojiAutocompleteClose}
-            onNavigate={handleEmojiAutocompleteNavigate}
-            inputElement={inputRef.current}
-          />
-
-          {/* Members dropdown triggered by @ button */}
-          <AutocompleteDropdown
-            users={
-              selectedChannel?.users ||
-              (selectedPrivateChat
-                ? [
-                    ...(currentUser ? [currentUser] : []),
-                    {
-                      id: `${selectedPrivateChat.serverId}-${selectedPrivateChat.username}`,
-                      username: selectedPrivateChat.username,
-                      isOnline: true,
-                    },
-                  ]
-                : [])
-            }
-            isVisible={showMembersDropdown}
-            inputValue={messageText}
-            cursorPosition={cursorPosition}
-            tabCompletionMatches={[]}
-            currentMatchIndex={-1}
-            onSelect={(username) => {
-              const isAtMessageStart = messageText.trim() === "";
-              const suffix = isAtMessageStart ? ": " : " ";
-              setMessageText((prev) => prev + username + suffix);
-              setShowMembersDropdown(false);
-            }}
-            onClose={() => setShowMembersDropdown(false)}
-            onNavigate={() => {}}
-            inputElement={inputRef.current}
-            isAtButtonTriggered={true}
-          />
-        </div>
+        </>
       )}
 
       <UserContextMenu

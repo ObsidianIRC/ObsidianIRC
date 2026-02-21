@@ -2,6 +2,7 @@ import type * as React from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaTimes } from "react-icons/fa";
+import { TextInput } from "./TextInput";
 
 interface GifSelectorProps {
   isOpen: boolean;
@@ -189,8 +190,7 @@ const GifSelector: React.FC<GifSelectorProps> = ({
         {/* Search */}
         <div className="p-4 border-b border-discord-dark-300">
           <div className="flex space-x-2">
-            <input
-              type="text"
+            <TextInput
               placeholder="Search GIFs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

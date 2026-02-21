@@ -20,15 +20,15 @@ export function InputToolbar({
   onAtClick,
 }: InputToolbarProps) {
   return (
-    <div>
+    <div className="flex items-center flex-shrink-0">
       <button
-        className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+        className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
         onClick={onEmojiClick}
       >
         <FaGrinAlt />
       </button>
       <button
-        className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+        className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
         onClick={onColorPickerClick}
       >
         <div
@@ -42,7 +42,7 @@ export function InputToolbar({
         />
       </button>
       <button
-        className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+        className="px-1.5 sm:px-2 mr-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
         onClick={onAtClick}
       >
         <FaAt />

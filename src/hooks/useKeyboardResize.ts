@@ -1,97 +1,97 @@
 import { platform } from "@tauri-apps/plugin-os";
 import { useEffect } from "react";
+import { isTauri } from "../lib/platformUtils";
 
 // Hook to handle keyboard visibility and viewport resizing on mobile platforms
 export const useKeyboardResize = () => {
   useEffect(() => {
-    // Check if we're on a mobile device
     const isMobile =
       /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
         navigator.userAgent,
       ) || window.innerWidth <= 768;
 
-    // Only apply this for mobile platforms, but be more permissive than just Tauri
     if (!isMobile) {
       return;
     }
 
-    // If we're in Tauri, check the platform
-    if ("__TAURI__" in window) {
+    if (isTauri()) {
       try {
         const currentPlatform = platform();
         if (!["android", "ios"].includes(currentPlatform)) {
           return;
         }
-      } catch (error) {
+      } catch {
         // If platform() fails, continue anyway on mobile devices
       }
     }
 
+    const root = document.getElementById("root");
+    if (!root) return;
+
     let isKeyboardVisible = false;
-    let initialViewportHeight =
-      window.visualViewport?.height || window.innerHeight;
+    let baseHeight = window.visualViewport?.height ?? window.innerHeight;
+
+    const setKeyboardVisible = (visible: boolean) => {
+      isKeyboardVisible = visible;
+      if (visible) {
+        document.documentElement.dataset.keyboardVisible = "true";
+      } else {
+        delete document.documentElement.dataset.keyboardVisible;
+      }
+    };
 
     const handleVisualViewportChange = () => {
       if (!window.visualViewport) return;
 
       const currentHeight = window.visualViewport.height;
-      const heightDifference = initialViewportHeight - currentHeight;
+      const heightDifference = baseHeight - currentHeight;
+      const wasVisible = isKeyboardVisible;
+      const nowVisible = heightDifference > 150;
 
-      // Keyboard is considered visible if the viewport height decreased significantly
-      const keyboardWasVisible = isKeyboardVisible;
-      isKeyboardVisible = heightDifference > 150; // Adjust threshold as needed
-
-      // Force a resize event when keyboard state changes
-      if (keyboardWasVisible !== isKeyboardVisible) {
-        updateKeyboardState(isKeyboardVisible, heightDifference);
+      if (nowVisible) {
+        // Keyboard open: set root to exact visible height
+        root.style.height = `${currentHeight}px`;
+        // Prevent iOS Safari from scrolling the page behind the keyboard
+        window.scrollTo(0, 0);
+      } else if (wasVisible && !nowVisible) {
+        // Keyboard just closed: reset to CSS default
+        root.style.height = "";
+        window.scrollTo(0, 0);
       }
-    };
 
-    const updateKeyboardState = (visible: boolean, heightDiff: number) => {
-      // Update CSS custom property for keyboard height
-      document.documentElement.style.setProperty(
-        "--keyboard-height",
-        visible ? `${heightDiff}px` : "0px",
-      );
-
-      // Trigger a resize event to force layout recalculation
-      window.dispatchEvent(new Event("resize"));
-
-      // Small delay to ensure DOM updates are processed
-      setTimeout(() => {
+      if (wasVisible !== nowVisible) {
+        setKeyboardVisible(nowVisible);
         window.dispatchEvent(new Event("resize"));
-      }, 50);
+      }
     };
 
     const handleAndroidKeyboardShow = () => {
       if (!isKeyboardVisible) {
-        isKeyboardVisible = true;
-        const heightDiff =
-          initialViewportHeight -
-          (window.visualViewport?.height || window.innerHeight);
-        updateKeyboardState(true, heightDiff);
+        setKeyboardVisible(true);
+        if (window.visualViewport) {
+          root.style.height = `${window.visualViewport.height}px`;
+        }
+        window.dispatchEvent(new Event("resize"));
       }
     };
 
     const handleAndroidKeyboardHide = () => {
       if (isKeyboardVisible) {
-        isKeyboardVisible = false;
-        updateKeyboardState(false, 0);
+        setKeyboardVisible(false);
+        root.style.height = "";
+        window.scrollTo(0, 0);
+        window.dispatchEvent(new Event("resize"));
       }
     };
 
     const handleWindowResize = () => {
-      // Update initial height when window is resized
-      if (window.visualViewport) {
-        if (!isKeyboardVisible) {
-          initialViewportHeight = window.visualViewport.height;
-        }
-      } else {
-        initialViewportHeight = window.innerHeight;
+      // Update base height when window resizes (e.g. browser chrome hides)
+      // but only when keyboard is not visible
+      if (!isKeyboardVisible) {
+        baseHeight = window.visualViewport?.height ?? window.innerHeight;
       }
     };
 
-    // Use visualViewport API if available (modern browsers)
     if (window.visualViewport) {
       window.visualViewport.addEventListener(
         "resize",
@@ -103,14 +103,10 @@ export const useKeyboardResize = () => {
       );
     }
 
-    // Listen for native Android keyboard events
     window.addEventListener("keyboardDidShow", handleAndroidKeyboardShow);
     window.addEventListener("keyboardDidHide", handleAndroidKeyboardHide);
-
-    // Fallback for older browsers or additional handling
     window.addEventListener("resize", handleWindowResize);
 
-    // Cleanup
     return () => {
       if (window.visualViewport) {
         window.visualViewport.removeEventListener(
@@ -126,8 +122,8 @@ export const useKeyboardResize = () => {
       window.removeEventListener("keyboardDidHide", handleAndroidKeyboardHide);
       window.removeEventListener("resize", handleWindowResize);
 
-      // Reset CSS property
-      document.documentElement.style.removeProperty("--keyboard-height");
+      root.style.height = "";
+      delete document.documentElement.dataset.keyboardVisible;
     };
   }, []);
 };

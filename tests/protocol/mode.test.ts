@@ -3,6 +3,7 @@ import type { IRCClient } from "../../src/lib/ircClient";
 import { registerModeHandler } from "../../src/protocol/mode";
 import useStore from "../../src/store";
 import type { Server } from "../../src/types";
+import { defaultUIExtensions } from "../fixtures/uiState";
 
 // Mock IRC client
 const mockIRCClient = {
@@ -31,7 +32,6 @@ describe("MODE Protocol Handler", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isMemberListVisible: true,
@@ -56,6 +56,7 @@ describe("MODE Protocol Handler", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
     });
     vi.clearAllMocks();

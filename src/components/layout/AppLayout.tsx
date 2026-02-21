@@ -1,8 +1,9 @@
 import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
@@ -25,7 +26,15 @@ export const AppLayout: React.FC = () => {
     toggleChannelList,
     setMobileViewActiveColumn,
     setIsNarrowView,
+    updateSidebarPreferences,
   } = useStore();
+
+  const [channelListWidth, setChannelListWidth] = useState<number>(
+    ui.sidebarPreferences?.channelList.width ?? 264,
+  );
+  const [memberListWidth, setMemberListWidth] = useState<number>(
+    ui.sidebarPreferences?.memberList.width ?? 280,
+  );
 
   const selectedServerId = ui.selectedServerId;
   const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
@@ -43,6 +52,32 @@ export const AppLayout: React.FC = () => {
 
   // Hide member list for private chats
   const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
+
+  const handleChannelListWidthChange = useCallback(
+    (width: number) => {
+      setChannelListWidth(width);
+      updateSidebarPreferences({
+        channelList: {
+          isVisible: isChannelListVisible,
+          width,
+        },
+      });
+    },
+    [isChannelListVisible, updateSidebarPreferences],
+  );
+
+  const handleMemberListWidthChange = useCallback(
+    (width: number) => {
+      setMemberListWidth(width);
+      updateSidebarPreferences({
+        memberList: {
+          isVisible: shouldShowMemberList,
+          width,
+        },
+      });
+    },
+    [shouldShowMemberList, updateSidebarPreferences],
+  );
 
   // Set theme class on body
   useEffect(() => {
@@ -77,6 +112,11 @@ export const AppLayout: React.FC = () => {
   const isNarrowViewFromHook = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
   const isNarrowView = ui.isNarrowView;
+
+  // Desktop narrow: member list shows as overlay in ChatArea instead of sidebar
+  const showMemberListAsOverlay = !isNarrowView && isTooNarrowForMemberList;
+  const shouldShowMemberListSidebar =
+    shouldShowMemberList && !showMemberListAsOverlay;
 
   const currentPageIndex = getPageIndex(mobileViewActiveColumn);
   const totalPages = selectedServerId ? 3 : 2;
@@ -124,10 +164,12 @@ export const AppLayout: React.FC = () => {
               bypass={false}
               isVisible={isChannelListVisible}
               defaultWidth={264}
+              initialWidth={channelListWidth}
               minWidth={80}
               maxWidth={400}
               side="left"
               onMinReached={() => toggleChannelList(false)}
+              onWidthChange={handleChannelListWidthChange}
             >
               <div className="channel-list w-full h-full bg-discord-dark-100 md:block z-20">
                 <ChannelList
@@ -165,12 +207,14 @@ export const AppLayout: React.FC = () => {
         return (
           <ResizableSidebar
             bypass={false}
-            isVisible={shouldShowMemberList}
+            isVisible={shouldShowMemberListSidebar}
             defaultWidth={280}
+            initialWidth={memberListWidth}
             minWidth={80}
             maxWidth={400}
             side="right"
             onMinReached={() => toggleMemberList(false)}
+            onWidthChange={handleMemberListWidthChange}
           >
             <div className="flex-1 overflow-hidden h-full bg-discord-dark-100">
               <MemberList />
@@ -180,29 +224,51 @@ export const AppLayout: React.FC = () => {
     }
   };
 
+  // Persist channel list visibility changes (desktop only)
+  useEffect(() => {
+    if (!isNarrowView) {
+      updateSidebarPreferences({
+        channelList: {
+          isVisible: isChannelListVisible,
+          width: channelListWidth,
+        },
+      });
+    }
+  }, [
+    isChannelListVisible,
+    channelListWidth,
+    isNarrowView,
+    updateSidebarPreferences,
+  ]);
+
+  // Persist member list visibility changes (desktop only)
+  useEffect(() => {
+    if (!isNarrowView) {
+      updateSidebarPreferences({
+        memberList: {
+          isVisible: shouldShowMemberList,
+          width: memberListWidth,
+        },
+      });
+    }
+  }, [
+    shouldShowMemberList,
+    memberListWidth,
+    isNarrowView,
+    updateSidebarPreferences,
+  ]);
+
   // Sync media query hook to store
   useEffect(() => {
     setIsNarrowView(isNarrowViewFromHook);
   }, [isNarrowViewFromHook, setIsNarrowView]);
-
-  // Auto-hide member list on desktop if too narrow
-  useEffect(() => {
-    if (!isNarrowView && isTooNarrowForMemberList && isMemberListVisible) {
-      toggleMemberList(false);
-    }
-  }, [
-    isNarrowView,
-    isTooNarrowForMemberList,
-    isMemberListVisible,
-    toggleMemberList,
-  ]);
 
   const getLayoutColumn = (column: layoutColumn) => {
     // Desktop: use explicit visibility flags
     if (!isNarrowView) {
       if (column === "serverList") return getLayoutColumnElement("serverList");
       if (column === "chatView") return getLayoutColumnElement("chatView");
-      if (column === "memberList" && shouldShowMemberList) {
+      if (column === "memberList" && shouldShowMemberListSidebar) {
         return getLayoutColumnElement("memberList");
       }
       return null;
@@ -215,8 +281,7 @@ export const AppLayout: React.FC = () => {
 
   // Handle mobile back button
   // TODO: ios
-  if ("__TAURI__" in window && platform() === "android") {
-    // @ts-expect-error
+  if (isTauri() && platform() === "android") {
     window.androidBackCallback = () => {
       switch (mobileViewActiveColumn) {
         case "chatView":
@@ -235,7 +300,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={`flex h-screen overflow-hidden bg-discord-dark-300 ${
+      className={`flex h-dvh overflow-hidden bg-discord-dark-300 ${
         isDarkMode ? "text-white" : "text-gray-900"
       }`}
       style={{

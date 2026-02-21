@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { FaSpinner, FaTimes, FaUpload } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 interface AvatarUploadProps {
   currentAvatarUrl?: string;
@@ -169,7 +170,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
   if (!filehostUrl) {
     // Fallback to URL input if no filehost
     return (
-      <input
+      <TextInput
         type="url"
         value={currentAvatarUrl || ""}
         onChange={(e) => onAvatarUrlChange(e.target.value)}

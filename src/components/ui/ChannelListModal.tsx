@@ -5,6 +5,7 @@ import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import ircClient from "../../lib/ircClient";
 import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 const ChannelListModal: React.FC = () => {
   const {
@@ -302,8 +303,7 @@ const ChannelListModal: React.FC = () => {
         </div>
 
         <div className="mb-4 flex gap-4 items-center flex-shrink-0">
-          <input
-            type="text"
+          <TextInput
             placeholder="Filter channels..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -453,8 +453,7 @@ const ChannelListModal: React.FC = () => {
                     <label className="block text-xs text-gray-400 mb-1">
                       Channel Name Mask
                     </label>
-                    <input
-                      type="text"
+                    <TextInput
                       value={mask}
                       onChange={(e) => setMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
@@ -469,8 +468,7 @@ const ChannelListModal: React.FC = () => {
                     <label className="block text-xs text-gray-400 mb-1">
                       Exclude Channel Name Mask
                     </label>
-                    <input
-                      type="text"
+                    <TextInput
                       value={notMask}
                       onChange={(e) => setNotMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"

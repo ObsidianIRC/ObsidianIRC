@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { openExternalUrl } from "../../lib/openUrl";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 
 interface EnhancedLinkWrapperProps {
@@ -22,15 +23,27 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Handle clicks on external links within dangerouslySetInnerHTML content
+  // Handle clicks on external links and IRC links within dangerouslySetInnerHTML content
   useEffect(() => {
-    const handleExternalLinkClick = (e: Event) => {
+    const handleDomLinkClick = (e: Event) => {
       const target = e.target as HTMLElement;
-      // Check if the target or any of its parents have the external-link-security class
+      // Check if the target or any of its parents have special link classes
       let element: HTMLElement | null = target;
       while (element) {
+        // Handle IRC links
+        if (element.classList.contains("irc-link") && onIrcLinkClick) {
+          e.preventDefault();
+          e.stopPropagation();
+          const url = element.getAttribute("href");
+          if (url) {
+            onIrcLinkClick(url);
+          }
+          break;
+        }
+        // Handle external HTTP/HTTPS links
         if (element.classList.contains("external-link-security")) {
           e.preventDefault();
+          e.stopPropagation();
           const url = element.getAttribute("href");
           if (url) {
             setPendingUrl(url);
@@ -43,11 +56,12 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
 
     const container = containerRef.current;
     if (container) {
-      container.addEventListener("click", handleExternalLinkClick);
+      // Use capture phase to intercept before the link's default behavior
+      container.addEventListener("click", handleDomLinkClick, true);
       return () =>
-        container.removeEventListener("click", handleExternalLinkClick);
+        container.removeEventListener("click", handleDomLinkClick, true);
     }
-  }, []);
+  }, [onIrcLinkClick]);
 
   const handleLinkClick = (e: React.MouseEvent, url: string) => {
     // Handle IRC links
@@ -67,9 +81,9 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
     }
   };
 
-  const handleConfirmOpen = () => {
+  const handleConfirmOpen = async () => {
     if (pendingUrl) {
-      window.open(pendingUrl, "_blank", "noopener,noreferrer");
+      await openExternalUrl(pendingUrl);
     }
     setPendingUrl(null);
   };
@@ -111,7 +125,7 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
               href={matches[index]}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-discord-text-link underline hover:text-blue-700 break-all"
+              className="text-blue-500 underline hover:text-blue-700 break-all"
               onClick={(e) => handleLinkClick(e, matches[index])}
               title={matches[index]}
             >

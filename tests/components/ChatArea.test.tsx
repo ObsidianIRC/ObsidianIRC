@@ -5,6 +5,7 @@ import { ChatArea } from "../../src/components/layout/ChatArea";
 import ircClient from "../../src/lib/ircClient";
 import useStore from "../../src/store";
 import type { Channel, Server, User } from "../../src/types";
+import { defaultUIExtensions } from "../fixtures/uiState";
 
 vi.mock("../../src/lib/ircClient", () => ({
   default: {
@@ -77,7 +78,6 @@ describe("ChatArea Tab Completion Integration", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
@@ -100,6 +100,7 @@ describe("ChatArea Tab Completion Integration", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
       messages: {},
       typingUsers: {},

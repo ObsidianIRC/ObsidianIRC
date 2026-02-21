@@ -1,15 +1,11 @@
 import type React from "react";
-import { useState } from "react";
-import { FaQuestionCircle, FaTimes } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import { FaQuestionCircle } from "react-icons/fa";
+import BaseModal from "../../lib/modal/BaseModal";
+import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
-
-// Check if we're running in Tauri
-declare global {
-  interface Window {
-    __TAURI__?: unknown;
-  }
-}
-const isTauri = typeof window !== "undefined" && window.__TAURI__ !== undefined;
+import { TextInput } from "./TextInput";
 
 export const AddServerModal: React.FC = () => {
   const {
@@ -17,7 +13,7 @@ export const AddServerModal: React.FC = () => {
     connect,
     isConnecting,
     connectionError,
-    ui: { prefillServerDetails },
+    ui: { prefillServerDetails, isAddServerModalOpen },
   } = useStore();
 
   const [serverName, setServerName] = useState(
@@ -27,7 +23,7 @@ export const AddServerModal: React.FC = () => {
     prefillServerDetails?.host || "",
   );
   const [serverPort, setServerPort] = useState(
-    prefillServerDetails?.port || "443",
+    prefillServerDetails?.port || (isTauri() ? "6697" : "443"),
   );
   const [nickname, setNickname] = useState(
     prefillServerDetails?.nickname || `user${Math.floor(Math.random() * 1000)}`,
@@ -39,22 +35,44 @@ export const AddServerModal: React.FC = () => {
   const [showServerPassword, setShowServerPassword] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [registerAccount, setRegisterAccount] = useState(false);
-  const [useIrcProtocol, setUseIrcProtocol] = useState(
-    prefillServerDetails?.useIrcProtocol ?? false,
+  const [useWebSocket, setUseWebSocket] = useState(
+    prefillServerDetails?.useWebSocket ?? false,
   );
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
 
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    setServerName(prefillServerDetails?.name || "");
+    setServerHost(prefillServerDetails?.host || "");
+    setServerPort(prefillServerDetails?.port || (isTauri() ? "6697" : "443"));
+    setNickname(
+      prefillServerDetails?.nickname ||
+        `user${Math.floor(Math.random() * 1000)}`,
+    );
+    setUseWebSocket(prefillServerDetails?.useWebSocket || false);
+  }, [prefillServerDetails]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const currentPort = serverPort;
+    const ircPorts = ["6667", "6697"];
+    const wssPorts = ["443"];
+
+    if (useWebSocket && ircPorts.includes(currentPort)) {
+      setServerPort("443");
+    } else if (!useWebSocket && wssPorts.includes(currentPort)) {
+      setServerPort("6697");
+    }
+  }, [useWebSocket, serverPort]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Default server name to server host if empty
     const finalServerName = serverName.trim() || serverHost.trim();
-
-    // Default SASL account name to nickname if empty
     const finalSaslAccountName = saslAccountName.trim() || nickname.trim();
 
     if (!finalServerName) {
@@ -78,28 +96,28 @@ export const AddServerModal: React.FC = () => {
     }
 
     try {
-      // Modify host to include protocol if IRC is selected
       let finalHost = serverHost;
-      if (isTauri && useIrcProtocol) {
+      if (isTauri()) {
         const port = Number.parseInt(serverPort, 10);
-        // Remove any existing protocol prefix from serverHost
         const cleanHost = serverHost.replace(
           /^(https?|wss?|ircs?|irc):\/\//,
           "",
         );
 
-        // Check if this is a localhost connection (case insensitive)
         const isLocalhost =
           cleanHost.toLowerCase() === "localhost" ||
           cleanHost === "127.0.0.1" ||
           cleanHost === "::1";
 
-        // Use ircs:// for SSL ports (typically 6697, 9999, etc.) or common SSL ports, but not for localhost
         const isSSLPort =
           !isLocalhost &&
           (port === 6697 || port === 9999 || port === 443 || port === 993);
 
-        finalHost = `${isSSLPort ? "ircs" : "irc"}://${cleanHost}:${port}`;
+        if (useWebSocket) {
+          finalHost = `${isSSLPort ? "wss" : "ws"}://${cleanHost}:${port}`;
+        } else {
+          finalHost = `${isSSLPort ? "ircs" : "irc"}://${cleanHost}:${port}`;
+        }
       }
 
       await connect(
@@ -129,41 +147,28 @@ export const AddServerModal: React.FC = () => {
   const hideServerInfo = prefillServerDetails?.ui?.hideServerInfo;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 modal-container">
-      <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl font-bold">
-            {prefillServerDetails?.ui?.title || "Add IRC Server"}
-          </h2>
-          {!prefillServerDetails?.ui?.hideClose && (
-            <button
-              onClick={() => toggleAddServerModal(false)}
-              className="text-discord-text-muted hover:text-white"
-            >
-              <FaTimes />
-            </button>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit}>
+    <BaseModal
+      isOpen={!!isAddServerModalOpen}
+      onClose={() => toggleAddServerModal(false)}
+      title={prefillServerDetails?.ui?.title || "Add IRC Server"}
+      maxWidth="md"
+      showCloseButton={!prefillServerDetails?.ui?.hideClose}
+    >
+      <form onSubmit={handleSubmit}>
+        <ModalBody scrollable className="max-h-[60vh]">
           {!hideServerInfo && (
             <>
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Network Name
                 </label>
-                <input
-                  type="text"
+                <TextInput
                   value={serverName || serverHost || ""}
                   onChange={(e) => setServerName(e.target.value)}
                   onFocus={(e) => {
                     e.target.select();
                   }}
                   placeholder="ExampleNET"
-                  autoComplete="off"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -173,18 +178,13 @@ export const AddServerModal: React.FC = () => {
                   <label className="block text-discord-text-muted text-sm font-medium mb-1">
                     Server Host
                   </label>
-                  <input
-                    type="text"
+                  <TextInput
                     value={serverHost || ""}
                     onChange={(e) => setServerHost(e.target.value)}
                     onFocus={(e) => {
                       e.target.select();
                     }}
                     placeholder="irc.example.com"
-                    autoComplete="off"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
                     className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
                       disableServerConnectionInfo
                         ? "bg-gray-700 text-gray-400 cursor-not-allowed"
@@ -278,22 +278,22 @@ export const AddServerModal: React.FC = () => {
                   Use server password
                 </label>
               </div>
-              {isTauri && (
+              {isTauri() && (
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
-                    id="useIrcProtocol"
-                    checked={useIrcProtocol}
-                    onChange={() => setUseIrcProtocol(!useIrcProtocol)}
+                    id="useWebSocket"
+                    checked={useWebSocket}
+                    onChange={() => setUseWebSocket(!useWebSocket)}
                     className="accent-discord-accent rounded"
                   />
                   <label
-                    htmlFor="useIrcProtocol"
+                    htmlFor="useWebSocket"
                     className="text-discord-text-muted text-sm flex items-center"
                   >
-                    IRC{" "}
+                    WSS{" "}
                     <FaQuestionCircle
-                      title="RAW TCP IRC connection"
+                      title="Use WebSocket instead of raw TCP"
                       className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
                     />
                   </label>
@@ -402,32 +402,28 @@ export const AddServerModal: React.FC = () => {
           )}
 
           {(error || connectionError) && (
-            <div className="mb-4 text-discord-red text-sm">
+            <div className="text-discord-red text-sm">
               {error || connectionError}
             </div>
           )}
+        </ModalBody>
 
-          <div className="flex justify-end">
-            {!prefillServerDetails?.ui?.hideClose && (
-              <button
-                type="button"
-                onClick={() => toggleAddServerModal(false)}
-                className="mr-3 px-4 py-2 text-discord-text-normal hover:underline"
-              >
-                Cancel
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={isConnecting}
-              className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-80"}`}
+        <ModalFooter>
+          {!prefillServerDetails?.ui?.hideClose && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => toggleAddServerModal(false)}
             >
-              {isConnecting ? "Connecting..." : "Connect"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" variant="primary" disabled={isConnecting}>
+            {isConnecting ? "Connecting..." : "Connect"}
+          </Button>
+        </ModalFooter>
+      </form>
+    </BaseModal>
   );
 };
 

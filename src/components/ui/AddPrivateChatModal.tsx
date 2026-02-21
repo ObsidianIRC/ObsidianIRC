@@ -1,8 +1,11 @@
 import type React from "react";
 import { useMemo, useState } from "react";
-import { FaSearch, FaTimes, FaUser } from "react-icons/fa";
+import { FaSearch, FaUser } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
+import BaseModal from "../../lib/modal/BaseModal";
+import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 interface AddPrivateChatModalProps {
   isOpen: boolean;
@@ -63,36 +66,21 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-container">
-      <div className="bg-discord-dark-300 rounded-lg p-6 w-96 max-w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-lg font-semibold">
-            Start Private Message
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-discord-channels-default hover:text-white"
-          >
-            <FaTimes />
-          </button>
-        </div>
-
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Start Private Message"
+      maxWidth="md"
+    >
+      <ModalBody scrollable className="max-h-[60vh]">
         {/* Search Input */}
         <div className="relative mb-4">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-discord-channels-default" />
-          <input
-            type="text"
+          <TextInput
             placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            autoComplete="off"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
             className="w-full bg-discord-dark-400 border border-discord-dark-500 rounded px-10 py-2 text-white placeholder-discord-channels-default focus:outline-none focus:border-discord-primary"
             autoFocus
           />
@@ -124,18 +112,14 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
             </div>
           )}
         </div>
+      </ModalBody>
 
-        {/* Footer */}
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-discord-dark-400 text-white rounded hover:bg-discord-dark-500"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+      </ModalFooter>
+    </BaseModal>
   );
 };
 
