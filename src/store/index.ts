@@ -61,14 +61,14 @@ function ensureUrlFormat(host: string, port: number): string {
   if (host.includes("://")) {
     return host; // Already in URL format
   }
-  // Convert old hostname-only format to URL
+  // Heuristic guess to decide if we should use a secure connection
+  // if the host was entered without a URL prefix
+  // Insecure connections aren't allowed outside localhost
   const isLocalhost =
     host === "localhost" || host === "127.0.0.1" || host === "::1";
   const scheme = isLocalhost
     ? "ws"
-    : port === 6697 || port === 9999 || port === 443 || port === 993
-      ? "wss"
-      : "ws";
+    : "wss";
   return `${scheme}://${host}:${port}`;
 }
 
