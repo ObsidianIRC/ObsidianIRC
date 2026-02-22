@@ -18,6 +18,7 @@ import LoadingOverlay from "./components/ui/LoadingOverlay";
 import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
+import { useConnectionResilience } from "./hooks/useConnectionResilience";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import { parseIrcUrl } from "./lib/ircUrlParser";
@@ -154,6 +155,7 @@ const App: React.FC = () => {
 
   // Initialize keyboard resize handling for mobile platforms
   useKeyboardResize();
+  useConnectionResilience();
 
   // askPermissions();
   const hasInitialized = useRef(false);
