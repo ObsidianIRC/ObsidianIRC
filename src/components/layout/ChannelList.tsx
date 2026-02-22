@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaUser,
 } from "react-icons/fa";
+import { useChannelMru } from "../../hooks/useChannelTabSwitching";
 import { useDragReorder } from "../../hooks/useDragReorder";
 import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -23,6 +24,7 @@ import {
   isUrlFromFilehost,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import { isTauriDesktop } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
@@ -154,6 +156,9 @@ export const ChannelList: React.FC<{
 
   // Get channel order from store
   const channelOrder = useStore((state) => state.channelOrder);
+
+  // Previous channel indicator for Ctrl+Tab — evaluated after isNarrowView is known
+  const prevChannelIdRaw = useChannelMru((state) => state.prevItemId);
 
   // Sort channels by saved order, falling back to join order
   const sortedChannels = useMemo(() => {
@@ -347,6 +352,8 @@ export const ChannelList: React.FC<{
   };
 
   const isNarrowView = useMediaQuery();
+  // Only show on Tauri desktop (macOS/Windows/Linux) — not on browser, iOS, or Android
+  const prevItemId = isTauriDesktop() ? prevChannelIdRaw : null;
 
   const handleCollapseClick = () => {
     if (isNarrowView) {
@@ -506,6 +513,12 @@ export const ChannelList: React.FC<{
                             selectedChannelId === channel.id
                               ? "bg-black text-white"
                               : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
+                          }
+                          ${
+                            prevItemId === channel.id &&
+                            selectedChannelId !== channel.id
+                              ? "border-l-2 border-amber-400/70"
+                              : "border-l-2 border-transparent"
                           }
                           ${channelDrag.getItemProps(channel.id).className}
                         `}
@@ -829,6 +842,12 @@ export const ChannelList: React.FC<{
                             selectedPrivateChatId === privateChat.id
                               ? "bg-black text-white"
                               : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
+                          }
+                          ${
+                            prevItemId === privateChat.id &&
+                            selectedPrivateChatId !== privateChat.id
+                              ? "border-l-2 border-amber-400/70"
+                              : "border-l-2 border-transparent"
                           }
                           ${privateChat.isPinned ? pmDrag.getItemProps(privateChat.id).className : ""}
                         `}
