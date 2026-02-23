@@ -175,9 +175,10 @@ export const ChatArea: React.FC<{
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: messageText is intentionally listed so the effect re-runs on every keystroke, even though it isn't referenced inside the body
   useEffect(() => {
     resizeTextarea();
-  }, [resizeTextarea]);
+  }, [resizeTextarea, messageText]);
 
   const servers = useStore((state) => state.servers);
   const ui = useStore((state) => state.ui);
