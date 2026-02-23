@@ -167,10 +167,14 @@ export const ChatArea: React.FC<{
     const textarea = inputRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    const computed = window.getComputedStyle(textarea);
+    const lineHeight = Number.parseFloat(computed.lineHeight) || 24;
+    const paddingTop = Number.parseFloat(computed.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(computed.paddingBottom) || 0;
+    const maxHeight = lineHeight * 5 + paddingTop + paddingBottom;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
   }, []);
 
-  // Resize whenever messageText changes — covers typing, paste, and history navigation
   useEffect(() => {
     resizeTextarea();
   }, [resizeTextarea]);
@@ -1746,7 +1750,7 @@ export const ChatArea: React.FC<{
                           }`
                         : "Type a message..."
                   }
-                  className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] max-h-[200px] overflow-y-auto placeholder:truncate"
+                  className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
                   style={getPreviewStyles({
                     color: selectedColor || "inherit",
                     formatting: selectedFormatting,

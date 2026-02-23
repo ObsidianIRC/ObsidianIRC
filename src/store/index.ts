@@ -1917,13 +1917,13 @@ const useStore = create<AppState>((set, get) => ({
       const currentUser = ircClient.getCurrentUser(serverId);
 
       // Don't allow opening private chats with ourselves
-      if (currentUser?.username === username) {
+      if (currentUser?.username.toLowerCase() === username.toLowerCase()) {
         return {};
       }
 
-      // Check if private chat already exists
+      // Check if private chat already exists (IRC nicks are case-insensitive)
       const existingChat = server.privateChats?.find(
-        (pc) => pc.username === username,
+        (pc) => pc.username.toLowerCase() === username.toLowerCase(),
       );
       if (existingChat) {
         // MONITOR the user if not already monitored
@@ -1951,7 +1951,9 @@ const useStore = create<AppState>((set, get) => ({
                   return {
                     ...s,
                     privateChats: s.privateChats?.map((pm) => {
-                      if (pm.username === username) {
+                      if (
+                        pm.username.toLowerCase() === username.toLowerCase()
+                      ) {
                         return {
                           ...pm,
                           realname: user.realname,
@@ -3212,15 +3214,22 @@ registerAllProtocolHandlers(ircClient, useStore);
 
 ircClient.on("connectionStateChange", ({ serverId, connectionState }) => {
   useStore.setState((state) => {
-    const updatedServers = state.servers.map((server) =>
-      server.id === serverId
-        ? {
-            ...server,
-            connectionState,
-            isConnected: connectionState === "connected",
-          }
-        : server,
-    );
+    const updatedServers = state.servers.map((server) => {
+      if (server.id !== serverId) return server;
+
+      // On disconnect, reset chathistoryRequested so history is re-fetched after rejoin
+      const channels =
+        connectionState === "disconnected"
+          ? server.channels.map((c) => ({ ...c, chathistoryRequested: false }))
+          : server.channels;
+
+      return {
+        ...server,
+        channels,
+        connectionState,
+        isConnected: connectionState === "connected",
+      };
+    });
 
     // If a server just connected and we have no selected server (showing welcome screen),
     // switch back to this server to maintain continuity during reconnection
@@ -3661,13 +3670,16 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       // Handle multiline private messages
       // Similar logic to USERMSG but for multiline content
       const currentUser = ircClient.getCurrentUser(response.serverId);
-      if (currentUser && sender === currentUser.username) {
+      if (
+        currentUser &&
+        sender.toLowerCase() === currentUser.username.toLowerCase()
+      ) {
         return; // Don't create private chats with ourselves
       }
 
-      // Create or find private chat
+      // Create or find private chat (IRC nicks are case-insensitive)
       let privateChat = server.privateChats.find(
-        (chat) => chat.username === sender,
+        (chat) => chat.username.toLowerCase() === sender.toLowerCase(),
       );
       if (!privateChat) {
         const newPrivateChat = {
@@ -3897,8 +3909,10 @@ ircClient.on("USERMSG", (response) => {
   }
 
   if (server) {
-    // Find or create private chat
-    let privateChat = server.privateChats?.find((pc) => pc.username === sender);
+    // Find or create private chat (IRC nicks are case-insensitive)
+    let privateChat = server.privateChats?.find(
+      (pc) => pc.username.toLowerCase() === sender.toLowerCase(),
+    );
 
     if (!privateChat) {
       // Auto-create private chat when receiving a message
@@ -3907,7 +3921,9 @@ ircClient.on("USERMSG", (response) => {
       privateChat = useStore
         .getState()
         .servers.find((s) => s.id === server.id)
-        ?.privateChats?.find((pc) => pc.username === sender);
+        ?.privateChats?.find(
+          (pc) => pc.username.toLowerCase() === sender.toLowerCase(),
+        );
     }
 
     if (privateChat) {
@@ -3962,6 +3978,21 @@ ircClient.on("USERMSG", (response) => {
             ...state.processedMessageIds,
             mtags.msgid,
           ]),
+        }));
+      }
+
+      // If the stored username casing differs from the server-sent nick, correct it now.
+      if (privateChat.username !== sender) {
+        useStore.setState((state) => ({
+          servers: state.servers.map((s) => {
+            if (s.id !== server.id) return s;
+            return {
+              ...s,
+              privateChats: s.privateChats?.map((pc) =>
+                pc.id === privateChat.id ? { ...pc, username: sender } : pc,
+              ),
+            };
+          }),
         }));
       }
 
@@ -4369,9 +4400,9 @@ ircClient.on("USERNOTICE", (response) => {
     return;
   }
 
-  // Find or create private chat
+  // Find or create private chat (IRC nicks are case-insensitive)
   let privateChat = server.privateChats?.find(
-    (pc) => pc.username === response.sender,
+    (pc) => pc.username.toLowerCase() === response.sender.toLowerCase(),
   );
 
   if (!privateChat) {
@@ -4381,7 +4412,9 @@ ircClient.on("USERNOTICE", (response) => {
     privateChat = useStore
       .getState()
       .servers.find((s) => s.id === server.id)
-      ?.privateChats?.find((pc) => pc.username === response.sender);
+      ?.privateChats?.find(
+        (pc) => pc.username.toLowerCase() === response.sender.toLowerCase(),
+      );
   }
 
   if (privateChat) {
@@ -4660,7 +4693,20 @@ ircClient.on(
 
         // Request CHATHISTORY for the existing channel if server supports it
         if (serverData?.capabilities?.includes("draft/chathistory")) {
-          ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${channelName} * 50`);
+          // Use AFTER <last-msgid> to only fetch messages we missed since disconnect.
+          // Fall back to LATEST * 50 if we have no msgid anchor.
+          const channelId = channelData?.id;
+          const channelMessages = channelId
+            ? (useStore.getState().messages[channelId] ?? [])
+            : [];
+          const lastMsgid = [...channelMessages]
+            .reverse()
+            .find((m) => m.msgid)?.msgid;
+
+          const historyCmd = lastMsgid
+            ? `CHATHISTORY AFTER ${channelName} msgid=${lastMsgid} 100`
+            : `CHATHISTORY LATEST ${channelName} * 50`;
+          ircClient.sendRaw(serverId, historyCmd);
 
           // Trigger event to notify store that history loading started
           ircClient.triggerEvent("CHATHISTORY_LOADING", {
@@ -4866,7 +4912,9 @@ ircClient.on("NICK", ({ serverId, oldNick, newNick }) => {
 
     // Also add to private chat if we have one open with this user
     const privateChat = server.privateChats?.find(
-      (pc) => pc.username === oldNick || pc.username === newNick,
+      (pc) =>
+        pc.username.toLowerCase() === oldNick.toLowerCase() ||
+        pc.username.toLowerCase() === newNick.toLowerCase(),
     );
     if (privateChat) {
       // Update the private chat username
@@ -4874,7 +4922,7 @@ ircClient.on("NICK", ({ serverId, oldNick, newNick }) => {
         const updatedServers = state.servers.map((s) => {
           if (s.id === serverId) {
             const updatedPrivateChats = s.privateChats?.map((pc) => {
-              if (pc.username === oldNick) {
+              if (pc.username.toLowerCase() === oldNick.toLowerCase()) {
                 return { ...pc, username: newNick };
               }
               return pc;
@@ -5348,7 +5396,9 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
 
           for (const restoredChat of restoredPrivateChats) {
             const existingIndex = mergedPrivateChats.findIndex(
-              (pc) => pc.username === restoredChat.username,
+              (pc) =>
+                pc.username.toLowerCase() ===
+                restoredChat.username.toLowerCase(),
             );
             if (existingIndex === -1) {
               // Chat doesn't exist, add it
@@ -5407,7 +5457,9 @@ ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
                   return {
                     ...s,
                     privateChats: s.privateChats?.map((pm) => {
-                      if (pm.username === username) {
+                      if (
+                        pm.username.toLowerCase() === username.toLowerCase()
+                      ) {
                         return {
                           ...pm,
                           realname: user.realname,
@@ -6571,7 +6623,7 @@ ircClient.on("TAGMSG", (response) => {
     } else {
       // Private chat
       const privateChat = server.privateChats?.find(
-        (pc) => pc.username === sender,
+        (pc) => pc.username.toLowerCase() === sender.toLowerCase(),
       );
       if (!privateChat) return;
 
@@ -6678,7 +6730,9 @@ ircClient.on("TAGMSG", (response) => {
       channel = server.channels.find((c) => c.name === channelName);
     } else {
       // Private chat
-      channel = server.privateChats?.find((pc) => pc.username === channelName);
+      channel = server.privateChats?.find(
+        (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+      );
     }
 
     if (!channel) return;
@@ -6736,7 +6790,9 @@ ircClient.on("TAGMSG", (response) => {
       channel = server.channels.find((c) => c.name === channelName);
     } else {
       // Private chat
-      channel = server.privateChats?.find((pc) => pc.username === channelName);
+      channel = server.privateChats?.find(
+        (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+      );
     }
 
     if (!channel) return;
@@ -6794,7 +6850,9 @@ ircClient.on("TAGMSG", (response) => {
       channel = server.channels.find((c) => c.name === channelName);
     } else {
       // Private chat
-      channel = server.privateChats?.find((pc) => pc.username === channelName);
+      channel = server.privateChats?.find(
+        (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+      );
     }
 
     if (!channel) return;
@@ -6857,7 +6915,9 @@ ircClient.on("REDACT", ({ serverId, target, msgid, sender }) => {
       channel = server.channels.find((c) => c.name === target);
     } else {
       // Private chat
-      channel = server.privateChats?.find((pc) => pc.username === target);
+      channel = server.privateChats?.find(
+        (pc) => pc.username.toLowerCase() === target.toLowerCase(),
+      );
     }
 
     if (!channel) return {};
@@ -7998,7 +8058,13 @@ ircClient.on("MONONLINE", ({ serverId, targets }) => {
             (t) => t.nick.toLowerCase() === pm.username.toLowerCase(),
           );
           if (target) {
-            return { ...pm, isOnline: true, isAway: false };
+            // Correct the stored username to the server-authoritative casing
+            return {
+              ...pm,
+              isOnline: true,
+              isAway: false,
+              username: target.nick,
+            };
           }
           return pm;
         });
@@ -8138,6 +8204,8 @@ ircClient.on(
                   ...pm,
                   isOnline: true,
                   isAway: isAway,
+                  // Correct stored username to server-authoritative casing
+                  username: nick,
                 };
               }
               return pm;
@@ -8373,6 +8441,7 @@ ircClient.on(
               updatedPrivateChats = [...updatedPrivateChats];
               updatedPrivateChats[privateChatIndex] = {
                 ...existingPm,
+                username: nick, // Correct to server-authoritative casing
                 realname: realname,
                 account: accountValue,
                 isOnline: true,

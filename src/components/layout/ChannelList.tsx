@@ -301,7 +301,20 @@ export const ChannelList: React.FC<{
   const sortedPrivateChats = useMemo(() => {
     if (!selectedServer) return [];
 
-    const privateChats = selectedServer.privateChats || [];
+    // Deduplicate by lowercase username
+    const seen = new Map<string, (typeof selectedServer.privateChats)[0]>();
+    for (const pc of selectedServer.privateChats || []) {
+      const key = pc.username.toLowerCase();
+      const existing = seen.get(key);
+      if (
+        !existing ||
+        (pc.lastActivity?.getTime() ?? 0) >
+          (existing.lastActivity?.getTime() ?? 0)
+      ) {
+        seen.set(key, pc);
+      }
+    }
+    const privateChats = Array.from(seen.values());
 
     // Sort: pinned chats first (by order), then unpinned chats
     return [...privateChats].sort((a, b) => {

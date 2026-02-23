@@ -88,14 +88,34 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
 
         {/* User List */}
         <div className="max-h-64 overflow-y-auto">
-          {availableUsers.length === 0 ? (
+          {availableUsers.length === 0 && !searchTerm.trim() ? (
             <div className="text-discord-channels-default text-center py-4">
-              {searchTerm
-                ? "No users found matching your search"
-                : "No users available"}
+              No users available
             </div>
           ) : (
             <div className="space-y-1">
+              {/* Free-text DM: show when typed name isn't an exact match for any channel user */}
+              {searchTerm.trim() &&
+                !availableUsers.some(
+                  (u) =>
+                    u.username.toLowerCase() ===
+                    searchTerm.trim().toLowerCase(),
+                ) && (
+                  <button
+                    onClick={() => handleUserSelect(searchTerm.trim())}
+                    className="w-full flex items-center gap-3 p-2 rounded hover:bg-discord-dark-400 text-left text-white border border-discord-dark-500 mb-2"
+                  >
+                    <FaUser className="text-discord-channels-default" />
+                    <span>
+                      Message <strong>{searchTerm.trim()}</strong>
+                    </span>
+                  </button>
+                )}
+              {availableUsers.length === 0 && searchTerm.trim() && (
+                <div className="text-discord-channels-default text-center py-2 text-sm">
+                  No users found matching your search
+                </div>
+              )}
               {availableUsers.map((user) => (
                 <button
                   key={user.id}

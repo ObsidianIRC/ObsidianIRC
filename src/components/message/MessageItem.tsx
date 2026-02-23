@@ -507,19 +507,29 @@ export const MessageItem = (props: MessageItemProps) => {
     ),
   );
 
-  // Get metadata for private message users reactively
+  // Get metadata for private message users reactively.
+  // Reads user.metadata directly from Zustand state (stable object references)
+  // instead of calling getUserMetadata() which hits localStorage and returns a
+  // new object every call — causing an infinite render loop via useSyncExternalStore.
   const pmUserMetadata = useStore(
     useCallback(
       (state) => {
-        // Include metadataChangeCounter to make this reactive to metadata updates
         const _counter = state.metadataChangeCounter;
         if (!userKey.startsWith("pm-")) return null;
         const privateChatId = userKey.slice(3);
-        const privateChat = state.servers
-          .find((s) => s.id === serverId)
-          ?.privateChats?.find((pc) => pc.id === privateChatId);
-        if (privateChat) {
-          return getUserMetadata(privateChat.username, serverId);
+        const server = state.servers.find((s) => s.id === serverId);
+        const privateChat = server?.privateChats?.find(
+          (pc) => pc.id === privateChatId,
+        );
+        if (!privateChat || !server) return null;
+        for (const channel of server.channels) {
+          const user = channel.users.find(
+            (u) =>
+              u.username.toLowerCase() === privateChat.username.toLowerCase(),
+          );
+          if (user?.metadata && Object.keys(user.metadata).length > 0) {
+            return user.metadata;
+          }
         }
         return null;
       },
