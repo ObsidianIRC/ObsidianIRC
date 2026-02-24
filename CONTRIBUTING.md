@@ -48,14 +48,24 @@ Now every time you commit the lint and format commands will run automatically.
 
 ### Testing Environment
 
-For testing features locally, we provide a complete IRC testing stack with Docker Compose:
+For testing features locally, we provide a complete IRC testing stack with Docker Compose (ergo IRC server + 3 bots over TLS).
 
-#### Start Testing Stack (IRC Server + 3 Bots)
+#### First-time setup (once per machine)
+
+Install [mkcert](https://github.com/FiloSottile/mkcert), then:
+```bash
+npm run gen-certs
+```
+This installs the local CA into your OS trust store and writes a `.env` file used by compose.
+
+#### Start the stack
 ```bash
 # in one terminal
 npm run dev
 # in another terminal
-docker-compose --profile testing up -d
+npm run run-dev-stack
 ```
 
-Now you can connect to `ws://localhost:8097` with any nickname and check the `#test` channel.
+To stop: `npm run stop-dev-stack`
+
+Connect with `wss://localhost:8097` (browser/WebView) or `ircs://localhost:6697` (Tauri native TCP) and join `#test`.
