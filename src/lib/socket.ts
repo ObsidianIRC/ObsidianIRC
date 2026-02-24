@@ -162,7 +162,7 @@ export class WebSocketWrapper implements ISocket {
 }
 
 export function createSocket(url: string): ISocket {
-  if (url.startsWith("ws://") || url.startsWith("wss://")) {
+  if (url.startsWith("wss://")) {
     return new WebSocketWrapper(url);
   }
   if (url.startsWith("irc://") || url.startsWith("ircs://")) {
