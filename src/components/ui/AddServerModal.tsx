@@ -1,15 +1,8 @@
 import type React from "react";
 import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
+import { isTauri } from "../../lib/tauri";
 import useStore from "../../store";
-
-// Check if we're running in Tauri
-declare global {
-  interface Window {
-    __TAURI__?: unknown;
-  }
-}
-const isTauri = typeof window !== "undefined" && window.__TAURI__ !== undefined;
 
 export const AddServerModal: React.FC = () => {
   const {
@@ -80,7 +73,7 @@ export const AddServerModal: React.FC = () => {
     try {
       // Modify host to include protocol if IRC is selected
       let finalHost = serverHost;
-      if (isTauri && useIrcProtocol) {
+      if (isTauri() && useIrcProtocol) {
         const port = Number.parseInt(serverPort, 10);
         // Remove any existing protocol prefix from serverHost
         const cleanHost = serverHost.replace(
@@ -278,7 +271,7 @@ export const AddServerModal: React.FC = () => {
                   Use server password
                 </label>
               </div>
-              {isTauri && (
+              {isTauri() && (
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"

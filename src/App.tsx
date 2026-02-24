@@ -21,6 +21,7 @@ import UserSettings from "./components/ui/UserSettings";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import { parseIrcUrl } from "./lib/ircUrlParser";
+import { isTauri } from "./lib/tauri";
 import useStore, { loadSavedServers } from "./store";
 import type { ConnectionDetails } from "./store/types";
 
@@ -161,7 +162,7 @@ const App: React.FC = () => {
   // Handle deeplinks
   useEffect(() => {
     const setupDeepLinkHandler = async () => {
-      if (typeof window === "undefined" || !window.__TAURI__) {
+      if (!isTauri()) {
         return;
       }
 
