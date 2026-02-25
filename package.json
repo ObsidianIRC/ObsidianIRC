@@ -20,6 +20,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --browser --no-file-parallelism",
+    "android:dev": "tauri android dev --config src-tauri/tauri.android.conf.json --no-dev-server-wait",
+    "ios:dev": "tauri ios dev --config src-tauri/tauri.ios.conf.json",
     "tauri": "tauri"
   },
   "dependencies": {
