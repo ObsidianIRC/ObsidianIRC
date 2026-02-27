@@ -266,7 +266,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {(isNarrowView || !isChanListVisible) && (
           <button
             onClick={onToggleChanList}
-            className="text-discord-channels-default hover:text-white flex-shrink-0"
+            className="p-2 md:p-0 text-discord-channels-default hover:text-white flex-shrink-0"
             aria-label="Expand channel list"
           >
             {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
@@ -314,7 +314,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           {(isNarrowView || !isChanListVisible) && (
             <button
               onClick={onToggleChanList}
-              className="text-discord-channels-default hover:text-white flex-shrink-0"
+              className="p-2 md:p-0 text-discord-channels-default hover:text-white flex-shrink-0"
               aria-label="Expand channel list"
             >
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
@@ -414,7 +414,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <div className="flex items-center gap-2 md:gap-3 text-discord-text-muted flex-shrink-0">
               {/* Bell */}
               <button
-                className="hover:text-discord-text-normal"
+                className="p-2 md:p-0 hover:text-discord-text-normal"
                 onClick={onToggleNotificationVolume}
                 aria-label={
                   globalSettings.notificationVolume > 0
@@ -436,7 +436,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
               {/* Users */}
               <button
-                className="hover:text-discord-text-normal"
+                className="p-2 md:p-0 hover:text-discord-text-normal"
                 onClick={() => {
                   if (isNarrowView) {
                     // Mobile: navigate between pages
@@ -508,7 +508,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               {/* Search */}
               <div className="relative">
                 <button
-                  className="md:hidden hover:text-discord-text-normal"
+                  className="md:hidden p-2 hover:text-discord-text-normal"
                   onClick={() => setIsSearchExpanded(!isSearchExpanded)}
                   aria-label="Toggle search"
                   title="Search"
@@ -573,7 +573,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               {/* Overflow menu */}
               <button
                 ref={overflowButtonRef}
-                className="md:hidden hover:text-discord-text-normal"
+                className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsOverflowMenuOpen(!isOverflowMenuOpen)}
                 aria-label="More actions"
                 aria-expanded={isOverflowMenuOpen}
@@ -593,7 +593,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             {(isNarrowView || !isChanListVisible) && (
               <button
                 onClick={onToggleChanList}
-                className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
+                className="p-2 md:p-0 text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
                 aria-label="Expand channel list"
               >
                 {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
@@ -746,7 +746,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           {selectedServerId && (
             <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
               <button
-                className="hover:text-discord-text-normal"
+                className="p-2 md:p-0 hover:text-discord-text-normal"
                 onClick={onToggleNotificationVolume}
                 aria-label={
                   globalSettings.notificationVolume > 0
@@ -768,7 +768,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
               <div className="relative">
                 <button
-                  className="md:hidden hover:text-discord-text-normal"
+                  className="md:hidden p-2 hover:text-discord-text-normal"
                   onClick={() => setIsSearchExpanded(!isSearchExpanded)}
                   aria-label="Toggle search"
                   title="Search"
@@ -841,7 +841,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             {(isNarrowView || !isChanListVisible) && (
               <button
                 onClick={onToggleChanList}
-                className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
+                className="p-2 md:p-0 text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
                 aria-label="Expand channel list"
               >
                 {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}

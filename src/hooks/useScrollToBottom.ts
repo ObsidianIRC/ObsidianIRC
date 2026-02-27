@@ -83,10 +83,25 @@ export function useScrollToBottom(
       passive: true,
     });
 
+    // On macOS Tauri (WKWebView), scroll events are batched and delivered with a
+    // delay during trackpad momentum. This creates a window where wasAtBottomRef
+    // is stale (still true) when a new message arrives, causing auto-scroll to
+    // fire and pull content back down while the user is still swiping up.
+    // The wheel event fires synchronously with the physical gesture, before any
+    // scroll events, so we use it to immediately clear wasAtBottomRef.
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) {
+        wasAtBottomRef.current = false;
+        setIsScrolledUp(true);
+      }
+    };
+    container.addEventListener("wheel", handleWheel, { passive: true });
+
     return () => {
       observer.disconnect();
       container.removeEventListener("scroll", checkIfScrolledToBottom);
       container.removeEventListener("touchend", checkIfScrolledToBottom);
+      container.removeEventListener("wheel", handleWheel);
     };
   }, [containerRef, endElementRef, tolerance, channelId]);
 

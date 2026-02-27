@@ -24,6 +24,7 @@ interface TouchState {
   currentY: number;
   isDragging: boolean;
   isHorizontal: boolean | null;
+  target: HTMLElement | null;
 }
 
 export function useSwipeNavigation({
@@ -36,6 +37,7 @@ export function useSwipeNavigation({
   const containerRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const offsetRef = useRef(0);
   const touchState = useRef<TouchState>({
     startX: 0,
     startY: 0,
@@ -43,15 +45,11 @@ export function useSwipeNavigation({
     currentY: 0,
     isDragging: false,
     isHorizontal: null,
+    target: null,
   });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (document.documentElement.dataset.keyboardVisible) {
-      return;
-    }
-
-    const target = e.target as HTMLElement;
-    if (target.closest("[data-no-swipe]")) {
       return;
     }
 
@@ -63,6 +61,7 @@ export function useSwipeNavigation({
       currentY: touch.clientY,
       isDragging: false,
       isHorizontal: null,
+      target: e.target as HTMLElement,
     };
   }, []);
 
@@ -88,6 +87,15 @@ export function useSwipeNavigation({
       }
 
       if (touchState.current.isHorizontal === true) {
+        // A SwipeableMessage may have claimed this gesture mid-swipe
+        if (touchState.current.target?.closest("[data-no-swipe]")) {
+          touchState.current.isDragging = false;
+          touchState.current.isHorizontal = null;
+          setOffset(0);
+          offsetRef.current = 0;
+          return;
+        }
+
         try {
           e.preventDefault();
         } catch {
@@ -128,6 +136,7 @@ export function useSwipeNavigation({
           // else: under 60%, no rubber banding (newOffset = deltaX)
         }
 
+        offsetRef.current = newOffset;
         setOffset(newOffset);
       }
     },
@@ -139,7 +148,7 @@ export function useSwipeNavigation({
       return;
     }
 
-    const deltaX = offset;
+    const deltaX = offsetRef.current;
     let newPage = currentPage;
 
     if (Math.abs(deltaX) > threshold) {
@@ -152,6 +161,7 @@ export function useSwipeNavigation({
 
     setIsTransitioning(true);
     setOffset(0);
+    offsetRef.current = 0;
     touchState.current = {
       startX: 0,
       startY: 0,
@@ -159,6 +169,7 @@ export function useSwipeNavigation({
       currentY: 0,
       isDragging: false,
       isHorizontal: null,
+      target: null,
     };
 
     if (newPage !== currentPage) {
@@ -168,7 +179,7 @@ export function useSwipeNavigation({
     setTimeout(() => {
       setIsTransitioning(false);
     }, 300);
-  }, [offset, currentPage, totalPages, threshold, onPageChange]);
+  }, [currentPage, totalPages, threshold, onPageChange]);
 
   return {
     containerRef,

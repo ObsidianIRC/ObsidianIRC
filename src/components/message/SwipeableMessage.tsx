@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FaReply, FaTimes } from "react-icons/fa";
 import { useSwipeable } from "react-swipeable";
 import { useLongPress } from "../../hooks/useLongPress";
@@ -29,6 +29,7 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
   const [translateX, setTranslateX] = useState(0);
   const [isSpringBack, setIsSpringBack] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   const handleLongPress = useCallback(() => {
     setSheetOpen(true);
@@ -40,15 +41,24 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
     moveThreshold: 10,
   });
 
+  const claimGesture = useCallback(() => {
+    wrapperRef.current?.setAttribute("data-no-swipe", "");
+  }, []);
+
+  const releaseGesture = useCallback(() => {
+    wrapperRef.current?.removeAttribute("data-no-swipe");
+  }, []);
+
   const handlers = useSwipeable({
     onSwiping: (e) => {
       if (longPress.firedRef.current) return;
 
-      let dx = e.deltaX;
+      const dx = e.deltaX;
 
-      if (dx > 0 && !canReply) dx = 0;
-      if (dx < 0 && !canDelete) dx = 0;
+      const isActionable = (dx > 0 && canReply) || (dx < 0 && canDelete);
+      if (!isActionable) return;
 
+      claimGesture();
       setIsSpringBack(false);
       setTranslateX(dx);
     },
@@ -58,6 +68,7 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
       }
       setIsSpringBack(true);
       setTranslateX(0);
+      releaseGesture();
     },
     onSwipedLeft: (e) => {
       if (canDelete && Math.abs(e.deltaX) >= SWIPE_THRESHOLD) {
@@ -65,10 +76,12 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
       }
       setIsSpringBack(true);
       setTranslateX(0);
+      releaseGesture();
     },
     onSwiped: () => {
       setIsSpringBack(true);
       setTranslateX(0);
+      releaseGesture();
     },
     delta: 15,
     trackMouse: false,
@@ -97,8 +110,8 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
       <div
         ref={(el) => {
           swipeRef(el as HTMLElement);
+          wrapperRef.current = el;
         }}
-        data-no-swipe
         {...swipeEventHandlers}
         onTouchStartCapture={(e) => {
           longPress.onTouchStart(e);
@@ -108,9 +121,11 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
         }}
         onTouchEndCapture={() => {
           longPress.onTouchEnd();
+          releaseGesture();
         }}
         onTouchCancelCapture={() => {
           longPress.onTouchCancel();
+          releaseGesture();
         }}
         className={`relative ${translateX !== 0 ? "overflow-hidden" : ""}`}
       >
