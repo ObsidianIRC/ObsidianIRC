@@ -306,7 +306,40 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   ].filter((item) => item.show);
 
   return (
-    <div className="px-4 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
+    <div className="pl-4 pr-0 md:px-4 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12 relative">
+      {/* Full-width search overlay (narrow view only) */}
+      {isSearchExpanded && (selectedChannel || selectedPrivateChat) && (
+        <div className="md:hidden absolute inset-0 z-10 flex items-center gap-2 px-2 bg-discord-dark-500">
+          {selectedChannel ? (
+            <FaHashtag className="text-discord-text-muted text-lg flex-shrink-0" />
+          ) : (
+            <FaUser className="text-discord-text-muted text-lg flex-shrink-0" />
+          )}
+          <TextInput
+            autoFocus
+            placeholder="Search messages…"
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setIsSearchExpanded(false);
+                onSearchQueryChange("");
+              }
+            }}
+            className="flex-1 bg-discord-dark-400 text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link min-w-0"
+          />
+          <button
+            className="p-2 text-discord-text-muted hover:text-white flex-shrink-0"
+            onClick={() => {
+              if (searchQuery) onSearchQueryChange("");
+              else setIsSearchExpanded(false);
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <FaTimes />
+          </button>
+        </div>
+      )}
       {/* CHANNELS */}
       {selectedChannel && (
         <div className="flex items-center justify-between w-full gap-2">
@@ -411,7 +444,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
           {/* Right: Action buttons */}
           {selectedServerId && (
-            <div className="flex items-center gap-2 md:gap-3 text-discord-text-muted flex-shrink-0">
+            <div className="flex items-center gap-0 md:gap-3 text-discord-text-muted flex-shrink-0">
               {/* Bell */}
               <button
                 className="p-2 md:p-0 hover:text-discord-text-normal"
@@ -506,68 +539,32 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               )}
 
               {/* Search */}
-              <div className="relative">
-                <button
-                  className="md:hidden p-2 hover:text-discord-text-normal"
-                  onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                  aria-label="Toggle search"
-                  title="Search"
-                >
-                  <FaSearch />
-                </button>
+              <button
+                className="md:hidden p-2 hover:text-discord-text-normal"
+                onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                aria-label="Toggle search"
+                title="Search"
+              >
+                <FaSearch />
+              </button>
 
-                <div className="hidden md:block relative">
-                  <TextInput
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={(e) => onSearchQueryChange(e.target.value)}
-                    className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-                  />
-                  {searchQuery && (
-                    <button
-                      className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
-                      onClick={() => onSearchQueryChange("")}
-                      title="Clear search"
-                    >
-                      <FaTimes />
-                    </button>
-                  )}
-                  <FaSearch className="absolute right-2 top-1.5 text-xs" />
-                </div>
-
-                {isSearchExpanded && (
-                  <div className="md:hidden absolute right-0 top-0 z-50">
-                    <div className="relative flex items-center">
-                      <TextInput
-                        autoFocus
-                        placeholder="Search"
-                        value={searchQuery}
-                        onChange={(e) => onSearchQueryChange(e.target.value)}
-                        onBlur={() => setIsSearchExpanded(false)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            setIsSearchExpanded(false);
-                          }
-                        }}
-                        className="bg-discord-dark-400 text-white text-sm rounded px-2 py-1 pr-8 w-40 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-                      />
-                      <button
-                        className={`absolute right-2 text-xs ${searchQuery ? "text-red-400 hover:text-red-300" : "text-discord-text-muted hover:text-white"}`}
-                        onClick={() => {
-                          if (searchQuery) {
-                            onSearchQueryChange("");
-                          } else {
-                            setIsSearchExpanded(false);
-                          }
-                        }}
-                        onMouseDown={(e) => e.preventDefault()}
-                        title={searchQuery ? "Clear search" : "Close search"}
-                      >
-                        <FaTimes />
-                      </button>
-                    </div>
-                  </div>
+              <div className="hidden md:block relative">
+                <TextInput
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => onSearchQueryChange(e.target.value)}
+                  className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
+                    onClick={() => onSearchQueryChange("")}
+                    title="Clear search"
+                  >
+                    <FaTimes />
+                  </button>
                 )}
+                <FaSearch className="absolute right-2 top-1.5 text-xs" />
               </div>
 
               {/* Overflow menu */}
@@ -744,7 +741,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
 
           {selectedServerId && (
-            <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
+            <div className="flex items-center gap-0 md:gap-4 text-discord-text-muted flex-shrink-0">
               <button
                 className="p-2 md:p-0 hover:text-discord-text-normal"
                 onClick={onToggleNotificationVolume}
@@ -766,68 +763,32 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </button>
 
-              <div className="relative">
-                <button
-                  className="md:hidden p-2 hover:text-discord-text-normal"
-                  onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                  aria-label="Toggle search"
-                  title="Search"
-                >
-                  <FaSearch />
-                </button>
+              <button
+                className="md:hidden p-2 hover:text-discord-text-normal"
+                onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                aria-label="Toggle search"
+                title="Search"
+              >
+                <FaSearch />
+              </button>
 
-                <div className="hidden md:block relative">
-                  <TextInput
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={(e) => onSearchQueryChange(e.target.value)}
-                    className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-                  />
-                  {searchQuery && (
-                    <button
-                      className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
-                      onClick={() => onSearchQueryChange("")}
-                      title="Clear search"
-                    >
-                      <FaTimes />
-                    </button>
-                  )}
-                  <FaSearch className="absolute right-2 top-1.5 text-xs" />
-                </div>
-
-                {isSearchExpanded && (
-                  <div className="md:hidden absolute right-0 top-0 z-50">
-                    <div className="relative flex items-center">
-                      <TextInput
-                        autoFocus
-                        placeholder="Search"
-                        value={searchQuery}
-                        onChange={(e) => onSearchQueryChange(e.target.value)}
-                        onBlur={() => setIsSearchExpanded(false)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            setIsSearchExpanded(false);
-                          }
-                        }}
-                        className="bg-discord-dark-400 text-white text-sm rounded px-2 py-1 pr-8 w-40 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-                      />
-                      <button
-                        className={`absolute right-2 text-xs ${searchQuery ? "text-red-400 hover:text-red-300" : "text-discord-text-muted hover:text-white"}`}
-                        onClick={() => {
-                          if (searchQuery) {
-                            onSearchQueryChange("");
-                          } else {
-                            setIsSearchExpanded(false);
-                          }
-                        }}
-                        onMouseDown={(e) => e.preventDefault()}
-                        title={searchQuery ? "Clear search" : "Close search"}
-                      >
-                        <FaTimes />
-                      </button>
-                    </div>
-                  </div>
+              <div className="hidden md:block relative">
+                <TextInput
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => onSearchQueryChange(e.target.value)}
+                  className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
+                    onClick={() => onSearchQueryChange("")}
+                    title="Clear search"
+                  >
+                    <FaTimes />
+                  </button>
                 )}
+                <FaSearch className="absolute right-2 top-1.5 text-xs" />
               </div>
             </div>
           )}

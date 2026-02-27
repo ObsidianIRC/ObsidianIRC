@@ -1845,6 +1845,7 @@ export const ChatArea: React.FC<{
 
               {isColorPickerOpen && (
                 <ColorPicker
+                  isNarrowView={isNarrowView}
                   onSelect={(color) => setSelectedColor(color)}
                   onClose={() => setIsColorPickerOpen(false)}
                   selectedColor={selectedColor} // Pass the selected color
@@ -1892,6 +1893,7 @@ export const ChatArea: React.FC<{
 
               {/* Members dropdown triggered by @ button */}
               <AutocompleteDropdown
+                isNarrowView={isNarrowView}
                 users={
                   selectedChannel?.users ||
                   (selectedPrivateChat

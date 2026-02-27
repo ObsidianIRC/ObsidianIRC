@@ -40,6 +40,8 @@ export function useDragReorder<T>({
     initialIndex: -1,
     hasMoved: false,
     dragOffset: 0,
+    grabOffsetFromCenter: 0,
+    itemRects: null as Map<string, DOMRect> | null,
   });
 
   const handlePointerDown = useCallback(
@@ -51,6 +53,9 @@ export function useDragReorder<T>({
 
       const index = items.findIndex((item) => getItemId(item) === itemId);
 
+      const rect = target.getBoundingClientRect();
+      const grabOffsetFromCenter = e.clientY - (rect.top + rect.height / 2);
+
       dragState.current = {
         startY: e.clientY,
         currentY: e.clientY,
@@ -58,6 +63,8 @@ export function useDragReorder<T>({
         initialIndex: index,
         hasMoved: false,
         dragOffset: 0,
+        grabOffsetFromCenter,
+        itemRects: null,
       };
     },
     [disabled, items, getItemId],
@@ -73,38 +80,43 @@ export function useDragReorder<T>({
         dragState.current.hasMoved = true;
         setIsDragging(true);
         setDraggedItemId(dragState.current.itemId);
+
+        // Cache item positions before any CSS transform is applied, so we have
+        // stable reference points for the entire gesture.
+        const allItems = document.querySelectorAll<HTMLElement>(
+          "[data-draggable-item]",
+        );
+        const rects = new Map<string, DOMRect>();
+        for (const item of allItems) {
+          const id = item.getAttribute("data-item-id");
+          if (id) rects.set(id, item.getBoundingClientRect());
+        }
+        dragState.current.itemRects = rects;
       }
 
       if (dragState.current.hasMoved) {
         dragState.current.currentY = e.clientY;
         dragState.current.dragOffset = e.clientY - dragState.current.startY;
 
-        // Always find a drop target - no dead zones
-        const allItems = Array.from(
-          document.querySelectorAll<HTMLElement>("[data-draggable-item]"),
-        );
+        const rects = dragState.current.itemRects;
+        if (!rects || rects.size === 0) return;
 
-        if (allItems.length === 0) return;
+        // Adjust for where within the item the user grabbed, so the drop
+        // indicator reflects the item's center rather than the raw cursor.
+        const adjustedY = e.clientY - dragState.current.grabOffsetFromCenter;
 
         let targetId: string | null = null;
         let minDistance = Number.POSITIVE_INFINITY;
 
-        // Find which item zone the cursor is in
-        for (const item of allItems) {
-          const itemId = item.getAttribute("data-item-id");
-          if (!itemId) continue;
-
-          const rect = item.getBoundingClientRect();
+        for (const [id, rect] of rects) {
           const itemCenter = rect.top + rect.height / 2;
-          const distance = Math.abs(e.clientY - itemCenter);
-
+          const distance = Math.abs(adjustedY - itemCenter);
           if (distance < minDistance) {
             minDistance = distance;
-            targetId = itemId;
+            targetId = id;
           }
         }
 
-        // Always set a target (ensures continuous visual feedback)
         if (targetId) {
           setDragOverItemId(targetId);
         }
@@ -151,6 +163,8 @@ export function useDragReorder<T>({
         initialIndex: -1,
         hasMoved: false,
         dragOffset: 0,
+        grabOffsetFromCenter: 0,
+        itemRects: null,
       };
       setIsDragging(false);
       setDraggedItemId(null);

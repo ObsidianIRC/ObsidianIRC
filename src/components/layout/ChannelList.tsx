@@ -127,6 +127,8 @@ export const ChannelList: React.FC<{
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [clickedPM, setClickedPM] = useState<string | null>(null);
   const lastSelectedPM = useRef<string | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressDidFire = useRef(false);
 
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
@@ -368,6 +370,13 @@ export const ChannelList: React.FC<{
   // Only show on Tauri desktop (macOS/Windows/Linux) — not on browser, iOS, or Android
   const prevItemId = isTauriDesktop() ? prevChannelIdRaw : null;
 
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   const handleCollapseClick = () => {
     if (isNarrowView) {
       // On mobile, navigate to chat view
@@ -544,9 +553,24 @@ export const ChannelList: React.FC<{
                               ...channelDrag.getItemProps(channel.id).style,
                             } as React.CSSProperties
                           }
-                          onClick={() =>
-                            selectChannel(channel.id, { navigate: true })
-                          }
+                          onTouchStart={() => {
+                            if (!isNarrowView) return;
+                            longPressDidFire.current = false;
+                            cancelLongPress();
+                            longPressTimer.current = setTimeout(() => {
+                              longPressDidFire.current = true;
+                              selectChannel(channel.id, { navigate: false });
+                            }, 300);
+                          }}
+                          onTouchEnd={cancelLongPress}
+                          onTouchMove={cancelLongPress}
+                          onClick={() => {
+                            if (longPressDidFire.current) {
+                              longPressDidFire.current = false;
+                              return;
+                            }
+                            selectChannel(channel.id, { navigate: true });
+                          }}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             {/* Avatar or Hash Icon */}
@@ -883,7 +907,24 @@ export const ChannelList: React.FC<{
                               : {}),
                           } as React.CSSProperties
                         }
+                        onTouchStart={() => {
+                          if (!isNarrowView) return;
+                          longPressDidFire.current = false;
+                          cancelLongPress();
+                          longPressTimer.current = setTimeout(() => {
+                            longPressDidFire.current = true;
+                            selectPrivateChat(privateChat.id, {
+                              navigate: false,
+                            });
+                          }, 300);
+                        }}
+                        onTouchEnd={cancelLongPress}
+                        onTouchMove={cancelLongPress}
                         onClick={() => {
+                          if (longPressDidFire.current) {
+                            longPressDidFire.current = false;
+                            return;
+                          }
                           if (lastSelectedPM.current === privateChat.id) return;
                           lastSelectedPM.current = privateChat.id;
                           selectPrivateChat(privateChat.id, { navigate: true });

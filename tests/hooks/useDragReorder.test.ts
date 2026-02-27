@@ -55,13 +55,28 @@ describe("useDragReorder", () => {
 
   function createPointerEvent(
     type: "pointerdown" | "pointermove" | "pointerup",
-    config: { clientY: number; button?: number; pointerId?: number },
+    config: {
+      clientY: number;
+      button?: number;
+      pointerId?: number;
+      currentTarget?: HTMLElement;
+    },
   ): React.PointerEvent {
-    const { clientY, button = 0, pointerId = 1 } = config;
+    const {
+      clientY,
+      button = 0,
+      pointerId = 1,
+      currentTarget: provided,
+    } = config;
 
-    const target = document.createElement("div");
-    target.setPointerCapture = vi.fn();
-    target.releasePointerCapture = vi.fn();
+    let target: HTMLElement;
+    if (provided) {
+      target = provided;
+    } else {
+      target = document.createElement("div");
+      target.setPointerCapture = vi.fn();
+      target.releasePointerCapture = vi.fn();
+    }
 
     return {
       clientY,
@@ -86,9 +101,16 @@ describe("useDragReorder", () => {
       }),
     );
 
+    const item1El = document.querySelector(
+      '[data-item-id="item-1"]',
+    ) as HTMLElement;
+
     act(() => {
       result.current.handlePointerDown(
-        createPointerEvent("pointerdown", { clientY: 25 }),
+        createPointerEvent("pointerdown", {
+          clientY: 25,
+          currentTarget: item1El,
+        }),
         "item-1",
       );
     });
@@ -139,9 +161,16 @@ describe("useDragReorder", () => {
       }),
     );
 
+    const item1El = document.querySelector(
+      '[data-item-id="item-1"]',
+    ) as HTMLElement;
+
     act(() => {
       result.current.handlePointerDown(
-        createPointerEvent("pointerdown", { clientY: 25 }),
+        createPointerEvent("pointerdown", {
+          clientY: 25,
+          currentTarget: item1El,
+        }),
         "item-1",
       );
     });
