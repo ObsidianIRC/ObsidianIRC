@@ -554,9 +554,17 @@ export const ChatArea: React.FC<{
       // Show all filtered results when searching
       return filteredMessages;
     }
+    // On macOS WKWebView, trimming messages from the top while the user is scrolled up
+    // causes a small visual scroll jump per message. This happens because WKWebView's
+    // flex container scroll anchoring is unreliable: removing a DOM element above the
+    // viewport doesn't correctly compensate scrollTop, so the viewport shifts slightly
+    // toward the bottom. When scrolled up, skip trimming entirely to avoid the mutation.
+    if (isScrolledUp) {
+      return filteredMessages;
+    }
     // Show only the last visibleMessageCount messages
     return filteredMessages.slice(-visibleMessageCount);
-  }, [filteredMessages, visibleMessageCount, searchQuery]);
+  }, [filteredMessages, visibleMessageCount, searchQuery, isScrolledUp]);
 
   const hasMoreMessages = filteredMessages.length > displayedMessages.length;
 
