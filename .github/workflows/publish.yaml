@@ -19,12 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
-      tag_name: v${{ steps.package-version.outputs.version }}
+      tag_name: ${{ steps.package-version.outputs.tag_name }}
       draft: "false"
       prerelease: ${{ github.ref_type != 'tag' && 'true' || 'false' }}
       body: |
         See the assets to download this version and install.
-      name: ObsidianIRC v${{ steps.package-version.outputs.version }}
+      name: ObsidianIRC ${{ steps.package-version.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
       - name: Get Node project version
@@ -32,6 +32,14 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "tag_name=v$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            NEXT_PATCH=$((PATCH + 1))
+            echo "tag_name=v${MAJOR}.${MINOR}.${NEXT_PATCH}-pre" >> "$GITHUB_OUTPUT"
+          fi
 
   publish-tauri:
     needs: collect-version
