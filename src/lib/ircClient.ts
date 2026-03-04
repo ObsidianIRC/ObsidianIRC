@@ -476,8 +476,7 @@ export class IRCClient {
 
     // Create a new connection promise and store it
     const connectionPromise = new Promise<Server>((resolve, reject) => {
-      // for local testing and automated tests, if domain is localhost or 127.0.0.1 use ws instead of wss
-      let protocol = ["localhost", "127.0.0.1"].includes(host) ? "ws" : "wss";
+      let protocol: "wss" | "ircs" | "irc" = "wss";
       let actualHost = host;
       let actualPort = port;
 
@@ -488,13 +487,19 @@ export class IRCClient {
         protocol = parsed.scheme;
         actualHost = parsed.host;
         actualPort = parsed.port;
-      } else if (host.startsWith("ws://") || host.startsWith("wss://")) {
-        // Parse ws/wss URLs
-        const urlMatch = host.match(/^(wss?):\/\/([^:]+)(?::(\d+))?/);
+      } else if (host.startsWith("wss://")) {
+        // Parse wss:// URLs
+        const urlMatch = host.match(/^wss:\/\/([^:]+)(?::(\d+))?/);
         if (urlMatch) {
-          protocol = urlMatch[1] as "ws" | "wss";
-          actualHost = urlMatch[2];
-          actualPort = urlMatch[3] ? Number.parseInt(urlMatch[3], 10) : port;
+          actualHost = urlMatch[1];
+          actualPort = urlMatch[2] ? Number.parseInt(urlMatch[2], 10) : port;
+        }
+      } else if (host.startsWith("ws://")) {
+        // Upgrade legacy ws:// to wss:// — unencrypted WebSockets are no longer supported
+        const urlMatch = host.match(/^ws:\/\/([^:]+)(?::(\d+))?/);
+        if (urlMatch) {
+          actualHost = urlMatch[1];
+          actualPort = urlMatch[2] ? Number.parseInt(urlMatch[2], 10) : port;
         }
       }
 
