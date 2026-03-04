@@ -779,6 +779,36 @@ export function isUrlFromFilehost(
 }
 
 /**
+ * Check if a URL is from any of the trusted media sources
+ * This includes both the server's filehost and globally configured trusted URLs
+ */
+export function isUrlFromTrustedSource(
+  url: string,
+  serverFilehost?: string,
+): boolean {
+  if (!url) return false;
+
+  // Check against server filehost
+  if (serverFilehost && isUrlFromFilehost(url, serverFilehost)) {
+    return true;
+  }
+
+  // Check against globally configured trusted media URLs
+  const trustedUrls = __TRUSTED_MEDIA_URLS__;
+  if (!trustedUrls || trustedUrls.length === 0) {
+    return false;
+  }
+
+  for (const trustedUrl of trustedUrls) {
+    if (trustedUrl && isUrlFromFilehost(url, trustedUrl)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Checks if a server is running UnrealIRCd based on the RPL_YOURHOST response
  * @param server The server object to check
  * @returns true if the server is running UnrealIRCd, false otherwise

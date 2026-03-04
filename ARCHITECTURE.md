@@ -228,6 +228,7 @@ VITE_DEFAULT_IRC_SERVER      # Default server URL
 VITE_DEFAULT_IRC_SERVER_NAME # Server display name
 VITE_DEFAULT_IRC_CHANNELS    # Auto-join channels
 VITE_HIDE_SERVER_LIST        # Hide server selection
+VITE_TRUSTED_MEDIA_URLS      # Comma-separated list of trusted media URLs
 ```
 
 ### GitHub Actions CI/CD
@@ -274,6 +275,16 @@ npm run tauri android build -- --apk       # Android
 - Environment variables for deployment
 - LocalStorage for user preferences
 - Build-time configuration injection
+
+### Security & Media Handling
+- **Trusted Media Sources**: Images and media are validated against trusted sources
+  - Server-specific filehost URLs (per-server configuration)
+  - Global trusted media URLs (build-time configuration via `VITE_TRUSTED_MEDIA_URLS`)
+  - Useful for chat bridge integrations (Matterbridge, Matrix bridges)
+- **Content Display Settings**:
+  - `showSafeMedia`: Display media from trusted sources only
+  - `showExternalContent`: Display all external media (requires user confirmation)
+- **URL Validation**: `isUrlFromTrustedSource()` validates URLs against all trusted sources
 
 ## 📋 Implementation Guidelines
 
