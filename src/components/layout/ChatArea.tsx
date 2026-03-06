@@ -162,6 +162,10 @@ export const ChatArea: React.FC<{
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Tracks the slice start into filteredMessages at which the display window was frozen when the
+  // user first scrolled up. Prevents mass DOM insertion at the top when isScrolledUp becomes true,
+  // which caused WKWebView scroll anchoring to fail and the viewport to jump to the top.
+  const scrollUpStartRef = useRef<number | null>(null);
 
   const resizeTextarea = useCallback(() => {
     const textarea = inputRef.current;
@@ -548,21 +552,35 @@ export const ChatArea: React.FC<{
     );
   }, [channelMessages, searchQuery]);
 
-  // Virtualize messages - only show the last N messages unless searching
+  // Freeze the display-window start index when the user first scrolls up, and clear it when
+  // they return to the bottom. This prevents dumping all hidden messages into the DOM at once
+  // when isScrolledUp becomes true (which caused WKWebView flex scroll anchoring to fail).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally omit filteredMessages.length and visibleMessageCount — start index must be captured only once when isScrolledUp first becomes true
+  useEffect(() => {
+    if (isScrolledUp) {
+      if (scrollUpStartRef.current === null) {
+        scrollUpStartRef.current = Math.max(
+          0,
+          filteredMessages.length - visibleMessageCount,
+        );
+      }
+    } else {
+      scrollUpStartRef.current = null;
+    }
+  }, [isScrolledUp]);
+
+  // Virtualize messages - only show a bounded window unless searching
   const displayedMessages = useMemo(() => {
     if (searchQuery.trim()) {
-      // Show all filtered results when searching
       return filteredMessages;
     }
-    // On macOS WKWebView, trimming messages from the top while the user is scrolled up
-    // causes a small visual scroll jump per message. This happens because WKWebView's
-    // flex container scroll anchoring is unreliable: removing a DOM element above the
-    // viewport doesn't correctly compensate scrollTop, so the viewport shifts slightly
-    // toward the bottom. When scrolled up, skip trimming entirely to avoid the mutation.
-    if (isScrolledUp) {
-      return filteredMessages;
+    // While scrolled up, grow the window downward only (new messages append at the bottom).
+    // The start is frozen so no messages are ever inserted at the top while reading,
+    // which avoids the WKWebView scroll anchoring jump.
+    const frozenStart = scrollUpStartRef.current;
+    if (isScrolledUp && frozenStart !== null) {
+      return filteredMessages.slice(frozenStart);
     }
-    // Show only the last visibleMessageCount messages
     return filteredMessages.slice(-visibleMessageCount);
   }, [filteredMessages, visibleMessageCount, searchQuery, isScrolledUp]);
 
@@ -574,18 +592,25 @@ export const ChatArea: React.FC<{
     [displayedMessages],
   );
 
-  // Scroll down on channel change
+  // Scroll down on channel / DM change
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedServerId): We want to scroll down only if server or channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): We want to scroll down only if server or channel changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): We want to scroll down only if DM changes
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
     wasAtBottomRef.current = true;
+    scrollUpStartRef.current = null;
     setVisibleMessageCount(100);
     setSearchQuery("");
-  }, [selectedServerId, selectedChannelId, wasAtBottomRef]);
+  }, [
+    selectedServerId,
+    selectedChannelId,
+    selectedPrivateChatId,
+    wasAtBottomRef,
+  ]);
 
   // Scroll to bottom after chat history finishes loading
   const wasLoadingHistoryRef = useRef(false);
@@ -1575,9 +1600,17 @@ export const ChatArea: React.FC<{
                   {hasMoreMessages && !searchQuery && (
                     <div className="flex justify-center py-4">
                       <button
-                        onClick={() =>
-                          setVisibleMessageCount((prev) => prev + 100)
-                        }
+                        onClick={() => {
+                          // When scrolled up, slide the frozen start back 100 instead of
+                          // changing visibleMessageCount — avoids insertions above viewport.
+                          if (scrollUpStartRef.current !== null) {
+                            scrollUpStartRef.current = Math.max(
+                              0,
+                              scrollUpStartRef.current - 100,
+                            );
+                          }
+                          setVisibleMessageCount((prev) => prev + 100);
+                        }}
                         className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
                       >
                         View older messages (
@@ -1692,7 +1725,7 @@ export const ChatArea: React.FC<{
                 </>
               )}
 
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-px" />
             </div>
           )}
           {!selectedServer && <DiscoverGrid />}

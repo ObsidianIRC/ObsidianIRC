@@ -1449,10 +1449,17 @@ const useStore = create<AppState>((set, get) => ({
         return timeA - timeB;
       });
 
+      // Cap per-channel history to prevent unbounded memory growth in long sessions.
+      const MAX_MESSAGES_PER_CHANNEL = 1500;
+      const cappedMessages =
+        updatedMessages.length > MAX_MESSAGES_PER_CHANNEL
+          ? updatedMessages.slice(-MAX_MESSAGES_PER_CHANNEL)
+          : updatedMessages;
+
       return {
         messages: {
           ...state.messages,
-          [channelKey]: updatedMessages,
+          [channelKey]: cappedMessages,
         },
       };
     });

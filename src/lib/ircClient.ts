@@ -417,6 +417,7 @@ export class IRCClient {
         timestamps?: Date[];
         batchMsgId?: string;
         batchTime?: Date;
+        batchTags?: Record<string, string>;
       }
     >
   > = new Map(); // Track active batches per server
@@ -1855,6 +1856,7 @@ export class IRCClient {
             messageIds: [],
             batchMsgId: mtags?.msgid, // Store the msgid from the BATCH command itself
             batchTime: mtags?.time ? new Date(mtags.time) : undefined, // Store the time from the BATCH command
+            batchTags: mtags, // Store all tags from the BATCH opener (e.g. +draft/reply)
           });
 
           this.triggerEvent("BATCH_START", {
@@ -1901,7 +1903,9 @@ export class IRCClient {
 
             this.triggerEvent("MULTILINE_MESSAGE", {
               serverId,
-              mtags: batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined, // Use the msgid from the BATCH command
+              mtags:
+                batch.batchTags ||
+                (batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined), // Preserve all BATCH opener tags (includes +draft/reply)
               sender,
               channelName: target.startsWith("#") ? target : undefined,
               message: combinedMessage,
