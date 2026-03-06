@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa";
+import { isTauri } from "../../lib/tauri";
 import useStore from "../../store";
 
 const DiscoverGrid = () => {
@@ -7,7 +8,7 @@ const DiscoverGrid = () => {
     useStore();
   const [query, setQuery] = useState("");
   const [servers, setServers] = useState<
-    { name: string; description: string; server?: string; port?: string }[]
+    { name: string; description: string; wss?: string; ircs?: string }[]
   >([]);
 
   useEffect(() => {
@@ -35,11 +36,16 @@ const DiscoverGrid = () => {
       server.description.toLowerCase().includes(query.toLowerCase()),
   );
 
+  const uriPort = (uri: string, defaultPort: string) =>
+    new URL(uri).port || defaultPort;
+
   const handleServerClick = (server: Record<string, string>) => {
+    const uri = isTauri() ? server.ircs : server.wss;
+    const defaultPort = isTauri() ? "6697" : "443";
     toggleAddServerModal(true, {
       name: server.name,
-      host: server.server || "", // Use empty string if server is undefined
-      port: server.port || "443", // Default to 443 if port is undefined
+      host: uri ? new URL(uri).hostname : "",
+      port: uri ? uriPort(uri, defaultPort) : defaultPort,
       nickname: "", // Generate a default nickname
       ui: {
         disableServerConnectionInfo: true,
