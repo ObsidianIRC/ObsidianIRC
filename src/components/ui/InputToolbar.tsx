@@ -1,13 +1,15 @@
 /**
  * Toolbar component for input formatting controls
  */
-import { FaAt, FaGrinAlt } from "react-icons/fa";
+import { FaArrowUp, FaAt, FaGrinAlt } from "react-icons/fa";
 
 interface InputToolbarProps {
   selectedColor: string | null;
   onEmojiClick: () => void;
   onColorPickerClick: () => void;
   onAtClick: () => void;
+  onSendClick?: () => void;
+  showSendButton?: boolean;
 }
 
 /**
@@ -18,17 +20,19 @@ export function InputToolbar({
   onEmojiClick,
   onColorPickerClick,
   onAtClick,
+  onSendClick,
+  showSendButton = false,
 }: InputToolbarProps) {
   return (
-    <div>
+    <div className="flex items-center flex-shrink-0">
       <button
-        className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+        className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
         onClick={onEmojiClick}
       >
         <FaGrinAlt />
       </button>
       <button
-        className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+        className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
         onClick={onColorPickerClick}
       >
         <div
@@ -42,11 +46,19 @@ export function InputToolbar({
         />
       </button>
       <button
-        className="px-3 text-discord-text-muted hover:text-discord-text-normal"
+        className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
         onClick={onAtClick}
       >
         <FaAt />
       </button>
+      {showSendButton && (
+        <button
+          className="mx-1.5 w-8 h-8 rounded-full bg-discord-primary text-white flex items-center justify-center flex-shrink-0 active:bg-discord-primary/80"
+          onClick={onSendClick}
+        >
+          <FaArrowUp size={14} />
+        </button>
+      )}
     </div>
   );
 }

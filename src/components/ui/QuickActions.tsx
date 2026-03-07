@@ -14,35 +14,28 @@ import ircClient from "../../lib/ircClient";
 import { settingsRegistry } from "../../lib/settings";
 import type { SettingSearchResult } from "../../lib/settings/types";
 import useStore from "../../store";
-import type { Channel, PrivateChat, Server } from "../../types";
-
-type QuickActionResultType =
-  | "setting"
-  | "channel"
-  | "dm"
-  | "server"
-  | "join-channel"
-  | "start-dm";
-
-interface JoinChannelData {
-  channelName: string;
-}
-
-interface QuickActionResult {
-  type: QuickActionResultType;
-  id: string;
-  title: string;
-  description?: string;
-  serverId?: string;
-  score: number;
-  data?: SettingSearchResult | Channel | PrivateChat | Server | JoinChannelData;
-}
+import type { Channel, PrivateChat } from "../../types";
+import { buildQuickActionContext } from "./QuickActions/context";
+import type {
+  QuickActionResult,
+  UIActionData,
+  UIModalAction,
+  UIToggleAction,
+} from "./QuickActions/types";
+import {
+  getUIActionBadge,
+  getUIActionIcon,
+  UI_ACTIONS,
+} from "./QuickActions/uiActionConfig";
+import { TextInput } from "./TextInput";
 
 const QuickActions: React.FC = () => {
   const {
     servers,
     ui,
     channelList,
+    globalSettings,
+    currentUser,
     toggleQuickActions,
     toggleSettingsModal,
     setSettingsNavigation,
@@ -51,6 +44,18 @@ const QuickActions: React.FC = () => {
     selectServer,
     openPrivateChat,
     requestChatInputFocus,
+    toggleMemberList,
+    toggleChannelList,
+    updateGlobalSettings,
+    pinPrivateChat,
+    unpinPrivateChat,
+    toggleChannelListModal,
+    toggleChannelRenameModal,
+    setTopicModalRequest,
+    setProfileViewRequest,
+    toggleUserProfileModal,
+    setChannelSettingsRequest,
+    setInviteUserRequest,
   } = useStore();
 
   const joinAndSelectChannel = useJoinAndSelectChannel();
@@ -188,6 +193,51 @@ const QuickActions: React.FC = () => {
         score: settingResult.score,
         data: settingResult,
       });
+    });
+
+    const actionContext = buildQuickActionContext(
+      servers,
+      ui,
+      currentServerId,
+      currentSelection,
+      globalSettings,
+      currentUser,
+    );
+
+    UI_ACTIONS.forEach((actionConfig) => {
+      if (!actionConfig.availability(actionContext)) {
+        return;
+      }
+
+      const titleMatch = fuzzyMatch(query, actionConfig.title);
+      const keywordMatches = actionConfig.keywords.map((kw) =>
+        fuzzyMatch(query, kw),
+      );
+      const bestMatch = [titleMatch, ...keywordMatches].reduce(
+        (best, current) => (current.score > best.score ? current : best),
+      );
+
+      if (bestMatch.matches) {
+        results.push({
+          type: actionConfig.type,
+          id: actionConfig.id,
+          title: actionConfig.title,
+          description: actionConfig.description,
+          serverId: currentServerId || undefined,
+          score: bestMatch.score + actionConfig.score,
+          data: {
+            ...actionConfig.data,
+            serverId: currentServerId || undefined,
+            channelId: currentSelection?.selectedChannelId || undefined,
+            privateChatId: currentSelection?.selectedPrivateChatId || undefined,
+            username: servers
+              .find((s) => s.id === currentServerId)
+              ?.privateChats.find(
+                (pc) => pc.id === currentSelection?.selectedPrivateChatId,
+              )?.username,
+          },
+        });
+      }
     });
 
     servers.forEach((server) => {
@@ -354,13 +404,86 @@ const QuickActions: React.FC = () => {
     });
 
     return results.sort((a, b) => b.score - a.score).slice(0, 15);
-  }, [
-    searchQuery,
-    servers,
-    channelList,
-    ui.selectedServerId,
-    ui.perServerSelections,
-  ]);
+  }, [searchQuery, servers, channelList, ui, globalSettings, currentUser]);
+
+  const handleUIToggle = useCallback(
+    (data: UIActionData) => {
+      switch (data.action as UIToggleAction) {
+        case "toggle-member-list":
+          toggleMemberList();
+          break;
+        case "toggle-channel-list":
+          toggleChannelList();
+          break;
+        case "toggle-notifications": {
+          const newVolume = globalSettings.notificationVolume > 0 ? 0 : 0.4;
+          updateGlobalSettings({ notificationVolume: newVolume });
+          break;
+        }
+        case "pin-private-chat":
+          if (data.serverId && data.privateChatId) {
+            pinPrivateChat(data.serverId, data.privateChatId);
+          }
+          break;
+        case "unpin-private-chat":
+          if (data.serverId && data.privateChatId) {
+            unpinPrivateChat(data.serverId, data.privateChatId);
+          }
+          break;
+      }
+    },
+    [
+      toggleMemberList,
+      toggleChannelList,
+      updateGlobalSettings,
+      globalSettings.notificationVolume,
+      pinPrivateChat,
+      unpinPrivateChat,
+    ],
+  );
+
+  const handleUIModal = useCallback(
+    (data: UIActionData) => {
+      switch (data.action as UIModalAction) {
+        case "open-channel-settings":
+          if (data.serverId && data.channelId) {
+            setChannelSettingsRequest(data.serverId, data.channelId);
+          }
+          break;
+        case "open-invite-user":
+          if (data.serverId && data.channelId) {
+            setInviteUserRequest(data.serverId, data.channelId);
+          }
+          break;
+        case "open-server-channels":
+          toggleChannelListModal(true);
+          break;
+        case "open-rename-channel":
+          toggleChannelRenameModal(true);
+          break;
+        case "open-topic-modal":
+          if (data.serverId && data.channelId) {
+            setTopicModalRequest(data.serverId, data.channelId);
+          }
+          break;
+        case "open-user-profile":
+          if (data.serverId && data.username) {
+            setProfileViewRequest(data.serverId, data.username);
+            toggleUserProfileModal(true);
+          }
+          break;
+      }
+    },
+    [
+      setChannelSettingsRequest,
+      setInviteUserRequest,
+      toggleChannelListModal,
+      toggleChannelRenameModal,
+      setTopicModalRequest,
+      setProfileViewRequest,
+      toggleUserProfileModal,
+    ],
+  );
 
   const handleSelect = useCallback(
     (result: QuickActionResult) => {
@@ -423,6 +546,16 @@ const QuickActions: React.FC = () => {
           }
           break;
         }
+        case "ui-toggle": {
+          const actionData = result.data as UIActionData;
+          handleUIToggle(actionData);
+          break;
+        }
+        case "ui-modal": {
+          const actionData = result.data as UIActionData;
+          handleUIModal(actionData);
+          break;
+        }
       }
       handleClose();
     },
@@ -435,6 +568,8 @@ const QuickActions: React.FC = () => {
       handleClose,
       joinAndSelectChannel,
       openPrivateChat,
+      handleUIToggle,
+      handleUIModal,
     ],
   );
 
@@ -509,9 +644,8 @@ const QuickActions: React.FC = () => {
       >
         <div className="flex items-center border-b border-discord-dark-500 p-4">
           <FaSearch className="text-discord-text-muted mr-3" />
-          <input
+          <TextInput
             ref={inputRef}
-            type="text"
             placeholder="Search settings, channels, servers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -550,6 +684,15 @@ const QuickActions: React.FC = () => {
                       return <FaHashtag className="mr-3" />;
                     case "start-dm":
                       return <FaUser className="mr-3" />;
+                    case "ui-toggle":
+                    case "ui-modal": {
+                      const icon = getUIActionIcon(result.id);
+                      return icon ? (
+                        <span className="mr-3">{icon}</span>
+                      ) : (
+                        <FaCog className="mr-3" />
+                      );
+                    }
                   }
                 };
 
@@ -567,6 +710,10 @@ const QuickActions: React.FC = () => {
                       return "Join";
                     case "start-dm":
                       return "New DM";
+                    case "ui-toggle":
+                      return "Toggle";
+                    case "ui-modal":
+                      return getUIActionBadge(result.id);
                   }
                 };
 

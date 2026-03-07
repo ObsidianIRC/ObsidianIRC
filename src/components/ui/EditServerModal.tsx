@@ -3,6 +3,7 @@ import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
 import useStore, { loadSavedServers } from "../../store";
 import type { ServerConfig } from "../../types";
+import { TextInput } from "./TextInput";
 
 interface EditServerModalProps {
   serverId: string;
@@ -145,8 +146,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             <label className="block text-discord-text-muted text-sm font-medium mb-1">
               Network Name
             </label>
-            <input
-              type="text"
+            <TextInput
               value={serverName}
               onChange={(e) => setServerName(e.target.value)}
               placeholder="ExampleNET"
@@ -159,8 +159,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               <label className="block text-discord-text-muted text-sm font-medium mb-1">
                 Server Host
               </label>
-              <input
-                type="text"
+              <TextInput
                 value={serverHost}
                 onChange={(e) => setServerHost(e.target.value)}
                 placeholder="irc.example.com"
@@ -176,8 +175,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                   className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
                 />
               </label>
-              <input
-                type="text"
+              <TextInput
                 value={serverPort}
                 onChange={(e) => setServerPort(e.target.value)}
                 placeholder="443"
@@ -190,8 +188,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             <label className="block text-discord-text-muted text-sm font-medium mb-1">
               Nickname
             </label>
-            <input
-              type="text"
+            <TextInput
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               placeholder="YourNickname"
@@ -239,7 +236,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               <label className="block text-discord-text-muted text-sm font-medium mb-1">
                 Server Password
               </label>
-              <input
+              <TextInput
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -255,8 +252,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Account details
                 </label>
-                <input
-                  type="text"
+                <TextInput
                   value={saslAccountName || nickname}
                   onChange={(e) => setSaslAccountName(e.target.value)}
                   placeholder="SASL Account Name"
@@ -265,7 +261,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               </div>
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
-                <input
+                <TextInput
                   type="password"
                   value={saslPassword ? atob(saslPassword) : ""}
                   onChange={(e) => setSaslPassword(btoa(e.target.value))}
@@ -287,8 +283,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Oper Name
                 </label>
-                <input
-                  type="text"
+                <TextInput
                   value={operName}
                   onChange={(e) => setOperName(e.target.value)}
                   placeholder="Operator username"
@@ -299,7 +294,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Oper Password
                 </label>
-                <input
+                <TextInput
                   type="password"
                   value={operPassword}
                   onChange={(e) => setOperPassword(e.target.value)}
@@ -402,7 +397,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Account Email
                 </label>
-                <input
+                <TextInput
                   type="email"
                   value={registerEmail}
                   onChange={(e) => setRegisterEmail(e.target.value)}
@@ -414,7 +409,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Account Password
                 </label>
-                <input
+                <TextInput
                   type="password"
                   value={registerPassword}
                   onChange={(e) => setRegisterPassword(e.target.value)}

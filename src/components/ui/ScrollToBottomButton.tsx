@@ -1,5 +1,6 @@
 import type React from "react";
 import { FaArrowDown } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 interface ScrollToBottomButtonProps {
   isVisible: boolean;
@@ -12,6 +13,8 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
   onClick,
   unreadCount,
 }) => {
+  const isMobile = useMediaQuery();
+
   if (!isVisible) return null;
 
   return (
@@ -19,7 +22,7 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
       <div className="absolute right-4">
         <button
           onClick={onClick}
-          className="bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full p-2 shadow-lg transition-all relative"
+          className={`bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full shadow-lg transition-all relative ${isMobile ? "p-3" : "p-2"}`}
           aria-label="Scroll to bottom"
         >
           <FaArrowDown className="text-white" />

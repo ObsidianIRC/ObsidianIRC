@@ -31,12 +31,14 @@ const TouchableContextMenu: React.FC<TouchableContextMenuProps> = ({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
+    if (menuItems.length === 0) return;
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
     onContextMenu?.(e);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (menuItems.length === 0) return;
     const touch = e.touches[0];
     longPressTimer.current = setTimeout(() => {
       setContextMenu({ x: touch.clientX, y: touch.clientY });

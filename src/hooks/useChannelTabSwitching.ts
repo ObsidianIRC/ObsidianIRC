@@ -1,0 +1,212 @@
+import { useEffect, useRef } from "react";
+import { create } from "zustand";
+import { isTauri } from "../lib/platformUtils";
+import useStore from "../store";
+
+// Small store so ChannelList can reactively read which item is "previous"
+// (the one Ctrl+Tab will jump to on next press)
+interface ChannelMruState {
+  prevItemId: string | null;
+  setPrevItemId: (id: string | null) => void;
+}
+
+export const useChannelMru = create<ChannelMruState>((set) => ({
+  prevItemId: null,
+  setPrevItemId: (id) => set({ prevItemId: id }),
+}));
+
+type StoreState = ReturnType<typeof useStore.getState>;
+
+type NavItem = { id: string; type: "channel" | "pm" };
+
+// Returns all navigable items in visual sidebar order:
+//   Text channels (sorted) → Private chats (pinned-first, then by order)
+// Matches the sort logic in ChannelList.tsx exactly.
+function getSortedItems(state: StoreState): NavItem[] {
+  const { selectedServerId } = state.ui;
+  if (!selectedServerId) return [];
+
+  const server = state.servers.find((s) => s.id === selectedServerId);
+  if (!server) return [];
+
+  // ── Channels ────────────────────────────────────────────────────────────
+  const savedOrder = state.channelOrder[selectedServerId];
+  const channels = server.channels.filter((c) => !c.isPrivate);
+
+  const sortedChannels =
+    !savedOrder || savedOrder.length === 0
+      ? channels
+      : [...channels].sort((a, b) => {
+          const ia = savedOrder.indexOf(a.name);
+          const ib = savedOrder.indexOf(b.name);
+          if (ia !== -1 && ib !== -1) return ia - ib;
+          if (ia !== -1) return -1;
+          if (ib !== -1) return 1;
+          return 0;
+        });
+
+  const seen = new Set<string>();
+  const channelItems: NavItem[] = sortedChannels
+    .filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    })
+    .map((c) => ({ id: c.id, type: "channel" as const }));
+
+  // ── Private chats ────────────────────────────────────────────────────────
+  const privateChats = server.privateChats ?? [];
+  const sortedPMs = [...privateChats].sort((a, b) => {
+    if (a.isPinned && b.isPinned) return (a.order ?? 0) - (b.order ?? 0);
+    if (a.isPinned) return -1;
+    if (b.isPinned) return 1;
+    return 0;
+  });
+  const pmItems: NavItem[] = sortedPMs.map((pc) => ({
+    id: pc.id,
+    type: "pm" as const,
+  }));
+
+  return [...channelItems, ...pmItems];
+}
+
+// Returns the ID of whatever is currently selected (channel or PM).
+function getCurrentId(state: StoreState): string | null {
+  const serverId = state.ui.selectedServerId;
+  if (!serverId) return null;
+  const sel = state.ui.perServerSelections[serverId];
+  return sel?.selectedChannelId ?? sel?.selectedPrivateChatId ?? null;
+}
+
+// How it works:
+//
+//  • First Ctrl+Tab           → jump to last-used item (MRU)
+//  • Ctrl held + Tab again    → advance one step linearly in visual order
+//  • Ctrl held + Shift+Tab    → step backwards
+//  • Release Ctrl             → commit; current item becomes new "previous"
+//
+// The sidebar shows a subtle amber left-border on the "previous" item
+// so you always see where Ctrl+Tab will land before pressing it.
+
+export function useChannelTabSwitching() {
+  // Per-server MRU list: [current, prev, prev-prev, ...]
+  const mruRef = useRef<Map<string, string[]>>(new Map());
+  // Tracks last known selected ID per server to detect changes
+  const lastIdRef = useRef<Map<string, string | null>>(new Map());
+
+  const sessionActiveRef = useRef(false);
+  const sessionIndexRef = useRef(-1);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const { setPrevItemId } = useChannelMru.getState();
+
+    const updateMru = (serverId: string, currentId: string) => {
+      const mru = mruRef.current.get(serverId) ?? [];
+      const updated = [
+        currentId,
+        ...mru.filter((id) => id !== currentId),
+      ].slice(0, 30);
+      mruRef.current.set(serverId, updated);
+      setPrevItemId(updated[1] ?? null);
+      return updated;
+    };
+
+    // Subscribe to store to keep MRU + indicator current
+    const unsubscribe = useStore.subscribe((state: StoreState) => {
+      if (sessionActiveRef.current) return;
+
+      const serverId = state.ui.selectedServerId;
+      if (!serverId) return;
+
+      const currentId = getCurrentId(state);
+      const lastId = lastIdRef.current.get(serverId) ?? null;
+
+      if (currentId !== lastId) {
+        lastIdRef.current.set(serverId, currentId);
+        if (currentId) updateMru(serverId, currentId);
+      }
+    });
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.key !== "Tab") return;
+      e.preventDefault();
+
+      const state = useStore.getState();
+      const serverId = state.ui.selectedServerId;
+      if (!serverId) return;
+
+      const items = getSortedItems(state);
+      if (items.length < 2) return;
+
+      const currentId = getCurrentId(state);
+
+      if (!sessionActiveRef.current) {
+        // ── First keypress: jump to last-used item ─────────────────────────
+        sessionActiveRef.current = true;
+
+        const mru = mruRef.current.get(serverId) ?? [];
+        const itemIds = items.map((i) => i.id);
+
+        if (!e.shiftKey) {
+          const prevId = mru.find(
+            (id) => id !== currentId && itemIds.includes(id),
+          );
+          if (prevId) {
+            sessionIndexRef.current = itemIds.indexOf(prevId);
+          } else {
+            const cur = Math.max(0, itemIds.indexOf(currentId ?? ""));
+            sessionIndexRef.current = (cur + 1) % items.length;
+          }
+        } else {
+          const cur = items.findIndex((i) => i.id === currentId);
+          sessionIndexRef.current =
+            (cur >= 0 ? cur - 1 + items.length : items.length - 1) %
+            items.length;
+        }
+      } else {
+        // ── Subsequent keypresses: linear step ─────────────────────────────
+        sessionIndexRef.current = e.shiftKey
+          ? (sessionIndexRef.current - 1 + items.length) % items.length
+          : (sessionIndexRef.current + 1) % items.length;
+      }
+
+      const target = items[sessionIndexRef.current];
+      if (!target) return;
+
+      const store = useStore.getState();
+      if (target.type === "channel") {
+        store.selectChannel(target.id);
+      } else {
+        store.selectPrivateChat(target.id);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== "Control" || !sessionActiveRef.current) return;
+
+      sessionActiveRef.current = false;
+
+      const state = useStore.getState();
+      const serverId = state.ui.selectedServerId;
+      if (!serverId) return;
+
+      const currentId = getCurrentId(state);
+      if (currentId) {
+        const updated = updateMru(serverId, currentId);
+        lastIdRef.current.set(serverId, currentId);
+        setPrevItemId(updated[1] ?? null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+      unsubscribe();
+    };
+  }, []);
+}
