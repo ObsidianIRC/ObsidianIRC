@@ -210,11 +210,13 @@ export const SearchableModal: React.FC<SearchableModalProps> = (props) => {
     if (!highlightQuery || !searchQuery.trim()) return text;
 
     const escaped = escapeRegExp(searchQuery);
-    const parts = text.split(new RegExp(`(${escaped})`, "gi"));
-    return parts.map((part, index) =>
+    const parts = text
+      .split(new RegExp(`(${escaped})`, "gi"))
+      .map((part, i) => ({ part, i }));
+    return parts.map(({ part, i }) =>
       part.toLowerCase() === searchQuery.toLowerCase() ? (
         <mark
-          key={`highlight-${index}-${part}`}
+          key={`highlight-${i}-${part}`}
           className="bg-yellow-400 text-base-content px-0.5"
         >
           {part}

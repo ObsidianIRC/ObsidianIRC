@@ -50,7 +50,7 @@ const DiscoverGrid = () => {
   };
 
   return __HIDE_SERVER_LIST__ ? (
-    <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
+    <div className="h-full flex flex-col overflow-hidden bg-discord-dark-200 text-white">
       <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
         <h1 className="rounded-lg text-2xl font-bold mb-2">
           Welcome to {__DEFAULT_IRC_SERVER_NAME__}!
@@ -58,8 +58,8 @@ const DiscoverGrid = () => {
       </div>
     </div>
   ) : (
-    <div className="h-screen flex flex-col bg-discord-dark-200 text-white">
-      <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
+    <div className="h-full flex flex-col overflow-hidden bg-discord-dark-200 text-white">
+      <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4 flex-shrink-0">
         <h1 className="rounded-lg text-2xl font-bold mb-2">
           Discover the world of IRC with ObsidianIRC
         </h1>
@@ -82,24 +82,26 @@ const DiscoverGrid = () => {
           />
         </div>
       </div>
-      {filteredServers.length > 0 ? (
-        <div className="grid p-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredServers.map((server) => (
-            <div
-              key={server.name}
-              className="bg-discord-dark-300 border border-discord-dark-500 rounded-lg p-4 shadow hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => handleServerClick(server)}
-            >
-              <h2 className="text-lg font-semibold">{server.name}</h2>
-              <p className="text-sm text-discord-text-muted">
-                {server.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-discord-text-muted">No servers found.</p>
-      )}
+      <div className="flex-1 overflow-y-auto">
+        {filteredServers.length > 0 ? (
+          <div className="grid p-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredServers.map((server) => (
+              <div
+                key={server.name}
+                className="bg-discord-dark-300 border border-discord-dark-500 rounded-lg p-4 shadow hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => handleServerClick(server)}
+              >
+                <h2 className="text-lg font-semibold">{server.name}</h2>
+                <p className="text-sm text-discord-text-muted">
+                  {server.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="p-4 text-discord-text-muted">No servers found.</p>
+        )}
+      </div>
     </div>
   );
 };

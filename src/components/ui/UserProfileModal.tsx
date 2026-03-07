@@ -669,10 +669,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   onClick={() => {
                     openPrivateChat(serverId, username);
-                    // Find and select the private chat
-                    const server = servers.find((s) => s.id === serverId);
+                    // Read fresh state after openPrivateChat updates the store
+                    const freshServers = useStore.getState().servers;
+                    const server = freshServers.find((s) => s.id === serverId);
                     const privateChat = server?.privateChats?.find(
-                      (pc) => pc.username === username,
+                      (pc) =>
+                        pc.username.toLowerCase() === username.toLowerCase(),
                     );
                     if (privateChat) {
                       selectPrivateChat(privateChat.id, { navigate: true });

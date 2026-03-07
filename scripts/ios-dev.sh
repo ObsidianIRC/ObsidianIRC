@@ -1,12 +1,17 @@
 #!/bin/bash
 set -e
 
-# Read IOS_DEV_HOST from .env
-IOS_DEV_HOST=$(grep "^IOS_DEV_HOST=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '\r')
+# Auto-detect USB tethering IP, fall back to .env
+IOS_DEV_HOST=$(ifconfig en11 2>/dev/null | awk '/inet /{print $2}')
 
 if [ -z "$IOS_DEV_HOST" ]; then
-  echo "Error: IOS_DEV_HOST not set in .env"
-  echo "Add: IOS_DEV_HOST=<mac-usb-ip>  (check: ifconfig en11 | grep inet)"
+  # Fallback: read from .env
+  IOS_DEV_HOST=$(grep "^IOS_DEV_HOST=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '\r')
+fi
+
+if [ -z "$IOS_DEV_HOST" ]; then
+  echo "Error: Could not detect USB tethering IP on en11 and IOS_DEV_HOST not set in .env"
+  echo "Check: ifconfig -l  (look for enXX with a 169.254.x.x address)"
   exit 1
 fi
 

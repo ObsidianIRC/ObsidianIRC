@@ -51,11 +51,13 @@ export const useKeyboardResize = () => {
       if (nowVisible) {
         // Keyboard open: set root to exact visible height
         root.style.height = `${currentHeight}px`;
+        root.style.overflow = "hidden";
         // Prevent iOS Safari from scrolling the page behind the keyboard
         window.scrollTo(0, 0);
       } else if (wasVisible && !nowVisible) {
         // Keyboard just closed: reset to CSS default
         root.style.height = "";
+        root.style.overflow = "";
         window.scrollTo(0, 0);
       }
 
@@ -123,6 +125,7 @@ export const useKeyboardResize = () => {
       window.removeEventListener("resize", handleWindowResize);
 
       root.style.height = "";
+      root.style.overflow = "";
       delete document.documentElement.dataset.keyboardVisible;
     };
   }, []);

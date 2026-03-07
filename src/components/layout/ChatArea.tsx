@@ -1792,6 +1792,7 @@ export const ChatArea: React.FC<{
                           }`
                         : "Type a message..."
                   }
+                  enterKeyHint="send"
                   className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
                   style={getPreviewStyles({
                     color: selectedColor || "inherit",
@@ -1812,6 +1813,8 @@ export const ChatArea: React.FC<{
                     setShowMembersDropdown(false);
                   }}
                   onAtClick={handleAtButtonClick}
+                  onSendClick={handleSendMessage}
+                  showSendButton={isMobile}
                 />
               </div>
 

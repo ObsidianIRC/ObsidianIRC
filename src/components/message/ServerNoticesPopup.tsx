@@ -149,7 +149,7 @@ export const ServerNoticesPopup: React.FC<ServerNoticesPopupProps> = ({
         <div className="space-y-2">
           {messages.map((message, index) => (
             <JsonLogMessage
-              key={`${message.timestamp}-${index}`}
+              key={message.id}
               message={message}
               showDate={false}
               onUsernameContextMenu={onUsernameContextMenu}
