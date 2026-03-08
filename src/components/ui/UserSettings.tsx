@@ -5,8 +5,11 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   FaBell,
+  FaChevronLeft,
+  FaChevronRight,
   FaCog,
   FaImage,
   FaServer,
@@ -185,6 +188,9 @@ export const UserSettings: React.FC = React.memo(() => {
   // Category state
   const [activeCategory, setActiveCategory] =
     useState<SettingsCategory>("profile");
+  const [mobileView, setMobileView] = useState<"categories" | "content">(
+    "categories",
+  );
   const [highlightedSetting, setHighlightedSetting] = useState<string | null>(
     null,
   );
@@ -196,6 +202,7 @@ export const UserSettings: React.FC = React.memo(() => {
   // Clear highlight when modal closes
   useEffect(() => {
     if (!ui.isSettingsModalOpen) {
+      setMobileView("categories");
       setHighlightedSetting(null);
       if (highlightTimeoutRef.current) {
         clearTimeout(highlightTimeoutRef.current);
@@ -1178,6 +1185,138 @@ export const UserSettings: React.FC = React.memo(() => {
       </div>
     );
   };
+
+  if (!ui.isSettingsModalOpen) return null;
+
+  if (isMobile) {
+    const portalTarget = document.getElementById("root") || document.body;
+
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[9999] bg-discord-dark-200 flex flex-col animate-in fade-in"
+        style={{
+          paddingTop: "var(--safe-area-inset-top, 0px)",
+          paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+          paddingLeft: "var(--safe-area-inset-left, 0px)",
+          paddingRight: "var(--safe-area-inset-right, 0px)",
+        }}
+      >
+        {mobileView === "categories" ? (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-discord-dark-500 flex-shrink-0">
+              <h2 className="text-white text-lg font-semibold">
+                User Settings
+              </h2>
+              <button
+                onClick={handleClose}
+                className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            {/* Category list */}
+            <div className="flex-1 overflow-y-auto">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => {
+                    setActiveCategory(category.id);
+                    setMobileView("content");
+                  }}
+                  className="w-full flex items-center gap-4 px-4 py-4 border-b border-discord-dark-400 hover:bg-discord-dark-300 text-left transition-colors"
+                >
+                  <div className="text-discord-text-muted text-lg flex-shrink-0">
+                    {category.icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-white font-medium">
+                      {category.title}
+                    </div>
+                    <div className="text-discord-text-muted text-sm truncate">
+                      {category.description}
+                    </div>
+                  </div>
+                  <FaChevronRight className="text-discord-text-muted flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Header with back */}
+            <div className="flex items-center gap-3 p-4 border-b border-discord-dark-500 flex-shrink-0">
+              <button
+                onClick={() => setMobileView("categories")}
+                className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
+                aria-label="Back"
+              >
+                <FaChevronLeft />
+              </button>
+              <h2 className="text-white text-lg font-semibold">
+                {categories.find((c) => c.id === activeCategory)?.title}
+              </h2>
+            </div>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {activeCategory === "profile" && renderProfileFields()}
+              {activeCategory === "account" && renderAccountFields()}
+              {activeCategory === "privacy" && renderPrivacyFields()}
+              {activeCategory !== "profile" &&
+                activeCategory !== "account" &&
+                activeCategory !== "privacy" && (
+                  <div className="space-y-4">
+                    {categorySettings.map((setting) => (
+                      <SettingField
+                        key={setting.id}
+                        setting={setting}
+                        value={settings[setting.key] ?? setting.defaultValue}
+                        onChange={(value) =>
+                          handleSettingChange(setting.key, value)
+                        }
+                        isHighlighted={highlightedSetting === setting.id}
+                      />
+                    ))}
+                  </div>
+                )}
+            </div>
+            {/* Footer */}
+            <div className="flex gap-3 p-4 border-t border-discord-dark-500 flex-shrink-0">
+              <button
+                onClick={handleClose}
+                className="flex-1 px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges}
+                className={`flex-1 px-4 py-2 text-white rounded font-medium transition-colors ${
+                  hasUnsavedChanges
+                    ? "bg-discord-primary hover:bg-opacity-80"
+                    : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
+                }`}
+              >
+                {hasUnsavedChanges ? "Save" : "No Changes"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* User Profile Modal (preserve existing) */}
+        {viewProfileModalOpen && currentServer && currentUser && (
+          <UserProfileModal
+            isOpen={viewProfileModalOpen}
+            onClose={() => setViewProfileModalOpen(false)}
+            serverId={currentServer.id}
+            username={currentUser.username}
+          />
+        )}
+      </div>,
+      portalTarget,
+    );
+  }
 
   return (
     <div
