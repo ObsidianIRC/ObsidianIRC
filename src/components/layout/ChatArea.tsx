@@ -1,7 +1,14 @@
 import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { FaGift, FaList, FaPlus, FaTimes } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
@@ -166,21 +173,36 @@ export const ChatArea: React.FC<{
   // user first scrolled up. Prevents mass DOM insertion at the top when isScrolledUp becomes true,
   // which caused WKWebView scroll anchoring to fail and the viewport to jump to the top.
   const scrollUpStartRef = useRef<number | null>(null);
+  // lineHeight/padding are static CSS values — cache them after first read to avoid
+  // getComputedStyle on every keystroke, which forces layout flush on mobile WebView.
+  const textareaMetricsRef = useRef<{
+    lineHeight: number;
+    paddingTop: number;
+    paddingBottom: number;
+  } | null>(null);
 
   const resizeTextarea = useCallback(() => {
     const textarea = inputRef.current;
     if (!textarea) return;
-    textarea.style.height = "auto";
-    const computed = window.getComputedStyle(textarea);
-    const lineHeight = Number.parseFloat(computed.lineHeight) || 24;
-    const paddingTop = Number.parseFloat(computed.paddingTop) || 0;
-    const paddingBottom = Number.parseFloat(computed.paddingBottom) || 0;
+
+    if (!textareaMetricsRef.current) {
+      const computed = window.getComputedStyle(textarea);
+      textareaMetricsRef.current = {
+        lineHeight: Number.parseFloat(computed.lineHeight) || 24,
+        paddingTop: Number.parseFloat(computed.paddingTop) || 0,
+        paddingBottom: Number.parseFloat(computed.paddingBottom) || 0,
+      };
+    }
+
+    const { lineHeight, paddingTop, paddingBottom } =
+      textareaMetricsRef.current;
     const maxHeight = lineHeight * 5 + paddingTop + paddingBottom;
+    textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
   }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: messageText is intentionally listed so the effect re-runs on every keystroke, even though it isn't referenced inside the body
-  useEffect(() => {
+  useLayoutEffect(() => {
     resizeTextarea();
   }, [resizeTextarea, messageText]);
 
@@ -514,6 +536,17 @@ export const ChatArea: React.FC<{
     selectedServerId,
     currentUser,
   });
+
+  // Memoize preview styles — selectedColor/selectedFormatting don't change while typing,
+  // so recomputing this on every keystroke is unnecessary object churn.
+  const previewStyle = useMemo(
+    () =>
+      getPreviewStyles({
+        color: selectedColor || "inherit",
+        formatting: selectedFormatting,
+      }),
+    [selectedColor, selectedFormatting],
+  );
 
   // Get messages for current channel or private chat - memoized
   const channelKey = useMemo(
@@ -1335,8 +1368,10 @@ export const ChatArea: React.FC<{
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
-      // Find and select the private chat
-      const server = servers.find((s) => s.id === selectedServerId);
+      // Read fresh store state so newly-created DMs are visible (stale closure fix)
+      const server = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
       const privateChat = server?.privateChats?.find(
         (pc) => pc.username === username,
       );
@@ -1776,6 +1811,9 @@ export const ChatArea: React.FC<{
                   onClick={handleInputClick}
                   onKeyUp={handleInputKeyUp}
                   onKeyDown={handleKeyDown}
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck={true}
                   placeholder={
                     selectedChannel
                       ? `Message #${selectedChannel.name.replace(/^#/, "")}${
@@ -1805,10 +1843,7 @@ export const ChatArea: React.FC<{
                       : "send"
                   }
                   className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
-                  style={getPreviewStyles({
-                    color: selectedColor || "inherit",
-                    formatting: selectedFormatting,
-                  })}
+                  style={previewStyle}
                   rows={1}
                 />
                 <InputToolbar
@@ -1827,6 +1862,7 @@ export const ChatArea: React.FC<{
                   onSendClick={handleSendMessage}
                   showSendButton={isMobile}
                   hideEmoji={isNativeMobile}
+                  hasText={messageText.trim().length > 0}
                 />
               </div>
 

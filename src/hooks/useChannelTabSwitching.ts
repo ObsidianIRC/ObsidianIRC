@@ -179,7 +179,7 @@ export function useChannelTabSwitching() {
       if (target.type === "channel") {
         store.selectChannel(target.id);
       } else {
-        store.selectPrivateChat(target.id);
+        store.selectPrivateChat(target.id, { navigate: true });
       }
     };
 

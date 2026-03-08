@@ -11,6 +11,7 @@ interface InputToolbarProps {
   onSendClick?: () => void;
   showSendButton?: boolean;
   hideEmoji?: boolean;
+  hasText?: boolean;
 }
 
 /**
@@ -24,6 +25,7 @@ export function InputToolbar({
   onSendClick,
   showSendButton = false,
   hideEmoji = false,
+  hasText = false,
 }: InputToolbarProps) {
   return (
     <div className="flex items-center flex-shrink-0">
@@ -57,7 +59,12 @@ export function InputToolbar({
       </button>
       {showSendButton && (
         <button
-          className="mx-1.5 w-8 h-8 rounded-full bg-discord-primary text-white flex items-center justify-center flex-shrink-0 active:bg-discord-primary/80"
+          className={`mx-1.5 w-9 h-9 rounded-full text-white flex items-center justify-center flex-shrink-0
+            transition-[transform,opacity,box-shadow] duration-200 ease-out active:scale-90 ${
+              hasText
+                ? "bg-discord-primary shadow-lg shadow-discord-primary/40 scale-100 opacity-100"
+                : "bg-discord-primary/40 scale-90 opacity-60"
+            }`}
           onClick={onSendClick}
           // Prevent the button from stealing focus from the textarea on iOS —
           // without this the keyboard hides every time the send button is tapped.

@@ -54,8 +54,8 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
 
   const handleUserSelect = (username: string) => {
     openPrivateChat(serverId, username);
-    // Find and select the private chat
-    const server = servers.find((s) => s.id === serverId);
+    // Read fresh store state so newly-created DMs are visible (stale closure fix)
+    const server = useStore.getState().servers.find((s) => s.id === serverId);
     const privateChat = server?.privateChats?.find(
       (pc) => pc.username === username,
     );
