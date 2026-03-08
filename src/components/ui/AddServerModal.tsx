@@ -100,7 +100,7 @@ export const AddServerModal: React.FC = () => {
       if (isTauri()) {
         const port = Number.parseInt(serverPort, 10);
         const cleanHost = serverHost.replace(
-          /^(https?|wss?|ircs?|irc):\/\//,
+          /^(https?|wss|ircs?|irc):\/\//,
           "",
         );
 

@@ -50,7 +50,7 @@ function generateDeterministicId(serverId: string, name: string): string {
 function normalizeHost(host: string): string {
   if (host.includes("://")) {
     // Extract hostname from URL format
-    const withoutProtocol = host.replace(/^(irc|ircs|ws|wss):\/\//, "");
+    const withoutProtocol = host.replace(/^(irc|ircs|wss):\/\//, "");
     return withoutProtocol.split(":")[0]; // Get just hostname, strip port if present
   }
   return host;
@@ -61,15 +61,8 @@ function ensureUrlFormat(host: string, port: number): string {
   if (host.includes("://")) {
     return host; // Already in URL format
   }
-  // Convert old hostname-only format to URL
-  const isLocalhost =
-    host === "localhost" || host === "127.0.0.1" || host === "::1";
-  const scheme = isLocalhost
-    ? "ws"
-    : port === 6697 || port === 9999 || port === 443 || port === 993
-      ? "wss"
-      : "ws";
-  return `${scheme}://${host}:${port}`;
+  // Convert old hostname-only format to URL — always wss://
+  return `wss://${host}:${port}`;
 }
 
 // Types for batch event processing
@@ -6400,13 +6393,9 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
         return { servers: updatedServers };
       });
 
-      // Check for insecure connection and show warning modal
+      // Show warning modal for low UnrealIRCd link-security value
       const currentState = useStore.getState();
       const currentServer = currentState.servers.find((s) => s.id === serverId);
-      const isLocalhost =
-        currentServer &&
-        (currentServer.host === "localhost" ||
-          currentServer.host === "127.0.0.1");
       const hasLowLinkSecurity = linkSecurityValue < 2;
 
       // Check if we should show warning based on individual skip preferences
@@ -6419,12 +6408,10 @@ ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
           )
         : undefined;
 
-      const shouldWarnLocalhost =
-        isLocalhost && !serverConfig?.skipLocalhostWarning;
       const shouldWarnLinkSecurity =
         hasLowLinkSecurity && !serverConfig?.skipLinkSecurityWarning;
 
-      if (shouldWarnLocalhost || shouldWarnLinkSecurity) {
+      if (shouldWarnLinkSecurity) {
         useStore.setState((state) => {
           // Check if warning already exists for this server
           const existingWarning = state.ui.linkSecurityWarnings.find(
