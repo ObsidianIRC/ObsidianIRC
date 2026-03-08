@@ -121,6 +121,8 @@ jobs:
             for appimage in $APPIMAGE_DIR/*_amd64.AppImage; do
               if [ -f "$appimage" ]; then
                 echo "Embedding update info in $appimage"
+                # Embed update URL at ELF .upd_info offset (33651 bytes) per AppImageUpdate spec.
+                # Format: gh-releases-zsync|ORG|REPO|CHANNEL|FILENAME_GLOB
                 printf 'gh-releases-zsync|ObsidianIRC|ObsidianIRC|latest|ObsidianIRC_*_amd64.AppImage.zsync' | \
                   dd of="$appimage" bs=1 seek=33651 count=512 conv=notrunc
               fi
@@ -180,6 +182,8 @@ jobs:
           APPIMAGE_PATH="./src-tauri/target/release/bundle/appimage/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_aarch64.AppImage"
           if [ -f "$APPIMAGE_PATH" ]; then
             echo "Embedding update info in $APPIMAGE_PATH"
+            # Embed update URL at ELF .upd_info offset (33651 bytes) per AppImageUpdate spec.
+            # Format: gh-releases-zsync|ORG|REPO|CHANNEL|FILENAME_GLOB
             printf 'gh-releases-zsync|ObsidianIRC|ObsidianIRC|latest|ObsidianIRC_*_aarch64.AppImage.zsync' | \
               dd of="$APPIMAGE_PATH" bs=1 seek=33651 count=512 conv=notrunc
           fi

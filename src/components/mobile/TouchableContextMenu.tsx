@@ -45,7 +45,7 @@ const TouchableContextMenu: React.FC<TouchableContextMenuProps> = ({
     }, longPressDelay);
   };
 
-  const handleTouchEnd = () => {
+  const cancelLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -69,8 +69,8 @@ const TouchableContextMenu: React.FC<TouchableContextMenuProps> = ({
         className={className}
         onContextMenu={handleContextMenu}
         onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchEnd}
+        onTouchEnd={cancelLongPress}
+        onTouchMove={cancelLongPress}
       >
         {children}
       </div>
