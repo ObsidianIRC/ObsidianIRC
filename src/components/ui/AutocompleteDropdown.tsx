@@ -132,6 +132,15 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
           break;
         }
         case "Enter":
+          // In the narrow modal the filter input is focused — let TextInput's
+          // own Enter handler blur the keyboard instead of selecting a member.
+          if (
+            isNarrowView &&
+            isAtButtonTriggered &&
+            document.activeElement?.tagName === "INPUT"
+          ) {
+            return;
+          }
           e.preventDefault();
           e.stopPropagation();
           if (displayUsers[selectedIndex]) {
@@ -148,7 +157,16 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
 
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [isVisible, displayUsers, selectedIndex, onClose, onNavigate, onSelect]);
+  }, [
+    isVisible,
+    displayUsers,
+    selectedIndex,
+    onClose,
+    onNavigate,
+    onSelect,
+    isNarrowView,
+    isAtButtonTriggered,
+  ]);
 
   useEffect(() => {
     if (!isVisible || !isAtButtonTriggered) return;
@@ -190,14 +208,14 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
         closeOnClickOutside={true}
         closeOnEsc={true}
       >
-        <div className="p-3">
+        <div className="p-3 flex flex-col flex-1 min-h-0">
           <TextInput
             placeholder="Filter members…"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            className="w-full bg-discord-dark-400 text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link mb-3"
+            className="w-full bg-discord-dark-400 text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link mb-3 flex-shrink-0"
           />
-          <div className="max-h-72 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {filteredUsers.map((user, index) => (
               <div
                 key={user.id}
