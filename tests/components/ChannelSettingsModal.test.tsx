@@ -164,7 +164,7 @@ describe("ChannelSettingsModal", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
     expect(screen.getByText("Bans (+b)")).toBeInTheDocument();
-    expect(screen.getByText("Ban Exceptions (+e)")).toBeInTheDocument();
+    expect(screen.getByText("Exceptions (+e)")).toBeInTheDocument();
     expect(screen.getByText("Invitations (+I)")).toBeInTheDocument();
   });
 
@@ -177,7 +177,7 @@ describe("ChannelSettingsModal", () => {
   test("switches tabs correctly", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    const exceptionsTab = screen.getByText("Ban Exceptions (+e)");
+    const exceptionsTab = screen.getByText("Exceptions (+e)");
     fireEvent.click(exceptionsTab);
 
     expect(exceptionsTab).toHaveClass("border-discord-blue");
