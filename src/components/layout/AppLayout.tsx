@@ -141,7 +141,7 @@ export const AppLayout: React.FC = () => {
           return (
             <div className="flex w-full h-full">
               {__HIDE_SERVER_LIST__ ? null : (
-                <div className="w-[72px] flex-shrink-0 h-full bg-discord-dark-300">
+                <div className="w-[72px] flex-shrink-0 h-full bg-discord-dark-300 select-none">
                   <ServerList />
                 </div>
               )}
@@ -156,7 +156,7 @@ export const AppLayout: React.FC = () => {
         return (
           <>
             {__HIDE_SERVER_LIST__ ? null : (
-              <div className="server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 w-[72px]">
+              <div className="server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 w-[72px] select-none">
                 <ServerList />
               </div>
             )}
@@ -300,7 +300,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={`flex h-dvh overflow-hidden bg-discord-dark-300 ${
+      className={`flex h-full overflow-hidden bg-discord-dark-300 keyboard-aware-layout ${
         isDarkMode ? "text-white" : "text-gray-900"
       }`}
       style={{

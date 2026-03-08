@@ -678,6 +678,17 @@ html, body, #root {
   background-color: #67060c;
 }
 
+/* Remove input bottom padding when keyboard is visible (iOS) */
+html[data-keyboard-visible] .chat-input-area {
+  padding-bottom: 0;
+}
+
+/* Override AppLayout's inline paddingBottom (safe-area-inset-bottom) when keyboard is visible.
+   Uses !important because inline styles have higher specificity than class rules. */
+html[data-keyboard-visible] .keyboard-aware-layout {
+  padding-bottom: 0 !important;
+}
+
 /* Chat input textarea - hide scrollbar when content fits */
 textarea.resize-none {
   scrollbar-width: thin;

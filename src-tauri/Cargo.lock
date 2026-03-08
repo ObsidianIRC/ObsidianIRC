@@ -15,6 +15,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-deep-link",
+ "tauri-plugin-ios-keyboard",
  "tauri-plugin-log",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
@@ -4316,6 +4317,18 @@ dependencies = [
  "url",
  "windows-registry",
  "windows-result 0.3.4",
+]
+
+[[package]]
+name = "tauri-plugin-ios-keyboard"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4efdcf9b5fa18d5683b4ba7354854c065350e3fc7de7bebee9a2752994abf561"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

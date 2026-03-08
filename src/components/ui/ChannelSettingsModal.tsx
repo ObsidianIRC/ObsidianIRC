@@ -353,13 +353,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       title={`Channel Settings - ${channelName}`}
       showCloseButton
       maxWidth="2xl"
-      contentClassName="flex flex-col max-h-[80vh]"
+      contentClassName="flex flex-col sm:max-h-[80vh]"
     >
       {/* Tabs */}
-      <div className="flex border-b border-discord-dark-400 mb-4">
+      <div className="flex border-b border-discord-dark-400 mb-4 flex-shrink-0">
         <button
           onClick={() => setActiveTab("b")}
-          className={`px-4 py-2 text-sm font-medium ${
+          className={`flex-1 py-2 text-xs font-medium text-center ${
             activeTab === "b"
               ? "text-white border-b-2 border-discord-blue"
               : "text-discord-text-muted hover:text-white"
@@ -371,19 +371,19 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         </button>
         <button
           onClick={() => setActiveTab("e")}
-          className={`px-4 py-2 text-sm font-medium ${
+          className={`flex-1 py-2 text-xs font-medium text-center ${
             activeTab === "e"
               ? "text-white border-b-2 border-discord-blue"
               : "text-discord-text-muted hover:text-white"
           }`}
         >
-          Ban Exceptions (+e){" "}
+          Exceptions (+e){" "}
           {modes.filter((m) => m.type === "e").length > 0 &&
             `(${modes.filter((m) => m.type === "e").length})`}
         </button>
         <button
           onClick={() => setActiveTab("I")}
-          className={`px-4 py-2 text-sm font-medium ${
+          className={`flex-1 py-2 text-xs font-medium text-center ${
             activeTab === "I"
               ? "text-white border-b-2 border-discord-blue"
               : "text-discord-text-muted hover:text-white"
@@ -396,7 +396,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         {userHasOpPermission && supportsMetadata && (
           <button
             onClick={() => setActiveTab("general")}
-            className={`px-4 py-2 text-sm font-medium ${
+            className={`flex-1 py-2 text-xs font-medium text-center ${
               activeTab === "general"
                 ? "text-white border-b-2 border-discord-blue"
                 : "text-discord-text-muted hover:text-white"
@@ -409,7 +409,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
       {/* Conditionally render based on active tab */}
       {activeTab !== "general" ? (
-        <div className="flex-1 flex flex-col min-h-0 px-6">
+        <div className="flex-1 flex flex-col min-h-0 px-4">
           {/* Add new mask */}
           <div className="flex gap-2 mb-4 flex-shrink-0">
             <TextInput
@@ -417,6 +417,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               onChange={(e) => setNewMask(e.target.value)}
               placeholder={`Add ${activeTab === "b" ? "ban" : activeTab === "e" ? "exception" : "invitation"} mask (e.g., nick!*@*, *!*@host.com)`}
               className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
+              inputMode="email"
             />
             <button
               onClick={() =>
@@ -462,6 +463,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           className="w-full p-1 bg-discord-dark-400 text-white rounded text-sm"
+                          inputMode="email"
                           autoFocus
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
@@ -541,7 +543,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
           {/* General tab content */}
-          <div className="flex-1 overflow-y-auto px-6 space-y-6">
+          <div className="flex-1 overflow-y-auto px-4 space-y-6">
             {/* Channel Topic */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-white">

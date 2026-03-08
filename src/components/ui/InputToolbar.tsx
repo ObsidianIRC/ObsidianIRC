@@ -10,6 +10,7 @@ interface InputToolbarProps {
   onAtClick: () => void;
   onSendClick?: () => void;
   showSendButton?: boolean;
+  hideEmoji?: boolean;
 }
 
 /**
@@ -22,15 +23,18 @@ export function InputToolbar({
   onAtClick,
   onSendClick,
   showSendButton = false,
+  hideEmoji = false,
 }: InputToolbarProps) {
   return (
     <div className="flex items-center flex-shrink-0">
-      <button
-        className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
-        onClick={onEmojiClick}
-      >
-        <FaGrinAlt />
-      </button>
+      {!hideEmoji && (
+        <button
+          className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
+          onClick={onEmojiClick}
+        >
+          <FaGrinAlt />
+        </button>
+      )}
       <button
         className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
         onClick={onColorPickerClick}
@@ -55,6 +59,9 @@ export function InputToolbar({
         <button
           className="mx-1.5 w-8 h-8 rounded-full bg-discord-primary text-white flex items-center justify-center flex-shrink-0 active:bg-discord-primary/80"
           onClick={onSendClick}
+          // Prevent the button from stealing focus from the textarea on iOS —
+          // without this the keyboard hides every time the send button is tapped.
+          onMouseDown={(e) => e.preventDefault()}
         >
           <FaArrowUp size={14} />
         </button>

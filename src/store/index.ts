@@ -6460,13 +6460,21 @@ ircClient.on("CAP ACK", ({ serverId, cliCaps }) => {
     ircClient.capAck(serverId, capName, capValue ?? null);
   }
 
-  // Update server capabilities in store
+  // Update server capabilities in store (merge, don't overwrite)
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
+        const existing = server.capabilities ?? [];
+        const newCaps = cliCaps.split(" ");
+        const merged = [...existing];
+        for (const cap of newCaps) {
+          if (!merged.includes(cap)) {
+            merged.push(cap);
+          }
+        }
         return {
           ...server,
-          capabilities: cliCaps.split(" "),
+          capabilities: merged,
         };
       }
       return server;

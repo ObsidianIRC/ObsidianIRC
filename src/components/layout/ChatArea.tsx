@@ -336,6 +336,7 @@ export const ChatArea: React.FC<{
   // Media query hooks
   const isNarrowView = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
+  const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
 
   const handleIrcLinkClick = (rawUrl: string) => {
     const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
@@ -351,13 +352,10 @@ export const ChatArea: React.FC<{
 
   // Handle setting reply and focusing input
   const handleSetReplyTo = (message: MessageType | null) => {
+    // Focus synchronously before the state update so iOS treats it as a
+    // direct user-gesture response and opens the keyboard immediately.
+    inputRef.current?.focus();
     setLocalReplyTo(message);
-    // Focus the input after setting reply
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
-    }, 0);
   };
 
   // Toggle notification sound volume
@@ -667,6 +665,9 @@ export const ChatArea: React.FC<{
     if (tabCompletion.isActive) {
       tabCompletion.resetCompletion();
     }
+
+    // Keep the textarea focused so the keyboard stays open on mobile.
+    inputRef.current?.focus();
   };
 
   const handleImageUpload = async (file: File) => {
@@ -908,6 +909,10 @@ export const ChatArea: React.FC<{
 
     // Handle Enter key behavior based on settings
     if (e.key === "Enter") {
+      if (isMobile && globalSettings.enableMultilineInput) {
+        return;
+      }
+
       const shouldCreateNewline =
         globalSettings.enableMultilineInput &&
         (globalSettings.multilineOnShiftEnter ? e.shiftKey : !e.shiftKey);
@@ -1737,7 +1742,9 @@ export const ChatArea: React.FC<{
 
           {/* Input area */}
           {(selectedChannel || selectedPrivateChat) && (
-            <div className={`${!isNarrowView && "px-4"} pb-4 relative`}>
+            <div
+              className={`${!isNarrowView && "px-4"} pb-4 relative chat-input-area`}
+            >
               <TypingIndicator
                 serverId={selectedServerId ?? ""}
                 channelId={selectedChannelId || selectedPrivateChatId || ""}
@@ -1792,7 +1799,11 @@ export const ChatArea: React.FC<{
                           }`
                         : "Type a message..."
                   }
-                  enterKeyHint="send"
+                  enterKeyHint={
+                    isMobile && globalSettings.enableMultilineInput
+                      ? "enter"
+                      : "send"
+                  }
                   className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
                   style={getPreviewStyles({
                     color: selectedColor || "inherit",
@@ -1815,6 +1826,7 @@ export const ChatArea: React.FC<{
                   onAtClick={handleAtButtonClick}
                   onSendClick={handleSendMessage}
                   showSendButton={isMobile}
+                  hideEmoji={isNativeMobile}
                 />
               </div>
 
@@ -2126,7 +2138,7 @@ export const ChatArea: React.FC<{
                             new Date(previousMessage?.timestamp).toDateString()
                         }
                         showHeader={showHeader}
-                        setReplyTo={setLocalReplyTo}
+                        setReplyTo={handleSetReplyTo}
                         onUsernameContextMenu={(
                           e,
                           username,

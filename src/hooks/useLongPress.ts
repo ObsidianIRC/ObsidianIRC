@@ -22,6 +22,9 @@ export function useLongPress({
     }
     startPos.current = null;
     firedRef.current = false;
+    // Restore text selection
+    document.body.style.userSelect = "";
+    document.body.style.webkitUserSelect = "";
   }, []);
 
   const onTouchStart = useCallback(
@@ -29,6 +32,10 @@ export function useLongPress({
       firedRef.current = false;
       const touch = e.touches[0];
       startPos.current = { x: touch.clientX, y: touch.clientY };
+      // Suppress global text selection during hold to prevent iOS from
+      // selecting text in adjacent elements
+      document.body.style.userSelect = "none";
+      document.body.style.webkitUserSelect = "none";
       timerRef.current = window.setTimeout(() => {
         firedRef.current = true;
         onLongPress();

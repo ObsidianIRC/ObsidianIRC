@@ -1,9 +1,162 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FaPencilAlt, FaPlus, FaRedo, FaTrash } from "react-icons/fa";
+import { useLongPress } from "../../hooks/useLongPress";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Server } from "../../types";
+import ServerBottomSheet from "../mobile/ServerBottomSheet";
+
+interface ServerIconProps {
+  server: Server;
+  isSelected: boolean;
+  isShimmering: boolean;
+  isTouchDevice: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onReconnect: () => void;
+}
+
+const ServerIcon: React.FC<ServerIconProps> = ({
+  server,
+  isSelected,
+  isShimmering,
+  isTouchDevice,
+  onSelect,
+  onEdit,
+  onDelete,
+  onReconnect,
+}) => {
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+
+  const hasMentions =
+    server.channels.some((ch) => ch.isMentioned) ||
+    server.privateChats?.some((pc) => pc.isMentioned);
+
+  const getServerInitial = (s: Server): string => {
+    const displayName = s.networkName || s.name;
+    return displayName.charAt(0).toUpperCase();
+  };
+
+  const handleLongPress = useCallback(() => {
+    if (isSelected) {
+      setBottomSheetOpen(true);
+    }
+  }, [isSelected]);
+
+  const { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, firedRef } =
+    useLongPress({ onLongPress: handleLongPress });
+
+  const handleClick = () => {
+    if (firedRef.current) return;
+    onSelect();
+  };
+
+  return (
+    <>
+      <div
+        className={`
+          w-12 h-12 rounded-lg flex items-center justify-center
+          transition-all duration-200 cursor-pointer group relative
+          ${isSelected ? "bg-discord-primary" : "bg-discord-dark-400 hover:bg-discord-primary"}
+          ${isShimmering ? "shimmer" : ""}
+          ${isTouchDevice ? "no-touch-action no-select" : ""}
+        `}
+        onClick={handleClick}
+        onContextMenu={isTouchDevice ? (e) => e.preventDefault() : undefined}
+        {...(isTouchDevice
+          ? { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel }
+          : {})}
+      >
+        {(server.connectionState === "disconnected" ||
+          server.connectionState === "connecting" ||
+          server.connectionState === "reconnecting") && (
+          <div className="absolute inset-0 bg-gray-500 bg-opacity-50 rounded-lg" />
+        )}
+
+        {(server.connectionState === "connecting" ||
+          server.connectionState === "reconnecting") && (
+          <FaRedo className="absolute inset-0 m-auto text-white animate-spin text-lg" />
+        )}
+
+        {server.connectionState === "disconnected" && (
+          <FaRedo
+            className="absolute inset-0 m-auto text-white text-lg cursor-pointer hover:text-gray-300 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReconnect();
+            }}
+            title="Reconnect to server"
+          />
+        )}
+
+        <div
+          className={`
+            absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200
+            ${isSelected ? "h-10" : "h-0 group-hover:h-5"}
+          `}
+        />
+        {server.icon ? (
+          <img
+            src={server.icon}
+            alt={server.name}
+            className="w-9 h-9 rounded-full pointer-events-none"
+            draggable={false}
+          />
+        ) : (
+          <div className="text-xl font-semibold text-white">
+            {getServerInitial(server)}
+          </div>
+        )}
+
+        {hasMentions && !isSelected && (
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-discord-dark-600" />
+        )}
+
+        {isSelected && !isTouchDevice && (
+          <div className="absolute -bottom-1 -right-1 flex space-x-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
+            <button
+              className="w-5 h-5 bg-discord-dark-300 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-xs shadow-md"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              title="Edit Server"
+            >
+              <FaPencilAlt />
+            </button>
+            <button
+              className="w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              title="Disconnect"
+            >
+              <FaTrash />
+            </button>
+          </div>
+        )}
+
+        <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
+          {server.name}
+        </div>
+      </div>
+
+      {isTouchDevice && (
+        <ServerBottomSheet
+          isOpen={bottomSheetOpen}
+          onClose={() => setBottomSheetOpen(false)}
+          serverName={server.networkName || server.name}
+          onEdit={onEdit}
+          onDisconnect={onDelete}
+        />
+      )}
+    </>
+  );
+};
 
 export const ServerList: React.FC = () => {
   const {
@@ -11,37 +164,28 @@ export const ServerList: React.FC = () => {
     ui: { selectedServerId },
     selectServer,
     toggleAddServerModal,
-    deleteServer, // Add deleteServer action
-    toggleChannelListModal, // Add toggleChannelListModal action
-    reconnectServer, // Add reconnectServer action
-    toggleEditServerModal, // Add toggleEditServerModal action
+    deleteServer,
+    toggleChannelListModal,
+    reconnectServer,
+    toggleEditServerModal,
   } = useStore();
 
   const [shimmeringServers, setShimmeringServers] = useState<Set<string>>(
     new Set(),
   );
+  const isTouchDevice = useMediaQuery("(pointer: coarse)");
 
-  // Generate initial for server icon
-  const getServerInitial = (server: Server): string => {
-    // Use network name if available, otherwise server name
-    const displayName = server.networkName || server.name;
-    return displayName.charAt(0).toUpperCase();
-  };
-
-  // Handle shimmer effect when servers send RPL_WELCOME (ready event)
   useEffect(() => {
     const handleServerReady = ({ serverId }: { serverId: string }) => {
-      // Start shimmer for the server that just became ready
       setShimmeringServers((prev) => new Set(prev).add(serverId));
 
-      // Remove shimmer after animation completes
       setTimeout(() => {
         setShimmeringServers((prev) => {
           const newSet = new Set(prev);
           newSet.delete(serverId);
           return newSet;
         });
-      }, 1000); // Match the animation duration
+      }, 1000);
     };
 
     ircClient.on("ready", handleServerReady);
@@ -49,7 +193,7 @@ export const ServerList: React.FC = () => {
 
   return (
     <div className="pt-3 pb-6 md:pb-3 flex flex-col items-center h-full overflow-visible relative">
-      {/* Home button - in Discord this would be DMs */}
+      {/* Home button */}
       <div
         className={`
           mb-2 w-12 h-12 rounded-lg flex items-center justify-center
@@ -68,7 +212,7 @@ export const ServerList: React.FC = () => {
           <img
             src="./images/obsidian.png"
             alt="Home"
-            className="w-full h-full rounded-lg" // Ensure the image has rounded corners
+            className="w-full h-full rounded-lg"
           />
         </div>
         <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
@@ -97,101 +241,19 @@ export const ServerList: React.FC = () => {
         className="flex flex-col space-y-2 w-full items-center"
         data-testid="server-list"
       >
-        {servers.map((server) => {
-          // Check if server has any mentions in channels or private chats
-          const hasMentions =
-            server.channels.some((ch) => ch.isMentioned) ||
-            server.privateChats?.some((pc) => pc.isMentioned);
-          const isServerActive = selectedServerId === server.id;
-
-          return (
-            <div
-              key={server.id}
-              className={`
-              w-12 h-12 rounded-lg flex items-center justify-center
-              transition-all duration-200 cursor-pointer group relative
-              ${selectedServerId === server.id ? "bg-discord-primary" : "bg-discord-dark-400 hover:bg-discord-primary"}
-              ${shimmeringServers.has(server.id) ? "shimmer" : ""}
-            `}
-              onClick={() => selectServer(server.id, { clearSelection: true })}
-            >
-              {/* Grey overlay for disconnected/connecting states */}
-              {(server.connectionState === "disconnected" ||
-                server.connectionState === "connecting" ||
-                server.connectionState === "reconnecting") && (
-                <div className="absolute inset-0 bg-gray-500 bg-opacity-50 rounded-lg" />
-              )}
-
-              {/* Spinning refresh icon for connecting/reconnecting */}
-              {(server.connectionState === "connecting" ||
-                server.connectionState === "reconnecting") && (
-                <FaRedo className="absolute inset-0 m-auto text-white animate-spin text-lg" />
-              )}
-
-              {/* Static refresh icon for disconnected servers */}
-              {server.connectionState === "disconnected" && (
-                <FaRedo
-                  className="absolute inset-0 m-auto text-white text-lg cursor-pointer hover:text-gray-300 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    reconnectServer(server.id);
-                  }}
-                  title="Reconnect to server"
-                />
-              )}
-
-              <div
-                className={`
-              absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200
-              ${selectedServerId === server.id ? "h-10" : "h-0 group-hover:h-5"}
-            `}
-              />
-              {server.icon ? (
-                <img
-                  src={server.icon}
-                  alt={server.name}
-                  className="w-9 h-9 rounded-full"
-                />
-              ) : (
-                <div className="text-xl font-semibold text-white">
-                  {getServerInitial(server)}
-                </div>
-              )}
-              {/* Mention badge in top-right corner */}
-              {hasMentions && !isServerActive && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-discord-dark-600" />
-              )}
-              {selectedServerId === server.id && (
-                <div className="absolute -bottom-1 -right-1 flex space-x-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
-                  <button
-                    className="w-5 h-5 bg-discord-dark-300 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-xs shadow-md"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleEditServerModal(true, server.id);
-                    }}
-                    title="Edit Server"
-                  >
-                    <FaPencilAlt />
-                  </button>
-                  <button
-                    className="w-5 h-5 bg-discord-dark-300 hover:bg-discord-red rounded-full flex items-center justify-center text-white text-xs shadow-md"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteServer(server.id);
-                    }}
-                    title="Disconnect"
-                  >
-                    <FaTrash />
-                  </button>
-                </div>
-              )}
-
-              <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
-                {server.name}
-              </div>
-            </div>
-          );
-        })}
+        {servers.map((server) => (
+          <ServerIcon
+            key={server.id}
+            server={server}
+            isSelected={selectedServerId === server.id}
+            isShimmering={shimmeringServers.has(server.id)}
+            isTouchDevice={isTouchDevice}
+            onSelect={() => selectServer(server.id, { clearSelection: true })}
+            onEdit={() => toggleEditServerModal(true, server.id)}
+            onDelete={() => deleteServer(server.id)}
+            onReconnect={() => reconnectServer(server.id)}
+          />
+        ))}
       </div>
     </div>
   );

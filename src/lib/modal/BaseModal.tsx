@@ -112,7 +112,7 @@ export const BaseModal: React.FC<BaseModalProps> = ({
       <div
         ref={modalRef}
         tabIndex={-1}
-        className={`fixed inset-0 z-[9999] bg-discord-dark-200 flex flex-col focus:outline-none ${
+        className={`fixed inset-0 z-[9999] bg-discord-dark-200 flex flex-col focus:outline-none overflow-x-hidden ${
           animate ? "animate-in fade-in" : ""
         } ${className} ${contentClassName}`}
         style={{
@@ -126,7 +126,7 @@ export const BaseModal: React.FC<BaseModalProps> = ({
         aria-labelledby={title ? "modal-title" : undefined}
       >
         {header}
-        <div className="modal-body overflow-y-auto flex-1 flex flex-col">
+        <div className="modal-body overflow-y-auto overflow-x-hidden flex-1 flex flex-col">
           {children}
         </div>
       </div>

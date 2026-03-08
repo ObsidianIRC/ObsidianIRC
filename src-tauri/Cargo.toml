@@ -42,3 +42,6 @@ webpki-roots = "0.26"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
 tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+tauri-plugin-ios-keyboard = "0.1"
