@@ -20,6 +20,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --browser --no-file-parallelism",
+    "gen-certs": "bash scripts/setup-dev-certs.sh",
+    "run-dev-stack": "docker compose --profile testing up --remove-orphans",
+    "stop-dev-stack": "docker compose --profile testing down --remove-orphans",
     "tauri": "tauri"
   },
   "dependencies": {

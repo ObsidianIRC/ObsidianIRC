@@ -84,7 +84,7 @@ export const AddServerModal: React.FC = () => {
         const port = Number.parseInt(serverPort, 10);
         // Remove any existing protocol prefix from serverHost
         const cleanHost = serverHost.replace(
-          /^(https?|wss?|ircs?|irc):\/\//,
+          /^(https?|wss|ircs?|irc):\/\//,
           "",
         );
 
