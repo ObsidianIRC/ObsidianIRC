@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa";
-import { isTauri } from "../../lib/tauri";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import { TextInput } from "./TextInput";
+
+interface DiscoverServer {
+  name: string;
+  description: string;
+  wss?: string;
+  ircs?: string;
+  obsidian?: boolean;
+}
 
 const DiscoverGrid = () => {
   const { toggleAddServerModal, connect, isConnecting, connectionError } =
     useStore();
   const [query, setQuery] = useState("");
-  const [servers, setServers] = useState<
-    { name: string; description: string; wss?: string; ircs?: string }[]
-  >([]);
+  const [servers, setServers] = useState<DiscoverServer[]>([]);
 
   useEffect(() => {
     const fetchServers = async () => {
@@ -31,26 +37,48 @@ const DiscoverGrid = () => {
     fetchServers();
   }, []); // Empty dependency array ensures this runs only once
 
-  const filteredServers = servers.filter(
-    (server) =>
-      server.name.toLowerCase().includes(query.toLowerCase()) ||
-      server.description.toLowerCase().includes(query.toLowerCase()),
-  );
+  // Browser can only connect via WebSocket — hide servers that don't offer wss.
+  // Tauri supports both raw TCP (ircs) and wss, so show all servers with either.
+  const filteredServers = servers
+    .filter((server) =>
+      isTauri() ? !!(server.wss || server.ircs) : !!server.wss,
+    )
+    .filter(
+      (server) =>
+        server.name.toLowerCase().includes(query.toLowerCase()) ||
+        server.description.toLowerCase().includes(query.toLowerCase()),
+    );
 
-  const uriPort = (uri: string, defaultPort: string) =>
-    new URL(uri).port || defaultPort;
+  const handleServerClick = (server: DiscoverServer) => {
+    const hasWss = !!server.wss;
+    const hasIrcs = !!server.ircs;
 
-  const handleServerClick = (server: Record<string, string>) => {
-    const uri = isTauri() ? server.ircs : server.wss;
-    const defaultPort = isTauri() ? "6697" : "443";
+    // Tauri: prefer raw TCP (ircs); if only wss available, use that.
+    // Browser: always wss (non-wss servers are already filtered out above).
+    const useWebSocket = isTauri() ? !hasIrcs : false;
+    const uri = isTauri()
+      ? useWebSocket
+        ? server.wss
+        : (server.ircs ?? server.wss)
+      : server.wss;
+    if (!uri) return;
+    const parsed = new URL(uri);
+
+    // Lock the WSS toggle when only one protocol is available (Tauri only).
+    const lockWebSocket = isTauri() && !(hasWss && hasIrcs);
+
     toggleAddServerModal(true, {
       name: server.name,
-      host: uri ? new URL(uri).hostname : "",
-      port: uri ? uriPort(uri, defaultPort) : defaultPort,
-      nickname: "", // Generate a default nickname
+      // Pass the full URI so ircClient picks up the correct protocol (wss/ircs).
+      // AddServerModal strips the scheme for display when the field is disabled.
+      host: uri,
+      port: parsed.port || (isTauri() ? "6697" : "443"),
+      useWebSocket,
+      nickname: "",
       ui: {
         disableServerConnectionInfo: true,
         title: server.name,
+        lockWebSocket,
       },
     });
   };
