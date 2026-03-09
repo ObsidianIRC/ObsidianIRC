@@ -11,6 +11,7 @@ export interface ConnectionDetails {
     hideServerInfo?: boolean;
     hideClose?: boolean;
     title?: string;
+    lockWebSocket?: boolean;
   };
 }
 

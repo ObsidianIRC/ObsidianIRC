@@ -103,21 +103,9 @@ export const AddServerModal: React.FC = () => {
           /^(https?|wss|ircs?|irc):\/\//,
           "",
         );
-
-        const isLocalhost =
-          cleanHost.toLowerCase() === "localhost" ||
-          cleanHost === "127.0.0.1" ||
-          cleanHost === "::1";
-
-        const isSSLPort =
-          !isLocalhost &&
-          (port === 6697 || port === 9999 || port === 443 || port === 993);
-
-        if (useWebSocket) {
-          finalHost = `${isSSLPort ? "wss" : "ws"}://${cleanHost}:${port}`;
-        } else {
-          finalHost = `${isSSLPort ? "ircs" : "irc"}://${cleanHost}:${port}`;
-        }
+        finalHost = useWebSocket
+          ? `wss://${cleanHost}:${port}`
+          : `ircs://${cleanHost}:${port}`;
       }
 
       await connect(
@@ -145,6 +133,7 @@ export const AddServerModal: React.FC = () => {
   const disableServerConnectionInfo =
     prefillServerDetails?.ui?.disableServerConnectionInfo;
   const hideServerInfo = prefillServerDetails?.ui?.hideServerInfo;
+  const lockWebSocket = prefillServerDetails?.ui?.lockWebSocket;
 
   return (
     <BaseModal
@@ -176,7 +165,11 @@ export const AddServerModal: React.FC = () => {
                 </label>
                 <TextInput
                   inputMode="url"
-                  value={serverHost || ""}
+                  value={
+                    disableServerConnectionInfo && serverHost.includes("://")
+                      ? new URL(serverHost).hostname
+                      : serverHost || ""
+                  }
                   onChange={(e) => setServerHost(e.target.value)}
                   placeholder="irc.example.com"
                   className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
@@ -217,16 +210,23 @@ export const AddServerModal: React.FC = () => {
                       type="checkbox"
                       id="useWebSocket"
                       checked={useWebSocket}
-                      onChange={() => setUseWebSocket(!useWebSocket)}
-                      className="accent-discord-accent rounded"
+                      onChange={() =>
+                        !lockWebSocket && setUseWebSocket(!useWebSocket)
+                      }
+                      disabled={!!lockWebSocket}
+                      className={`accent-discord-accent rounded ${lockWebSocket ? "opacity-50 cursor-not-allowed" : ""}`}
                     />
                     <label
                       htmlFor="useWebSocket"
-                      className="text-discord-text-muted text-sm flex items-center ml-2"
+                      className={`text-discord-text-muted text-sm flex items-center ml-2 ${lockWebSocket ? "opacity-50" : ""}`}
                     >
                       WSS{" "}
                       <FaQuestionCircle
-                        title="Use WebSocket instead of raw TCP"
+                        title={
+                          lockWebSocket
+                            ? "This server only supports one connection type"
+                            : "Use WebSocket instead of raw TCP"
+                        }
                         className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
                       />
                     </label>
