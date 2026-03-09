@@ -1,6 +1,8 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { BaseModal } from "../../lib/modal/BaseModal";
 import type { User } from "../../types";
+import { TextInput } from "./TextInput";
 
 interface AutocompleteDropdownProps {
   users: User[];
@@ -14,6 +16,7 @@ interface AutocompleteDropdownProps {
   currentMatchIndex?: number;
   onNavigate?: (username: string) => void;
   isAtButtonTriggered?: boolean;
+  isNarrowView?: boolean;
 }
 
 export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
@@ -28,8 +31,10 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   currentMatchIndex = 0,
   onNavigate,
   isAtButtonTriggered = false,
+  isNarrowView = false,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [filterText, setFilterText] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const getCompletionWord = () => {
@@ -69,6 +74,18 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   };
 
   const displayUsers = getDisplayUsers();
+
+  // Filtered users for modal view
+  const filteredUsers =
+    isNarrowView && isAtButtonTriggered && filterText
+      ? users
+          .filter((u) =>
+            u.username.toLowerCase().includes(filterText.toLowerCase()),
+          )
+          .sort((a, b) => a.username.localeCompare(b.username))
+      : isNarrowView && isAtButtonTriggered
+        ? users.sort((a, b) => a.username.localeCompare(b.username))
+        : displayUsers;
 
   useEffect(() => {
     setSelectedIndex(tabCompletionMatches.length > 0 ? currentMatchIndex : 0);
@@ -115,6 +132,15 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
           break;
         }
         case "Enter":
+          // In the narrow modal the filter input is focused — let TextInput's
+          // own Enter handler blur the keyboard instead of selecting a member.
+          if (
+            isNarrowView &&
+            isAtButtonTriggered &&
+            document.activeElement?.tagName === "INPUT"
+          ) {
+            return;
+          }
           e.preventDefault();
           e.stopPropagation();
           if (displayUsers[selectedIndex]) {
@@ -131,10 +157,21 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
 
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [isVisible, displayUsers, selectedIndex, onClose, onNavigate, onSelect]);
+  }, [
+    isVisible,
+    displayUsers,
+    selectedIndex,
+    onClose,
+    onNavigate,
+    onSelect,
+    isNarrowView,
+    isAtButtonTriggered,
+  ]);
 
   useEffect(() => {
     if (!isVisible || !isAtButtonTriggered) return;
+    // Skip outside-click handler for narrow view modal (BaseModal handles it)
+    if (isNarrowView) return;
 
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -147,10 +184,65 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isVisible, isAtButtonTriggered, onClose]);
+  }, [isVisible, isAtButtonTriggered, isNarrowView, onClose]);
+
+  // Reset filter text when modal opens/closes
+  useEffect(() => {
+    if (!isVisible) {
+      setFilterText("");
+    }
+  }, [isVisible]);
 
   if (!isVisible || displayUsers.length === 0) {
     return null;
+  }
+
+  // Narrow view modal for @ button triggered dropdown
+  if (isNarrowView && isAtButtonTriggered) {
+    return (
+      <BaseModal
+        isOpen={true}
+        onClose={onClose}
+        title="Select Member"
+        maxWidth="sm"
+        closeOnClickOutside={true}
+        closeOnEsc={true}
+      >
+        <div className="p-3 flex flex-col flex-1 min-h-0">
+          <TextInput
+            placeholder="Filter members…"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            className="w-full bg-discord-dark-400 text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link mb-3 flex-shrink-0"
+          />
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {filteredUsers.map((user, index) => (
+              <div
+                key={user.id}
+                data-user-index={index}
+                className={`px-3 py-3 cursor-pointer flex items-center gap-3 transition-colors duration-150 rounded ${
+                  index === selectedIndex
+                    ? "bg-discord-text-link text-white"
+                    : "text-discord-text-normal hover:bg-discord-dark-400 hover:text-white"
+                }`}
+                onClick={() => onSelect(user.username)}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                <div className="w-8 h-8 rounded-full bg-discord-dark-400 flex items-center justify-center text-sm text-white flex-shrink-0">
+                  {user.username.charAt(0).toUpperCase()}
+                </div>
+                <span className="truncate font-medium text-base">
+                  {user.username}
+                </span>
+                {user.isOnline && (
+                  <div className="w-2 h-2 rounded-full bg-discord-green flex-shrink-0 ml-auto" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </BaseModal>
+    );
   }
 
   const getPosition = () => {

@@ -37,7 +37,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
   };
 
   return (
-    <div className="flex items-center">
+    <div className="flex items-center select-none">
       <span
         className={`font-bold text-white ${isClickable ? "cursor-pointer" : ""}`}
         style={getColorStyle(userColor)}

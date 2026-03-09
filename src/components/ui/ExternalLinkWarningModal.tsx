@@ -1,6 +1,7 @@
 import type React from "react";
-import { createPortal } from "react-dom";
 import { FaExclamationTriangle, FaExternalLinkAlt } from "react-icons/fa";
+import BaseModal from "../../lib/modal/BaseModal";
+import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 
 interface ExternalLinkWarningModalProps {
   isOpen: boolean;
@@ -15,47 +16,28 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!isOpen) return null;
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onCancel();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onCancel();
-    }
-  };
-
   // Truncate very long URLs for display
   const displayUrl = url.length > 80 ? `${url.substring(0, 80)}...` : url;
 
-  return createPortal(
-    <div
-      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 modal-container"
-      onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
-    >
-      <div className="bg-discord-dark-400 rounded-lg shadow-xl border border-discord-dark-300 max-w-md w-full mx-4">
-        {/* Header */}
-        <div className="p-4 border-b border-discord-dark-300">
-          <div className="flex items-center gap-3">
-            <FaExclamationTriangle className="text-yellow-500 text-xl flex-shrink-0" />
-            <h2 className="text-lg font-semibold text-white">
-              External Link Warning
-            </h2>
-          </div>
+  return (
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onCancel}
+      title={
+        <div className="flex items-center gap-3">
+          <FaExclamationTriangle className="text-yellow-500 text-xl flex-shrink-0" />
+          <span>External Link Warning</span>
         </div>
-
-        {/* Content */}
-        <div className="p-4 space-y-4">
-          <p className="text-discord-text">
+      }
+      maxWidth="md"
+    >
+      <ModalBody>
+        <div className="space-y-4">
+          <p className="text-discord-text-normal">
             You are about to open an external link:
           </p>
 
-          <div className="bg-discord-dark-500 rounded p-3 break-all">
+          <div className="bg-discord-dark-400 rounded p-3 break-all">
             <code className="text-sm text-discord-text-link">{displayUrl}</code>
           </div>
 
@@ -66,30 +48,22 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
             </p>
           </div>
 
-          <p className="text-sm text-discord-text-muted">
+          <p className="text-sm text-discord-text-normal">
             Do you want to open this link in a new tab?
           </p>
         </div>
+      </ModalBody>
 
-        {/* Actions */}
-        <div className="p-4 border-t border-discord-dark-300 flex gap-3 justify-end">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded bg-discord-dark-300 hover:bg-discord-dark-200 text-white transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 rounded font-medium bg-discord-primary hover:bg-opacity-80 text-white transition-colors flex items-center gap-2"
-          >
-            <FaExternalLinkAlt className="text-sm" />
-            Open Link
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+      <ModalFooter>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={onConfirm}>
+          <FaExternalLinkAlt className="inline mr-2 text-sm" />
+          Open Link
+        </Button>
+      </ModalFooter>
+    </BaseModal>
   );
 };
 

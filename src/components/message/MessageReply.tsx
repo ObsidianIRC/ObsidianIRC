@@ -1,7 +1,6 @@
 import type React from "react";
-import { processMarkdownInText } from "../../lib/ircUtils";
+import { stripIrcFormatting } from "../../lib/messageFormatter";
 import type { MessageType } from "../../types";
-import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 
 interface MessageReplyProps {
   replyMessage: MessageType;
@@ -15,7 +14,6 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
   replyMessage,
   theme,
   onUsernameClick,
-  onIrcLinkClick,
   onReplyClick,
 }) => {
   const replyUsername = replyMessage.userId.split("-")[0];
@@ -25,9 +23,13 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
     onUsernameClick?.(e);
   };
 
+  const plainContent = stripIrcFormatting(replyMessage.content)
+    .replace(/\n+/g, " ")
+    .trim();
+
   return (
     <div
-      className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2 ${onReplyClick ? "cursor-pointer hover:bg-opacity-80" : ""}`}
+      className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2 select-none line-clamp-2 ${onReplyClick ? "cursor-pointer hover:bg-opacity-80" : ""}`}
       onClick={onReplyClick}
       title={onReplyClick ? "Click to jump to message" : ""}
     >
@@ -36,16 +38,8 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
         <span className="cursor-pointer" onClick={handleUsernameClick}>
           {replyUsername}
         </span>
-        :
-      </strong>{" "}
-      <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-        {processMarkdownInText(
-          replyMessage.content,
-          true,
-          false,
-          `reply-${replyMessage.id || replyMessage.msgid || "unknown"}`,
-        )}
-      </EnhancedLinkWrapper>
+      </strong>
+      : {plainContent}
     </div>
   );
 };

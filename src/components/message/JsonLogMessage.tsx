@@ -274,18 +274,17 @@ const renderStructuredData = (
           title="Click to copy as JSON"
         >
           <div className="ml-4 space-y-1">
-            {value.map((item, index) => (
-              <div
-                key={`${contextPath.join(".")}.${index}`}
-                className="flex items-start"
-              >
-                <span className="text-gray-500 mr-2">•</span>
-                {renderValue(item, 0, false, [
-                  ...contextPath,
-                  index.toString(),
-                ])}
-              </div>
-            ))}
+            {Array.from(value, (item, i) => ({ item, i })).map(
+              ({ item, i }) => (
+                <div
+                  key={`${contextPath.join(".")}.${i}`}
+                  className="flex items-start"
+                >
+                  <span className="text-gray-500 mr-2">•</span>
+                  {renderValue(item, 0, false, [...contextPath, i.toString()])}
+                </div>
+              ),
+            )}
           </div>
         </div>
       );

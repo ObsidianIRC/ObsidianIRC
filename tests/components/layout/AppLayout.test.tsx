@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppLayout } from "../../../src/components/layout/AppLayout";
 import useStore from "../../../src/store";
 import type { Channel, Server, User } from "../../../src/types";
+import { defaultUIExtensions } from "../../fixtures/uiState";
 
 vi.mock("@tauri-apps/plugin-os", () => ({
   platform: vi.fn(() => "linux"),
@@ -110,7 +111,6 @@ describe("AppLayout Swipe Navigation", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
@@ -132,6 +132,7 @@ describe("AppLayout Swipe Navigation", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
       messages: {},
       isConnecting: false,
@@ -393,7 +394,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(useStore.getState().ui.mobileViewActiveColumn).toBe("serverList");
@@ -411,7 +411,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(useStore.getState().ui.mobileViewActiveColumn).toBe("chatView");
@@ -428,7 +427,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(result).toBe(true);

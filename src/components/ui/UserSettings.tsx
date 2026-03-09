@@ -5,8 +5,11 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   FaBell,
+  FaChevronLeft,
+  FaChevronRight,
   FaCog,
   FaImage,
   FaServer,
@@ -17,6 +20,8 @@ import {
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 import ircClient from "../../lib/ircClient";
+import { openExternalUrl } from "../../lib/openUrl";
+import { isTauri } from "../../lib/platformUtils";
 import { settingsRegistry } from "../../lib/settings";
 import type { SettingValue } from "../../lib/settings/types";
 import useStore, {
@@ -26,6 +31,7 @@ import useStore, {
 } from "../../store";
 import AvatarUpload from "./AvatarUpload";
 import { SettingField } from "./settings/SettingRenderer";
+import { TextInput } from "./TextInput";
 import UserProfileModal from "./UserProfileModal";
 
 // Deep clone utility for settings values
@@ -184,6 +190,9 @@ export const UserSettings: React.FC = React.memo(() => {
   // Category state
   const [activeCategory, setActiveCategory] =
     useState<SettingsCategory>("profile");
+  const [mobileView, setMobileView] = useState<"categories" | "content">(
+    "categories",
+  );
   const [highlightedSetting, setHighlightedSetting] = useState<string | null>(
     null,
   );
@@ -195,6 +204,7 @@ export const UserSettings: React.FC = React.memo(() => {
   // Clear highlight when modal closes
   useEffect(() => {
     if (!ui.isSettingsModalOpen) {
+      setMobileView("categories");
       setHighlightedSetting(null);
       if (highlightTimeoutRef.current) {
         clearTimeout(highlightTimeoutRef.current);
@@ -727,10 +737,15 @@ export const UserSettings: React.FC = React.memo(() => {
           </p>
 
           <div className="space-y-3">
-            <a
-              href="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => {
+                if (isTauri()) {
+                  openExternalUrl("https://obsidianirc.pages.dev/privacy");
+                } else {
+                  window.open("/privacy", "_blank");
+                }
+              }}
               className="flex items-center justify-between w-full p-3 bg-discord-dark-500 rounded hover:bg-discord-dark-300 transition-colors"
             >
               <span className="text-discord-text-normal">
@@ -749,7 +764,7 @@ export const UserSettings: React.FC = React.memo(() => {
                   d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
                 />
               </svg>
-            </a>
+            </button>
           </div>
         </div>
 
@@ -783,10 +798,10 @@ export const UserSettings: React.FC = React.memo(() => {
             <p>
               • <strong>Email:</strong>{" "}
               <a
-                href="mailto:obsidian@gmail.com"
+                href="mailto:obsidianirc@gmail.com"
                 className="text-discord-primary hover:text-discord-primary-light"
               >
-                obsidian@gmail.com
+                obsidianirc@gmail.com
               </a>
             </p>
             <p>
@@ -842,9 +857,8 @@ export const UserSettings: React.FC = React.memo(() => {
           <p className="text-discord-text-muted text-xs">
             {nicknameSetting?.description}
           </p>
-          <input
+          <TextInput
             ref={nicknameInputRef}
-            type="text"
             value={newNickname}
             onChange={handleNewNicknameChange}
             className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
@@ -858,9 +872,8 @@ export const UserSettings: React.FC = React.memo(() => {
           <p className="text-discord-text-muted text-xs">
             {realnameSetting?.description}
           </p>
-          <input
+          <TextInput
             ref={realnameInputRef}
-            type="text"
             value={realname}
             onChange={handleRealnameChange}
             placeholder={realnameSetting?.placeholder || "Enter real name"}
@@ -899,9 +912,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {displayNameSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={displayNameInputRef}
-                  type="text"
                   value={displayName}
                   onChange={handleDisplayNameChange}
                   placeholder={
@@ -925,9 +937,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {avatarSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={avatarInputRef}
-                  type="text"
                   value={avatar}
                   onChange={handleAvatarChange}
                   placeholder={
@@ -959,8 +970,7 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {homepageSetting?.description}
                 </p>
-                <input
-                  type="text"
+                <TextInput
                   value={homepage}
                   onChange={handleHomepageChange}
                   placeholder={
@@ -984,9 +994,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {statusSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={statusInputRef}
-                  type="text"
                   value={status}
                   onChange={handleStatusChange}
                   placeholder="What's on your mind?"
@@ -1015,9 +1024,8 @@ export const UserSettings: React.FC = React.memo(() => {
                     onChange={handleColorChange}
                     className="w-12 h-8 rounded border-none cursor-pointer"
                   />
-                  <input
+                  <TextInput
                     ref={colorInputRef}
-                    type="text"
                     value={color}
                     onChange={handleColorChange}
                     placeholder="#000000"
@@ -1040,9 +1048,8 @@ export const UserSettings: React.FC = React.memo(() => {
                 <p className="text-discord-text-muted text-xs">
                   {botSetting?.description}
                 </p>
-                <input
+                <TextInput
                   ref={botInputRef}
-                  type="text"
                   value={bot}
                   onChange={handleBotChange}
                   placeholder={botSetting?.placeholder || "on"}
@@ -1072,9 +1079,8 @@ export const UserSettings: React.FC = React.memo(() => {
             <p className="text-discord-text-muted text-xs">
               {awayMessageSetting?.description}
             </p>
-            <input
+            <TextInput
               ref={awayMessageInputRef}
-              type="text"
               value={awayMessage}
               onChange={handleAwayMessageChange}
               placeholder={
@@ -1098,9 +1104,8 @@ export const UserSettings: React.FC = React.memo(() => {
             <p className="text-discord-text-muted text-xs">
               {quitMessageSetting?.description}
             </p>
-            <input
+            <TextInput
               ref={quitMessageInputRef}
-              type="text"
               value={quitMessage}
               onChange={handleQuitMessageChange}
               placeholder={
@@ -1138,8 +1143,7 @@ export const UserSettings: React.FC = React.memo(() => {
             <label className="block text-discord-text-normal text-sm font-medium">
               Oper Name
             </label>
-            <input
-              type="text"
+            <TextInput
               value={operName}
               onChange={(e) => setOperName(e.target.value)}
               placeholder="Enter oper username"
@@ -1151,7 +1155,7 @@ export const UserSettings: React.FC = React.memo(() => {
             <label className="block text-discord-text-normal text-sm font-medium">
               Oper Password
             </label>
-            <input
+            <TextInput
               type="password"
               value={operPassword}
               onChange={(e) => setOperPassword(e.target.value)}
@@ -1188,6 +1192,147 @@ export const UserSettings: React.FC = React.memo(() => {
       </div>
     );
   };
+
+  if (!ui.isSettingsModalOpen) return null;
+
+  if (isMobile) {
+    const portalTarget = document.getElementById("root") || document.body;
+
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[9999] bg-discord-dark-200 flex flex-col animate-in fade-in"
+        style={{
+          paddingTop: "var(--safe-area-inset-top, 0px)",
+          paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+          paddingLeft: "var(--safe-area-inset-left, 0px)",
+          paddingRight: "var(--safe-area-inset-right, 0px)",
+        }}
+      >
+        {mobileView === "categories" ? (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-discord-dark-500 flex-shrink-0">
+              <h2 className="text-white text-lg font-semibold">
+                User Settings
+              </h2>
+              <button
+                onClick={handleClose}
+                className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            {/* Category list */}
+            <div className="flex-1 overflow-y-auto">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => {
+                    setActiveCategory(category.id);
+                    setMobileView("content");
+                  }}
+                  className="w-full flex items-center gap-4 px-4 py-4 border-b border-discord-dark-400 hover:bg-discord-dark-300 text-left transition-colors"
+                >
+                  <div className="text-discord-text-muted text-lg flex-shrink-0">
+                    {category.icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-white font-medium">
+                      {category.title}
+                    </div>
+                    <div className="text-discord-text-muted text-sm truncate">
+                      {category.description}
+                    </div>
+                  </div>
+                  <FaChevronRight className="text-discord-text-muted flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Header with back */}
+            <div className="flex items-center justify-between p-4 border-b border-discord-dark-500 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setMobileView("categories")}
+                  className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
+                  aria-label="Back"
+                >
+                  <FaChevronLeft />
+                </button>
+                <h2 className="text-white text-lg font-semibold">
+                  {categories.find((c) => c.id === activeCategory)?.title}
+                </h2>
+              </div>
+              <button
+                onClick={handleClose}
+                className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {activeCategory === "profile" && renderProfileFields()}
+              {activeCategory === "account" && renderAccountFields()}
+              {activeCategory === "privacy" && renderPrivacyFields()}
+              {activeCategory !== "profile" &&
+                activeCategory !== "account" &&
+                activeCategory !== "privacy" && (
+                  <div className="space-y-4">
+                    {categorySettings.map((setting) => (
+                      <SettingField
+                        key={setting.id}
+                        setting={setting}
+                        value={settings[setting.key] ?? setting.defaultValue}
+                        onChange={(value) =>
+                          handleSettingChange(setting.key, value)
+                        }
+                        isHighlighted={highlightedSetting === setting.id}
+                      />
+                    ))}
+                  </div>
+                )}
+            </div>
+            {/* Footer */}
+            <div className="flex gap-3 p-4 border-t border-discord-dark-500 flex-shrink-0">
+              <button
+                onClick={handleClose}
+                className="flex-1 px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges}
+                className={`flex-1 px-4 py-2 text-white rounded font-medium transition-colors ${
+                  hasUnsavedChanges
+                    ? "bg-discord-primary hover:bg-opacity-80"
+                    : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
+                }`}
+              >
+                {hasUnsavedChanges ? "Save" : "No Changes"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* User Profile Modal (preserve existing) */}
+        {viewProfileModalOpen && currentServer && currentUser && (
+          <UserProfileModal
+            isOpen={viewProfileModalOpen}
+            onClose={() => setViewProfileModalOpen(false)}
+            serverId={currentServer.id}
+            username={currentUser.username}
+          />
+        )}
+      </div>,
+      portalTarget,
+    );
+  }
 
   return (
     <div

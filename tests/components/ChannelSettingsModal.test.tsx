@@ -164,7 +164,7 @@ describe("ChannelSettingsModal", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
     expect(screen.getByText("Bans (+b)")).toBeInTheDocument();
-    expect(screen.getByText("Ban Exceptions (+e)")).toBeInTheDocument();
+    expect(screen.getByText("Exceptions (+e)")).toBeInTheDocument();
     expect(screen.getByText("Invitations (+I)")).toBeInTheDocument();
   });
 
@@ -177,7 +177,7 @@ describe("ChannelSettingsModal", () => {
   test("switches tabs correctly", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    const exceptionsTab = screen.getByText("Ban Exceptions (+e)");
+    const exceptionsTab = screen.getByText("Exceptions (+e)");
     fireEvent.click(exceptionsTab);
 
     expect(exceptionsTab).toHaveClass("border-discord-blue");
@@ -242,15 +242,9 @@ describe("ChannelSettingsModal", () => {
   test("calls onClose when close button is clicked", () => {
     render(<ChannelSettingsModal {...defaultProps} />);
 
-    // Find the close button by its SVG icon (X sign)
-    const buttons = screen.getAllByRole("button");
-    const closeButton = buttons.find(
-      (button) => button.querySelector('svg[viewBox="0 0 352 512"]'), // X icon
-    );
+    const closeButton = screen.getByRole("button", { name: /Close modal/ });
     expect(closeButton).toBeInTheDocument();
-    if (closeButton) {
-      fireEvent.click(closeButton);
-    }
+    fireEvent.click(closeButton);
 
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });

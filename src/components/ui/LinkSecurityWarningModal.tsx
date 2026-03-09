@@ -25,7 +25,6 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
   const [timerExpired, setTimerExpired] = useState(false);
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
   const [hasScrollbar, setHasScrollbar] = useState(false);
-  const [skipLocalhostWarning, setSkipLocalhostWarning] = useState(false);
   const [skipLinkSecurityWarning, setSkipLinkSecurityWarning] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const timerStartedRef = useRef(false);
@@ -82,8 +81,6 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
   const serverName =
     server.name || serverConfig?.name || server.host || "Unknown Server";
   const securityLevel = server.linkSecurity || 0;
-  const isLocalhost =
-    server.host === "localhost" || server.host === "127.0.0.1";
   const isLinkSecurityWarning =
     server.linkSecurity !== undefined && server.linkSecurity < 2;
 
@@ -111,8 +108,6 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
       if (s.id === serverId) {
         return {
           ...s,
-          ...(skipLocalhostWarning &&
-            isLocalhost && { skipLocalhostWarning: true }),
           ...(skipLinkSecurityWarning &&
             isLinkSecurityWarning && { skipLinkSecurityWarning: true }),
         };
@@ -224,38 +219,6 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
 
             {/* Security Issues List */}
             <div className="space-y-3">
-              {isLocalhost && (
-                <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-30 rounded p-3">
-                  <div className="flex items-start gap-2">
-                    <FaExclamationTriangle className="text-yellow-500 text-sm mt-0.5 flex-shrink-0" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-yellow-200">
-                        Unencrypted Connection (Localhost)
-                      </p>
-                      <p className="text-xs text-yellow-100">
-                        This connection uses an unencrypted WebSocket (
-                        <code className="bg-black bg-opacity-30 px-1 rounded">
-                          ws://
-                        </code>
-                        ) instead of secure WebSocket (
-                        <code className="bg-black bg-opacity-30 px-1 rounded">
-                          wss://
-                        </code>
-                        ). While localhost connections are typically safe for
-                        development, any communication could be visible to
-                        others on your local network or to malicious software
-                        running on your computer.
-                      </p>
-                      <p className="text-xs text-yellow-100">
-                        <strong>Risk:</strong> Messages, passwords, and
-                        authentication tokens could be intercepted by network
-                        sniffers or malware on your local machine.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {isLinkSecurityWarning && (
                 <div className="bg-orange-500 bg-opacity-10 border border-orange-500 border-opacity-30 rounded p-3">
                   <div className="flex items-start gap-2">
@@ -302,7 +265,7 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
                 </div>
               )}
 
-              {!isLocalhost && !isLinkSecurityWarning && (
+              {!isLinkSecurityWarning && (
                 <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-30 rounded p-3">
                   <p className="text-sm text-yellow-200">
                     <strong>⚠️ Security Risk!</strong> This connection may be
@@ -313,33 +276,18 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
             </div>
 
             {/* Recommendation */}
-            {(isLocalhost || isLinkSecurityWarning) && (
+            {isLinkSecurityWarning && (
               <div className="bg-blue-500 bg-opacity-10 border border-blue-500 border-opacity-30 rounded p-3">
                 <p className="text-xs text-blue-200">
                   <strong>💡 Recommendation:</strong> Only proceed if you trust
                   this server and understand the risks. Avoid sharing sensitive
                   information or passwords over this connection.
-                  {isLocalhost &&
-                    " For production use, configure your server with SSL/TLS and use wss:// instead of ws://."}
                 </p>
               </div>
             )}
 
             {/* Checkboxes for remembering choice */}
             <div className="space-y-2">
-              {isLocalhost && (
-                <label className="flex items-center gap-2 text-sm text-discord-text-muted cursor-pointer hover:text-discord-text">
-                  <input
-                    type="checkbox"
-                    checked={skipLocalhostWarning}
-                    onChange={(e) => setSkipLocalhostWarning(e.target.checked)}
-                    className="rounded border-discord-dark-200"
-                  />
-                  <span>
-                    Don't warn me about localhost connections for this server
-                  </span>
-                </label>
-              )}
               {isLinkSecurityWarning && (
                 <label className="flex items-center gap-2 text-sm text-discord-text-muted cursor-pointer hover:text-discord-text">
                   <input

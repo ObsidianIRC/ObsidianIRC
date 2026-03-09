@@ -14,6 +14,7 @@ import {
   FaUserCheck,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
+import { openExternalUrl } from "../../lib/openUrl";
 import useStore from "../../store";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 
@@ -223,9 +224,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  const handleConfirmOpen = () => {
+  const handleConfirmOpen = async () => {
     if (pendingUrl) {
-      window.open(pendingUrl, "_blank", "noopener,noreferrer");
+      await openExternalUrl(pendingUrl);
     }
     setPendingUrl(null);
   };
@@ -668,10 +669,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   onClick={() => {
                     openPrivateChat(serverId, username);
-                    // Find and select the private chat
-                    const server = servers.find((s) => s.id === serverId);
+                    // Read fresh state after openPrivateChat updates the store
+                    const freshServers = useStore.getState().servers;
+                    const server = freshServers.find((s) => s.id === serverId);
                     const privateChat = server?.privateChats?.find(
-                      (pc) => pc.username === username,
+                      (pc) =>
+                        pc.username.toLowerCase() === username.toLowerCase(),
                     );
                     if (privateChat) {
                       selectPrivateChat(privateChat.id, { navigate: true });

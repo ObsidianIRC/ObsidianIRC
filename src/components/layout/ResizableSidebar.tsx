@@ -18,6 +18,8 @@ interface ResizableSidebarProps {
   handleHoverColor?: string;
   bypass: boolean;
   onMinReached?: () => void;
+  initialWidth?: number;
+  onWidthChange?: (width: number) => void;
 }
 
 export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
@@ -31,12 +33,31 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   handleHoverColor = "bg-discord-dark-400",
   onMinReached,
   bypass,
+  initialWidth,
+  onWidthChange,
 }) => {
   if (bypass) {
     return children;
   }
 
-  const [width, setWidth] = useState(defaultWidth);
+  const validateWidth = useCallback(
+    (width: number, min: number, max: number, fallback: number): number => {
+      if (Number.isNaN(width) || width < min || width > max) {
+        return fallback;
+      }
+      return width;
+    },
+    [],
+  );
+
+  const [width, setWidth] = useState(
+    validateWidth(
+      initialWidth ?? defaultWidth,
+      minWidth,
+      maxWidth,
+      defaultWidth,
+    ),
+  );
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartX = useRef<number>(0);
   const resizeStartWidth = useRef<number>(0);
@@ -45,10 +66,24 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   // If we are toggling visibility back on, reset the width
   useEffect(() => {
     if (isVisible && !wasVisible.current) {
-      setWidth(defaultWidth);
+      setWidth(
+        validateWidth(
+          initialWidth ?? defaultWidth,
+          minWidth,
+          maxWidth,
+          defaultWidth,
+        ),
+      );
     }
     wasVisible.current = isVisible;
-  }, [isVisible, defaultWidth]);
+  }, [
+    isVisible,
+    defaultWidth,
+    initialWidth,
+    minWidth,
+    maxWidth,
+    validateWidth,
+  ]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -85,7 +120,8 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
 
   const handleResizeEnd = useCallback(() => {
     setIsResizing(false);
-  }, []);
+    onWidthChange?.(width);
+  }, [width, onWidthChange]);
 
   useEffect(() => {
     if (isResizing) {

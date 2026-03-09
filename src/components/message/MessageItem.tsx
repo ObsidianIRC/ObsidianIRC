@@ -1,12 +1,16 @@
 import exifr from "exifr";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaSpinner } from "react-icons/fa";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
   isUrlFromFilehost,
   isUserVerified,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import { stripIrcFormatting } from "../../lib/messageFormatter";
+import { openExternalUrl } from "../../lib/openUrl";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
@@ -27,6 +31,7 @@ import {
   SystemMessage,
   WhisperMessage,
 } from "./index";
+import { SwipeableMessage } from "./SwipeableMessage";
 
 // Function to extract JPEG COM (comment) marker data
 function extractJpegComment(uint8Array: Uint8Array): string | null {
@@ -296,20 +301,30 @@ const ImageWithFallback: React.FC<{
 
   return (
     <div className="max-w-md">
-      <div className="relative inline-block">
+      <div className="relative inline-block rounded border border-discord-dark-500/50 overflow-hidden">
+        {!imageLoaded && !imageError && (
+          <div
+            className="flex items-center justify-center bg-discord-dark-400/50"
+            style={{ width: "200px", height: "150px" }}
+          >
+            <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
+          </div>
+        )}
         <img
           src={displayUrl}
           alt={isFilehostImage ? "Filehost image" : "GIF"}
-          className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-          onClick={(e) => {
+          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${
+            imageLoaded ? "block" : "hidden"
+          }`}
+          onClick={async (e) => {
             e.preventDefault();
-            window.open(url, "_blank"); // Always open original URL for sharing
+            await openExternalUrl(url);
           }}
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageError(true)}
           style={{ maxHeight: "150px" }}
         />
-        {isFilehostImage && exifData && (
+        {isFilehostImage && exifData && imageLoaded && (
           <FilehostImageBanner
             exifData={exifData}
             serverId={serverId}
@@ -413,7 +428,8 @@ export const MessageItem = (props: MessageItemProps) => {
     onRedactMessage,
   } = props;
   const pmUserCache = useRef(new Map<string, User>());
-  const EMPTY_MESSAGES = useRef<MessageType[]>([]).current;
+  const isNarrowView = useMediaQuery();
+  const isTouchDevice = useMediaQuery("(pointer: coarse)");
 
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
@@ -491,19 +507,29 @@ export const MessageItem = (props: MessageItemProps) => {
     ),
   );
 
-  // Get metadata for private message users reactively
+  // Get metadata for private message users reactively.
+  // Reads user.metadata directly from Zustand state (stable object references)
+  // instead of calling getUserMetadata() which hits localStorage and returns a
+  // new object every call — causing an infinite render loop via useSyncExternalStore.
   const pmUserMetadata = useStore(
     useCallback(
       (state) => {
-        // Include metadataChangeCounter to make this reactive to metadata updates
         const _counter = state.metadataChangeCounter;
         if (!userKey.startsWith("pm-")) return null;
         const privateChatId = userKey.slice(3);
-        const privateChat = state.servers
-          .find((s) => s.id === serverId)
-          ?.privateChats?.find((pc) => pc.id === privateChatId);
-        if (privateChat) {
-          return getUserMetadata(privateChat.username, serverId);
+        const server = state.servers.find((s) => s.id === serverId);
+        const privateChat = server?.privateChats?.find(
+          (pc) => pc.id === privateChatId,
+        );
+        if (!privateChat || !server) return null;
+        for (const channel of server.channels) {
+          const user = channel.users.find(
+            (u) =>
+              u.username.toLowerCase() === privateChat.username.toLowerCase(),
+          );
+          if (user?.metadata && Object.keys(user.metadata).length > 0) {
+            return user.metadata;
+          }
         }
         return null;
       },
@@ -572,61 +598,8 @@ export const MessageItem = (props: MessageItemProps) => {
     !!server?.capabilities?.includes("draft/message-redaction") &&
     !!onRedactMessage;
 
-  // Get the channel messages to handle multiline message content
-  const rawChannelMessages = useStore(
-    useCallback(
-      (state) => {
-        if (!serverId || !channelId) return EMPTY_MESSAGES;
-        const server = state.servers.find((s) => s.id === serverId);
-        const channel = server?.channels.find((c) => c.id === channelId);
-        return channel?.messages ?? EMPTY_MESSAGES;
-      },
-      [serverId, channelId, EMPTY_MESSAGES],
-    ),
-  );
-
-  const channelMessages = rawChannelMessages;
-
-  // For multiline messages, combine content from all messages in the group
-  const getMessageContent = () => {
-    if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
-      // Find all messages that are part of this multiline group
-      const multilineMessages = channelMessages.filter((m) =>
-        message.multilineMessageIds?.includes(m.id),
-      );
-
-      // Sort by timestamp to maintain order
-      multilineMessages.sort(
-        (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-      );
-
-      // Only the first message in the group should display content
-      if (multilineMessages[0]?.id !== message.id) {
-        return ""; // Don't display content for subsequent messages in multiline group
-      }
-
-      // Combine content with newlines
-      return multilineMessages.map((m) => m.content).join("\n");
-    }
-    return message.content;
-  };
-
-  const messageContent = getMessageContent();
-
-  // If this is a multiline message and not the first one, don't render anything
-  if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
-    const multilineMessages = channelMessages.filter((m) =>
-      message.multilineMessageIds?.includes(m.id),
-    );
-    multilineMessages.sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
-    if (multilineMessages[0]?.id !== message.id) {
-      return null; // Don't render subsequent messages in multiline group
-    }
-  }
+  // message.content is already combined for multiline messages by the IRC client
+  const messageContent = message.content;
 
   // Convert message content to React elements
   const htmlContent = processMarkdownInText(
@@ -642,35 +615,63 @@ export const MessageItem = (props: MessageItemProps) => {
   const theme = localStorage.getItem("theme") || "discord";
   const username = message.userId.split("-")[0];
 
+  // Strip IRC formatting codes so URL/image detection works even when the URL
+  // is wrapped in bold, italic, underline, strikethrough, or color codes.
+  const strippedContent = stripIrcFormatting(message.content);
+
+  // All three "single URL" checks require no whitespace — a message with spaces
+  // contains multiple URLs and must not be treated as a single image URL.
+  const isSingleToken = !/\s/.test(strippedContent.trim());
+
   // Check if message is just an image URL from our filehost
   const isImageUrl =
+    isSingleToken &&
     !!server?.filehost &&
-    message.content.trim() === message.content &&
-    isUrlFromFilehost(message.content, server.filehost) &&
-    (!!message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")); // check for backend upload URLs
+    isUrlFromFilehost(strippedContent.trim(), server.filehost) &&
+    (!!strippedContent.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+      strippedContent.includes("/images/")); // check for backend upload URLs
 
   // Check if message is just a GIF URL from GIPHY or Tenor
   const isGifUrl =
-    message.content.trim() === message.content &&
-    (message.content.match(/media\d*\.giphy\.com\/media\//) ||
-      message.content.includes("media.tenor.com/") ||
-      message.content.includes("tenor.googleapis.com/") ||
-      message.content.match(/tenor\.com\/view\//)) &&
-    (message.content.match(/\.(gif)$/i) ||
-      message.content.includes("/giphy.gif") ||
-      message.content.includes("/tinygif") ||
-      message.content.match(/tenor\.com\/view\//));
+    isSingleToken &&
+    (strippedContent.match(/media\d*\.giphy\.com\/media\//) ||
+      strippedContent.includes("media.tenor.com/") ||
+      strippedContent.includes("tenor.googleapis.com/") ||
+      strippedContent.match(/tenor\.com\/view\//)) &&
+    (strippedContent.match(/\.(gif)$/i) ||
+      strippedContent.includes("/giphy.gif") ||
+      strippedContent.includes("/tinygif") ||
+      strippedContent.match(/tenor\.com\/view\//));
 
   // Check if message is just an external image URL (not from filehost)
   const isExternalImageUrl =
-    message.content.trim() === message.content &&
+    isSingleToken &&
     !isImageUrl && // Not a filehost image
     !isGifUrl && // Not a GIF from specific services
-    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")) &&
-    (message.content.startsWith("http://") ||
-      message.content.startsWith("https://"));
+    (strippedContent.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+      strippedContent.includes("/images/")) &&
+    (strippedContent.startsWith("http://") ||
+      strippedContent.startsWith("https://"));
+
+  // Extract filehost image URLs embedded in messages with other text.
+  // Commas are excluded from URL matches so "url1,url2" splits correctly.
+  // Trailing punctuation (.!?;:)>]) is stripped after matching.
+  const embeddedFilehostImages = useMemo(() => {
+    if (!server?.filehost || !showSafeMedia || isImageUrl) return [];
+    const urlRegex = /https?:\/\/[^\s,]+/gi;
+    const urls = (strippedContent.match(urlRegex) ?? []).map((url) =>
+      url.replace(/[.,!?;:)>\]]+$/, ""),
+    );
+    return urls.filter(
+      (url) =>
+        server.filehost &&
+        isUrlFromFilehost(url, server.filehost) &&
+        (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url) ||
+          url.includes("/images/")),
+    );
+  }, [strippedContent, server?.filehost, showSafeMedia, isImageUrl]);
+
+  const [showAllImages, setShowAllImages] = useState(false);
 
   // Handle system messages
   if (isSystem) {
@@ -882,108 +883,166 @@ export const MessageItem = (props: MessageItemProps) => {
     <div
       data-message-id={message.id}
       className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
-        showHeader ? "py-2 mt-2" : "py-0.5"
+        showHeader ? "mt-4" : "py-0.5"
       }`}
     >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
       )}
 
-      <div className="flex">
-        <MessageAvatar
-          userId={message.userId}
-          avatarUrl={avatarUrl}
-          userStatus={userStatus}
-          isAway={messageUser?.isAway}
-          theme={theme}
-          showHeader={showHeader}
-          onClick={handleAvatarClick}
-          isClickable={isClickable}
-          serverId={message.serverId}
-        />
+      <SwipeableMessage
+        onReply={() => setReplyTo(message)}
+        onReact={(el) => onReactClick(message, el)}
+        onDelete={canRedact ? () => onRedactMessage?.(message) : undefined}
+        canReply={!!message.msgid}
+        canDelete={canRedact}
+        isNarrowView={isTouchDevice}
+      >
+        <div className="flex">
+          <MessageAvatar
+            userId={message.userId}
+            avatarUrl={avatarUrl}
+            userStatus={userStatus}
+            isAway={messageUser?.isAway}
+            theme={theme}
+            showHeader={showHeader}
+            onClick={handleAvatarClick}
+            isClickable={isClickable}
+            serverId={message.serverId}
+          />
 
-        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
-          {showHeader && (
-            <MessageHeader
-              userId={message.userId}
-              displayName={displayName}
-              userColor={userColor}
-              timestamp={new Date(message.timestamp)}
-              theme={theme}
-              isClickable={isClickable}
-              onClick={handleUsernameClick}
-              isBot={isBot}
-              isVerified={isVerified}
-              isIrcOp={isIrcOp}
-            />
-          )}
-
-          <div className="relative">
-            {message.replyMessage && (
-              <MessageReply
-                replyMessage={message.replyMessage}
+          <div
+            className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}
+          >
+            {showHeader && (
+              <MessageHeader
+                userId={message.userId}
+                displayName={displayName}
+                userColor={userColor}
+                timestamp={new Date(message.timestamp)}
                 theme={theme}
-                onUsernameClick={handleReplyUsernameClick}
-                onIrcLinkClick={onIrcLinkClick}
-                onReplyClick={handleScrollToReply}
+                isClickable={isClickable}
+                onClick={handleUsernameClick}
+                isBot={isBot}
+                isVerified={isVerified}
+                isIrcOp={isIrcOp}
               />
             )}
 
-            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {(isImageUrl && showSafeMedia) ||
-              (isGifUrl && showExternalContent) ||
-              (isExternalImageUrl && showExternalContent) ? (
-                <ImageWithFallback
-                  url={message.content}
-                  isFilehostImage={isImageUrl}
-                  serverId={message.serverId}
-                  onOpenProfile={onOpenProfile}
+            <div className="relative">
+              {message.replyMessage && (
+                <MessageReply
+                  replyMessage={message.replyMessage}
+                  theme={theme}
+                  onUsernameClick={handleReplyUsernameClick}
+                  onIrcLinkClick={onIrcLinkClick}
+                  onReplyClick={handleScrollToReply}
                 />
-              ) : (
-                <div
-                  className="overflow-hidden"
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "break-word",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {collapsibleContent}
+              )}
+
+              <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+                {(isImageUrl && showSafeMedia) ||
+                (isGifUrl && showExternalContent) ||
+                (isExternalImageUrl && showExternalContent) ? (
+                  <ImageWithFallback
+                    url={strippedContent}
+                    isFilehostImage={isImageUrl}
+                    serverId={message.serverId}
+                    onOpenProfile={onOpenProfile}
+                  />
+                ) : (
+                  <div
+                    className="overflow-hidden"
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "break-word",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {collapsibleContent}
+                  </div>
+                )}
+              </EnhancedLinkWrapper>
+
+              {/* Render embedded filehost image previews — first always visible,
+                  rest collapsed behind a "show more" toggle to prevent floods */}
+              {embeddedFilehostImages.length > 0 && (
+                <div>
+                  <ImageWithFallback
+                    url={embeddedFilehostImages[0]}
+                    isFilehostImage
+                    serverId={message.serverId}
+                    onOpenProfile={onOpenProfile}
+                  />
+                  {embeddedFilehostImages.length > 1 &&
+                    (showAllImages ? (
+                      <>
+                        {embeddedFilehostImages.slice(1).map((imgUrl) => (
+                          <ImageWithFallback
+                            key={imgUrl}
+                            url={imgUrl}
+                            isFilehostImage
+                            serverId={message.serverId}
+                            onOpenProfile={onOpenProfile}
+                          />
+                        ))}
+                        <button
+                          type="button"
+                          className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
+                          onClick={() => setShowAllImages(false)}
+                        >
+                          Show less
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
+                        onClick={() => setShowAllImages(true)}
+                      >
+                        Show {embeddedFilehostImages.length - 1} more image
+                        {embeddedFilehostImages.length > 2 ? "s" : ""}
+                      </button>
+                    ))}
                 </div>
               )}
-            </EnhancedLinkWrapper>
 
-            {/* Render link preview if available */}
-            {(message.linkPreviewTitle ||
-              message.linkPreviewSnippet ||
-              message.linkPreviewMeta) && (
-              <LinkPreview
-                title={message.linkPreviewTitle}
-                snippet={message.linkPreviewSnippet}
-                imageUrl={message.linkPreviewMeta}
-                theme={theme}
-                messageContent={message.content}
-              />
-            )}
+              {/* Render link preview if available */}
+              {(message.linkPreviewTitle ||
+                message.linkPreviewSnippet ||
+                message.linkPreviewMeta) && (
+                <LinkPreview
+                  title={message.linkPreviewTitle}
+                  snippet={message.linkPreviewSnippet}
+                  imageUrl={message.linkPreviewMeta}
+                  theme={theme}
+                  messageContent={message.content}
+                />
+              )}
+            </div>
+
+            <MessageReactions
+              reactions={message.reactions}
+              currentUserUsername={ircCurrentUser?.username}
+              onReactionClick={handleReactionClick}
+            />
           </div>
 
-          <MessageReactions
-            reactions={message.reactions}
-            currentUserUsername={ircCurrentUser?.username}
-            onReactionClick={handleReactionClick}
-          />
+          {!isTouchDevice && (
+            <MessageActions
+              message={message}
+              onReplyClick={() => setReplyTo(message)}
+              onReactClick={(buttonElement) =>
+                onReactClick(message, buttonElement)
+              }
+              onRedactClick={
+                canRedact ? () => onRedactMessage?.(message) : undefined
+              }
+              canRedact={canRedact}
+            />
+          )}
         </div>
-
-        <MessageActions
-          message={message}
-          onReplyClick={() => setReplyTo(message)}
-          onReactClick={(buttonElement) => onReactClick(message, buttonElement)}
-          onRedactClick={
-            canRedact ? () => onRedactMessage?.(message) : undefined
-          }
-          canRedact={canRedact}
-        />
-      </div>
+      </SwipeableMessage>
     </div>
   );
 };

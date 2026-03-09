@@ -1,6 +1,12 @@
 import type React from "react";
 import { useState } from "react";
-import { FaTimes } from "react-icons/fa";
+import BaseModal from "../../lib/modal/BaseModal";
+import {
+  Button,
+  Input,
+  ModalBody,
+  ModalFooter,
+} from "../../lib/modal/components";
 
 export type ModerationAction = "warn" | "kick" | "ban-nick" | "ban-hostmask";
 
@@ -64,83 +70,52 @@ const ModerationModal: React.FC<ModerationModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 modal-container">
-      <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl font-bold">
-            {getActionTitle(action)}
-          </h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-white"
-          >
-            <FaTimes size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
+    <BaseModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={getActionTitle(action)}
+      maxWidth="md"
+    >
+      <form onSubmit={handleSubmit}>
+        <ModalBody>
           <div className="space-y-4">
-            <div>
-              <label className="block text-white mb-2">Username</label>
-              <input
-                type="text"
-                value={username}
-                disabled
-                className="w-full p-2 bg-discord-dark-300 text-white rounded"
-              />
-            </div>
+            <Input type="text" label="Username" value={username} disabled />
 
-            <div>
-              <label className="block text-white mb-2">Action</label>
-              <input
-                type="text"
-                value={getActionDescription(action)}
-                disabled
-                className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
-              />
-            </div>
+            <Input
+              type="text"
+              label="Action"
+              value={getActionDescription(action)}
+              disabled
+              className="text-sm"
+            />
 
-            <div>
-              <label className="block text-white mb-2">Reason</label>
-              <input
-                type="text"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="w-full p-2 bg-discord-dark-300 text-white rounded"
-                placeholder="Enter reason (optional)"
-                autoFocus
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Will default to "no reason" if left empty
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className={`flex-1 text-white py-2 rounded font-medium ${
-                  action === "warn"
-                    ? "bg-discord-primary hover:bg-opacity-80"
-                    : "bg-red-600 hover:bg-red-700"
-                }`}
-              >
-                {getActionTitle(action)}
-              </button>
-            </div>
+            <Input
+              type="text"
+              label="Reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Enter reason (optional)"
+              helperText="Will default to 'no reason' if left empty"
+              autoFocus
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button type="button" variant="secondary" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant={action === "warn" ? "primary" : "danger"}
+            className="flex-1"
+          >
+            {getActionTitle(action)}
+          </Button>
+        </ModalFooter>
+      </form>
+    </BaseModal>
   );
 };
 

@@ -116,7 +116,7 @@ describe("ChannelListModal", () => {
   test("closes modal when close button is clicked", () => {
     render(<ChannelListModal />);
 
-    const closeButton = screen.getByLabelText("Close");
+    const closeButton = screen.getByLabelText("Close modal");
     fireEvent.click(closeButton);
 
     // Modal should be closable

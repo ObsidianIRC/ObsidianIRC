@@ -303,3 +303,36 @@ npm run tauri android build -- --apk       # Android
 - Efficient re-rendering with proper memoization
 
 ---
+
+## Biome `useExhaustiveDependencies` — intentional dep omissions
+
+When a `useEffect` intentionally omits a dependency, always add a suppression
+comment on the line immediately before the hook, or the pre-commit Biome
+`--write` pass will silently add it and break the intended behavior:
+
+```tsx
+// biome-ignore lint/correctness/useExhaustiveDependencies: <reason>
+useEffect(() => { ... }, [depA]);
+```
+
+Per-dep variant for partial suppression:
+
+```tsx
+// biome-ignore lint/correctness/useExhaustiveDependencies(foo): only re-run on bar change
+useEffect(() => { ... }, [bar]);
+```
+
+Common legitimate omissions: `useRef` values (stable, reading `.current` should
+not retrigger), Zustand store actions (may be unstable — see below).
+
+---
+
+## Zustand store action stability
+
+Store action functions read via `useStore((s) => s.someAction)` may have
+unstable references in this project. Do not put them in `useEffect` dependency
+arrays; doing so can cause the effect to re-run on every state change. Suppress
+Biome warnings with `biome-ignore` rather than adding the action to the array.
+
+---
+
