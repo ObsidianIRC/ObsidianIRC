@@ -202,7 +202,7 @@ export function useMessageSending({
       }
 
       const batchId = createBatchId();
-      const replyPrefix = localReplyTo
+      const replyPrefix = localReplyTo?.msgid
         ? `@+draft/reply=${localReplyTo.msgid} `
         : "";
 
@@ -305,7 +305,7 @@ export function useMessageSending({
         return;
       }
 
-      const messagePrefix = localReplyTo
+      const messagePrefix = localReplyTo?.msgid
         ? `@+draft/reply=${localReplyTo.msgid} `
         : "";
 
@@ -373,7 +373,7 @@ export function useMessageSending({
           splitLines.forEach((line: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :${line}`,
+              `${localReplyTo?.msgid ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :${line}`,
             );
           });
         },

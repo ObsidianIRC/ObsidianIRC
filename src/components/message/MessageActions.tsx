@@ -8,6 +8,7 @@ interface MessageActionsProps {
   onReactClick: (buttonElement: Element) => void;
   onRedactClick?: () => void;
   canRedact?: boolean;
+  canReply?: boolean;
 }
 
 export const MessageActions: React.FC<MessageActionsProps> = ({
@@ -16,6 +17,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   onReactClick,
   onRedactClick,
   canRedact = false,
+  canReply = !!message.msgid,
 }) => {
   return (
     <div className="absolute bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2 select-none">
@@ -28,7 +30,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           <FaTimes />
         </button>
       )}
-      {message.msgid && (
+      {canReply && (
         <button
           className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
           onClick={onReplyClick}
@@ -36,7 +38,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           <FaReply />
         </button>
       )}
-      {message.msgid && (
+      {canReply && (
         <button
           className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
           onClick={(e) => onReactClick(e.currentTarget)}

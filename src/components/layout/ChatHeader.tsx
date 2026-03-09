@@ -331,8 +331,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <button
             className="p-2 text-discord-text-muted hover:text-white flex-shrink-0"
             onClick={() => {
-              if (searchQuery) onSearchQueryChange("");
-              else setIsSearchExpanded(false);
+              if (searchQuery) {
+                onSearchQueryChange("");
+              } else {
+                // Blur before closing so iOS WKWebView fires will-hide and clears
+                // root.style.position/bottom and data-keyboard-visible properly.
+                // Without this, onMouseDown's preventDefault keeps focus on the input,
+                // the unmount doesn't trigger the native keyboard dismiss sequence,
+                // and data-keyboard-visible stays set — blocking all swipe gestures.
+                (document.activeElement as HTMLElement)?.blur();
+                setIsSearchExpanded(false);
+              }
             }}
             onMouseDown={(e) => e.preventDefault()}
           >

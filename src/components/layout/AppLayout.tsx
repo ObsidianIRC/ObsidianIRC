@@ -118,8 +118,30 @@ export const AppLayout: React.FC = () => {
   const shouldShowMemberListSidebar =
     shouldShowMemberList && !showMemberListAsOverlay;
 
-  const currentPageIndex = getPageIndex(mobileViewActiveColumn);
-  const totalPages = selectedServerId ? 3 : 2;
+  // Member list page doesn't exist in DMs — only channels have a member list.
+  const hasMemberPage = !!selectedServerId && !selectedPrivateChatId;
+
+  // Clamp the active column synchronously so currentPageIndex is never out of
+  // range during the same render that totalPages drops from 3 to 2 (e.g. when
+  // switching from a channel to a DM while on the member-list page).
+  const effectiveMobileColumn =
+    !hasMemberPage && mobileViewActiveColumn === "memberList"
+      ? "chatView"
+      : mobileViewActiveColumn;
+
+  const currentPageIndex = getPageIndex(effectiveMobileColumn);
+  const totalPages = hasMemberPage ? 3 : 2;
+
+  // Persist the corrected column back into the store after paint.
+  useEffect(() => {
+    if (effectiveMobileColumn !== mobileViewActiveColumn) {
+      setMobileViewActiveColumn(effectiveMobileColumn);
+    }
+  }, [
+    effectiveMobileColumn,
+    mobileViewActiveColumn,
+    setMobileViewActiveColumn,
+  ]);
 
   const {
     containerRef,
@@ -332,7 +354,7 @@ export const AppLayout: React.FC = () => {
             }}
           >
             {PAGE_ORDER.filter(
-              (col) => col !== "memberList" || selectedServerId,
+              (col) => col !== "memberList" || hasMemberPage,
             ).map((column) => (
               <div
                 key={column}
