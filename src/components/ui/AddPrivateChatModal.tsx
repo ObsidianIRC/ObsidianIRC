@@ -73,9 +73,9 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
       title="Start Private Message"
       maxWidth="md"
     >
-      <ModalBody scrollable className="max-h-[60vh]">
+      <ModalBody>
         {/* Search Input */}
-        <div className="relative mb-4">
+        <div className="relative mb-4 flex-shrink-0">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-discord-channels-default" />
           <TextInput
             placeholder="Search users..."
@@ -87,7 +87,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
         </div>
 
         {/* User List */}
-        <div className="max-h-64 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {availableUsers.length === 0 && !searchTerm.trim() ? (
             <div className="text-discord-channels-default text-center py-4">
               No users available

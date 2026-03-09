@@ -20,6 +20,8 @@ import {
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 import ircClient from "../../lib/ircClient";
+import { openExternalUrl } from "../../lib/openUrl";
+import { isTauri } from "../../lib/platformUtils";
 import { settingsRegistry } from "../../lib/settings";
 import type { SettingValue } from "../../lib/settings/types";
 import useStore, {
@@ -735,10 +737,15 @@ export const UserSettings: React.FC = React.memo(() => {
           </p>
 
           <div className="space-y-3">
-            <a
-              href="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => {
+                if (isTauri()) {
+                  openExternalUrl("https://obsidianirc.pages.dev/privacy");
+                } else {
+                  window.open("/privacy", "_blank");
+                }
+              }}
               className="flex items-center justify-between w-full p-3 bg-discord-dark-500 rounded hover:bg-discord-dark-300 transition-colors"
             >
               <span className="text-discord-text-normal">
@@ -757,7 +764,7 @@ export const UserSettings: React.FC = React.memo(() => {
                   d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
                 />
               </svg>
-            </a>
+            </button>
           </div>
         </div>
 
@@ -1246,17 +1253,26 @@ export const UserSettings: React.FC = React.memo(() => {
         ) : (
           <>
             {/* Header with back */}
-            <div className="flex items-center gap-3 p-4 border-b border-discord-dark-500 flex-shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-discord-dark-500 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setMobileView("categories")}
+                  className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
+                  aria-label="Back"
+                >
+                  <FaChevronLeft />
+                </button>
+                <h2 className="text-white text-lg font-semibold">
+                  {categories.find((c) => c.id === activeCategory)?.title}
+                </h2>
+              </div>
               <button
-                onClick={() => setMobileView("categories")}
+                onClick={handleClose}
                 className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                aria-label="Back"
+                aria-label="Close"
               >
-                <FaChevronLeft />
+                <FaTimes />
               </button>
-              <h2 className="text-white text-lg font-semibold">
-                {categories.find((c) => c.id === activeCategory)?.title}
-              </h2>
             </div>
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto p-4">
