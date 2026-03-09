@@ -118,8 +118,19 @@ export const AppLayout: React.FC = () => {
   const shouldShowMemberListSidebar =
     shouldShowMemberList && !showMemberListAsOverlay;
 
+  // Member list page doesn't exist in DMs — only channels have a member list.
+  const hasMemberPage = !!selectedServerId && !selectedPrivateChatId;
+
   const currentPageIndex = getPageIndex(mobileViewActiveColumn);
-  const totalPages = selectedServerId ? 3 : 2;
+  const totalPages = hasMemberPage ? 3 : 2;
+
+  // If the user was on the member page and switches into a DM, push them back.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setMobileViewActiveColumn is a stable store action
+  useEffect(() => {
+    if (!hasMemberPage && mobileViewActiveColumn === "memberList") {
+      setMobileViewActiveColumn("chatView");
+    }
+  }, [hasMemberPage, mobileViewActiveColumn]);
 
   const {
     containerRef,
@@ -332,7 +343,7 @@ export const AppLayout: React.FC = () => {
             }}
           >
             {PAGE_ORDER.filter(
-              (col) => col !== "memberList" || selectedServerId,
+              (col) => col !== "memberList" || hasMemberPage,
             ).map((column) => (
               <div
                 key={column}

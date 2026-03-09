@@ -436,6 +436,7 @@ export function useMessageSending({
       if (selectedPrivateChat && currentUser) {
         const outgoingMessage: Message = {
           id: uuidv4(),
+          msgid: uuidv4(),
           content: cleanedText,
           timestamp: new Date(),
           userId: currentUser.username || currentUser.id,

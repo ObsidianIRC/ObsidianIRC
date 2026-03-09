@@ -1807,12 +1807,18 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
 
-      // If already selected, do nothing
+      // If already selected, only navigate on mobile if requested
       if (
         serverId &&
         state.ui.perServerSelections[serverId]?.selectedPrivateChatId ===
           privateChatId
       ) {
+        if (state.ui.isNarrowView && options?.navigate) {
+          return {
+            ...state,
+            ui: { ...state.ui, mobileViewActiveColumn: "chatView" },
+          };
+        }
         return state;
       }
 
@@ -2516,8 +2522,8 @@ const useStore = create<AppState>((set, get) => ({
     set((state) => ({
       ui: {
         ...state.ui,
-        isSettingsModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isSettingsModalOpen,
+        isUserProfileModalOpen:
+          isOpen !== undefined ? isOpen : !state.ui.isUserProfileModalOpen,
       },
     }));
   },
