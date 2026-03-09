@@ -155,7 +155,30 @@ export const useKeyboardResize = () => {
       };
     }
 
-    // Android + web/browser: use visualViewport for height detection
+    // Android + web/browser: use visualViewport for height detection.
+    // Android pans the visual viewport instead of resizing the layout viewport,
+    // so position:fixed (anchored to the visual viewport) is used — same as iOS.
+    const applyKeyboardOpen = () => {
+      root.style.position = "fixed";
+      root.style.top = "0";
+      root.style.left = "0";
+      root.style.right = "0";
+      root.style.bottom = "0";
+      root.style.overflow = "hidden";
+      document.documentElement.style.overscrollBehavior = "none";
+    };
+
+    const applyKeyboardClosed = () => {
+      root.style.position = "";
+      root.style.top = "";
+      root.style.left = "";
+      root.style.right = "";
+      root.style.bottom = "";
+      root.style.overflow = "";
+      document.documentElement.style.overscrollBehavior = "";
+      window.scrollTo(0, 0);
+    };
+
     const handleVisualViewportChange = () => {
       if (!window.visualViewport) return;
 
@@ -165,13 +188,9 @@ export const useKeyboardResize = () => {
       const nowVisible = heightDifference > 150;
 
       if (nowVisible) {
-        root.style.height = `${currentHeight}px`;
-        root.style.overflow = "hidden";
-        window.scrollTo(0, 0);
+        applyKeyboardOpen();
       } else if (wasVisible && !nowVisible) {
-        root.style.height = "";
-        root.style.overflow = "";
-        window.scrollTo(0, 0);
+        applyKeyboardClosed();
       }
 
       if (wasVisible !== nowVisible) {
@@ -183,9 +202,7 @@ export const useKeyboardResize = () => {
     const handleAndroidKeyboardShow = () => {
       if (!isKeyboardVisible) {
         setKeyboardVisible(true);
-        if (window.visualViewport) {
-          root.style.height = `${window.visualViewport.height}px`;
-        }
+        applyKeyboardOpen();
         window.dispatchEvent(new Event("resize"));
       }
     };
@@ -193,8 +210,7 @@ export const useKeyboardResize = () => {
     const handleAndroidKeyboardHide = () => {
       if (isKeyboardVisible) {
         setKeyboardVisible(false);
-        root.style.height = "";
-        window.scrollTo(0, 0);
+        applyKeyboardClosed();
         window.dispatchEvent(new Event("resize"));
       }
     };
@@ -239,8 +255,7 @@ export const useKeyboardResize = () => {
       window.removeEventListener("keyboardDidHide", handleAndroidKeyboardHide);
       window.removeEventListener("resize", handleWindowResize);
 
-      root.style.height = "";
-      root.style.overflow = "";
+      applyKeyboardClosed();
       delete document.documentElement.dataset.keyboardVisible;
     };
   }, []);
