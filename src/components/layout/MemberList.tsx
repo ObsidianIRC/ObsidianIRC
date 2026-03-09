@@ -508,8 +508,10 @@ export const MemberList: React.FC = () => {
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
-      // Find and select the private chat
-      const server = servers.find((s) => s.id === selectedServerId);
+      // Read fresh store state so newly-created DMs are visible (stale closure fix)
+      const server = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
       const privateChat = server?.privateChats?.find(
         (pc) => pc.username === username,
       );

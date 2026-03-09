@@ -4,7 +4,7 @@ import {
   requestPermission,
 } from "@tauri-apps/plugin-notification";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
@@ -18,9 +18,12 @@ import LoadingOverlay from "./components/ui/LoadingOverlay";
 import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
+import { useChannelTabSwitching } from "./hooks/useChannelTabSwitching";
+import { useConnectionResilience } from "./hooks/useConnectionResilience";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import { parseIrcUrl } from "./lib/ircUrlParser";
+import { isTauri } from "./lib/platformUtils";
 import useStore, { loadSavedServers } from "./store";
 import type { ConnectionDetails } from "./store/types";
 
@@ -80,16 +83,17 @@ const App: React.FC = () => {
     toggleQuickActions,
     ui: {
       isAddServerModalOpen,
-      isUserProfileModalOpen,
       isChannelListModalOpen,
       isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
       isSettingsModalOpen,
       isQuickActionsOpen,
+      isUserProfileModalOpen,
       editServerId,
       linkSecurityWarnings,
       profileViewRequest,
+      prefillServerDetails,
     },
     joinChannel,
     connectToSavedServers,
@@ -140,28 +144,34 @@ const App: React.FC = () => {
   };
 
   const handleIrcLinkClick = (url: string) => {
-    // For now, just log. Could be extended to handle IRC links
-    console.log("IRC link clicked:", url);
+    const parsed = parseIrcUrl(url, "user");
+    toggleAddServerModal(true, {
+      name: parsed.host,
+      host: parsed.host,
+      port: parsed.port.toString(),
+      nickname: parsed.nick || "user",
+      useWebSocket: false,
+    });
   };
 
   // Initialize keyboard resize handling for mobile platforms
   useKeyboardResize();
+  useConnectionResilience();
+  useChannelTabSwitching();
 
   // askPermissions();
+  const hasInitialized = useRef(false);
   useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     initializeEnvSettings(toggleAddServerModal, joinChannel);
-    // Auto-reconnect to saved servers on app startup
     connectToSavedServers();
-  }, [
-    toggleAddServerModal,
-    joinChannel, // Auto-reconnect to saved servers on app startup
-    connectToSavedServers,
-  ]); // Removed connectToSavedServers from dependencies
+  }, [connectToSavedServers, joinChannel, toggleAddServerModal]);
 
   // Handle deeplinks
   useEffect(() => {
     const setupDeepLinkHandler = async () => {
-      if (typeof window === "undefined" || !window.__TAURI__) {
+      if (!isTauri()) {
         return;
       }
 
@@ -182,7 +192,7 @@ const App: React.FC = () => {
                   host: parsed.host,
                   port: parsed.port.toString(),
                   nickname: parsed.nick || "user",
-                  useIrcProtocol: true,
+                  useWebSocket: false,
                 });
               } catch (error) {
                 console.error("Failed to parse IRC URL:", error);

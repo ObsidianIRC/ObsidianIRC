@@ -1,6 +1,7 @@
-import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
+import type { EmojiClickData } from "emoji-picker-react";
 import type React from "react";
 import { createPortal } from "react-dom";
+import { AppEmojiPicker } from "./AppEmojiPicker";
 
 interface ReactionModalProps {
   isOpen: boolean;
@@ -33,18 +34,7 @@ const ReactionModal: React.FC<ReactionModalProps> = ({
     >
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">
         <div className="p-2">
-          <EmojiPicker
-            onEmojiClick={handleEmojiSelect}
-            theme={Theme.DARK}
-            width="100%"
-            height={400}
-            searchPlaceholder="Search emojis..."
-            previewConfig={{
-              showPreview: false,
-            }}
-            skinTonesDisabled={false}
-            lazyLoadEmojis={true}
-          />
+          <AppEmojiPicker onEmojiClick={handleEmojiSelect} />
         </div>
         <div className="p-2 border-t border-discord-dark-300">
           <button

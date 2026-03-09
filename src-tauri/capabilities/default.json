@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "notification:default",
+    "opener:default",
     "os:default",
     "deep-link:default"
   ]

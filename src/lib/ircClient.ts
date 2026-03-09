@@ -390,6 +390,19 @@ export class IRCClient {
   private rateLimitedServers: Map<string, number> = new Map(); // Track rate-limited servers (serverId -> timestamp)
   private pingTimers: Map<string, NodeJS.Timeout> = new Map(); // Track ping timers per server
   private pongTimeouts: Map<string, NodeJS.Timeout> = new Map(); // Track pong timeouts per server
+  private serverConnectParams: Map<
+    string,
+    {
+      name: string;
+      host: string;
+      port: number;
+      nickname: string;
+      password?: string;
+      saslAccountName?: string;
+      saslPassword?: string;
+    }
+  > = new Map();
+  private lastWakeReconnect: Map<string, number> = new Map();
   private activeBatches: Map<
     string,
     Map<
@@ -404,6 +417,7 @@ export class IRCClient {
         timestamps?: Date[];
         batchMsgId?: string;
         batchTime?: Date;
+        batchTags?: Record<string, string>;
       }
     >
   > = new Map(); // Track active batches per server
@@ -415,6 +429,7 @@ export class IRCClient {
     "echo-message",
     "userhost-in-names",
     "draft/chathistory",
+    "draft/event-playback",
     "draft/extended-isupport",
     "sasl",
     "cap-notify",
@@ -541,6 +556,15 @@ export class IRCClient {
         this.servers.set(server.id, server);
       }
       this.sockets.set(server.id, socket);
+      this.serverConnectParams.set(server.id, {
+        name,
+        host,
+        port,
+        nickname,
+        password,
+        saslAccountName: _saslAccountName,
+        saslPassword: _saslPassword,
+      });
       // Only enable SASL if we have both account name AND password
       this.saslEnabled.set(server.id, !!(_saslAccountName && _saslPassword));
 
@@ -1837,6 +1861,7 @@ export class IRCClient {
             messageIds: [],
             batchMsgId: mtags?.msgid, // Store the msgid from the BATCH command itself
             batchTime: mtags?.time ? new Date(mtags.time) : undefined, // Store the time from the BATCH command
+            batchTags: mtags, // Store all tags from the BATCH opener (e.g. +draft/reply)
           });
 
           this.triggerEvent("BATCH_START", {
@@ -1883,7 +1908,9 @@ export class IRCClient {
 
             this.triggerEvent("MULTILINE_MESSAGE", {
               serverId,
-              mtags: batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined, // Use the msgid from the BATCH command
+              mtags:
+                batch.batchTags ||
+                (batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined), // Preserve all BATCH opener tags (includes +draft/reply)
               sender,
               channelName: target.startsWith("#") ? target : undefined,
               message: combinedMessage,
@@ -2803,6 +2830,10 @@ export class IRCClient {
     return this.currentUsers.get(serverId) || null;
   }
 
+  getBatchType(serverId: string, batchId: string): string | undefined {
+    return this.activeBatches.get(serverId)?.get(batchId)?.type;
+  }
+
   getAllUsers(serverId: string): User[] {
     const server = this.servers.get(serverId);
     if (!server) return [];
@@ -2817,6 +2848,61 @@ export class IRCClient {
     }
 
     return Array.from(allUsers.values());
+  }
+
+  wakeReconnect(serverId: string): void {
+    const now = Date.now();
+    const last = this.lastWakeReconnect.get(serverId) ?? 0;
+    if (now - last < 5000) return;
+    this.lastWakeReconnect.set(serverId, now);
+
+    const server = this.servers.get(serverId);
+    if (!server) return;
+
+    const params = this.serverConnectParams.get(serverId);
+    if (!params) return;
+
+    if (server.connectionState === "reconnecting") {
+      // Already reconnecting but may be stuck in a long backoff (e.g. after many
+      // failed attempts while sleeping). Cancel the pending timeout and retry now.
+      const existingTimeout = this.reconnectionTimeouts.get(serverId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        this.reconnectionTimeouts.delete(serverId);
+      }
+      this.reconnectionAttempts.set(serverId, 0);
+      this.attemptReconnection(
+        serverId,
+        params.name,
+        params.host,
+        params.port,
+        params.nickname,
+        params.password,
+        params.saslAccountName,
+        params.saslPassword,
+      );
+      return;
+    }
+
+    if (server.connectionState === "disconnected") {
+      // Socket already gone; kick the reconnection loop immediately.
+      this.reconnectionAttempts.set(serverId, 0);
+      this.startReconnection(
+        serverId,
+        params.name,
+        params.host,
+        params.port,
+        params.nickname,
+        params.password,
+        params.saslAccountName,
+        params.saslPassword,
+      );
+      return;
+    }
+
+    // connectionState === "connected" or "connecting": leave it alone.
+    // The existing ping/pong mechanism will detect a dead socket within ~40s
+    // and kick the normal reconnection flow.
   }
 }
 

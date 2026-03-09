@@ -45,13 +45,15 @@
       "mobile": [
         {
           "schemes": ["irc", "ircs"],
-          "host": "*"
+          "host": "*",
+          "appLink": false
         },
         {
           "host": "obsidianirc.github.io",
           "pathPrefix": [
             "/"
-          ]
+          ],
+          "appLink": false
         }
       ],
       "desktop": {
