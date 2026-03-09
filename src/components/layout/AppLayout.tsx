@@ -121,16 +121,27 @@ export const AppLayout: React.FC = () => {
   // Member list page doesn't exist in DMs — only channels have a member list.
   const hasMemberPage = !!selectedServerId && !selectedPrivateChatId;
 
-  const currentPageIndex = getPageIndex(mobileViewActiveColumn);
+  // Clamp the active column synchronously so currentPageIndex is never out of
+  // range during the same render that totalPages drops from 3 to 2 (e.g. when
+  // switching from a channel to a DM while on the member-list page).
+  const effectiveMobileColumn =
+    !hasMemberPage && mobileViewActiveColumn === "memberList"
+      ? "chatView"
+      : mobileViewActiveColumn;
+
+  const currentPageIndex = getPageIndex(effectiveMobileColumn);
   const totalPages = hasMemberPage ? 3 : 2;
 
-  // If the user was on the member page and switches into a DM, push them back.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: setMobileViewActiveColumn is a stable store action
+  // Persist the corrected column back into the store after paint.
   useEffect(() => {
-    if (!hasMemberPage && mobileViewActiveColumn === "memberList") {
-      setMobileViewActiveColumn("chatView");
+    if (effectiveMobileColumn !== mobileViewActiveColumn) {
+      setMobileViewActiveColumn(effectiveMobileColumn);
     }
-  }, [hasMemberPage, mobileViewActiveColumn]);
+  }, [
+    effectiveMobileColumn,
+    mobileViewActiveColumn,
+    setMobileViewActiveColumn,
+  ]);
 
   const {
     containerRef,

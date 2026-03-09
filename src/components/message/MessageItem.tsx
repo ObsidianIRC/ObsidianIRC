@@ -894,7 +894,7 @@ export const MessageItem = (props: MessageItemProps) => {
         onReply={() => setReplyTo(message)}
         onReact={(el) => onReactClick(message, el)}
         onDelete={canRedact ? () => onRedactMessage?.(message) : undefined}
-        canReply={!!message.msgid}
+        canReply={message.type === "message"}
         canDelete={canRedact}
         isNarrowView={isTouchDevice}
       >
