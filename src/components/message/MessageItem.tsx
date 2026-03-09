@@ -1039,6 +1039,7 @@ export const MessageItem = (props: MessageItemProps) => {
                 canRedact ? () => onRedactMessage?.(message) : undefined
               }
               canRedact={canRedact}
+              canReply={message.type === "message"}
             />
           )}
         </div>
