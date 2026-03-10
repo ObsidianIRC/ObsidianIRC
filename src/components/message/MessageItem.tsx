@@ -792,6 +792,12 @@ export const MessageItem = (props: MessageItemProps) => {
           showDate={showDate}
           messageUser={messageUser}
           onUsernameContextMenu={onUsernameContextMenu}
+          setReplyTo={setReplyTo}
+          onReactClick={onReactClick}
+          onReactionUnreact={onReactionUnreact}
+          onDirectReaction={onDirectReaction}
+          isTouchDevice={isTouchDevice}
+          isNarrowView={isTouchDevice}
         />
       </>
     );

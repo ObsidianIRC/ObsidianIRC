@@ -1,6 +1,10 @@
 import type React from "react";
+import ircClient from "../../lib/ircClient";
 import type { MessageType, User } from "../../types";
+import { MessageActions } from "./MessageActions";
 import { MessageAvatar } from "./MessageAvatar";
+import { MessageReactions } from "./MessageReactions";
+import { SwipeableMessage } from "./SwipeableMessage";
 
 interface ActionMessageProps {
   message: MessageType;
@@ -13,6 +17,12 @@ interface ActionMessageProps {
     channelId: string,
     avatarElement?: Element | null,
   ) => void;
+  setReplyTo: (msg: MessageType) => void;
+  onReactClick: (message: MessageType, buttonElement: Element) => void;
+  onReactionUnreact: (emoji: string, message: MessageType) => void;
+  onDirectReaction: (emoji: string, message: MessageType) => void;
+  isTouchDevice: boolean;
+  isNarrowView: boolean;
 }
 
 export const ActionMessage: React.FC<ActionMessageProps> = ({
@@ -20,7 +30,14 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
   showDate,
   messageUser,
   onUsernameContextMenu,
+  setReplyTo,
+  onReactClick,
+  onReactionUnreact,
+  onDirectReaction,
+  isTouchDevice,
+  isNarrowView,
 }) => {
+  const currentUser = ircClient.getCurrentUser(message.serverId);
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
@@ -40,49 +57,78 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
   const username = message.userId.split("-")[0];
 
   return (
-    <div className="px-4 py-1 hover:bg-discord-message-hover group">
-      {showDate && (
-        <div className="flex items-center text-xs text-discord-text-muted mb-2">
-          <div className="flex-grow border-t border-discord-dark-400" />
-          <div className="px-2">{formatDate(new Date(message.timestamp))}</div>
-          <div className="flex-grow border-t border-discord-dark-400" />
-        </div>
-      )}
-      <div className="flex">
-        <MessageAvatar
-          userId={message.userId}
-          avatarUrl={messageUser?.metadata?.avatar?.value}
-          userStatus={messageUser?.metadata?.status?.value}
-          isAway={messageUser?.isAway}
-          theme="discord"
-          showHeader={true}
-          onClick={(e) => {
-            onUsernameContextMenu(
-              e,
-              username,
-              message.serverId,
-              message.channelId,
-              e.currentTarget,
-            );
-          }}
-          isClickable={true}
-          serverId={message.serverId}
-        />
-        <div className="flex-1 text-white">
-          <div className="flex items-center">
-            <span className="ml-2 text-xs text-discord-text-muted">
-              {formatTime(new Date(message.timestamp))}
-            </span>
+    <SwipeableMessage
+      onReply={() => setReplyTo(message)}
+      onReact={(el) => onReactClick(message, el)}
+      canReply={!!message.msgid}
+      canDelete={false}
+      isNarrowView={isNarrowView}
+    >
+      <div className="px-4 py-1 hover:bg-discord-message-hover group relative">
+        {showDate && (
+          <div className="flex items-center text-xs text-discord-text-muted mb-2">
+            <div className="flex-grow border-t border-discord-dark-400" />
+            <div className="px-2">
+              {formatDate(new Date(message.timestamp))}
+            </div>
+            <div className="flex-grow border-t border-discord-dark-400" />
           </div>
-          <span className="italic text-white">
-            {message.userId === "system"
-              ? "System"
-              : (displayName || username) +
-                (displayName ? ` (${username})` : "") +
-                message.content.substring(7, message.content.length - 1)}
-          </span>
+        )}
+        <div className="flex">
+          <MessageAvatar
+            userId={message.userId}
+            avatarUrl={messageUser?.metadata?.avatar?.value}
+            userStatus={messageUser?.metadata?.status?.value}
+            isAway={messageUser?.isAway}
+            theme="discord"
+            showHeader={true}
+            onClick={(e) => {
+              onUsernameContextMenu(
+                e,
+                username,
+                message.serverId,
+                message.channelId,
+                e.currentTarget,
+              );
+            }}
+            isClickable={true}
+            serverId={message.serverId}
+          />
+          <div className="flex-1 text-white">
+            <div className="flex items-center">
+              <span className="ml-2 text-xs text-discord-text-muted">
+                {formatTime(new Date(message.timestamp))}
+              </span>
+            </div>
+            <span className="italic text-white">
+              {message.userId === "system"
+                ? "System"
+                : (displayName || username) +
+                  (displayName ? ` (${username})` : "") +
+                  message.content.substring(7, message.content.length - 1)}
+            </span>
+            <MessageReactions
+              reactions={message.reactions}
+              currentUserUsername={currentUser?.username}
+              onReactionClick={(emoji, currentUserReacted) => {
+                if (currentUserReacted) {
+                  onReactionUnreact(emoji, message);
+                } else {
+                  onDirectReaction(emoji, message);
+                }
+              }}
+            />
+          </div>
         </div>
+        {!isTouchDevice && (
+          <MessageActions
+            message={message}
+            onReplyClick={() => setReplyTo(message)}
+            onReactClick={(el) => onReactClick(message, el)}
+            canReply={!!message.msgid}
+          />
+        )}
       </div>
-    </div>
+    </SwipeableMessage>
   );
 };
