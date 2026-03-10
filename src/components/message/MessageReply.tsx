@@ -1,4 +1,5 @@
 import type React from "react";
+import { RiReplyFill } from "react-icons/ri";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
 import type { MessageType } from "../../types";
 
@@ -29,17 +30,25 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
 
   return (
     <div
-      className={`bg-${theme}-dark-200 rounded text-sm text-${theme}-text-muted mb-2 pl-1 pr-2 select-none line-clamp-2 ${onReplyClick ? "cursor-pointer hover:bg-opacity-80" : ""}`}
+      className={`flex mb-2 min-w-0 w-full rounded-md overflow-hidden bg-black/[0.22] border border-white/[0.04] transition-colors ${onReplyClick ? "cursor-pointer hover:bg-black/[0.32]" : ""}`}
       onClick={onReplyClick}
       title={onReplyClick ? "Click to jump to message" : ""}
     >
-      ┌ Replying to{" "}
-      <strong>
-        <span className="cursor-pointer" onClick={handleUsernameClick}>
-          {replyUsername}
-        </span>
-      </strong>
-      : {plainContent}
+      <div className="w-0.5 flex-shrink-0 bg-indigo-400/70 rounded-l" />
+      <div className="flex-1 min-w-0 py-1.5 px-2.5 overflow-hidden">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <RiReplyFill className="text-[11px] flex-shrink-0 text-indigo-400/70" />
+          <span
+            className="text-xs font-semibold text-indigo-300 hover:underline cursor-pointer truncate"
+            onClick={handleUsernameClick}
+          >
+            {replyUsername}
+          </span>
+        </div>
+        <div className={`text-xs text-${theme}-text-muted opacity-80 truncate`}>
+          {plainContent}
+        </div>
+      </div>
     </div>
   );
 };

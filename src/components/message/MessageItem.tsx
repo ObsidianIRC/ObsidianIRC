@@ -927,7 +927,7 @@ export const MessageItem = (props: MessageItemProps) => {
           />
 
           <div
-            className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}
+            className={`flex-1 min-w-0 relative ${isCurrentUser ? "text-white" : ""}`}
           >
             {showHeader && (
               <MessageHeader
@@ -944,7 +944,7 @@ export const MessageItem = (props: MessageItemProps) => {
               />
             )}
 
-            <div className="relative">
+            <div className="relative min-w-0">
               {message.replyMessage && (
                 <MessageReply
                   replyMessage={message.replyMessage}
