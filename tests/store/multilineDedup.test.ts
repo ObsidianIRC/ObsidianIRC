@@ -150,6 +150,117 @@ describe("Multiline message deduplication", () => {
     });
   });
 
+  describe("DM multiline messages", () => {
+    const dmChannelKey = "server-1-dm-alice";
+
+    function makeDmMessage(overrides: Partial<Message> = {}): Message {
+      return makeMessage({
+        channelId: "dm-alice",
+        ...overrides,
+      });
+    }
+
+    test("DM incoming multiline is stored and tracked in processedMessageIds", () => {
+      const { addMessage } = useStore.getState();
+      const batchMsgId = "dm-batch-id-1";
+      const messageIds = ["dm-msg-1", "dm-msg-2"];
+
+      const idsToTrack = messageIds.length > 0 ? messageIds : [batchMsgId];
+      useStore.setState((state) => ({
+        processedMessageIds: new Set([
+          ...state.processedMessageIds,
+          ...idsToTrack,
+        ]),
+      }));
+
+      addMessage(
+        makeDmMessage({
+          id: "stored-dm-1",
+          msgid: batchMsgId,
+          content: "line 1\nline 2",
+          userId: "alice",
+        }),
+      );
+
+      const state = useStore.getState();
+      expect(state.processedMessageIds.has("dm-msg-1")).toBe(true);
+      expect(state.processedMessageIds.has("dm-msg-2")).toBe(true);
+      const messages = state.messages[dmChannelKey];
+      expect(messages).toHaveLength(1);
+    });
+
+    test("DM multiline dedup: second identical batch is skipped", () => {
+      const { addMessage } = useStore.getState();
+      const batchMsgId = "dm-batch-id-2";
+      const messageIds = ["dm-msg-3", "dm-msg-4"];
+
+      // First event: dedup check passes, track ids, add message
+      let state = useStore.getState();
+      const shouldSkip1 = messageIds.some((id) =>
+        state.processedMessageIds.has(id),
+      );
+      expect(shouldSkip1).toBe(false);
+
+      useStore.setState((s) => ({
+        processedMessageIds: new Set([...s.processedMessageIds, ...messageIds]),
+      }));
+      addMessage(
+        makeDmMessage({
+          id: "dm-stored-1",
+          msgid: batchMsgId,
+          userId: "alice",
+        }),
+      );
+
+      // Second event: duplicate detected, handler returns early
+      state = useStore.getState();
+      const shouldSkip2 = messageIds.some((id) =>
+        state.processedMessageIds.has(id),
+      );
+      expect(shouldSkip2).toBe(true);
+
+      // Only one message stored
+      expect(state.messages[dmChannelKey]).toHaveLength(1);
+    });
+
+    test("DM multiline reply: replyMessage is set when pre-seeded message exists", () => {
+      const { addMessage } = useStore.getState();
+
+      // Seed the message being replied to
+      const replyTarget = makeDmMessage({
+        id: "original-msg",
+        msgid: "original-msgid",
+        content: "original content",
+        userId: "alice",
+        timestamp: new Date("2026-01-01T00:00:00.000Z"),
+      });
+      addMessage(replyTarget);
+
+      // Add a reply that references it
+      const replyMsg = makeDmMessage({
+        id: "reply-msg",
+        msgid: "reply-msgid",
+        content: "this is my reply",
+        userId: "bob",
+        timestamp: new Date("2026-01-01T00:01:00.000Z"),
+        replyMessage: makeDmMessage({
+          id: "original-msg",
+          msgid: "original-msgid",
+          content: "original content",
+          userId: "alice",
+          timestamp: new Date("2026-01-01T00:00:00.000Z"),
+        }),
+      });
+      addMessage(replyMsg);
+
+      const state = useStore.getState();
+      const messages = state.messages[dmChannelKey];
+      const stored = messages?.find((m) => m.id === "reply-msg");
+      expect(stored?.replyMessage).not.toBeNull();
+      expect(stored?.replyMessage?.userId).toBe("alice");
+    });
+  });
+
   describe("full multiline message flow", () => {
     test("two identical multiline messages with same batch msgid should result in one stored message", () => {
       const { addMessage } = useStore.getState();

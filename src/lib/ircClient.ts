@@ -107,6 +107,7 @@ export interface EventMap {
   BATCH_END: BaseIRCEvent & { batchId: string };
   MULTILINE_MESSAGE: BaseMessageEvent & {
     channelName?: string;
+    target: string; // raw BATCH recipient (channel name or username)
     lines: string[];
     messageIds: string[]; // All message IDs that make up this multiline message
   };
@@ -1913,6 +1914,7 @@ export class IRCClient {
                 (batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined), // Preserve all BATCH opener tags (includes +draft/reply)
               sender,
               channelName: target.startsWith("#") ? target : undefined,
+              target,
               message: combinedMessage,
               lines: batch.messages,
               messageIds: batch.messageIds || [],

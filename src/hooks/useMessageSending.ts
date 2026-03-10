@@ -154,9 +154,12 @@ export function useMessageSending({
         );
       } else if (commandName === "me") {
         const actionMessage = cleanedText.substring(4).trim();
+        const target =
+          selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+        if (!target) return;
         ircClient.sendRaw(
           selectedServerId,
-          `PRIVMSG ${selectedChannel?.name || ""} :\u0001ACTION ${actionMessage}\u0001`,
+          `PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
         );
       } else if (commandName === "away") {
         const message = args.join(" ");
@@ -173,7 +176,14 @@ export function useMessageSending({
         ircClient.sendRaw(selectedServerId, fullCommand);
       }
     },
-    [selectedServerId, selectedChannel, currentUser, setAway, clearAway],
+    [
+      selectedServerId,
+      selectedChannel,
+      selectedPrivateChat,
+      currentUser,
+      setAway,
+      clearAway,
+    ],
   );
 
   /**
