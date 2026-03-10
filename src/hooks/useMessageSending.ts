@@ -159,7 +159,7 @@ export function useMessageSending({
         if (!target) return;
         ircClient.sendRaw(
           selectedServerId,
-          `PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
+          `${localReplyTo?.msgid ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
         );
         // Non-echo fallback: servers without echo-message won't reflect our
         // ACTION back, so add it locally the same way regular DMs are handled.

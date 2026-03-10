@@ -4,6 +4,7 @@ import type { MessageType, User } from "../../types";
 import { MessageActions } from "./MessageActions";
 import { MessageAvatar } from "./MessageAvatar";
 import { MessageReactions } from "./MessageReactions";
+import { MessageReply } from "./MessageReply";
 import { SwipeableMessage } from "./SwipeableMessage";
 
 interface ActionMessageProps {
@@ -100,6 +101,12 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
                 {formatTime(new Date(message.timestamp))}
               </span>
             </div>
+            {message.replyMessage && (
+              <MessageReply
+                replyMessage={message.replyMessage}
+                theme="discord"
+              />
+            )}
             <span className="italic text-white">
               {message.userId === "system"
                 ? "System"
