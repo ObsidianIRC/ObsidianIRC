@@ -431,9 +431,12 @@ export function useMessageSending({
         sendRegularMessage(cleanedText, target);
       }
 
-      // For private messages, manually add our own message to the chat
-      // since the server doesn't echo private messages back to us
-      if (selectedPrivateChat && currentUser) {
+      // Only needed for servers that won't echo our outgoing DM back.
+      if (
+        selectedPrivateChat &&
+        currentUser &&
+        !ircClient.hasCapability(selectedServerId, "echo-message")
+      ) {
         const outgoingMessage: Message = {
           id: uuidv4(),
           content: cleanedText,

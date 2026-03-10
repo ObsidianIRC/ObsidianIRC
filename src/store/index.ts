@@ -127,6 +127,17 @@ export const findChannelMessageById = (
   return messages.find((message) => message.msgid === messageId);
 };
 
+const resolveReplyMessage = (
+  mtags: Record<string, string> | undefined,
+  serverId: string,
+  channelId: string,
+): Message | null => {
+  const replyId = mtags?.["+draft/reply"]?.trim() || null;
+  return replyId
+    ? (findChannelMessageById(serverId, channelId, replyId) ?? null)
+    : null;
+};
+
 // ============================================================================
 // LocalStorage Operations
 // ============================================================================
@@ -3311,16 +3322,8 @@ ircClient.on("CHANMSG", (response) => {
     const channel = server.channels.find(
       (c) => c.name.toLowerCase() === channelName.toLowerCase(),
     );
-    const replyTo = null;
-
     if (channel) {
-      const replyId = mtags?.["+draft/reply"]
-        ? mtags["+draft/reply"].trim()
-        : null;
-
-      const replyMessage = replyId
-        ? findChannelMessageById(server.id, channel.id, replyId) || null
-        : null;
+      const replyMessage = resolveReplyMessage(mtags, server.id, channel.id);
 
       // Check for mentions and get current state
       const currentState = useStore.getState();
@@ -3576,13 +3579,7 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       : null;
 
     if (channel) {
-      const replyId = mtags?.["+draft/reply"]
-        ? mtags["+draft/reply"].trim()
-        : null;
-
-      const replyMessage = replyId
-        ? findChannelMessageById(server.id, channel.id, replyId) || null
-        : null;
+      const replyMessage = resolveReplyMessage(mtags, server.id, channel.id);
 
       const newMessage = {
         id: uuidv4(),
@@ -3842,13 +3839,7 @@ ircClient.on("USERMSG", (response) => {
       );
 
       if (channel) {
-        const replyId = mtags?.["+draft/reply"]
-          ? mtags["+draft/reply"].trim()
-          : null;
-
-        const replyMessage = replyId
-          ? findChannelMessageById(server.id, channel.id, replyId) || null
-          : null;
+        const replyMessage = resolveReplyMessage(mtags, server.id, channel.id);
 
         const newMessage = {
           id: uuidv4(),
@@ -3901,9 +3892,31 @@ ircClient.on("USERMSG", (response) => {
     }
   }
 
-  // Don't create private chats with ourselves when the server echoes back our own messages
   const currentUser = ircClient.getCurrentUser(response.serverId);
   if (currentUser?.username === sender) {
+    // Own message echo — store under the DM keyed by `target`, not `sender`.
+    if (server && target) {
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.username.toLowerCase() === target.toLowerCase(),
+      );
+      if (privateChat) {
+        const newMessage = {
+          id: uuidv4(),
+          msgid: mtags?.msgid,
+          content: message,
+          timestamp,
+          userId: sender,
+          channelId: privateChat.id,
+          serverId: server.id,
+          type: "message" as const,
+          reactions: [],
+          replyMessage: resolveReplyMessage(mtags, server.id, privateChat.id),
+          mentioned: [],
+          tags: mtags,
+        };
+        useStore.getState().addMessage(newMessage);
+      }
+    }
     return;
   }
 
@@ -3939,12 +3952,12 @@ ircClient.on("USERMSG", (response) => {
         content: message,
         timestamp,
         userId: sender,
-        channelId: privateChat.id, // Use private chat ID as channel ID
+        channelId: privateChat.id,
         serverId: server.id,
         type: "message" as const,
         reactions: [],
-        replyMessage: null,
-        mentioned: [], // PMs don't have mentions in the traditional sense
+        replyMessage: resolveReplyMessage(mtags, server.id, privateChat.id),
+        mentioned: [],
         tags: mtags,
       };
 

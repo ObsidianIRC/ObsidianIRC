@@ -2830,6 +2830,10 @@ export class IRCClient {
     return this.currentUsers.get(serverId) || null;
   }
 
+  hasCapability(serverId: string, cap: string): boolean {
+    return this.servers.get(serverId)?.capabilities?.includes(cap) ?? false;
+  }
+
   getBatchType(serverId: string, batchId: string): string | undefined {
     return this.activeBatches.get(serverId)?.get(batchId)?.type;
   }
