@@ -124,7 +124,22 @@ export const findChannelMessageById = (
   messageId: string,
 ): Message | undefined => {
   const messages = getChannelMessages(serverId, channelId);
-  return messages.find((message) => message.msgid === messageId);
+  return messages.find(
+    (message) =>
+      message.msgid === messageId ||
+      message.multilineMessageIds?.includes(messageId),
+  );
+};
+
+const resolveReplyMessage = (
+  mtags: Record<string, string> | undefined,
+  serverId: string,
+  channelId: string,
+): Message | null => {
+  const replyId = mtags?.["+draft/reply"]?.trim() || null;
+  return replyId
+    ? (findChannelMessageById(serverId, channelId, replyId) ?? null)
+    : null;
 };
 
 // ============================================================================
@@ -3311,16 +3326,8 @@ ircClient.on("CHANMSG", (response) => {
     const channel = server.channels.find(
       (c) => c.name.toLowerCase() === channelName.toLowerCase(),
     );
-    const replyTo = null;
-
     if (channel) {
-      const replyId = mtags?.["+draft/reply"]
-        ? mtags["+draft/reply"].trim()
-        : null;
-
-      const replyMessage = replyId
-        ? findChannelMessageById(server.id, channel.id, replyId) || null
-        : null;
+      const replyMessage = resolveReplyMessage(mtags, server.id, channel.id);
 
       // Check for mentions and get current state
       const currentState = useStore.getState();
@@ -3531,7 +3538,7 @@ ircClient.on("CHANMSG", (response) => {
 
 // Handle multiline messages
 ircClient.on("MULTILINE_MESSAGE", (response) => {
-  const { mtags, channelName, sender, message, messageIds, timestamp } =
+  const { mtags, channelName, target, sender, message, messageIds, timestamp } =
     response;
 
   // Check for duplicate messages based on messageIds or batch msgid
@@ -3576,13 +3583,7 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       : null;
 
     if (channel) {
-      const replyId = mtags?.["+draft/reply"]
-        ? mtags["+draft/reply"].trim()
-        : null;
-
-      const replyMessage = replyId
-        ? findChannelMessageById(server.id, channel.id, replyId) || null
-        : null;
+      const replyMessage = resolveReplyMessage(mtags, server.id, channel.id);
 
       const newMessage = {
         id: uuidv4(),
@@ -3673,17 +3674,50 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
         };
       });
     } else if (!channelName) {
-      // Handle multiline private messages
-      // Similar logic to USERMSG but for multiline content
       const currentUser = ircClient.getCurrentUser(response.serverId);
-      if (
-        currentUser &&
-        sender.toLowerCase() === currentUser.username.toLowerCase()
-      ) {
-        return; // Don't create private chats with ourselves
+
+      if (currentUser?.username.toLowerCase() === sender.toLowerCase()) {
+        // Own message echo — store under DM keyed by `target`, same as USERMSG echo handler.
+        if (!target) return;
+        const privateChat = server.privateChats?.find(
+          (pc) => pc.username.toLowerCase() === target.toLowerCase(),
+        );
+        if (privateChat) {
+          const newMessage = {
+            id: uuidv4(),
+            msgid: mtags?.msgid,
+            multilineMessageIds: messageIds,
+            content: message,
+            timestamp,
+            userId: sender,
+            channelId: privateChat.id,
+            serverId: server.id,
+            type: "message" as const,
+            reactions: [],
+            replyMessage: resolveReplyMessage(mtags, server.id, privateChat.id),
+            mentioned: [],
+            tags: mtags,
+          };
+          const idsToTrack =
+            messageIds?.length > 0
+              ? messageIds
+              : mtags?.msgid
+                ? [mtags.msgid]
+                : [];
+          if (idsToTrack.length > 0) {
+            useStore.setState((state) => ({
+              processedMessageIds: new Set([
+                ...state.processedMessageIds,
+                ...idsToTrack,
+              ]),
+            }));
+          }
+          useStore.getState().addMessage(newMessage);
+        }
+        return;
       }
 
-      // Create or find private chat (IRC nicks are case-insensitive)
+      // Incoming DM from another user
       let privateChat = server.privateChats.find(
         (chat) => chat.username.toLowerCase() === sender.toLowerCase(),
       );
@@ -3697,7 +3731,7 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
           lastActivity: new Date(),
           isPinned: false,
           order: undefined,
-          isOnline: false, // Will be updated by MONITOR
+          isOnline: false,
           isAway: false,
         };
         privateChat = newPrivateChat;
@@ -3713,25 +3747,33 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
       const newMessage = {
         id: uuidv4(),
         msgid: mtags?.msgid,
-        multilineMessageIds: messageIds, // Store all message IDs for redaction
-        content: message, // Use the properly combined message from IRC client
+        multilineMessageIds: messageIds,
+        content: message,
         timestamp,
         userId: sender,
         channelId: privateChat.id,
         serverId: server.id,
         type: "message" as const,
         reactions: [],
-        replyMessage: null,
+        replyMessage: resolveReplyMessage(mtags, server.id, privateChat.id),
         mentioned: [],
         tags: mtags,
       };
 
+      const idsToTrack =
+        messageIds?.length > 0 ? messageIds : mtags?.msgid ? [mtags.msgid] : [];
+      if (idsToTrack.length > 0) {
+        useStore.setState((state) => ({
+          processedMessageIds: new Set([
+            ...state.processedMessageIds,
+            ...idsToTrack,
+          ]),
+        }));
+      }
+
       useStore.getState().addMessage(newMessage);
 
-      // Play notification sound if appropriate (but not for historical messages)
-      // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
       const isHistoricalMessage = mtags?.batch !== undefined;
-
       if (!isHistoricalMessage) {
         const state = useStore.getState();
         const serverCurrentUser = ircClient.getCurrentUser(response.serverId);
@@ -3842,13 +3884,7 @@ ircClient.on("USERMSG", (response) => {
       );
 
       if (channel) {
-        const replyId = mtags?.["+draft/reply"]
-          ? mtags["+draft/reply"].trim()
-          : null;
-
-        const replyMessage = replyId
-          ? findChannelMessageById(server.id, channel.id, replyId) || null
-          : null;
+        const replyMessage = resolveReplyMessage(mtags, server.id, channel.id);
 
         const newMessage = {
           id: uuidv4(),
@@ -3901,9 +3937,31 @@ ircClient.on("USERMSG", (response) => {
     }
   }
 
-  // Don't create private chats with ourselves when the server echoes back our own messages
   const currentUser = ircClient.getCurrentUser(response.serverId);
   if (currentUser?.username === sender) {
+    // Own message echo — store under the DM keyed by `target`, not `sender`.
+    if (server && target) {
+      const privateChat = server.privateChats?.find(
+        (pc) => pc.username.toLowerCase() === target.toLowerCase(),
+      );
+      if (privateChat) {
+        const newMessage = {
+          id: uuidv4(),
+          msgid: mtags?.msgid,
+          content: message,
+          timestamp,
+          userId: sender,
+          channelId: privateChat.id,
+          serverId: server.id,
+          type: "message" as const,
+          reactions: [],
+          replyMessage: resolveReplyMessage(mtags, server.id, privateChat.id),
+          mentioned: [],
+          tags: mtags,
+        };
+        useStore.getState().addMessage(newMessage);
+      }
+    }
     return;
   }
 
@@ -3939,12 +3997,12 @@ ircClient.on("USERMSG", (response) => {
         content: message,
         timestamp,
         userId: sender,
-        channelId: privateChat.id, // Use private chat ID as channel ID
+        channelId: privateChat.id,
         serverId: server.id,
         type: "message" as const,
         reactions: [],
-        replyMessage: null,
-        mentioned: [], // PMs don't have mentions in the traditional sense
+        replyMessage: resolveReplyMessage(mtags, server.id, privateChat.id),
+        mentioned: [],
         tags: mtags,
       };
 
@@ -6737,9 +6795,11 @@ ircClient.on("TAGMSG", (response) => {
     if (isChannel) {
       channel = server.channels.find((c) => c.name === channelName);
     } else {
-      // Private chat
+      // channelName may be our own nick (incoming reaction echo), so also try sender
       channel = server.privateChats?.find(
-        (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+        (pc) =>
+          pc.username.toLowerCase() === channelName.toLowerCase() ||
+          pc.username.toLowerCase() === sender.toLowerCase(),
       );
     }
 
@@ -6797,9 +6857,11 @@ ircClient.on("TAGMSG", (response) => {
     if (isChannel) {
       channel = server.channels.find((c) => c.name === channelName);
     } else {
-      // Private chat
+      // channelName may be our own nick (incoming unreact echo), so also try sender
       channel = server.privateChats?.find(
-        (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+        (pc) =>
+          pc.username.toLowerCase() === channelName.toLowerCase() ||
+          pc.username.toLowerCase() === sender.toLowerCase(),
       );
     }
 

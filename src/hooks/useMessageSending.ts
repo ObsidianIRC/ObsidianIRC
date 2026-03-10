@@ -154,10 +154,35 @@ export function useMessageSending({
         );
       } else if (commandName === "me") {
         const actionMessage = cleanedText.substring(4).trim();
+        const target =
+          selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+        if (!target) return;
         ircClient.sendRaw(
           selectedServerId,
-          `PRIVMSG ${selectedChannel?.name || ""} :\u0001ACTION ${actionMessage}\u0001`,
+          `PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
         );
+        // Non-echo fallback: servers without echo-message won't reflect our
+        // ACTION back, so add it locally the same way regular DMs are handled.
+        if (
+          selectedPrivateChat &&
+          currentUser &&
+          !ircClient.hasCapability(selectedServerId, "echo-message")
+        ) {
+          const { addMessage } = useStore.getState();
+          const outgoingMessage: Message = {
+            id: uuidv4(),
+            content: `\u0001ACTION ${actionMessage}\u0001`,
+            timestamp: new Date(),
+            userId: currentUser.username || currentUser.id,
+            channelId: selectedPrivateChat.id,
+            serverId: selectedServerId,
+            type: "message" as const,
+            reactions: [],
+            replyMessage: localReplyTo,
+            mentioned: [],
+          };
+          addMessage(outgoingMessage);
+        }
       } else if (commandName === "away") {
         const message = args.join(" ");
         if (message) {
@@ -173,7 +198,15 @@ export function useMessageSending({
         ircClient.sendRaw(selectedServerId, fullCommand);
       }
     },
-    [selectedServerId, selectedChannel, currentUser, setAway, clearAway],
+    [
+      selectedServerId,
+      selectedChannel,
+      selectedPrivateChat,
+      currentUser,
+      localReplyTo,
+      setAway,
+      clearAway,
+    ],
   );
 
   /**
@@ -431,9 +464,12 @@ export function useMessageSending({
         sendRegularMessage(cleanedText, target);
       }
 
-      // For private messages, manually add our own message to the chat
-      // since the server doesn't echo private messages back to us
-      if (selectedPrivateChat && currentUser) {
+      // Only needed for servers that won't echo our outgoing DM back.
+      if (
+        selectedPrivateChat &&
+        currentUser &&
+        !ircClient.hasCapability(selectedServerId, "echo-message")
+      ) {
         const outgoingMessage: Message = {
           id: uuidv4(),
           content: cleanedText,

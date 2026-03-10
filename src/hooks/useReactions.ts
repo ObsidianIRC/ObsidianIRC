@@ -70,13 +70,11 @@ export function useReactions({
       const server = servers.find((s) => s.id === message.serverId);
       if (!server) return { server: undefined, target: undefined };
 
-      if (message.channelId) {
-        const channel = server.channels.find((c) => c.id === message.channelId);
-        return { server, target: channel?.name };
-      }
-      // Private message
+      const channel = server.channels.find((c) => c.id === message.channelId);
+      if (channel) return { server, target: channel.name };
+
       const privateChat = server.privateChats?.find(
-        (pc) => pc.username === message.userId.split("-")[0],
+        (pc) => pc.id === message.channelId,
       );
       return { server, target: privateChat?.username };
     },
@@ -96,8 +94,16 @@ export function useReactions({
       const { server, target } = findServerAndTarget(reactionModal.message);
 
       if (server && target) {
-        // Check if user has already reacted with this emoji
-        const existingReaction = reactionModal.message.reactions.find(
+        // Check live store state — reactionModal.message is stale after optimistic updates
+        const storeMsg = (() => {
+          const key = `${reactionModal.message.serverId}-${reactionModal.message.channelId}`;
+          return useStore
+            .getState()
+            .messages[key]?.find((m) => m.id === reactionModal.message?.id);
+        })();
+        const liveReactions =
+          storeMsg?.reactions ?? reactionModal.message.reactions;
+        const existingReaction = liveReactions.find(
           (r) => r.emoji === emoji && r.userId === currentUser?.username,
         );
 
@@ -152,8 +158,6 @@ export function useReactions({
           });
         }
       }
-
-      closeReactionModal();
     },
     [
       reactionModal.message,

@@ -26,7 +26,7 @@ export function ReplyBadge({
         className="ml-auto flex-shrink-0 p-1 rounded hover:bg-discord-dark-300 text-discord-text-muted hover:text-discord-text-normal transition-colors"
         onClick={onClose}
       >
-        <FaTimes className="text-xs" />
+        <FaTimes className="text-base" />
       </button>
     </div>
   );

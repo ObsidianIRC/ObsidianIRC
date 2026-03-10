@@ -50,6 +50,7 @@ import InviteUserModal from "../ui/InviteUserModal";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
+import { ReactionPopover } from "../ui/ReactionPopover";
 import { ReplyBadge } from "../ui/ReplyBadge";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import { TextArea } from "../ui/TextInput";
@@ -536,6 +537,9 @@ export const ChatArea: React.FC<{
     selectedServerId,
     currentUser,
   });
+  const [reactionAnchorRect, setReactionAnchorRect] = useState<DOMRect | null>(
+    null,
+  );
 
   // Memoize preview styles — selectedColor/selectedFormatting don't change while typing,
   // so recomputing this on every keystroke is unnecessary object churn.
@@ -942,7 +946,7 @@ export const ChatArea: React.FC<{
 
     // Handle Enter key behavior based on settings
     if (e.key === "Enter") {
-      if (isMobile && globalSettings.enableMultilineInput) {
+      if (isNativeMobile && globalSettings.enableMultilineInput) {
         return;
       }
 
@@ -1436,6 +1440,7 @@ export const ChatArea: React.FC<{
   ]);
 
   const handleReactClick = (message: MessageType, buttonElement: Element) => {
+    setReactionAnchorRect(buttonElement.getBoundingClientRect());
     openReactionModal(message);
   };
 
@@ -1818,7 +1823,7 @@ export const ChatArea: React.FC<{
                     selectedChannel
                       ? `Message #${selectedChannel.name.replace(/^#/, "")}${
                           globalSettings.enableMultilineInput &&
-                          !isMobile &&
+                          !isNativeMobile &&
                           !isCompactInput
                             ? globalSettings.multilineOnShiftEnter
                               ? " (Shift+Enter for new line)"
@@ -1838,7 +1843,7 @@ export const ChatArea: React.FC<{
                         : "Type a message..."
                   }
                   enterKeyHint={
-                    isMobile && globalSettings.enableMultilineInput
+                    isNativeMobile && globalSettings.enableMultilineInput
                       ? "enter"
                       : "send"
                   }
@@ -1860,7 +1865,7 @@ export const ChatArea: React.FC<{
                   }}
                   onAtClick={handleAtButtonClick}
                   onSendClick={handleSendMessage}
-                  showSendButton={isMobile}
+                  showSendButton={isNativeMobile}
                   hideEmoji={isNativeMobile}
                   hasText={messageText.trim().length > 0}
                 />
@@ -2043,11 +2048,20 @@ export const ChatArea: React.FC<{
         }}
       />
 
-      <ReactionModal
-        isOpen={reactionModal.isOpen}
-        onClose={closeReactionModal}
-        onSelectEmoji={selectReaction}
-      />
+      {isNarrowView ? (
+        <ReactionModal
+          isOpen={reactionModal.isOpen}
+          onClose={closeReactionModal}
+          onSelectEmoji={selectReaction}
+        />
+      ) : (
+        <ReactionPopover
+          isOpen={reactionModal.isOpen}
+          anchorRect={reactionAnchorRect}
+          onClose={closeReactionModal}
+          onSelectEmoji={selectReaction}
+        />
+      )}
 
       <ModerationModal
         isOpen={moderationModal.isOpen}
