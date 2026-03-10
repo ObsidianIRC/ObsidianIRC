@@ -161,6 +161,28 @@ export function useMessageSending({
           selectedServerId,
           `PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
         );
+        // Non-echo fallback: servers without echo-message won't reflect our
+        // ACTION back, so add it locally the same way regular DMs are handled.
+        if (
+          selectedPrivateChat &&
+          currentUser &&
+          !ircClient.hasCapability(selectedServerId, "echo-message")
+        ) {
+          const { addMessage } = useStore.getState();
+          const outgoingMessage: Message = {
+            id: uuidv4(),
+            content: `\u0001ACTION ${actionMessage}\u0001`,
+            timestamp: new Date(),
+            userId: currentUser.username || currentUser.id,
+            channelId: selectedPrivateChat.id,
+            serverId: selectedServerId,
+            type: "message" as const,
+            reactions: [],
+            replyMessage: localReplyTo,
+            mentioned: [],
+          };
+          addMessage(outgoingMessage);
+        }
       } else if (commandName === "away") {
         const message = args.join(" ");
         if (message) {
@@ -181,6 +203,7 @@ export function useMessageSending({
       selectedChannel,
       selectedPrivateChat,
       currentUser,
+      localReplyTo,
       setAway,
       clearAway,
     ],

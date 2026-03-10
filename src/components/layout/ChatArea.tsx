@@ -946,7 +946,7 @@ export const ChatArea: React.FC<{
 
     // Handle Enter key behavior based on settings
     if (e.key === "Enter") {
-      if (isMobile && globalSettings.enableMultilineInput) {
+      if (isNativeMobile && globalSettings.enableMultilineInput) {
         return;
       }
 
@@ -1823,7 +1823,7 @@ export const ChatArea: React.FC<{
                     selectedChannel
                       ? `Message #${selectedChannel.name.replace(/^#/, "")}${
                           globalSettings.enableMultilineInput &&
-                          !isMobile &&
+                          !isNativeMobile &&
                           !isCompactInput
                             ? globalSettings.multilineOnShiftEnter
                               ? " (Shift+Enter for new line)"
@@ -1843,7 +1843,7 @@ export const ChatArea: React.FC<{
                         : "Type a message..."
                   }
                   enterKeyHint={
-                    isMobile && globalSettings.enableMultilineInput
+                    isNativeMobile && globalSettings.enableMultilineInput
                       ? "enter"
                       : "send"
                   }
@@ -1865,7 +1865,7 @@ export const ChatArea: React.FC<{
                   }}
                   onAtClick={handleAtButtonClick}
                   onSendClick={handleSendMessage}
-                  showSendButton={isMobile}
+                  showSendButton={isNativeMobile}
                   hideEmoji={isNativeMobile}
                   hasText={messageText.trim().length > 0}
                 />

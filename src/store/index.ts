@@ -124,7 +124,11 @@ export const findChannelMessageById = (
   messageId: string,
 ): Message | undefined => {
   const messages = getChannelMessages(serverId, channelId);
-  return messages.find((message) => message.msgid === messageId);
+  return messages.find(
+    (message) =>
+      message.msgid === messageId ||
+      message.multilineMessageIds?.includes(messageId),
+  );
 };
 
 const resolveReplyMessage = (
@@ -3674,6 +3678,7 @@ ircClient.on("MULTILINE_MESSAGE", (response) => {
 
       if (currentUser?.username.toLowerCase() === sender.toLowerCase()) {
         // Own message echo — store under DM keyed by `target`, same as USERMSG echo handler.
+        if (!target) return;
         const privateChat = server.privateChats?.find(
           (pc) => pc.username.toLowerCase() === target.toLowerCase(),
         );
