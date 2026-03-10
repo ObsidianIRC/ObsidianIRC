@@ -1,5 +1,7 @@
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import type * as React from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
 
 interface CollapsibleMessageProps {
   content: React.ReactNode;
@@ -8,59 +10,57 @@ interface CollapsibleMessageProps {
 
 export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
   content,
-  maxLines = 3,
+  maxLines = 5,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsCollapsing, setNeedsCollapsing] = useState(false);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [isExpanding, setIsExpanding] = useState(false);
+  const [collapsedMaxHeight, setCollapsedMaxHeight] = useState<string>("none");
   const contentRef = useRef<HTMLDivElement>(null);
-  const animationTimeoutRef = useRef<number | null>(null);
-
-  // Cleanup timeout on unmount
-  useLayoutEffect(() => {
-    return () => {
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-        animationTimeoutRef.current = null;
-      }
-    };
-  }, []);
 
   useLayoutEffect(() => {
     if (!contentRef.current) return;
 
-    // Measure the actual rendered content height
     const element = contentRef.current;
     const computedStyle = window.getComputedStyle(element);
-    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 16; // fallback to 16px
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 16;
     const maxHeight = lineHeight * maxLines;
 
-    // Get the full content height
     const fullHeight = element.scrollHeight;
     setContentHeight(fullHeight);
+    setCollapsedMaxHeight(`${lineHeight * maxLines}px`);
 
-    // Check if content overflows the max height
     setNeedsCollapsing(fullHeight > maxHeight);
   }, [maxLines]);
 
   const toggleExpanded = () => {
     const willExpand = !isExpanded;
-    setIsExpanding(willExpand);
-    setIsAnimating(true);
-    setIsExpanded(willExpand);
 
-    // Clear any existing timeout
-    if (animationTimeoutRef.current) {
-      clearTimeout(animationTimeoutRef.current);
+    if (willExpand && contentRef.current) {
+      // Find the nearest scrollable ancestor
+      let scrollContainer: HTMLElement | null = null;
+      let el: HTMLElement | null = contentRef.current.parentElement;
+      while (el) {
+        if (el.scrollHeight > el.clientHeight) {
+          scrollContainer = el;
+          break;
+        }
+        el = el.parentElement;
+      }
+
+      // If the user was at the bottom, keep them there during the expand animation
+      if (scrollContainer && isScrolledToBottom(scrollContainer)) {
+        const container = scrollContainer;
+        const observer = new ResizeObserver(() => {
+          container.scrollTop = container.scrollHeight;
+        });
+        observer.observe(contentRef.current);
+        // Disconnect slightly after the 300ms transition ends
+        setTimeout(() => observer.disconnect(), 350);
+      }
     }
 
-    // Reset animation after it completes
-    animationTimeoutRef.current = window.setTimeout(() => {
-      setIsAnimating(false);
-      animationTimeoutRef.current = null;
-    }, 600);
+    setIsExpanded(willExpand);
   };
 
   return (
@@ -72,36 +72,29 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
           maxHeight: isExpanded
             ? `${contentHeight}px`
             : needsCollapsing
-              ? "4.5em"
+              ? collapsedMaxHeight
               : "none",
         }}
       >
         {content}
       </div>
       {needsCollapsing && (
-        <div className="truncation-container select-none">
-          <div className="truncation-line" />
-          <div className="mt-1 text-center">
+        <>
+          {!isExpanded && <div className="border-b border-white/20 mt-1" />}
+          <div className="flex justify-start mt-0.5">
             <button
               onClick={toggleExpanded}
-              className="text-blue-500 hover:text-blue-600 text-xs font-medium cursor-pointer border border-blue-500 rounded-full py-0 px-1"
-              style={{ textDecoration: "none" }}
+              title={isExpanded ? "Show less" : "Read more"}
+              className="opacity-80 hover:opacity-100 transition-opacity p-0.5 rounded"
             >
-              {isExpanded ? "Show less " : "Show more "}
-              <span
-                className={`inline-block ${isAnimating ? (isExpanding ? "arrow-flip-expand" : "arrow-flip-collapse") : ""}`}
-                style={
-                  !isAnimating && isExpanded
-                    ? { transform: "rotateX(180deg)" }
-                    : undefined
-                }
-              >
-                ↓
-              </span>
+              <ChevronDownIcon
+                className={`w-5 h-5 text-discord-text-muted transition-transform duration-300 ${
+                  isExpanded ? "rotate-180" : ""
+                }`}
+              />
             </button>
           </div>
-          <div className="truncation-line" />
-        </div>
+        </>
       )}
     </div>
   );
