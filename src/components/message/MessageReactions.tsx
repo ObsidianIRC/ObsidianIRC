@@ -51,8 +51,9 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
       {Object.entries(groupedReactions).map(([emoji, data]) => {
         const reactionData = data as ReactionData;
         return (
-          <div
+          <button
             key={emoji}
+            type="button"
             className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer group"
             title={`${emoji} ${reactionData.count} ${reactionData.count === 1 ? "reaction" : "reactions"} by ${reactionData.users.join(", ")}`}
             onClick={() =>
@@ -61,20 +62,12 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
           >
             <span>{emoji}</span>
             <span className="text-xs font-medium">{reactionData.count}</span>
-            {/* Show X button if current user reacted */}
             {reactionData.currentUserReacted && (
-              <button
-                className="ml-1 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReactionClick(emoji, true);
-                }}
-                title="Remove reaction"
-              >
+              <span className="ml-1 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs">
                 ×
-              </button>
+              </span>
             )}
-          </div>
+          </button>
         );
       })}
     </div>

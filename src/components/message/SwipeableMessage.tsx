@@ -144,7 +144,7 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
           releaseGesture();
           if (!wasLongPress && !hasMovedRef.current && onTap) {
             const target = touchStartTargetRef.current as Element | null;
-            if (!target?.closest("button")) {
+            if (!target?.closest("button, [role='button'], a")) {
               onTap();
             }
           }
