@@ -797,7 +797,7 @@ export const MessageItem = (props: MessageItemProps) => {
           onReactionUnreact={onReactionUnreact}
           onDirectReaction={onDirectReaction}
           isTouchDevice={isTouchDevice}
-          isNarrowView={isTouchDevice}
+          isNarrowView={isNarrowView}
         />
       </>
     );
