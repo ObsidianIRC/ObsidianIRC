@@ -6790,9 +6790,11 @@ ircClient.on("TAGMSG", (response) => {
     if (isChannel) {
       channel = server.channels.find((c) => c.name === channelName);
     } else {
-      // Private chat
+      // channelName may be our own nick (incoming reaction echo), so also try sender
       channel = server.privateChats?.find(
-        (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+        (pc) =>
+          pc.username.toLowerCase() === channelName.toLowerCase() ||
+          pc.username.toLowerCase() === sender.toLowerCase(),
       );
     }
 
@@ -6850,9 +6852,11 @@ ircClient.on("TAGMSG", (response) => {
     if (isChannel) {
       channel = server.channels.find((c) => c.name === channelName);
     } else {
-      // Private chat
+      // channelName may be our own nick (incoming unreact echo), so also try sender
       channel = server.privateChats?.find(
-        (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+        (pc) =>
+          pc.username.toLowerCase() === channelName.toLowerCase() ||
+          pc.username.toLowerCase() === sender.toLowerCase(),
       );
     }
 

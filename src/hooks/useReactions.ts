@@ -70,13 +70,11 @@ export function useReactions({
       const server = servers.find((s) => s.id === message.serverId);
       if (!server) return { server: undefined, target: undefined };
 
-      if (message.channelId) {
-        const channel = server.channels.find((c) => c.id === message.channelId);
-        return { server, target: channel?.name };
-      }
-      // Private message
+      const channel = server.channels.find((c) => c.id === message.channelId);
+      if (channel) return { server, target: channel.name };
+
       const privateChat = server.privateChats?.find(
-        (pc) => pc.username === message.userId.split("-")[0],
+        (pc) => pc.id === message.channelId,
       );
       return { server, target: privateChat?.username };
     },
