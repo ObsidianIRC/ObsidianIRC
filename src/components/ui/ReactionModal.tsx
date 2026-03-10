@@ -18,7 +18,6 @@ const ReactionModal: React.FC<ReactionModalProps> = ({
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
     onSelectEmoji(emojiData.emoji);
-    onClose();
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -41,7 +40,7 @@ const ReactionModal: React.FC<ReactionModalProps> = ({
             onClick={onClose}
             className="text-sm text-discord-text-muted hover:text-white w-full text-center py-1"
           >
-            Cancel
+            Close
           </button>
         </div>
       </div>

@@ -50,6 +50,7 @@ import InviteUserModal from "../ui/InviteUserModal";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
+import { ReactionPopover } from "../ui/ReactionPopover";
 import { ReplyBadge } from "../ui/ReplyBadge";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import { TextArea } from "../ui/TextInput";
@@ -536,6 +537,9 @@ export const ChatArea: React.FC<{
     selectedServerId,
     currentUser,
   });
+  const [reactionAnchorRect, setReactionAnchorRect] = useState<DOMRect | null>(
+    null,
+  );
 
   // Memoize preview styles — selectedColor/selectedFormatting don't change while typing,
   // so recomputing this on every keystroke is unnecessary object churn.
@@ -1436,6 +1440,7 @@ export const ChatArea: React.FC<{
   ]);
 
   const handleReactClick = (message: MessageType, buttonElement: Element) => {
+    setReactionAnchorRect(buttonElement.getBoundingClientRect());
     openReactionModal(message);
   };
 
@@ -2043,11 +2048,20 @@ export const ChatArea: React.FC<{
         }}
       />
 
-      <ReactionModal
-        isOpen={reactionModal.isOpen}
-        onClose={closeReactionModal}
-        onSelectEmoji={selectReaction}
-      />
+      {isNarrowView ? (
+        <ReactionModal
+          isOpen={reactionModal.isOpen}
+          onClose={closeReactionModal}
+          onSelectEmoji={selectReaction}
+        />
+      ) : (
+        <ReactionPopover
+          isOpen={reactionModal.isOpen}
+          anchorRect={reactionAnchorRect}
+          onClose={closeReactionModal}
+          onSelectEmoji={selectReaction}
+        />
+      )}
 
       <ModerationModal
         isOpen={moderationModal.isOpen}
