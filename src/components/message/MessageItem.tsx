@@ -14,6 +14,7 @@ import { openExternalUrl } from "../../lib/openUrl";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
+import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
 import { InviteMessage } from "./InviteMessage";
 import {
   ActionMessage,
@@ -430,6 +431,8 @@ export const MessageItem = (props: MessageItemProps) => {
   const pmUserCache = useRef(new Map<string, User>());
   const isNarrowView = useMediaQuery();
   const isTouchDevice = useMediaQuery("(pointer: coarse)");
+  const collapsibleRef = useRef<CollapsibleMessageHandle>(null);
+  const [messageNeedsCollapsing, setMessageNeedsCollapsing] = useState(false);
 
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
@@ -610,7 +613,14 @@ export const MessageItem = (props: MessageItemProps) => {
   );
 
   // Create collapsible content wrapper
-  const collapsibleContent = <CollapsibleMessage content={htmlContent} />;
+  const collapsibleContent = (
+    <CollapsibleMessage
+      ref={collapsibleRef}
+      content={htmlContent}
+      hoverOnly={!isTouchDevice}
+      onNeedsCollapsing={setMessageNeedsCollapsing}
+    />
+  );
 
   const theme = localStorage.getItem("theme") || "discord";
   const username = message.userId.split("-")[0];
@@ -894,6 +904,11 @@ export const MessageItem = (props: MessageItemProps) => {
         onReply={() => setReplyTo(message)}
         onReact={(el) => onReactClick(message, el)}
         onDelete={canRedact ? () => onRedactMessage?.(message) : undefined}
+        onTap={
+          messageNeedsCollapsing && isTouchDevice
+            ? () => collapsibleRef.current?.toggle()
+            : undefined
+        }
         canReply={message.type === "message"}
         canDelete={canRedact}
         isNarrowView={isTouchDevice}

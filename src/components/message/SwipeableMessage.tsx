@@ -10,6 +10,7 @@ interface SwipeableMessageProps {
   onReply: () => void;
   onReact: (buttonElement: Element) => void;
   onDelete?: () => void;
+  onTap?: () => void;
   canReply: boolean;
   canDelete: boolean;
   isNarrowView: boolean;
@@ -22,6 +23,7 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
   onReply,
   onReact,
   onDelete,
+  onTap,
   canReply,
   canDelete,
   isNarrowView,
@@ -30,6 +32,9 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
   const [isSpringBack, setIsSpringBack] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const touchStartTargetRef = useRef<EventTarget | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const hasMovedRef = useRef(false);
 
   const handleLongPress = useCallback(() => {
     setSheetOpen(true);
@@ -114,14 +119,35 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
         }}
         {...swipeEventHandlers}
         onTouchStartCapture={(e) => {
+          const touch = e.touches[0];
+          touchStartTargetRef.current = e.target;
+          touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+          hasMovedRef.current = false;
           longPress.onTouchStart(e);
         }}
         onTouchMoveCapture={(e) => {
+          // Mirror useLongPress moveThreshold so a tap isn't cancelled by iOS micro-drift
+          if (touchStartPosRef.current) {
+            const t = e.touches[0];
+            const dx = t.clientX - touchStartPosRef.current.x;
+            const dy = t.clientY - touchStartPosRef.current.y;
+            if (Math.sqrt(dx * dx + dy * dy) > 10) {
+              hasMovedRef.current = true;
+            }
+          }
           longPress.onTouchMove(e);
         }}
         onTouchEndCapture={() => {
+          // firedRef must be read before onTouchEnd clears it
+          const wasLongPress = longPress.firedRef.current;
           longPress.onTouchEnd();
           releaseGesture();
+          if (!wasLongPress && !hasMovedRef.current && onTap) {
+            const target = touchStartTargetRef.current as Element | null;
+            if (!target?.closest("button")) {
+              onTap();
+            }
+          }
         }}
         onTouchCancelCapture={() => {
           longPress.onTouchCancel();

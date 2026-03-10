@@ -1,17 +1,29 @@
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import type * as React from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
+
+export interface CollapsibleMessageHandle {
+  toggle: () => void;
+}
 
 interface CollapsibleMessageProps {
   content: React.ReactNode;
   maxLines?: number;
+  hoverOnly?: boolean;
+  onNeedsCollapsing?: (needs: boolean) => void;
 }
 
-export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
-  content,
-  maxLines = 5,
-}) => {
+export const CollapsibleMessage = forwardRef<
+  CollapsibleMessageHandle,
+  CollapsibleMessageProps
+>(({ content, maxLines = 5, hoverOnly = false, onNeedsCollapsing }, ref) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsCollapsing, setNeedsCollapsing] = useState(false);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
@@ -30,14 +42,15 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
     setContentHeight(fullHeight);
     setCollapsedMaxHeight(`${lineHeight * maxLines}px`);
 
-    setNeedsCollapsing(fullHeight > maxHeight);
-  }, [maxLines]);
+    const needs = fullHeight > maxHeight;
+    setNeedsCollapsing(needs);
+    onNeedsCollapsing?.(needs);
+  }, [maxLines, onNeedsCollapsing]);
 
   const toggleExpanded = () => {
     const willExpand = !isExpanded;
 
     if (willExpand && contentRef.current) {
-      // Find the nearest scrollable ancestor
       let scrollContainer: HTMLElement | null = null;
       let el: HTMLElement | null = contentRef.current.parentElement;
       while (el) {
@@ -48,20 +61,22 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
         el = el.parentElement;
       }
 
-      // If the user was at the bottom, keep them there during the expand animation
+      // Anchor scroll position during expand so users at the bottom stay there
       if (scrollContainer && isScrolledToBottom(scrollContainer)) {
         const container = scrollContainer;
         const observer = new ResizeObserver(() => {
           container.scrollTop = container.scrollHeight;
         });
         observer.observe(contentRef.current);
-        // Disconnect slightly after the 300ms transition ends
+        // 350ms outlasts the 300ms CSS transition
         setTimeout(() => observer.disconnect(), 350);
       }
     }
 
     setIsExpanded(willExpand);
   };
+
+  useImperativeHandle(ref, () => ({ toggle: toggleExpanded }));
 
   return (
     <div className="collapsible-message">
@@ -81,7 +96,11 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
       {needsCollapsing && (
         <>
           {!isExpanded && <div className="border-b border-white/20 mt-1" />}
-          <div className="flex justify-start mt-0.5">
+          <div
+            className={`flex justify-start mt-0.5 ${
+              hoverOnly ? "opacity-0 collapsible-expand-btn" : ""
+            }`}
+          >
             <button
               onClick={toggleExpanded}
               title={isExpanded ? "Show less" : "Read more"}
@@ -98,4 +117,6 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
       )}
     </div>
   );
-};
+});
+
+CollapsibleMessage.displayName = "CollapsibleMessage";
