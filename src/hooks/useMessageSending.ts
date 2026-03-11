@@ -154,13 +154,23 @@ export function useMessageSending({
         );
       } else if (commandName === "me") {
         const actionMessage = cleanedText.substring(4).trim();
+        const whisperContext = getWhisperContext(localReplyTo, currentUser);
         const target =
           selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
-        if (!target) return;
-        ircClient.sendRaw(
-          selectedServerId,
-          `PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
-        );
+        if (whisperContext) {
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperContext.targetUser,
+            whisperContext.channelContext,
+            `\u0001ACTION ${actionMessage}\u0001`,
+          );
+        } else {
+          if (!target) return;
+          ircClient.sendRaw(
+            selectedServerId,
+            `${localReplyTo?.msgid ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
+          );
+        }
         // Non-echo fallback: servers without echo-message won't reflect our
         // ACTION back, so add it locally the same way regular DMs are handled.
         if (

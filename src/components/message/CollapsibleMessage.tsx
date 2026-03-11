@@ -80,22 +80,27 @@ export const CollapsibleMessage = forwardRef<
 
   return (
     <div className="collapsible-message">
-      <div
-        ref={contentRef}
-        className="transition-all duration-300 ease-in-out overflow-hidden"
-        style={{
-          maxHeight: isExpanded
-            ? `${contentHeight}px`
-            : needsCollapsing
-              ? collapsedMaxHeight
-              : "none",
-        }}
-      >
-        {content}
+      <div className="relative">
+        <div
+          ref={contentRef}
+          className="transition-all duration-300 ease-in-out overflow-hidden"
+          style={{
+            maxHeight: isExpanded
+              ? `${contentHeight}px`
+              : needsCollapsing
+                ? collapsedMaxHeight
+                : "none",
+          }}
+        >
+          {content}
+        </div>
+        {needsCollapsing && !isExpanded && (
+          <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-b from-transparent to-discord-dark-100 group-hover:to-discord-message-hover pointer-events-none" />
+        )}
       </div>
       {needsCollapsing && (
         <>
-          {!isExpanded && <div className="border-b border-white/20 mt-1" />}
+          {!isExpanded && <div className="border-b border-white/30" />}
           <div
             className={`flex justify-start mt-0.5 ${
               hoverOnly ? "opacity-0 collapsible-expand-btn" : ""
