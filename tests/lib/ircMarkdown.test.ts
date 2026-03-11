@@ -163,6 +163,25 @@ describe("inline code XSS safety", () => {
   });
 });
 
+describe("markdown XSS safety", () => {
+  it("strips attribute injection from code fence language tag", () => {
+    const out = html(renderMarkdown('```js" onload="alert(1)\ncode\n```'));
+    expect(out).not.toMatch(/onload=/);
+    expect(out).toContain("language-js");
+  });
+
+  it("copy buttons survive DOMPurify sanitization", () => {
+    const out = html(renderMarkdown("```js\nconst x = 1;\n```"));
+    expect(out).toContain("<button");
+    expect(out).toContain("data-code-id");
+  });
+
+  it("IRC color style attributes survive DOMPurify sanitization", () => {
+    const out = html(renderMarkdown("\x0304red text"));
+    expect(out).toMatch(/style="color:#FF0000"/);
+  });
+});
+
 describe("processMarkdownInText", () => {
   it("uses markdown path when markdown patterns detected and enabled", () => {
     const out = html(

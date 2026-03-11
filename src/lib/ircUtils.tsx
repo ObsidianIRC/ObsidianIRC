@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import hljs from "highlight.js";
 import { marked } from "marked";
 import React from "react";
@@ -508,12 +509,16 @@ export function renderMarkdown(
   // Apply IRC colors to prose (after code blocks are wrapped, so we can skip them)
   processedHtml = applyIrcColorsToHtml(processedHtml, lineColors);
 
-  // Return a div with dangerouslySetInnerHTML
+  const safeHtml = DOMPurify.sanitize(processedHtml, {
+    ADD_ATTR: ["style", "data-code-id", "viewBox", "stroke-width", "rx", "ry"],
+    ADD_TAGS: ["button"],
+  });
+
   return (
     <div
       className="markdown-content"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML is sanitized above
-      dangerouslySetInnerHTML={{ __html: processedHtml }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized by DOMPurify above
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
       onClick={(e) => {
         const target = e.target as HTMLElement;
         const button =
