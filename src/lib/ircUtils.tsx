@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import hljs from "highlight.js";
 import { marked } from "marked";
 import React from "react";
@@ -388,8 +389,15 @@ export function renderMarkdown(
       </div>`;
     }
 
+    const escapedForHtml = decodedText
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
     const codeId = `inline-code-${Math.random().toString(36).substr(2, 9)}`;
-    return `<span class="inline-code-container"><code id="${codeId}" class="inline-code">${decodedText}</code><button class="inline-copy-button" data-code-id="${codeId}" title="Copy to clipboard">
+    return `<span class="inline-code-container"><code id="${codeId}" class="inline-code">${escapedForHtml}</code><button class="inline-copy-button" data-code-id="${codeId}" title="Copy to clipboard">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -501,12 +509,16 @@ export function renderMarkdown(
   // Apply IRC colors to prose (after code blocks are wrapped, so we can skip them)
   processedHtml = applyIrcColorsToHtml(processedHtml, lineColors);
 
-  // Return a div with dangerouslySetInnerHTML
+  const safeHtml = DOMPurify.sanitize(processedHtml, {
+    ADD_ATTR: ["style", "data-code-id", "viewBox", "stroke-width", "rx", "ry"],
+    ADD_TAGS: ["button"],
+  });
+
   return (
     <div
       className="markdown-content"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML is sanitized above
-      dangerouslySetInnerHTML={{ __html: processedHtml }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized by DOMPurify above
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
       onClick={(e) => {
         const target = e.target as HTMLElement;
         const button =

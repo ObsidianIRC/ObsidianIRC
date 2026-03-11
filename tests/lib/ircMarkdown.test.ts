@@ -127,6 +127,61 @@ describe("renderMarkdown edge cases", () => {
   });
 });
 
+describe("inline code XSS safety", () => {
+  it("does not render iframe injected via single-line inline code", () => {
+    const payload = '`<iframe src="https://evil.com"></iframe>`';
+    const out = html(renderMarkdown(payload));
+    expect(out).not.toContain("<iframe");
+    expect(out).toContain("&lt;iframe");
+  });
+
+  it("does not render script tag injected via single-line inline code", () => {
+    const payload = "`<script>alert('xss')</script>`";
+    const out = html(renderMarkdown(payload));
+    expect(out).not.toContain("<script");
+    expect(out).toContain("&lt;script");
+  });
+
+  it("does not render img onerror injected via single-line inline code", () => {
+    const payload = '`<img src=x onerror="alert(1)">`';
+    const out = html(renderMarkdown(payload));
+    expect(out).not.toContain("<img");
+    expect(out).toContain("&lt;img");
+  });
+
+  it("still displays the raw text content inside the code element", () => {
+    const payload = "`<b>bold</b>`";
+    const out = html(renderMarkdown(payload));
+    expect(out).toContain("&lt;b&gt;bold&lt;/b&gt;");
+    expect(out).not.toContain("<b>bold</b>");
+  });
+
+  it("multiline inline code (with \\n) is already safe", () => {
+    const payload = "`<iframe src=evil>\\n</iframe>`";
+    const out = html(renderMarkdown(payload));
+    expect(out).not.toContain("<iframe");
+  });
+});
+
+describe("markdown XSS safety", () => {
+  it("strips attribute injection from code fence language tag", () => {
+    const out = html(renderMarkdown('```js" onload="alert(1)\ncode\n```'));
+    expect(out).not.toMatch(/onload=/);
+    expect(out).toContain("language-js");
+  });
+
+  it("copy buttons survive DOMPurify sanitization", () => {
+    const out = html(renderMarkdown("```js\nconst x = 1;\n```"));
+    expect(out).toContain("<button");
+    expect(out).toContain("data-code-id");
+  });
+
+  it("IRC color style attributes survive DOMPurify sanitization", () => {
+    const out = html(renderMarkdown("\x0304red text"));
+    expect(out).toMatch(/style="color:#FF0000"/);
+  });
+});
+
 describe("processMarkdownInText", () => {
   it("uses markdown path when markdown patterns detected and enabled", () => {
     const out = html(
