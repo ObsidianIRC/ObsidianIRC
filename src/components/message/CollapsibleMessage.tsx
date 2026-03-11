@@ -95,7 +95,7 @@ export const CollapsibleMessage = forwardRef<
           {content}
         </div>
         {needsCollapsing && !isExpanded && (
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent to-discord-dark-200 group-hover:to-discord-message-hover pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-b from-transparent to-discord-dark-100 group-hover:to-discord-message-hover pointer-events-none" />
         )}
       </div>
       {needsCollapsing && (
