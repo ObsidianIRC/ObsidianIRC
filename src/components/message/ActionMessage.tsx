@@ -116,7 +116,7 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
             </span>
             <MessageReactions
               reactions={message.reactions}
-              currentUserUsername={currentUser?.username}
+              currentUserUsername={currentUser?.username ?? currentUser?.id}
               onReactionClick={(emoji, currentUserReacted) => {
                 if (currentUserReacted) {
                   onReactionUnreact(emoji, message);
