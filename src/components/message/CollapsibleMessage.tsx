@@ -100,7 +100,7 @@ export const CollapsibleMessage = forwardRef<
       </div>
       {needsCollapsing && (
         <>
-          {!isExpanded && <div className="border-b border-white/20 mt-1" />}
+          {!isExpanded && <div className="border-b border-white/30" />}
           <div
             className={`flex justify-start mt-0.5 ${
               hoverOnly ? "opacity-0 collapsible-expand-btn" : ""
