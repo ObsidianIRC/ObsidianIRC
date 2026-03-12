@@ -443,32 +443,29 @@ export const MessageItem = (props: MessageItemProps) => {
       (state) => {
         if (!serverId) return "none";
 
-        // For private chats, check private chats
         if (!channelId) {
-          const privateChat = state.servers
-            .find((s) => s.id === serverId)
-            ?.privateChats?.find((pc) => pc.username === message.userId);
-          if (privateChat) {
-            // Check if user is in any channel
-            const server = state.servers.find((s) => s.id === serverId);
-            if (server) {
-              const user = server.channels
-                .flatMap((c) => c.users)
-                .find(
-                  (u) =>
-                    u.username.toLowerCase() ===
-                    privateChat.username.toLowerCase(),
-                );
-              if (user) {
-                return `channel-${user.id}`;
-              }
+          const server = state.servers.find((s) => s.id === serverId);
+          // Prefer channel user — covers current user who has no PrivateChat entry
+          if (server) {
+            const user = server.channels
+              .flatMap((c) => c.users)
+              .find(
+                (u) =>
+                  u.username.toLowerCase() === message.userId.toLowerCase(),
+              );
+            if (user) {
+              return `channel-${user.id}`;
             }
+          }
+          const privateChat = server?.privateChats?.find(
+            (pc) => pc.username === message.userId,
+          );
+          if (privateChat) {
             return `pm-${privateChat.id}`;
           }
           return "none";
         }
 
-        // For channels, find the user in the channel
         const server = state.servers.find((s) => s.id === serverId);
         const channel = server?.channels.find((c) => c.id === channelId);
         const user = channel?.users.find(
@@ -490,16 +487,18 @@ export const MessageItem = (props: MessageItemProps) => {
           const privateChat = state.servers
             .find((s) => s.id === serverId)
             ?.privateChats?.find((pc) => pc.id === privateChatId);
-          if (privateChat) {
-            // Don't create new objects - return the privateChat user reference
-            // We'll handle metadata separately
-            return privateChat;
-          }
+          if (privateChat) return privateChat;
         } else if (userKey.startsWith("channel-")) {
           const userId = userKey.slice(8);
           const server = state.servers.find((s) => s.id === serverId);
-          const channel = server?.channels.find((c) => c.id === channelId);
-          return channel?.users.find((user) => user.id === userId);
+          if (channelId) {
+            const channel = server?.channels.find((c) => c.id === channelId);
+            return channel?.users.find((user) => user.id === userId);
+          }
+          // DM context: no channelId, search all channels
+          return server?.channels
+            .flatMap((c) => c.users)
+            .find((user) => user.id === userId);
         }
 
         return undefined;
@@ -508,35 +507,18 @@ export const MessageItem = (props: MessageItemProps) => {
     ),
   );
 
-  // Get metadata for private message users reactively.
-  // Reads user.metadata directly from Zustand state (stable object references)
-  // instead of calling getUserMetadata() which hits localStorage and returns a
-  // new object every call — causing an infinite render loop via useSyncExternalStore.
-  const pmUserMetadata = useStore(
-    useCallback(
-      (state) => {
-        const _counter = state.metadataChangeCounter;
-        if (!userKey.startsWith("pm-")) return null;
-        const privateChatId = userKey.slice(3);
-        const server = state.servers.find((s) => s.id === serverId);
-        const privateChat = server?.privateChats?.find(
-          (pc) => pc.id === privateChatId,
-        );
-        if (!privateChat || !server) return null;
-        for (const channel of server.channels) {
-          const user = channel.users.find(
-            (u) =>
-              u.username.toLowerCase() === privateChat.username.toLowerCase(),
-          );
-          if (user?.metadata && Object.keys(user.metadata).length > 0) {
-            return user.metadata;
-          }
-        }
-        return null;
-      },
-      [userKey, serverId],
-    ),
+  const metadataChangeCounter = useStore(
+    (state) => state.metadataChangeCounter,
   );
+
+  // useMemo instead of useStore — safe to read localStorage without infinite loop via useSyncExternalStore
+  // biome-ignore lint/correctness/useExhaustiveDependencies: metadataChangeCounter is intentional reactive trigger
+  const pmUserMetadata = useMemo(() => {
+    if (!userKey.startsWith("pm-")) return null;
+    const pmUsername = (rawMessageUser as PrivateChat)?.username;
+    if (!pmUsername || !serverId) return null;
+    return getUserMetadata(pmUsername, serverId);
+  }, [metadataChangeCounter, userKey, rawMessageUser, serverId]);
 
   const messageUser: User | undefined = useMemo(() => {
     if (!rawMessageUser) return undefined;

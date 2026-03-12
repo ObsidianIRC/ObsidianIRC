@@ -7368,9 +7368,6 @@ ircClient.on("METADATA", ({ serverId, target, key, visibility, value }) => {
         // Update metadata for private chat users
         const updatedPrivateChats = server.privateChats?.map((pm) => {
           if (pm.username.toLowerCase() === resolvedTarget.toLowerCase()) {
-            // We don't store metadata directly on PrivateChat,
-            // but we can use this to trigger UI updates
-            // The avatar/metadata will be looked up from savedMetadata
             return { ...pm };
           }
           return pm;
