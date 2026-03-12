@@ -1790,87 +1790,87 @@ export const ChatArea: React.FC<{
             <div
               className={`${!isNarrowView && "px-4"} pb-4 relative chat-input-area`}
             >
+              {localReplyTo && (
+                <MessageReply
+                  replyMessage={localReplyTo}
+                  theme="discord"
+                  onClose={() => setLocalReplyTo(null)}
+                />
+              )}
               <TypingIndicator
                 serverId={selectedServerId ?? ""}
                 channelId={selectedChannelId || selectedPrivateChatId || ""}
               />
-              <div className="bg-discord-dark-100 rounded-lg overflow-hidden">
-                {localReplyTo && (
-                  <MessageReply
-                    replyMessage={localReplyTo}
-                    theme="discord"
-                    onClose={() => setLocalReplyTo(null)}
-                  />
-                )}
-                <div className="flex items-center relative flex-nowrap">
-                  <button
-                    className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
-                    onClick={() => setShowPlusMenu((prev) => !prev)}
-                  >
-                    <FaPlus />
-                  </button>
+              <div
+                className={`bg-discord-dark-100 ${localReplyTo ? "rounded-b-lg" : "rounded-lg"} flex items-center relative flex-nowrap`}
+              >
+                <button
+                  className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
+                  onClick={() => setShowPlusMenu((prev) => !prev)}
+                >
+                  <FaPlus />
+                </button>
 
-                  <TextArea
-                    ref={inputRef}
-                    value={messageText}
-                    onChange={handleInputChange}
-                    onClick={handleInputClick}
-                    onKeyUp={handleInputKeyUp}
-                    onKeyDown={handleKeyDown}
-                    autoCorrect="on"
-                    autoCapitalize="sentences"
-                    spellCheck={true}
-                    placeholder={
-                      selectedChannel
-                        ? `Message #${selectedChannel.name.replace(/^#/, "")}${
+                <TextArea
+                  ref={inputRef}
+                  value={messageText}
+                  onChange={handleInputChange}
+                  onClick={handleInputClick}
+                  onKeyUp={handleInputKeyUp}
+                  onKeyDown={handleKeyDown}
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck={true}
+                  placeholder={
+                    selectedChannel
+                      ? `Message #${selectedChannel.name.replace(/^#/, "")}${
+                          globalSettings.enableMultilineInput &&
+                          !isNativeMobile &&
+                          !isCompactInput
+                            ? globalSettings.multilineOnShiftEnter
+                              ? " (Shift+Enter for new line)"
+                              : " (Enter for new line, Shift+Enter to send)"
+                            : ""
+                        }`
+                      : selectedPrivateChat
+                        ? `Message @${selectedPrivateChat.username}${
                             globalSettings.enableMultilineInput &&
-                            !isNativeMobile &&
+                            !isMobile &&
                             !isCompactInput
                               ? globalSettings.multilineOnShiftEnter
                                 ? " (Shift+Enter for new line)"
                                 : " (Enter for new line, Shift+Enter to send)"
                               : ""
                           }`
-                        : selectedPrivateChat
-                          ? `Message @${selectedPrivateChat.username}${
-                              globalSettings.enableMultilineInput &&
-                              !isMobile &&
-                              !isCompactInput
-                                ? globalSettings.multilineOnShiftEnter
-                                  ? " (Shift+Enter for new line)"
-                                  : " (Enter for new line, Shift+Enter to send)"
-                                : ""
-                            }`
-                          : "Type a message..."
-                    }
-                    enterKeyHint={
-                      isNativeMobile && globalSettings.enableMultilineInput
-                        ? "enter"
-                        : "send"
-                    }
-                    className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
-                    style={previewStyle}
-                    rows={1}
-                  />
-                  <InputToolbar
-                    selectedColor={selectedColor}
-                    onEmojiClick={() => {
-                      setIsEmojiSelectorOpen((prev) => !prev);
-                      setIsColorPickerOpen(false);
-                      setShowMembersDropdown(false);
-                    }}
-                    onColorPickerClick={() => {
-                      setIsColorPickerOpen((prev) => !prev);
-                      setIsEmojiSelectorOpen(false);
-                      setShowMembersDropdown(false);
-                    }}
-                    onAtClick={handleAtButtonClick}
-                    onSendClick={handleSendMessage}
-                    showSendButton={isNativeMobile}
-                    hideEmoji={isNativeMobile}
-                    hasText={messageText.trim().length > 0}
-                  />
-                </div>
+                        : "Type a message..."
+                  }
+                  enterKeyHint={
+                    isNativeMobile && globalSettings.enableMultilineInput
+                      ? "enter"
+                      : "send"
+                  }
+                  className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
+                  style={previewStyle}
+                  rows={1}
+                />
+                <InputToolbar
+                  selectedColor={selectedColor}
+                  onEmojiClick={() => {
+                    setIsEmojiSelectorOpen((prev) => !prev);
+                    setIsColorPickerOpen(false);
+                    setShowMembersDropdown(false);
+                  }}
+                  onColorPickerClick={() => {
+                    setIsColorPickerOpen((prev) => !prev);
+                    setIsEmojiSelectorOpen(false);
+                    setShowMembersDropdown(false);
+                  }}
+                  onAtClick={handleAtButtonClick}
+                  onSendClick={handleSendMessage}
+                  showSendButton={isNativeMobile}
+                  hideEmoji={isNativeMobile}
+                  hasText={messageText.trim().length > 0}
+                />
               </div>
 
               {/* Plus menu */}

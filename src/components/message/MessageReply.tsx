@@ -35,11 +35,11 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
 
   return (
     <div
-      className={`flex min-w-0 w-full overflow-hidden bg-black/[0.22] transition-colors
+      className={`flex min-w-0 w-full overflow-hidden transition-colors
         ${
           onClose
-            ? "border-b border-white/[0.06]"
-            : "mb-2 rounded-md border border-white/[0.04]"
+            ? "bg-discord-dark-100 rounded-t-lg border-b border-white/[0.06]"
+            : "bg-black/[0.22] mb-2 rounded-md border border-white/[0.04]"
         }
         ${isClickable ? "cursor-pointer hover:bg-black/[0.32]" : ""}`}
       onClick={isClickable ? onReplyClick : undefined}
