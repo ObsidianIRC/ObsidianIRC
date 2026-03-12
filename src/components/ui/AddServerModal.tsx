@@ -142,6 +142,8 @@ export const AddServerModal: React.FC = () => {
       title={prefillServerDetails?.ui?.title || "Add IRC Server"}
       maxWidth="md"
       showCloseButton={!prefillServerDetails?.ui?.hideClose}
+      closeOnEsc={!prefillServerDetails?.ui?.hideClose}
+      closeOnClickOutside={!prefillServerDetails?.ui?.hideClose}
     >
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <ModalBody scrollable>
