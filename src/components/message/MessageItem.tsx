@@ -433,6 +433,38 @@ export const MessageItem = (props: MessageItemProps) => {
   const isTouchDevice = useMediaQuery("(pointer: coarse)");
   const collapsibleRef = useRef<CollapsibleMessageHandle>(null);
   const [messageNeedsCollapsing, setMessageNeedsCollapsing] = useState(false);
+  const messageRowRef = useRef<HTMLDivElement>(null);
+
+  const handleMessageMouseEnter = () => {
+    const el = messageRowRef.current;
+    if (!el) return;
+    const msgRect = el.getBoundingClientRect();
+    // Toolbar: bottom-1 (4px from bottom), right-4 (16px from right), ~90px wide, ~32px tall
+    const toolbarTop = msgRect.bottom - 4 - 32;
+    const toolbarLeft = msgRect.right - 16 - 90;
+    const toolbarRight = msgRect.right - 16;
+    const toolbarBottom = msgRect.bottom - 4;
+
+    for (const btn of el.querySelectorAll<HTMLElement>(
+      ".copy-button, .inline-copy-button",
+    )) {
+      const r = btn.getBoundingClientRect();
+      const overlaps =
+        r.right > toolbarLeft &&
+        r.left < toolbarRight &&
+        r.bottom > toolbarTop &&
+        r.top < toolbarBottom;
+      if (overlaps) btn.classList.add("avoid-toolbar");
+    }
+  };
+
+  const handleMessageMouseLeave = () => {
+    for (const el of messageRowRef.current?.querySelectorAll(
+      ".avoid-toolbar",
+    ) ?? []) {
+      el.classList.remove("avoid-toolbar");
+    }
+  };
 
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
@@ -877,10 +909,13 @@ export const MessageItem = (props: MessageItemProps) => {
 
   return (
     <div
+      ref={messageRowRef}
       data-message-id={message.id}
       className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
         showHeader ? "mt-4" : "py-0.5"
       }`}
+      onMouseEnter={handleMessageMouseEnter}
+      onMouseLeave={handleMessageMouseLeave}
     >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
@@ -1026,6 +1061,11 @@ export const MessageItem = (props: MessageItemProps) => {
               reactions={message.reactions}
               currentUserUsername={ircCurrentUser?.username}
               onReactionClick={handleReactionClick}
+              onAddReaction={
+                message.type === "message"
+                  ? (el) => onReactClick(message, el)
+                  : undefined
+              }
             />
           </div>
 

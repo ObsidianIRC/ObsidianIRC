@@ -1,6 +1,5 @@
 import type React from "react";
 import { FaArrowDown } from "react-icons/fa";
-import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 interface ScrollToBottomButtonProps {
   isVisible: boolean;
@@ -13,8 +12,6 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
   onClick,
   unreadCount,
 }) => {
-  const isMobile = useMediaQuery();
-
   if (!isVisible) return null;
 
   return (
@@ -25,10 +22,10 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
           // Prevent focus leaving the textarea (which hides the keyboard on mobile)
           // while still letting the click fire and scroll to bottom.
           onMouseDown={(e) => e.preventDefault()}
-          className={`bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full shadow-lg transition-all relative ${isMobile ? "p-3" : "p-2"}`}
+          className="scroll-to-bottom-btn p-3 bg-discord-dark-300 hover:bg-discord-dark-200 text-discord-text-muted hover:text-discord-channels-default rounded-full shadow-2xl transition-colors relative"
           aria-label="Scroll to bottom"
         >
-          <FaArrowDown className="text-white" />
+          <FaArrowDown className="w-4 h-4" />
           {unreadCount && unreadCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-discord-accent text-white text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
               {unreadCount > 99 ? "99+" : unreadCount}

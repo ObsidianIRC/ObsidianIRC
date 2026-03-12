@@ -60,16 +60,23 @@ export function ReactionPopover({
 
     const handleWheel = (e: WheelEvent) => {
       if (popoverRef.current?.contains(e.target as Node)) return;
+      // Capture phase: fires before any bubble-phase listeners on child elements.
+      // stopPropagation prevents the chat container's wheel handler from firing
+      // (which would incorrectly set isScrolledUp=true even though the chat never scrolls).
       e.preventDefault();
+      e.stopPropagation();
     };
 
     document.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("wheel", handleWheel, { passive: false });
+    document.addEventListener("wheel", handleWheel, {
+      passive: false,
+      capture: true,
+    });
     return () => {
       document.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("wheel", handleWheel);
+      document.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, [isOpen, onClose]);
 

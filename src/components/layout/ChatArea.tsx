@@ -36,6 +36,7 @@ import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
+import { MessageReply } from "../message/MessageReply";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
@@ -51,7 +52,6 @@ import LoadingSpinner from "../ui/LoadingSpinner";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
-import { ReplyBadge } from "../ui/ReplyBadge";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import { TextArea } from "../ui/TextInput";
 import UserContextMenu from "../ui/UserContextMenu";
@@ -274,6 +274,11 @@ export const ChatArea: React.FC<{
 
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isCompactInput = useMediaQuery("(max-width: 900px)");
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — clear reply state whenever the active channel/server changes
+  useEffect(() => {
+    setLocalReplyTo(null);
+  }, [selectedServerId, selectedChannelId, selectedPrivateChatId]);
 
   const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
     messagesContainerRef,
@@ -1789,86 +1794,83 @@ export const ChatArea: React.FC<{
                 serverId={selectedServerId ?? ""}
                 channelId={selectedChannelId || selectedPrivateChatId || ""}
               />
-              {localReplyTo && (
-                <ReplyBadge
-                  replyTo={localReplyTo}
-                  onClose={() => setLocalReplyTo(null)}
-                  isWhisper={
-                    !!(
-                      localReplyTo.tags?.["draft/channel-context"] ||
-                      localReplyTo.tags?.["+draft/channel-context"]
-                    )
-                  }
-                />
-              )}
-              <div className="bg-discord-dark-100 rounded-lg flex items-center relative flex-nowrap">
-                <button
-                  className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
-                  onClick={() => setShowPlusMenu((prev) => !prev)}
-                >
-                  <FaPlus />
-                </button>
+              <div className="bg-discord-dark-100 rounded-lg overflow-hidden">
+                {localReplyTo && (
+                  <MessageReply
+                    replyMessage={localReplyTo}
+                    theme="discord"
+                    onClose={() => setLocalReplyTo(null)}
+                  />
+                )}
+                <div className="flex items-center relative flex-nowrap">
+                  <button
+                    className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
+                    onClick={() => setShowPlusMenu((prev) => !prev)}
+                  >
+                    <FaPlus />
+                  </button>
 
-                <TextArea
-                  ref={inputRef}
-                  value={messageText}
-                  onChange={handleInputChange}
-                  onClick={handleInputClick}
-                  onKeyUp={handleInputKeyUp}
-                  onKeyDown={handleKeyDown}
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck={true}
-                  placeholder={
-                    selectedChannel
-                      ? `Message #${selectedChannel.name.replace(/^#/, "")}${
-                          globalSettings.enableMultilineInput &&
-                          !isNativeMobile &&
-                          !isCompactInput
-                            ? globalSettings.multilineOnShiftEnter
-                              ? " (Shift+Enter for new line)"
-                              : " (Enter for new line, Shift+Enter to send)"
-                            : ""
-                        }`
-                      : selectedPrivateChat
-                        ? `Message @${selectedPrivateChat.username}${
+                  <TextArea
+                    ref={inputRef}
+                    value={messageText}
+                    onChange={handleInputChange}
+                    onClick={handleInputClick}
+                    onKeyUp={handleInputKeyUp}
+                    onKeyDown={handleKeyDown}
+                    autoCorrect="on"
+                    autoCapitalize="sentences"
+                    spellCheck={true}
+                    placeholder={
+                      selectedChannel
+                        ? `Message #${selectedChannel.name.replace(/^#/, "")}${
                             globalSettings.enableMultilineInput &&
-                            !isMobile &&
+                            !isNativeMobile &&
                             !isCompactInput
                               ? globalSettings.multilineOnShiftEnter
                                 ? " (Shift+Enter for new line)"
                                 : " (Enter for new line, Shift+Enter to send)"
                               : ""
                           }`
-                        : "Type a message..."
-                  }
-                  enterKeyHint={
-                    isNativeMobile && globalSettings.enableMultilineInput
-                      ? "enter"
-                      : "send"
-                  }
-                  className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
-                  style={previewStyle}
-                  rows={1}
-                />
-                <InputToolbar
-                  selectedColor={selectedColor}
-                  onEmojiClick={() => {
-                    setIsEmojiSelectorOpen((prev) => !prev);
-                    setIsColorPickerOpen(false);
-                    setShowMembersDropdown(false);
-                  }}
-                  onColorPickerClick={() => {
-                    setIsColorPickerOpen((prev) => !prev);
-                    setIsEmojiSelectorOpen(false);
-                    setShowMembersDropdown(false);
-                  }}
-                  onAtClick={handleAtButtonClick}
-                  onSendClick={handleSendMessage}
-                  showSendButton={isNativeMobile}
-                  hideEmoji={isNativeMobile}
-                  hasText={messageText.trim().length > 0}
-                />
+                        : selectedPrivateChat
+                          ? `Message @${selectedPrivateChat.username}${
+                              globalSettings.enableMultilineInput &&
+                              !isMobile &&
+                              !isCompactInput
+                                ? globalSettings.multilineOnShiftEnter
+                                  ? " (Shift+Enter for new line)"
+                                  : " (Enter for new line, Shift+Enter to send)"
+                                : ""
+                            }`
+                          : "Type a message..."
+                    }
+                    enterKeyHint={
+                      isNativeMobile && globalSettings.enableMultilineInput
+                        ? "enter"
+                        : "send"
+                    }
+                    className="bg-transparent border-none outline-none py-3 flex-grow text-discord-text-normal resize-none min-h-[44px] overflow-y-auto placeholder:truncate"
+                    style={previewStyle}
+                    rows={1}
+                  />
+                  <InputToolbar
+                    selectedColor={selectedColor}
+                    onEmojiClick={() => {
+                      setIsEmojiSelectorOpen((prev) => !prev);
+                      setIsColorPickerOpen(false);
+                      setShowMembersDropdown(false);
+                    }}
+                    onColorPickerClick={() => {
+                      setIsColorPickerOpen((prev) => !prev);
+                      setIsEmojiSelectorOpen(false);
+                      setShowMembersDropdown(false);
+                    }}
+                    onAtClick={handleAtButtonClick}
+                    onSendClick={handleSendMessage}
+                    showSendButton={isNativeMobile}
+                    hideEmoji={isNativeMobile}
+                    hasText={messageText.trim().length > 0}
+                  />
+                </div>
               </div>
 
               {/* Plus menu */}
