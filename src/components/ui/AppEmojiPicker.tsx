@@ -33,7 +33,7 @@ export function AppEmojiPicker({ onEmojiClick }: AppEmojiPickerProps) {
         onEmojiClick={onEmojiClick}
         theme={Theme.DARK}
         width="100%"
-        height={isMobile ? 500 : 400}
+        height={isMobile ? 500 : 380}
         searchPlaceholder="Search emojis..."
         previewConfig={{ showPreview: false }}
         skinTonesDisabled={false}

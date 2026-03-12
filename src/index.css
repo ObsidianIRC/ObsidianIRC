@@ -141,11 +141,11 @@ html, body, #root {
 @keyframes message-actions-appear {
   0% {
     opacity: 0;
-    transform: translateY(12px) scale(0.82);
+    transform: translateY(6px) scale(0.78);
   }
-  60% {
+  65% {
     opacity: 1;
-    transform: translateY(-3px) scale(1.04);
+    transform: translateY(-1.5px) scale(1.04);
   }
   100% {
     opacity: 1;
@@ -154,7 +154,7 @@ html, body, #root {
 }
 
 .group:hover .message-actions-container {
-  animation: message-actions-appear 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: message-actions-appear 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* Hover reveal animation for collapsible expand button */
@@ -370,7 +370,7 @@ html, body, #root {
   border-radius: 0.25rem;
   padding: 0.0625rem;
   cursor: pointer;
-  opacity: 1;
+  opacity: 0;
   transition:
     opacity 0.2s ease,
     background-color 0.2s ease;
@@ -381,6 +381,10 @@ html, body, #root {
   z-index: 10;
   margin-left: 0.5rem;
   flex-shrink: 0;
+}
+
+.code-block-header:hover .copy-button {
+  opacity: 1;
 }
 
 .copy-button:hover {

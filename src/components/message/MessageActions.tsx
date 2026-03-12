@@ -20,32 +20,36 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   canReply = !!message.msgid,
 }) => {
   return (
-    <div className="absolute bottom-1 right-2 opacity-0 message-actions-container flex space-x-2 select-none">
-      {canRedact && onRedactClick && (
-        <button
-          className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-          onClick={onRedactClick}
-          title="Delete message"
-        >
-          <FaTimes />
-        </button>
-      )}
-      {canReply && (
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={onReplyClick}
-        >
-          <FaReply />
-        </button>
-      )}
-      {canReply && (
-        <button
-          className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-2 py-1 rounded text-xs"
-          onClick={(e) => onReactClick(e.currentTarget)}
-        >
-          <FaGrinAlt />
-        </button>
-      )}
+    <div className="absolute top-full right-4 opacity-0 message-actions-container select-none z-50">
+      <div className="flex items-center gap-2 bg-discord-dark-300/95 border border-white/[0.07] rounded-xl shadow-xl shadow-black/50 p-1">
+        {canRedact && onRedactClick && (
+          <button
+            className="p-1.5 rounded-lg text-red-400/75 hover:bg-red-500/15 hover:text-red-300 transition-all duration-150"
+            onClick={onRedactClick}
+            title="Delete message"
+          >
+            <FaTimes size={12} />
+          </button>
+        )}
+        {canReply && (
+          <button
+            className="p-1.5 rounded-lg text-gray-400/75 hover:bg-white/[0.08] hover:text-gray-200 transition-all duration-150"
+            onClick={onReplyClick}
+            title="Reply"
+          >
+            <FaReply size={12} />
+          </button>
+        )}
+        {canReply && (
+          <button
+            className="p-1.5 rounded-lg text-gray-400/75 hover:bg-white/[0.08] hover:text-gray-200 transition-all duration-150"
+            onClick={(e) => onReactClick(e.currentTarget)}
+            title="React"
+          >
+            <FaGrinAlt size={12} />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

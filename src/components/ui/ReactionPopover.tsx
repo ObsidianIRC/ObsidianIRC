@@ -10,8 +10,8 @@ interface Props {
   onSelectEmoji: (emoji: string) => void;
 }
 
-const PICKER_W = 352;
-const PICKER_H = 450;
+const PICKER_W = 320;
+const PICKER_H = 420;
 const GAP = 8;
 const MARGIN = 12;
 

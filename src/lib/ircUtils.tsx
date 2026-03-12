@@ -265,18 +265,21 @@ function applyIrcColorsToHtml(
 ): string {
   if (lineColors.size === 0) return htmlStr;
 
-  // Use first color as the dominant color for all prose
   const style = lineColors.values().next().value;
   if (!style) return htmlStr;
 
-  // Match <p>...</p>, <li>...</li>, <blockquote>...</blockquote> that do NOT
-  // contain code blocks. Uses [^<]* with inline tags to avoid matching across
-  // block boundaries.
+  // Strip background-color: code blocks have their own background styling and
+  // IRC background colors on adjacent prose bleed visually into the code block area
+  const fgStyle = style
+    .replace(/;?background-color:[^;]+/g, "")
+    .replace(/^;+|;+$/g, "");
+  if (!fgStyle) return htmlStr;
+
   return htmlStr.replace(
     /(<(?:p|li)(?:\s[^>]*)?>)((?:(?!<\/?(?:pre|div)\b)[\s\S])*?)(<\/(?:p|li)>)/g,
     (match, open, content, close) => {
       if (!content.trim()) return match;
-      return `${open}<span style="${style}">${content}</span>${close}`;
+      return `${open}<span style="${fgStyle}">${content}</span>${close}`;
     },
   );
 }
@@ -533,7 +536,6 @@ export function renderMarkdown(
               navigator.clipboard
                 .writeText(textToCopy)
                 .then(() => {
-                  // Show success feedback
                   const originalText = button.innerHTML;
                   button.innerHTML = `
                   <svg width="${button.classList.contains("inline-copy-button") ? "12" : "16"}" height="${button.classList.contains("inline-copy-button") ? "12" : "16"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -541,9 +543,11 @@ export function renderMarkdown(
                   </svg>
                 `;
                   button.style.color = "#10b981";
+                  button.style.opacity = "1";
                   setTimeout(() => {
                     button.innerHTML = originalText;
                     button.style.color = "";
+                    button.style.opacity = "";
                   }, 2000);
                 })
                 .catch((err) => {

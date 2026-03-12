@@ -163,6 +163,20 @@ describe("inline code XSS safety", () => {
   });
 });
 
+describe("IRC background color + code block", () => {
+  it("strips IRC background-color from prose adjacent to code blocks", () => {
+    const input = "\x0300,04colored\n```py\na=10\n```\nend";
+    const out = html(renderMarkdown(input));
+    expect(out).not.toContain("background-color");
+  });
+
+  it("preserves IRC foreground color on prose adjacent to code blocks", () => {
+    const input = "\x0300,04colored\n```py\na=10\n```\nend";
+    const out = html(renderMarkdown(input));
+    expect(out).toContain("color:#FFFFFF");
+  });
+});
+
 describe("markdown XSS safety", () => {
   it("strips attribute injection from code fence language tag", () => {
     const out = html(renderMarkdown('```js" onload="alert(1)\ncode\n```'));
