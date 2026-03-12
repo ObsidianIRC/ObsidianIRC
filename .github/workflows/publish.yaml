@@ -17,13 +17,14 @@ jobs:
   collect-version:
     if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       current_version: ${{ steps.package-version.outputs.version }}
       tag_name: ${{ steps.package-version.outputs.tag_name }}
       draft: "false"
       prerelease: ${{ github.ref_type != 'tag' && 'true' || 'false' }}
-      body: |
-        See the assets to download this version and install.
+      release_body: ${{ steps.release-notes.outputs.release_body }}
       name: ObsidianIRC ${{ steps.package-version.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +41,37 @@ jobs:
             NEXT_PATCH=$((PATCH + 1))
             echo "tag_name=v${MAJOR}.${MINOR}.${NEXT_PATCH}-pre" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Compute previous release tag and generate notes
+        id: release-notes
+        run: |
+          CURRENT_TAG="$TAG_NAME"
+          PREV_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases" \
+            --jq "[.[] | select(.prerelease == false and .draft == false and .tag_name != \"$CURRENT_TAG\")] | .[0].tag_name // empty")
+
+          echo "previous_tag_name=$PREV_TAG" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$PREV_TAG" ]; then
+            NOTES=$(gh api repos/$GITHUB_REPOSITORY/releases/generate-notes \
+              -X POST \
+              -f tag_name="$TAG_NAME" \
+              -f previous_tag_name="$PREV_TAG" \
+              -f target_commitish="$GITHUB_SHA" \
+              --jq '.body')
+          else
+            NOTES="Initial release"
+          fi
+
+          FULL_BODY="See the assets to download this version and install.
+
+$NOTES"
+
+          echo "release_body<<__BODY__" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$FULL_BODY" >> "$GITHUB_OUTPUT"
+          echo "__BODY__" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.package-version.outputs.tag_name }}
 
   publish-tauri:
     needs: collect-version
@@ -94,7 +126,7 @@ jobs:
         with:
           tagName: ${{ needs.collect-version.outputs.tag_name }}
           releaseName: ${{ needs.collect-version.outputs.name }}
-          releaseBody: ${{ needs.collect-version.outputs.body }}
+          releaseBody: ${{ needs.collect-version.outputs.release_body }}
           releaseDraft: ${{ needs.collect-version.outputs.draft == 'true' }}
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}
@@ -193,11 +225,10 @@ jobs:
         with:
           draft: ${{ needs.collect-version.outputs.draft == 'true' }}
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
-          body: ${{ needs.collect-version.outputs.body }}
+          body: ${{ needs.collect-version.outputs.release_body }}
           name: ${{ needs.collect-version.outputs.name }}
           tag_name: ${{ needs.collect-version.outputs.tag_name }}
-          generate_release_notes: true
-          make_latest: true
+          make_latest: ${{ needs.collect-version.outputs.prerelease != 'true' }}
           files: |
             ./src-tauri/target/release/bundle/deb/ObsidianIRC_${{ needs.collect-version.outputs.current_version}}_arm64.deb
             ./src-tauri/target/release/bundle/rpm/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-1.aarch64.rpm
@@ -291,11 +322,10 @@ jobs:
         with:
           draft: ${{ needs.collect-version.outputs.draft == 'true' }}
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
-          body: ${{ needs.collect-version.outputs.body }}
+          body: ${{ needs.collect-version.outputs.release_body }}
           name: ${{ needs.collect-version.outputs.name }}
           tag_name: ${{ needs.collect-version.outputs.tag_name }}
-          generate_release_notes: true
-          make_latest: true
+          make_latest: ${{ needs.collect-version.outputs.prerelease != 'true' }}
           files: |
             ./src-tauri/gen/android/app/build/outputs/apk/universal/release/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.apk
             ./src-tauri/gen/android/app/build/outputs/bundle/universalRelease/ObsidianIRC-${{ needs.collect-version.outputs.current_version}}.aab
@@ -548,11 +578,10 @@ jobs:
         with:
           draft: ${{ needs.collect-version.outputs.draft == 'true' }}
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
-          body: ${{ needs.collect-version.outputs.body }}
+          body: ${{ needs.collect-version.outputs.release_body }}
           name: ${{ needs.collect-version.outputs.name }}
           tag_name: ${{ needs.collect-version.outputs.tag_name }}
-          make_latest: true
-          generate_release_notes: true
+          make_latest: ${{ needs.collect-version.outputs.prerelease != 'true' }}
           files: |
             ${{ runner.temp }}/ObsidianIRC-${{ needs.collect-version.outputs.current_version }}-unsigned.ipa
 
@@ -583,10 +612,9 @@ jobs:
         with:
           draft: ${{ needs.collect-version.outputs.draft == 'true' }}
           prerelease: ${{ needs.collect-version.outputs.prerelease == 'true' }}
-          body: ${{ needs.collect-version.outputs.body }}
+          body: ${{ needs.collect-version.outputs.release_body }}
           name: ${{ needs.collect-version.outputs.name }}
           tag_name: ${{ needs.collect-version.outputs.tag_name }}
-          make_latest: true
-          generate_release_notes: true
+          make_latest: ${{ needs.collect-version.outputs.prerelease != 'true' }}
           files: |
             ./ObsidianIRC-${{ needs.collect-version.outputs.current_version}}-web.zip
