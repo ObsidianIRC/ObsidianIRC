@@ -178,7 +178,14 @@ const App: React.FC = () => {
     if (isAddServerModalOpen) return;
     if (servers.length === 0) return;
     // Wait until every server has settled (not still connecting/reconnecting)
-    if (servers.some((s) => s.connectionState === "connecting" || s.connectionState === "reconnecting")) return;
+    if (
+      servers.some(
+        (s) =>
+          s.connectionState === "connecting" ||
+          s.connectionState === "reconnecting",
+      )
+    )
+      return;
     if (servers.some((s) => s.isConnected)) return;
 
     const firstSaved = loadSavedServers()[0];
@@ -190,6 +197,10 @@ const App: React.FC = () => {
             host: firstSaved.host,
             port: String(firstSaved.port),
             nickname: firstSaved.nickname,
+            ui: {
+              hideServerInfo: true,
+              hideClose: true,
+            },
           }
         : null,
     );
