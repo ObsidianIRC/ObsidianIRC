@@ -101,6 +101,8 @@ const App: React.FC = () => {
     clearProfileViewRequest,
     messages,
     isConnecting,
+    servers,
+    hasConnectedToSavedServers,
   } = useStore();
 
   // Local state for User Profile modal
@@ -167,6 +169,36 @@ const App: React.FC = () => {
     initializeEnvSettings(toggleAddServerModal, joinChannel);
     connectToSavedServers();
   }, [connectToSavedServers, joinChannel, toggleAddServerModal]);
+
+  // When the server list is hidden and all saved-server connections fail, the user
+  // has no other way to open the login modal, so we open it automatically.
+  useEffect(() => {
+    if (!__HIDE_SERVER_LIST__) return;
+    if (!hasConnectedToSavedServers) return;
+    if (isAddServerModalOpen) return;
+    if (servers.length === 0) return;
+    // Wait until every server has settled (not still connecting/reconnecting)
+    if (servers.some((s) => s.connectionState === "connecting" || s.connectionState === "reconnecting")) return;
+    if (servers.some((s) => s.isConnected)) return;
+
+    const firstSaved = loadSavedServers()[0];
+    toggleAddServerModal(
+      true,
+      firstSaved
+        ? {
+            name: firstSaved.name ?? firstSaved.host,
+            host: firstSaved.host,
+            port: String(firstSaved.port),
+            nickname: firstSaved.nickname,
+          }
+        : null,
+    );
+  }, [
+    servers,
+    hasConnectedToSavedServers,
+    isAddServerModalOpen,
+    toggleAddServerModal,
+  ]);
 
   // Handle deeplinks
   useEffect(() => {
