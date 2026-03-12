@@ -1299,6 +1299,15 @@ export const UserSettings: React.FC = React.memo(() => {
             </div>
             {/* Footer */}
             <div className="flex gap-3 p-4 border-t border-discord-dark-500 flex-shrink-0">
+              {activeCategory === "profile" && currentServer && currentUser && (
+                <button
+                  onClick={() => setViewProfileModalOpen(true)}
+                  className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-normal rounded font-medium flex items-center gap-2"
+                >
+                  <FaUser size={12} />
+                  View Profile
+                </button>
+              )}
               <button
                 onClick={handleClose}
                 className="flex-1 px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
@@ -1325,6 +1334,7 @@ export const UserSettings: React.FC = React.memo(() => {
           <UserProfileModal
             isOpen={viewProfileModalOpen}
             onClose={() => setViewProfileModalOpen(false)}
+            onBack={() => setViewProfileModalOpen(false)}
             serverId={currentServer.id}
             username={currentUser.username}
           />
@@ -1420,24 +1430,35 @@ export const UserSettings: React.FC = React.memo(() => {
               )}
           </div>
 
-          <div className="flex justify-end p-4 border-t border-discord-dark-500 space-x-3">
-            <button
-              onClick={handleClose}
-              className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!hasUnsavedChanges}
-              className={`px-4 py-2 text-white rounded font-medium transition-colors ${
-                hasUnsavedChanges
-                  ? "bg-discord-primary hover:bg-opacity-80"
-                  : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
-              }`}
-            >
-              {hasUnsavedChanges ? "Save Changes" : "No Changes"}
-            </button>
+          <div className="flex justify-between p-4 border-t border-discord-dark-500 space-x-3">
+            {activeCategory === "profile" && currentServer && currentUser && (
+              <button
+                onClick={() => setViewProfileModalOpen(true)}
+                className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-normal rounded font-medium flex items-center gap-2"
+              >
+                <FaUser size={12} />
+                View Profile
+              </button>
+            )}
+            <div className="flex gap-3 ml-auto">
+              <button
+                onClick={handleClose}
+                className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges}
+                className={`px-4 py-2 text-white rounded font-medium transition-colors ${
+                  hasUnsavedChanges
+                    ? "bg-discord-primary hover:bg-opacity-80"
+                    : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
+                }`}
+              >
+                {hasUnsavedChanges ? "Save Changes" : "No Changes"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1446,6 +1467,7 @@ export const UserSettings: React.FC = React.memo(() => {
         <UserProfileModal
           isOpen={viewProfileModalOpen}
           onClose={() => setViewProfileModalOpen(false)}
+          onBack={() => setViewProfileModalOpen(false)}
           serverId={currentServer.id}
           username={currentUser.username}
         />
