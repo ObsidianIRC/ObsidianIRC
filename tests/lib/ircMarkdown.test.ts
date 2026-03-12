@@ -76,6 +76,27 @@ describe("renderMarkdown with IRC colors", () => {
     expect(out).toContain("color:#FC7F00");
   });
 
+  it("IRC background color does not bleed into inline code", () => {
+    // \x0304,05 = red text on brown background
+    const input = "\x0304,05text with `inline code` here";
+    const out = html(renderMarkdown(input));
+    expect(out).toContain("<code");
+    expect(out).toContain("inline code");
+    // The inline-code-container must NOT sit inside a color span
+    expect(out).not.toMatch(
+      /<span style="[^"]*">[^<]*<span class="inline-code-container"/,
+    );
+  });
+
+  it("IRC foreground color still applies to text surrounding inline code", () => {
+    const input = "\x0304red text with `code` in it";
+    const out = html(renderMarkdown(input));
+    expect(out).toContain("color:#FF0000");
+    expect(out).toContain("red text with");
+    expect(out).toContain("in it");
+    expect(out).toContain("<code");
+  });
+
   it("does not show raw span HTML as text", () => {
     const input = "text\n```py\na=10\n```\n\x0308end";
     const out = html(renderMarkdown(input));

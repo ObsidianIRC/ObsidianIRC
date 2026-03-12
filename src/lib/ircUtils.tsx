@@ -276,7 +276,21 @@ function applyIrcColorsToHtml(
     /(<(?:p|li)(?:\s[^>]*)?>)((?:(?!<\/?(?:pre|div)\b)[\s\S])*?)(<\/(?:p|li)>)/g,
     (match, open, content, close) => {
       if (!content.trim()) return match;
-      return `${open}<span style="${style}">${content}</span>${close}`;
+
+      // Split on inline code containers so IRC colors don't bleed into them.
+      // The capturing group in split() keeps the matched parts at odd indices.
+      const parts = content.split(
+        /(<span class="inline-code-container">[\s\S]*?<\/span>)/,
+      );
+      const colored = parts
+        .map((part: string, i: number) => {
+          if (i % 2 === 1) return part; // code container — leave as-is
+          if (!part.trim()) return part;
+          return `<span style="${style}">${part}</span>`;
+        })
+        .join("");
+
+      return `${open}${colored}${close}`;
     },
   );
 }
