@@ -1510,7 +1510,7 @@ export const ChatArea: React.FC<{
         } else {
           // Private message, find by userId
           const privateChat = server.privateChats?.find(
-            (pc) => pc.username === message.userId.split("-")[0],
+            (pc) => pc.username === message.userId,
           );
           target = privateChat?.username;
         }

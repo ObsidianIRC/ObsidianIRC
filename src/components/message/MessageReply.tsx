@@ -17,7 +17,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
   onUsernameClick,
   onReplyClick,
 }) => {
-  const replyUsername = replyMessage.userId.split("-")[0];
+  const replyUsername = replyMessage.userId;
 
   const handleUsernameClick = (e: React.MouseEvent) => {
     e.stopPropagation();

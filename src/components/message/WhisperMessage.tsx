@@ -43,7 +43,7 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
   canRedact,
   ircCurrentUser,
 }) => {
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
   const avatarUrl = messageUser?.metadata?.avatar?.value;
   const displayName = messageUser?.metadata?.["display-name"]?.value;
   const userColor = messageUser?.metadata?.color?.value;

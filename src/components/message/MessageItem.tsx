@@ -447,9 +447,7 @@ export const MessageItem = (props: MessageItemProps) => {
         if (!channelId) {
           const privateChat = state.servers
             .find((s) => s.id === serverId)
-            ?.privateChats?.find(
-              (pc) => pc.username === message.userId.split("-")[0],
-            );
+            ?.privateChats?.find((pc) => pc.username === message.userId);
           if (privateChat) {
             // Check if user is in any channel
             const server = state.servers.find((s) => s.id === serverId);
@@ -474,7 +472,7 @@ export const MessageItem = (props: MessageItemProps) => {
         const server = state.servers.find((s) => s.id === serverId);
         const channel = server?.channels.find((c) => c.id === channelId);
         const user = channel?.users.find(
-          (user) => user.username === message.userId.split("-")[0],
+          (user) => user.username === message.userId,
         );
         return user ? `channel-${user.id}` : "none";
       },
@@ -623,7 +621,7 @@ export const MessageItem = (props: MessageItemProps) => {
   );
 
   const theme = localStorage.getItem("theme") || "discord";
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
 
   // Strip IRC formatting codes so URL/image detection works even when the URL
   // is wrapped in bold, italic, underline, strikethrough, or color codes.
@@ -860,7 +858,7 @@ export const MessageItem = (props: MessageItemProps) => {
       const avatarElement = messageElement?.querySelector(".mr-4");
       onUsernameContextMenu(
         e,
-        message.replyMessage.userId.split("-")[0],
+        message.replyMessage.userId,
         message.serverId,
         message.channelId,
         avatarElement,

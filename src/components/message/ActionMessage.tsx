@@ -55,7 +55,7 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
   };
 
   const displayName = messageUser?.metadata?.["display-name"]?.value;
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
 
   return (
     <SwipeableMessage
