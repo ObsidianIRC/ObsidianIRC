@@ -15,7 +15,6 @@ on:
 
 jobs:
   collect-version:
-    if: github.ref_name == 'main' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
