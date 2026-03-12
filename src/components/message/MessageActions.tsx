@@ -10,6 +10,7 @@ interface MessageActionsProps {
   onRedactClick?: () => void;
   canRedact?: boolean;
   canReply?: boolean;
+  inline?: boolean;
 }
 
 export const MessageActions: React.FC<MessageActionsProps> = ({
@@ -19,9 +20,14 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   onRedactClick,
   canRedact = false,
   canReply = !!message.msgid,
+  inline = false,
 }) => {
   return (
-    <div className="absolute bottom-1 right-4 opacity-0 message-actions-container flex items-center bg-discord-dark-300 border border-white/10 rounded-lg shadow-xl divide-x divide-white/10 select-none z-10">
+    <div
+      className={`opacity-0 message-actions-container flex items-center bg-discord-dark-300 border border-white/10 rounded-lg shadow-xl divide-x divide-white/10 select-none z-10 ${
+        inline ? "flex-shrink-0 self-end" : "absolute bottom-1 right-4"
+      }`}
+    >
       {canRedact && onRedactClick && (
         <button
           type="button"

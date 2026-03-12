@@ -1057,32 +1057,62 @@ export const MessageItem = (props: MessageItemProps) => {
               )}
             </div>
 
-            <MessageReactions
-              reactions={message.reactions}
-              currentUserUsername={ircCurrentUser?.username}
-              onReactionClick={handleReactionClick}
-              onAddReaction={
-                message.type === "message"
-                  ? (el) => onReactClick(message, el)
-                  : undefined
-              }
-            />
+            {/* Desktop with reactions: shared flex row so toolbar never overlaps pills */}
+            {!isTouchDevice &&
+            message.reactions &&
+            message.reactions.length > 0 ? (
+              <div className="flex items-end gap-2 mt-1">
+                <div className="flex-1 min-w-0">
+                  <MessageReactions
+                    reactions={message.reactions}
+                    currentUserUsername={ircCurrentUser?.username}
+                    onReactionClick={handleReactionClick}
+                    onAddReaction={
+                      message.type === "message"
+                        ? (el) => onReactClick(message, el)
+                        : undefined
+                    }
+                  />
+                </div>
+                <MessageActions
+                  message={message}
+                  onReplyClick={() => setReplyTo(message)}
+                  onReactClick={(el) => onReactClick(message, el)}
+                  onRedactClick={
+                    canRedact ? () => onRedactMessage?.(message) : undefined
+                  }
+                  canRedact={canRedact}
+                  canReply={message.type === "message"}
+                  inline
+                />
+              </div>
+            ) : (
+              <>
+                <MessageReactions
+                  reactions={message.reactions}
+                  currentUserUsername={ircCurrentUser?.username}
+                  onReactionClick={handleReactionClick}
+                  onAddReaction={
+                    message.type === "message"
+                      ? (el) => onReactClick(message, el)
+                      : undefined
+                  }
+                />
+                {!isTouchDevice && (
+                  <MessageActions
+                    message={message}
+                    onReplyClick={() => setReplyTo(message)}
+                    onReactClick={(el) => onReactClick(message, el)}
+                    onRedactClick={
+                      canRedact ? () => onRedactMessage?.(message) : undefined
+                    }
+                    canRedact={canRedact}
+                    canReply={message.type === "message"}
+                  />
+                )}
+              </>
+            )}
           </div>
-
-          {!isTouchDevice && (
-            <MessageActions
-              message={message}
-              onReplyClick={() => setReplyTo(message)}
-              onReactClick={(buttonElement) =>
-                onReactClick(message, buttonElement)
-              }
-              onRedactClick={
-                canRedact ? () => onRedactMessage?.(message) : undefined
-              }
-              canRedact={canRedact}
-              canReply={message.type === "message"}
-            />
-          )}
         </div>
       </SwipeableMessage>
     </div>
