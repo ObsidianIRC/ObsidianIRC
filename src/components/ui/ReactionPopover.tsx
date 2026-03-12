@@ -58,11 +58,18 @@ export function ReactionPopover({
       }
     };
 
+    const handleWheel = (e: WheelEvent) => {
+      if (popoverRef.current?.contains(e.target as Node)) return;
+      e.preventDefault();
+    };
+
     document.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
       document.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("wheel", handleWheel);
     };
   }, [isOpen, onClose]);
 
