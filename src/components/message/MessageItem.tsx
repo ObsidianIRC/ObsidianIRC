@@ -23,11 +23,10 @@ import {
   EventMessage,
   JsonLogMessage,
   LinkPreview,
-  MessageActions,
   MessageAvatar,
   MessageHeader,
-  MessageReactions,
   MessageReply,
+  ReactionsWithActions,
   StandardReplyNotification,
   SystemMessage,
   WhisperMessage,
@@ -433,6 +432,38 @@ export const MessageItem = (props: MessageItemProps) => {
   const isTouchDevice = useMediaQuery("(pointer: coarse)");
   const collapsibleRef = useRef<CollapsibleMessageHandle>(null);
   const [messageNeedsCollapsing, setMessageNeedsCollapsing] = useState(false);
+  const messageRowRef = useRef<HTMLDivElement>(null);
+
+  const handleMessageMouseEnter = () => {
+    const el = messageRowRef.current;
+    if (!el) return;
+    const msgRect = el.getBoundingClientRect();
+    // Toolbar: bottom-1 (4px from bottom), right-4 (16px from right), ~90px wide, ~32px tall
+    const toolbarTop = msgRect.bottom - 4 - 32;
+    const toolbarLeft = msgRect.right - 16 - 90;
+    const toolbarRight = msgRect.right - 16;
+    const toolbarBottom = msgRect.bottom - 4;
+
+    for (const btn of el.querySelectorAll<HTMLElement>(
+      ".copy-button, .inline-copy-button",
+    )) {
+      const r = btn.getBoundingClientRect();
+      const overlaps =
+        r.right > toolbarLeft &&
+        r.left < toolbarRight &&
+        r.bottom > toolbarTop &&
+        r.top < toolbarBottom;
+      if (overlaps) btn.classList.add("avoid-toolbar");
+    }
+  };
+
+  const handleMessageMouseLeave = () => {
+    for (const el of messageRowRef.current?.querySelectorAll(
+      ".avoid-toolbar",
+    ) ?? []) {
+      el.classList.remove("avoid-toolbar");
+    }
+  };
 
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
@@ -443,38 +474,33 @@ export const MessageItem = (props: MessageItemProps) => {
       (state) => {
         if (!serverId) return "none";
 
-        // For private chats, check private chats
         if (!channelId) {
-          const privateChat = state.servers
-            .find((s) => s.id === serverId)
-            ?.privateChats?.find(
-              (pc) => pc.username === message.userId.split("-")[0],
-            );
-          if (privateChat) {
-            // Check if user is in any channel
-            const server = state.servers.find((s) => s.id === serverId);
-            if (server) {
-              const user = server.channels
-                .flatMap((c) => c.users)
-                .find(
-                  (u) =>
-                    u.username.toLowerCase() ===
-                    privateChat.username.toLowerCase(),
-                );
-              if (user) {
-                return `channel-${user.id}`;
-              }
+          const server = state.servers.find((s) => s.id === serverId);
+          // Prefer channel user — covers current user who has no PrivateChat entry
+          if (server) {
+            const user = server.channels
+              .flatMap((c) => c.users)
+              .find(
+                (u) =>
+                  u.username.toLowerCase() === message.userId.toLowerCase(),
+              );
+            if (user) {
+              return `channel-${user.id}`;
             }
+          }
+          const privateChat = server?.privateChats?.find(
+            (pc) => pc.username === message.userId,
+          );
+          if (privateChat) {
             return `pm-${privateChat.id}`;
           }
           return "none";
         }
 
-        // For channels, find the user in the channel
         const server = state.servers.find((s) => s.id === serverId);
         const channel = server?.channels.find((c) => c.id === channelId);
         const user = channel?.users.find(
-          (user) => user.username === message.userId.split("-")[0],
+          (user) => user.username === message.userId,
         );
         return user ? `channel-${user.id}` : "none";
       },
@@ -492,16 +518,18 @@ export const MessageItem = (props: MessageItemProps) => {
           const privateChat = state.servers
             .find((s) => s.id === serverId)
             ?.privateChats?.find((pc) => pc.id === privateChatId);
-          if (privateChat) {
-            // Don't create new objects - return the privateChat user reference
-            // We'll handle metadata separately
-            return privateChat;
-          }
+          if (privateChat) return privateChat;
         } else if (userKey.startsWith("channel-")) {
           const userId = userKey.slice(8);
           const server = state.servers.find((s) => s.id === serverId);
-          const channel = server?.channels.find((c) => c.id === channelId);
-          return channel?.users.find((user) => user.id === userId);
+          if (channelId) {
+            const channel = server?.channels.find((c) => c.id === channelId);
+            return channel?.users.find((user) => user.id === userId);
+          }
+          // DM context: no channelId, search all channels
+          return server?.channels
+            .flatMap((c) => c.users)
+            .find((user) => user.id === userId);
         }
 
         return undefined;
@@ -510,35 +538,18 @@ export const MessageItem = (props: MessageItemProps) => {
     ),
   );
 
-  // Get metadata for private message users reactively.
-  // Reads user.metadata directly from Zustand state (stable object references)
-  // instead of calling getUserMetadata() which hits localStorage and returns a
-  // new object every call — causing an infinite render loop via useSyncExternalStore.
-  const pmUserMetadata = useStore(
-    useCallback(
-      (state) => {
-        const _counter = state.metadataChangeCounter;
-        if (!userKey.startsWith("pm-")) return null;
-        const privateChatId = userKey.slice(3);
-        const server = state.servers.find((s) => s.id === serverId);
-        const privateChat = server?.privateChats?.find(
-          (pc) => pc.id === privateChatId,
-        );
-        if (!privateChat || !server) return null;
-        for (const channel of server.channels) {
-          const user = channel.users.find(
-            (u) =>
-              u.username.toLowerCase() === privateChat.username.toLowerCase(),
-          );
-          if (user?.metadata && Object.keys(user.metadata).length > 0) {
-            return user.metadata;
-          }
-        }
-        return null;
-      },
-      [userKey, serverId],
-    ),
+  const metadataChangeCounter = useStore(
+    (state) => state.metadataChangeCounter,
   );
+
+  // useMemo instead of useStore — safe to read localStorage without infinite loop via useSyncExternalStore
+  // biome-ignore lint/correctness/useExhaustiveDependencies: metadataChangeCounter is intentional reactive trigger
+  const pmUserMetadata = useMemo(() => {
+    if (!userKey.startsWith("pm-")) return null;
+    const pmUsername = (rawMessageUser as PrivateChat)?.username;
+    if (!pmUsername || !serverId) return null;
+    return getUserMetadata(pmUsername, serverId);
+  }, [metadataChangeCounter, userKey, rawMessageUser, serverId]);
 
   const messageUser: User | undefined = useMemo(() => {
     if (!rawMessageUser) return undefined;
@@ -623,7 +634,7 @@ export const MessageItem = (props: MessageItemProps) => {
   );
 
   const theme = localStorage.getItem("theme") || "discord";
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
 
   // Strip IRC formatting codes so URL/image detection works even when the URL
   // is wrapped in bold, italic, underline, strikethrough, or color codes.
@@ -860,7 +871,7 @@ export const MessageItem = (props: MessageItemProps) => {
       const avatarElement = messageElement?.querySelector(".mr-4");
       onUsernameContextMenu(
         e,
-        message.replyMessage.userId.split("-")[0],
+        message.replyMessage.userId,
         message.serverId,
         message.channelId,
         avatarElement,
@@ -897,10 +908,13 @@ export const MessageItem = (props: MessageItemProps) => {
 
   return (
     <div
+      ref={messageRowRef}
       data-message-id={message.id}
       className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
         showHeader ? "mt-4" : "py-0.5"
       }`}
+      onMouseEnter={handleMessageMouseEnter}
+      onMouseLeave={handleMessageMouseLeave}
     >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
@@ -1042,27 +1056,19 @@ export const MessageItem = (props: MessageItemProps) => {
               )}
             </div>
 
-            <MessageReactions
-              reactions={message.reactions}
+            <ReactionsWithActions
+              message={message}
               currentUserUsername={ircCurrentUser?.username}
               onReactionClick={handleReactionClick}
-            />
-          </div>
-
-          {!isTouchDevice && (
-            <MessageActions
-              message={message}
+              onReactClick={(el) => onReactClick(message, el)}
               onReplyClick={() => setReplyTo(message)}
-              onReactClick={(buttonElement) =>
-                onReactClick(message, buttonElement)
-              }
               onRedactClick={
                 canRedact ? () => onRedactMessage?.(message) : undefined
               }
               canRedact={canRedact}
               canReply={message.type === "message"}
             />
-          )}
+          </div>
         </div>
       </SwipeableMessage>
     </div>

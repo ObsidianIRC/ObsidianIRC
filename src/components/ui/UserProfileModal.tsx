@@ -21,6 +21,7 @@ import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   serverId: string;
   username: string;
 }
@@ -73,6 +74,7 @@ const getStatusBadge = (status: string) => {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isOpen,
   onClose,
+  onBack,
   serverId,
   username,
 }) => {
@@ -638,15 +640,17 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="flex justify-between items-center gap-3">
               {isOwnProfile && (
                 <>
-                  <button
-                    onClick={() => {
-                      onClose();
-                      toggleUserProfileModal(true);
-                    }}
-                    className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
-                  >
-                    Edit Profile
-                  </button>
+                  {!onBack && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        toggleUserProfileModal(true);
+                      }}
+                      className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
+                    >
+                      Edit Profile
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       if (server?.isAway) {
@@ -689,10 +693,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </button>
               )}
               <button
-                onClick={onClose}
+                onClick={onBack ?? onClose}
                 className={`px-6 py-2 bg-discord-blurple hover:bg-discord-blurple-hover text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-discord-blurple/20 ${!isOwnProfile ? "ml-auto" : ""}`}
               >
-                Close
+                {onBack ? "← Back" : "Close"}
               </button>
             </div>
           </div>

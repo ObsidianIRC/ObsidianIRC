@@ -1,10 +1,9 @@
 import type React from "react";
 import ircClient from "../../lib/ircClient";
 import type { MessageType, User } from "../../types";
-import { MessageActions } from "./MessageActions";
 import { MessageAvatar } from "./MessageAvatar";
-import { MessageReactions } from "./MessageReactions";
 import { MessageReply } from "./MessageReply";
+import { ReactionsWithActions } from "./ReactionsWithActions";
 import { SwipeableMessage } from "./SwipeableMessage";
 
 interface ActionMessageProps {
@@ -55,7 +54,7 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
   };
 
   const displayName = messageUser?.metadata?.["display-name"]?.value;
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
 
   return (
     <SwipeableMessage
@@ -114,8 +113,8 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
                   (displayName ? ` (${username})` : "") +
                   message.content.substring(7, message.content.length - 1)}
             </span>
-            <MessageReactions
-              reactions={message.reactions}
+            <ReactionsWithActions
+              message={message}
               currentUserUsername={currentUser?.username ?? currentUser?.id}
               onReactionClick={(emoji, currentUserReacted) => {
                 if (currentUserReacted) {
@@ -124,17 +123,12 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
                   onDirectReaction(emoji, message);
                 }
               }}
+              onReactClick={(el) => onReactClick(message, el)}
+              onReplyClick={() => setReplyTo(message)}
+              canReply={!!message.msgid}
             />
           </div>
         </div>
-        {!isTouchDevice && (
-          <MessageActions
-            message={message}
-            onReplyClick={() => setReplyTo(message)}
-            onReactClick={(el) => onReactClick(message, el)}
-            canReply={!!message.msgid}
-          />
-        )}
       </div>
     </SwipeableMessage>
   );

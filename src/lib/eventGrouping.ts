@@ -55,7 +55,7 @@ export function groupConsecutiveEvents(messages: Message[]): EventGroup[] {
 
     // If we have multiple events of the same type, create a group
     if (eventGroup.length > 1) {
-      const usernames = eventGroup.map((msg) => msg.userId.split("-")[0]);
+      const usernames = eventGroup.map((msg) => msg.userId);
       result.push({
         type: "eventGroup",
         messages: eventGroup,

@@ -162,7 +162,7 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
             style={{ opacity: rightProgress }}
           >
             <FaReply
-              className={`text-lg ${rightProgress >= 1 ? "text-blue-400" : "text-gray-400"}`}
+              className={`text-lg ${rightProgress >= 1 ? "text-discord-reply" : "text-gray-400"}`}
             />
           </div>
         )}

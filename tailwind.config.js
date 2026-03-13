@@ -85,6 +85,8 @@ module.exports = {
           "button-success-default": "#57F287",
           "button-success-hover": "#4CAF50",
           "button-secondary-default": "#4F545C",
+          // Unified reply accent — used for reply bar, quote line, swipe icon, toolbar button
+          "reply": "#60a5fa",
         },
       },
       fontFamily: {
