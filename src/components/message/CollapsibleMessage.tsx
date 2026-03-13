@@ -46,17 +46,26 @@ export const CollapsibleMessage = forwardRef<
       if (!contentRef.current) return;
 
       const element = contentRef.current;
-      const computedStyle = window.getComputedStyle(element);
-      const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 16;
-      const maxHeight = lineHeight * maxLines;
 
-      const fullHeight = element.scrollHeight;
-      setContentHeight(fullHeight);
-      setCollapsedMaxHeight(`${lineHeight * maxLines}px`);
+      const measure = () => {
+        const computedStyle = window.getComputedStyle(element);
+        const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 16;
+        const maxHeight = lineHeight * maxLines;
+        const fullHeight = element.scrollHeight;
+        setContentHeight(fullHeight);
+        setCollapsedMaxHeight(`${lineHeight * maxLines}px`);
+        const needs = fullHeight > maxHeight;
+        setNeedsCollapsing(needs);
+        onNeedsCollapsing?.(needs);
+      };
 
-      const needs = fullHeight > maxHeight;
-      setNeedsCollapsing(needs);
-      onNeedsCollapsing?.(needs);
+      measure();
+
+      // Re-measure whenever the content's rendered size changes (e.g. images loading,
+      // inline embeds, or dynamic content that arrives after initial render)
+      const resizeObserver = new ResizeObserver(() => measure());
+      resizeObserver.observe(element);
+      return () => resizeObserver.disconnect();
     }, [maxLines, onNeedsCollapsing]);
 
     const toggleExpanded = () => {

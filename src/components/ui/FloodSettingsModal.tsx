@@ -12,6 +12,81 @@ interface FloodRule {
   time?: number; // in minutes
 }
 
+interface FloodActionDef {
+  value: string;
+  label: string;
+}
+
+interface FloodRuleDef {
+  type: FloodRule["type"];
+  label: string;
+  defaultAction: string;
+  availableActions: FloodActionDef[];
+}
+
+const FLOOD_RULE_DEFINITIONS: readonly FloodRuleDef[] = [
+  {
+    type: "c",
+    label: "CTCP",
+    defaultAction: "C",
+    availableActions: [
+      { value: "C", label: "C (CTCP block)" },
+      { value: "m", label: "m (moderated)" },
+      { value: "M", label: "M (registered-only)" },
+    ],
+  },
+  {
+    type: "j",
+    label: "Join",
+    defaultAction: "i",
+    availableActions: [
+      { value: "i", label: "i (invite-only)" },
+      { value: "R", label: "R (registered-only)" },
+    ],
+  },
+  {
+    type: "k",
+    label: "Knock",
+    defaultAction: "K",
+    availableActions: [{ value: "K", label: "K (no knocks)" }],
+  },
+  {
+    type: "m",
+    label: "Messages (channel-wide)",
+    defaultAction: "m",
+    availableActions: [
+      { value: "m", label: "m (moderated)" },
+      { value: "M", label: "M (registered-only)" },
+    ],
+  },
+  {
+    type: "n",
+    label: "Nickchange",
+    defaultAction: "N",
+    availableActions: [{ value: "N", label: "N (no nick changes)" }],
+  },
+  {
+    type: "t",
+    label: "Text (per-user)",
+    defaultAction: "kick",
+    availableActions: [
+      { value: "kick", label: "kick" },
+      { value: "b", label: "b (ban)" },
+      { value: "d", label: "d (deter)" },
+    ],
+  },
+  {
+    type: "r",
+    label: "Repeat",
+    defaultAction: "kick",
+    availableActions: [
+      { value: "kick", label: "kick" },
+      { value: "d", label: "d (deter)" },
+      { value: "b", label: "b (ban)" },
+    ],
+  },
+];
+
 interface FloodSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -137,44 +212,16 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
     setFloodRules(floodRules.filter((r) => r.id !== id));
   };
 
-  const getTypeDescription = (type: FloodRule["type"]): string => {
-    const descriptions = {
-      c: "CTCP",
-      j: "Join",
-      k: "Knock",
-      m: "Messages (channel-wide)",
-      n: "Nickchange",
-      t: "Text (per-user)",
-      r: "Repeat",
-    };
-    return descriptions[type];
-  };
+  const getTypeDescription = (type: FloodRule["type"]): string =>
+    FLOOD_RULE_DEFINITIONS.find((d) => d.type === type)?.label ?? type;
 
-  const getDefaultAction = (type: FloodRule["type"]): string => {
-    const defaults = {
-      c: "C",
-      j: "i",
-      k: "K",
-      m: "m",
-      n: "N",
-      t: "kick",
-      r: "kick",
-    };
-    return defaults[type];
-  };
+  const getDefaultAction = (type: FloodRule["type"]): string =>
+    FLOOD_RULE_DEFINITIONS.find((d) => d.type === type)?.defaultAction ?? "";
 
-  const getAvailableActions = (type: FloodRule["type"]): string[] => {
-    const actions = {
-      c: ["C", "m", "M"],
-      j: ["i", "R"],
-      k: ["K"],
-      m: ["m", "M"],
-      n: ["N"],
-      t: ["kick", "b", "d"],
-      r: ["kick", "d", "b"],
-    };
-    return actions[type];
-  };
+  const getAvailableActions = (type: FloodRule["type"]): string[] =>
+    FLOOD_RULE_DEFINITIONS.find((d) => d.type === type)?.availableActions.map(
+      (a) => a.value,
+    ) ?? [];
 
   const formatFloodParams = (): string => {
     if (floodRules.length === 0) return "";

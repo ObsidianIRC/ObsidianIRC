@@ -54,6 +54,12 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const [modes, setModes] = useState<ChannelMode[]>([]);
   const [loading, setLoading] = useState(false);
   const originalModesRef = useRef<{ [key: string]: string | null }>({});
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const addTimeout = useCallback((fn: () => void, delay: number) => {
+    const t = setTimeout(fn, delay);
+    timeoutsRef.current.push(t);
+    return t;
+  }, []);
   const [activeTab, setActiveTab] = useState<
     "b" | "e" | "I" | "general" | "settings" | "advanced"
   >("b");
@@ -302,8 +308,17 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           hasParam = currentAction === "+";
         }
 
-        const param =
+        let param =
           hasParam && argIndex < modeargs.length ? modeargs[argIndex++] : null;
+
+        // When the server hides the argument (sends null or "*" as placeholder),
+        // store a sentinel so we don't accidentally remove the mode on apply
+        if (
+          (mode === "k" || mode === "H" || mode === "L") &&
+          (param === null || param === "*")
+        ) {
+          param = "__HIDDEN__";
+        }
 
         if (currentAction === "+") {
           parsedModes[mode] = param;
@@ -319,67 +334,85 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   );
 
   // Function to load current channel modes
-  const loadCurrentChannelModes = useCallback(() => {
-    const servers = useStore.getState().servers;
-    const currentServer = servers.find((s) => s.id === serverId);
-    const currentChannel = currentServer?.channels.find(
-      (c) => c.name === channelName,
-    );
-    if (!currentChannel) return;
+  const loadCurrentChannelModes = useCallback(
+    (resetOriginal = false) => {
+      const servers = useStore.getState().servers;
+      const currentServer = servers.find((s) => s.id === serverId);
+      const currentChannel = currentServer?.channels.find(
+        (c) => c.name === channelName,
+      );
+      if (!currentChannel) return;
 
-    // Get current modes from channel object
-    const currentModes = currentChannel.modes || "";
-    const modeArgs = currentChannel.modeArgs || [];
+      // Get current modes from channel object
+      const currentModes = currentChannel.modes || "";
+      const modeArgs = currentChannel.modeArgs || [];
 
-    // Parse modes using CHANMODES-aware logic
-    const parsedModes = parseCurrentChannelModes(
-      currentModes,
-      modeArgs,
-      currentServer?.chanmodes,
-    );
+      // Parse modes using CHANMODES-aware logic
+      const parsedModes = parseCurrentChannelModes(
+        currentModes,
+        modeArgs,
+        currentServer?.chanmodes,
+      );
 
-    // Store original modes for comparison
-    originalModesRef.current = parsedModes;
+      // Store original modes for comparison (only when explicitly requested to avoid
+      // clobbering the baseline while the user is mid-edit)
+      if (resetOriginal) {
+        originalModesRef.current = parsedModes;
+      }
 
-    // Set standard IRC modes
-    setInviteOnly("i" in parsedModes);
-    setModerated("m" in parsedModes);
-    setSecret("s" in parsedModes);
-    setProtectedTopic("t" in parsedModes);
-    setNoExternalMessages("n" in parsedModes);
+      // Set standard IRC modes
+      setInviteOnly("i" in parsedModes);
+      setModerated("m" in parsedModes);
+      setSecret("s" in parsedModes);
+      setProtectedTopic("t" in parsedModes);
+      setNoExternalMessages("n" in parsedModes);
 
-    // Set parameterized modes
-    setChannelKey("k" in parsedModes ? parsedModes.k || "" : "");
-    setClientLimit(
-      "l" in parsedModes
-        ? parsedModes.l
-          ? Number.parseInt(parsedModes.l, 10)
-          : null
-        : null,
-    );
-    setFloodParams("f" in parsedModes ? parsedModes.f || "" : "");
-    setChannelHistory("H" in parsedModes ? parsedModes.H || "" : "");
-    setChannelLink("L" in parsedModes ? parsedModes.L || "" : "");
-    setFloodProfile("F" in parsedModes ? parsedModes.F || "" : "");
+      // Set parameterized modes
+      setChannelKey(
+        "k" in parsedModes && parsedModes.k !== "__HIDDEN__"
+          ? parsedModes.k || ""
+          : "",
+      );
+      setClientLimit(
+        "l" in parsedModes
+          ? parsedModes.l
+            ? Number.parseInt(parsedModes.l, 10)
+            : null
+          : null,
+      );
+      setFloodParams("f" in parsedModes ? parsedModes.f || "" : "");
+      setChannelHistory(
+        "H" in parsedModes && parsedModes.H !== "__HIDDEN__"
+          ? parsedModes.H || ""
+          : "",
+      );
+      setChannelLink(
+        "L" in parsedModes && parsedModes.L !== "__HIDDEN__"
+          ? parsedModes.L || ""
+          : "",
+      );
+      setFloodProfile("F" in parsedModes ? parsedModes.F || "" : "");
 
-    // Set UnrealIRCd-specific modes
-    setBlockColorCodes("c" in parsedModes);
-    setNoCTCPs("C" in parsedModes);
-    setDelayJoins("D" in parsedModes);
-    setFilterBadWords("G" in parsedModes);
-    setNoKnocks("K" in parsedModes);
-    setRegisteredNickRequired("M" in parsedModes);
-    setNoNickChanges("N" in parsedModes);
-    setIrcOperatorOnly("O" in parsedModes);
-    setPrivateChannel("p" in parsedModes);
-    setPermanentChannel("P" in parsedModes);
-    setNoKicks("Q" in parsedModes);
-    setRegisteredUsersOnly("R" in parsedModes);
-    setStripColorCodes("S" in parsedModes);
-    setNoNotices("T" in parsedModes);
-    setNoInvites("V" in parsedModes);
-    setSecureConnectionRequired("z" in parsedModes);
-  }, [serverId, channelName, parseCurrentChannelModes]);
+      // Set UnrealIRCd-specific modes
+      setBlockColorCodes("c" in parsedModes);
+      setNoCTCPs("C" in parsedModes);
+      setDelayJoins("D" in parsedModes);
+      setFilterBadWords("G" in parsedModes);
+      setNoKnocks("K" in parsedModes);
+      setRegisteredNickRequired("M" in parsedModes);
+      setNoNickChanges("N" in parsedModes);
+      setIrcOperatorOnly("O" in parsedModes);
+      setPrivateChannel("p" in parsedModes);
+      setPermanentChannel("P" in parsedModes);
+      setNoKicks("Q" in parsedModes);
+      setRegisteredUsersOnly("R" in parsedModes);
+      setStripColorCodes("S" in parsedModes);
+      setNoNotices("T" in parsedModes);
+      setNoInvites("V" in parsedModes);
+      setSecureConnectionRequired("z" in parsedModes);
+    },
+    [serverId, channelName, parseCurrentChannelModes],
+  );
 
   const fetchChannelModes = useCallback(async () => {
     setLoading(true);
@@ -396,7 +429,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       await ircClient.sendRaw(serverId, `MODE ${channelName} +I`);
 
       // Wait for responses and update UI
-      setTimeout(() => {
+      addTimeout(() => {
         const updatedServer = useStore
           .getState()
           .servers.find((s) => s.id === serverId);
@@ -405,8 +438,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         );
         if (updatedChannel) {
           parseChannelModes(updatedChannel);
-          // Load current channel modes into state
-          loadCurrentChannelModes();
+          // Load current channel modes into state and reset baseline
+          loadCurrentChannelModes(true);
         }
         setLoading(false);
       }, 1000); // Give some time for the responses
@@ -419,7 +452,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     channelName,
     clearLists,
     loadCurrentChannelModes,
-    parseChannelModes,
+    parseChannelModes, // Wait for responses and update UI
+    addTimeout,
   ]);
 
   const addMode = async (type: "b" | "e" | "I", mask: string) => {
@@ -428,14 +462,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       await ircClient.sendRaw(serverId, `MODE ${channelName} +${type} ${mask}`);
       setNewMask("");
       // Re-fetch the lists and modes after the change
-      setTimeout(() => {
+      addTimeout(() => {
         clearLists();
         ircClient.sendRaw(serverId, `MODE ${channelName} +b`);
         ircClient.sendRaw(serverId, `MODE ${channelName} +e`);
         ircClient.sendRaw(serverId, `MODE ${channelName} +I`);
 
         // Wait for responses and update UI
-        setTimeout(() => {
+        addTimeout(() => {
           const updatedServer = useStore
             .getState()
             .servers.find((s) => s.id === serverId);
@@ -444,7 +478,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           );
           if (updatedChannel) {
             parseChannelModes(updatedChannel);
-            loadCurrentChannelModes();
+            loadCurrentChannelModes(true);
           }
           setIsAdding(false);
         }, 1000);
@@ -460,14 +494,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     try {
       await ircClient.sendRaw(serverId, `MODE ${channelName} -${type} ${mask}`);
       // Re-fetch the lists and modes after the change
-      setTimeout(() => {
+      addTimeout(() => {
         clearLists();
         ircClient.sendRaw(serverId, `MODE ${channelName} +b`);
         ircClient.sendRaw(serverId, `MODE ${channelName} +e`);
         ircClient.sendRaw(serverId, `MODE ${channelName} +I`);
 
         // Wait for responses and update UI
-        setTimeout(() => {
+        addTimeout(() => {
           const updatedServer = useStore
             .getState()
             .servers.find((s) => s.id === serverId);
@@ -476,7 +510,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           );
           if (updatedChannel) {
             parseChannelModes(updatedChannel);
-            loadCurrentChannelModes();
+            loadCurrentChannelModes(true);
           }
           setRemovingMasks((prev) => {
             const newSet = new Set(prev);
@@ -523,14 +557,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       );
       cancelEditing();
       // Re-fetch the lists and modes after the change
-      setTimeout(() => {
+      addTimeout(() => {
         clearLists();
         ircClient.sendRaw(serverId, `MODE ${channelName} +b`);
         ircClient.sendRaw(serverId, `MODE ${channelName} +e`);
         ircClient.sendRaw(serverId, `MODE ${channelName} +I`);
 
         // Wait for responses and update UI
-        setTimeout(() => {
+        addTimeout(() => {
           const updatedServer = useStore
             .getState()
             .servers.find((s) => s.id === serverId);
@@ -539,7 +573,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           );
           if (updatedChannel) {
             parseChannelModes(updatedChannel);
-            loadCurrentChannelModes();
+            loadCurrentChannelModes(true);
           }
         }, 1000);
       }, 500);
@@ -613,14 +647,19 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       }
 
       // Channel key (+k/-k)
-      if (
-        channelKey.trim() &&
-        channelKey.trim() !== originalModesRef.current.k
-      ) {
+      const originalKey = originalModesRef.current.k;
+      if (channelKey.trim() && channelKey.trim() !== originalKey) {
+        // New key typed, or replacing a hidden key
         setModes += "k";
         setArgs.push(channelKey.trim());
-      } else if (!channelKey.trim() && "k" in originalModesRef.current) {
+      } else if (
+        !channelKey.trim() &&
+        "k" in originalModesRef.current &&
+        originalKey !== "__HIDDEN__"
+      ) {
+        // User cleared a known key — unset it (RFC 2812 requires "*" as placeholder arg)
         unsetModes += "k";
+        unsetArgs.push("*");
       }
 
       // Moderated (+m/-m)
@@ -737,7 +776,11 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       if (channelHistory.trim() && channelHistory.trim() !== currentHistory) {
         setModes += "H";
         setArgs.push(channelHistory.trim());
-      } else if (!channelHistory.trim() && "H" in originalModesRef.current) {
+      } else if (
+        !channelHistory.trim() &&
+        "H" in originalModesRef.current &&
+        currentHistory !== "__HIDDEN__"
+      ) {
         unsetModes += "H";
         unsetArgs.push("*");
       }
@@ -754,7 +797,11 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       if (channelLink.trim() && channelLink.trim() !== currentLink) {
         setModes += "L";
         setArgs.push(channelLink.trim());
-      } else if (!channelLink.trim() && "L" in originalModesRef.current) {
+      } else if (
+        !channelLink.trim() &&
+        "L" in originalModesRef.current &&
+        currentLink !== "__HIDDEN__"
+      ) {
         unsetModes += "L";
         unsetArgs.push("*");
       }
@@ -895,6 +942,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     }
   };
 
+  // Cancel pending timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      for (const t of timeoutsRef.current) clearTimeout(t);
+      timeoutsRef.current = [];
+    };
+  }, []);
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: Using channelName instead of channel to avoid infinite loop from object reference changes
   useEffect(() => {
     if (isOpen && channel) {
@@ -912,8 +967,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       setChannelDisplayName(channel.metadata?.["display-name"]?.value || "");
       setChannelTopic(channel.topic || "");
 
-      // Load current channel modes
-      loadCurrentChannelModes();
+      // Load current channel modes and reset baseline when modal opens
+      loadCurrentChannelModes(true);
     }
   }, [isOpen, channel, loadCurrentChannelModes]);
 

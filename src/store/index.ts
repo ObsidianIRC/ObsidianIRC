@@ -5664,6 +5664,26 @@ ircClient.on("PART", ({ serverId, username, channelName, reason }) => {
   }
 });
 
+function applyUserModeDelta(prev: string, delta: string): string {
+  const currentModes = new Set(
+    prev.replace(/[+-]/g, "").split("").filter(Boolean),
+  );
+  let adding = true;
+  for (const char of delta) {
+    if (char === "+") {
+      adding = true;
+      continue;
+    }
+    if (char === "-") {
+      adding = false;
+      continue;
+    }
+    if (adding) currentModes.add(char);
+    else currentModes.delete(char);
+  }
+  return [...currentModes].sort().join("");
+}
+
 ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
   // Handle user mode responses (channel modes are handled by the protocol handler)
   if (!target.startsWith("#")) {
@@ -5675,14 +5695,15 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
         currentUser &&
         currentUser.username.toLowerCase() === target.toLowerCase()
       ) {
-        // Check if this is an IRC operator mode change
-        const isIrcOp = modestring.includes("o");
-        // Update current user's modes and IRC operator status
+        const nextModes = applyUserModeDelta(
+          currentUser.modes || "",
+          modestring,
+        );
         return {
           currentUser: {
             ...currentUser,
-            modes: modestring,
-            isIrcOp: isIrcOp,
+            modes: nextModes,
+            isIrcOp: nextModes.includes("o"),
           },
         };
       }
@@ -5694,14 +5715,15 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
         ircCurrentUser &&
         ircCurrentUser.username.toLowerCase() === target.toLowerCase()
       ) {
-        // Check if this is an IRC operator mode change
-        const isIrcOp = modestring.includes("o");
-        // Set the current user with modes and IRC operator status
+        const nextModes = applyUserModeDelta(
+          ircCurrentUser.modes || "",
+          modestring,
+        );
         return {
           currentUser: {
             ...ircCurrentUser,
-            modes: modestring,
-            isIrcOp: isIrcOp,
+            modes: nextModes,
+            isIrcOp: nextModes.includes("o"),
           },
         };
       }
@@ -5719,7 +5741,7 @@ ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
               );
               return {
                 ...user,
-                modes: modestring,
+                modes: applyUserModeDelta(user.modes || "", modestring),
               };
             }
             return user;

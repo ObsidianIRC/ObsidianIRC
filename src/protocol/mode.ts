@@ -101,8 +101,14 @@ function parseModestring(
     } else if (groupD.includes(mode)) {
       requiresArg = false;
     } else {
-      // Fallback for modes not in CHANMODES (shouldn't happen with proper servers)
-      requiresArg = "ovhqa bei".includes(mode);
+      // Fallback: user status and list modes always need arg; k/l only when setting; others never
+      if ("ovhqa".includes(mode) || "beI".includes(mode)) {
+        requiresArg = true;
+      } else if (mode === "k" || mode === "l") {
+        requiresArg = action === "+";
+      } else {
+        requiresArg = false;
+      }
     }
 
     const change: ModeChange = {
@@ -187,9 +193,9 @@ function updateChannelModes(
   changes: ModeChange[],
   useStore: typeof AppState,
 ) {
-  // Only update if there are actual channel mode changes (not just user status changes)
+  // Only update if there are actual channel mode changes (not user status or list mode changes)
   const channelModeChanges = changes.filter(
-    (change) => !change.arg || !isUserStatusMode(change.mode),
+    (change) => !isUserStatusMode(change.mode) && !isListMode(change.mode),
   );
 
   if (channelModeChanges.length === 0) return;
@@ -243,6 +249,11 @@ function isUserStatusMode(mode: string): boolean {
   // Check if this is a user status mode (op, voice, etc.) that takes a nickname as argument
   // These are handled separately and shouldn't affect channel.modes
   return "ovhqa".includes(mode);
+}
+
+function isListMode(mode: string): boolean {
+  // List modes (ban/exception/invite) are tracked in channel.bans/exceptions/invites
+  return "beI".includes(mode);
 }
 
 function parseCurrentChannelModes(
