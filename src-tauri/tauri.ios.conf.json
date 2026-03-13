@@ -1,0 +1,12 @@
+{
+  "build": {
+    "beforeDevCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "disableInputAccessoryView": true
+      }
+    ]
+  }
+}

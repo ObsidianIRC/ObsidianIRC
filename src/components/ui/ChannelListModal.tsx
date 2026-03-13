@@ -1,9 +1,12 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FaTimes, FaUsers } from "react-icons/fa";
+import { FaUsers } from "react-icons/fa";
+import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import ircClient from "../../lib/ircClient";
 import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
+import { BaseModal } from "../../lib/modal/BaseModal";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 const ChannelListModal: React.FC = () => {
   const {
@@ -16,8 +19,9 @@ const ChannelListModal: React.FC = () => {
     listChannels,
     updateChannelListFilters,
     toggleChannelListModal,
-    joinChannel,
   } = useStore();
+
+  const joinAndSelectChannel = useJoinAndSelectChannel();
 
   const selectedServer = servers.find((s) => s.id === selectedServerId);
   const elist = (selectedServer?.elist || "").toUpperCase();
@@ -40,7 +44,7 @@ const ChannelListModal: React.FC = () => {
   const [mask, setMask] = useState<string>("");
   const [notMask, setNotMask] = useState<string>("");
   const [displayedChannelsCount, setDisplayedChannelsCountState] =
-    useState<number>(50); // Start with 50 channels initially
+    useState<number>(50);
   const [loadingMore, setLoadingMoreState] = useState<boolean>(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const channelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -49,7 +53,6 @@ const ChannelListModal: React.FC = () => {
   const loadingMoreRef = useRef<boolean>(false);
   const displayedCountRef = useRef<number>(50);
 
-  // Custom setters that update both state and refs
   const setLoadingMore = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
       const newValue =
@@ -81,16 +84,13 @@ const ChannelListModal: React.FC = () => {
       return b.userCount - a.userCount;
     });
 
-  // Fetch metadata for visible channels
   const fetchMetadataForChannels = useCallback(
     (channelNames: string[]) => {
       if (!selectedServerId || channelNames.length === 0) return;
 
-      // Use the store function to fetch metadata
-      // This function is defined in the store
       const state = useStore.getState();
       const now = Date.now();
-      const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+      const CACHE_TTL = 5 * 60 * 1000;
 
       const channelsToFetch = channelNames.filter((channelName) => {
         const cached = metadataCache[channelName];
@@ -102,7 +102,6 @@ const ChannelListModal: React.FC = () => {
 
       if (channelsToFetch.length === 0) return;
 
-      // Add to queue
       const queue =
         state.channelMetadataFetchQueue[selectedServerId] || new Set();
       const newQueue = new Set(queue);
@@ -117,7 +116,6 @@ const ChannelListModal: React.FC = () => {
         },
       }));
 
-      // Fetch metadata for each channel
       channelsToFetch.forEach((channelName) => {
         ircClient.metadataGet(selectedServerId, channelName, [
           "avatar",
@@ -128,7 +126,6 @@ const ChannelListModal: React.FC = () => {
     [selectedServerId, metadataCache],
   );
 
-  // Setup IntersectionObserver
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -143,7 +140,7 @@ const ChannelListModal: React.FC = () => {
       },
       {
         root: null,
-        rootMargin: "100px", // Start loading slightly before they come into view
+        rootMargin: "100px",
         threshold: 0.1,
       },
     );
@@ -155,7 +152,6 @@ const ChannelListModal: React.FC = () => {
     };
   }, [fetchMetadataForChannels]);
 
-  // Observe channel elements
   useEffect(() => {
     if (!observerRef.current) return;
 
@@ -178,7 +174,6 @@ const ChannelListModal: React.FC = () => {
     }
   }, [selectedServerId, listChannels]);
 
-  // Sync filter state with store
   useEffect(() => {
     if (selectedServerId && channelListFilters[selectedServerId]) {
       const filters = channelListFilters[selectedServerId];
@@ -193,7 +188,6 @@ const ChannelListModal: React.FC = () => {
     }
   }, [selectedServerId, channelListFilters]);
 
-  // Scroll detection for lazy loading
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -201,7 +195,7 @@ const ChannelListModal: React.FC = () => {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100; // 100px threshold
+      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
 
       if (
         isNearBottom &&
@@ -209,25 +203,23 @@ const ChannelListModal: React.FC = () => {
         displayedCountRef.current < filteredChannels.length
       ) {
         setLoadingMore(true);
-        // Load next 50 channels
         setTimeout(() => {
           setDisplayedChannelsCount((prev) =>
             Math.min(prev + 50, filteredChannels.length),
           );
           setLoadingMore(false);
-        }, 200); // Small delay for smooth UX
+        }, 200);
       }
     };
 
     scrollContainer.addEventListener("scroll", handleScroll);
     return () => scrollContainer.removeEventListener("scroll", handleScroll);
-  }, [filteredChannels.length, setDisplayedChannelsCount, setLoadingMore]); // Only depend on filteredChannels.length to avoid recreating listener too often
+  }, [filteredChannels.length, setDisplayedChannelsCount, setLoadingMore]);
 
-  // Reset displayed count when filtered channels change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (prevFilteredLengthRef.current !== filteredChannels.length) {
-      setDisplayedChannelsCount(50); // Reset to initial count when filters change
+      setDisplayedChannelsCount(50);
       prevFilteredLengthRef.current = filteredChannels.length;
     }
   }, [filteredChannels.length, setDisplayedChannelsCount]);
@@ -252,8 +244,8 @@ const ChannelListModal: React.FC = () => {
 
   const handleJoinChannel = (channelName: string) => {
     if (selectedServerId) {
-      joinChannel(selectedServerId, channelName);
-      toggleChannelListModal(false); // Optionally close modal after joining
+      joinAndSelectChannel(selectedServerId, channelName);
+      toggleChannelListModal(false);
     }
   };
 
@@ -268,40 +260,27 @@ const ChannelListModal: React.FC = () => {
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-      onClick={() => toggleChannelListModal(false)}
-    >
-      <div
-        className="bg-discord-dark-200 rounded-lg w-full max-w-2xl p-5 max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h2 className="text-white text-xl font-bold">
-            Channels on{" "}
-            {selectedServer?.networkName ||
-              selectedServer?.name ||
-              "Unknown Network"}
-          </h2>
-          <button
-            onClick={() => toggleChannelListModal(false)}
-            className="text-gray-400 hover:text-white"
-            aria-label="Close"
-          >
-            <FaTimes size={20} />
-          </button>
-        </div>
+  const networkName =
+    selectedServer?.networkName || selectedServer?.name || "Unknown Network";
 
+  return (
+    <BaseModal
+      isOpen={true}
+      onClose={() => toggleChannelListModal(false)}
+      title={`Channels on ${networkName}`}
+      showCloseButton
+      maxWidth="2xl"
+      contentClassName="flex flex-col"
+    >
+      <div className="p-4 flex flex-col flex-1 min-h-0">
         <div className="mb-4 flex-shrink-0">
           <span className="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg font-semibold shadow-sm">
             Total: {filteredChannels.length}
           </span>
         </div>
 
-        <div className="mb-4 flex gap-4 items-center flex-shrink-0">
-          <input
-            type="text"
+        <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center flex-shrink-0">
+          <TextInput
             placeholder="Filter channels..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -329,7 +308,6 @@ const ChannelListModal: React.FC = () => {
           {showFilters && (
             <div className="bg-discord-dark-300 p-3 rounded space-y-3">
               <div className="grid grid-cols-1 gap-3">
-                {/* User Count Filtering (U extension) */}
                 {elist.includes("U") && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -365,7 +343,6 @@ const ChannelListModal: React.FC = () => {
                   </div>
                 )}
 
-                {/* Creation Time Filtering (C extension) */}
                 {elist.includes("C") && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -405,7 +382,6 @@ const ChannelListModal: React.FC = () => {
                   </div>
                 )}
 
-                {/* Topic Time Filtering (T extension) */}
                 {elist.includes("T") && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -445,14 +421,12 @@ const ChannelListModal: React.FC = () => {
                   </div>
                 )}
 
-                {/* Mask Filtering (M extension) */}
                 {elist.includes("M") && (
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       Channel Name Mask
                     </label>
-                    <input
-                      type="text"
+                    <TextInput
                       value={mask}
                       onChange={(e) => setMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
@@ -461,14 +435,12 @@ const ChannelListModal: React.FC = () => {
                   </div>
                 )}
 
-                {/* Non-matching Mask Filtering (N extension) */}
                 {elist.includes("N") && (
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       Exclude Channel Name Mask
                     </label>
-                    <input
-                      type="text"
+                    <TextInput
                       value={notMask}
                       onChange={(e) => setNotMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
@@ -502,7 +474,7 @@ const ChannelListModal: React.FC = () => {
 
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto min-h-0"
+          className="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
         >
           <div className="space-y-2">
             {filteredChannels.length === 0 &&
@@ -532,59 +504,55 @@ const ChannelListModal: React.FC = () => {
                     key={channel.channel}
                     ref={(el) => setChannelRef(channel.channel, el)}
                     data-channel={channel.channel}
-                    className="bg-discord-dark-300 p-3 rounded flex justify-between items-center cursor-pointer hover:bg-discord-dark-400"
+                    className="bg-discord-dark-300 p-3 rounded flex items-start gap-3 cursor-pointer hover:bg-discord-dark-400"
                     onClick={() => handleJoinChannel(channel.channel)}
                   >
-                    <div className="flex items-center gap-3 flex-1">
-                      {/* Channel icon */}
-                      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                        {avatarUrl ? (
-                          <img
-                            src={avatarUrl}
-                            alt={channel.channel}
-                            className="w-8 h-8 rounded-full object-cover"
-                            onError={(e) => {
-                              // Fallback to # icon if image fails to load
-                              e.currentTarget.style.display = "none";
-                              const fallback = e.currentTarget
-                                .nextElementSibling as HTMLElement;
-                              if (fallback) fallback.style.display = "block";
-                            }}
-                          />
-                        ) : null}
-                        <span
-                          className="text-gray-400 text-xl font-bold"
-                          style={{ display: avatarUrl ? "none" : "block" }}
-                        >
-                          #
-                        </span>
-                      </div>
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center mt-0.5">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={channel.channel}
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const fallback = e.currentTarget
+                              .nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = "block";
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className="text-gray-400 text-xl font-bold"
+                        style={{ display: avatarUrl ? "none" : "block" }}
+                      >
+                        #
+                      </span>
+                    </div>
 
-                      {/* Channel name and topic */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-white font-medium">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className="text-white font-medium truncate">
                             {displayName ||
                               getChannelDisplayName(channel.channel, {})}
                           </span>
                           {hasMetadata &&
                             displayName &&
                             displayName !== channel.channel.substring(1) && (
-                              <span className="text-xs bg-discord-dark-400 text-gray-300 px-2 py-0.5 rounded">
+                              <span className="text-xs bg-discord-dark-400 text-gray-300 px-2 py-0.5 rounded flex-shrink-0">
                                 {channel.channel}
                               </span>
                             )}
                         </div>
-                        <p className="text-gray-400 text-sm">
-                          {channel.topic || "No topic"}
-                        </p>
+                        <span className="text-gray-400 text-sm flex-shrink-0 flex items-center gap-1">
+                          <FaUsers size={12} />
+                          {channel.userCount}
+                        </span>
                       </div>
+                      <p className="text-gray-400 text-sm break-words mt-0.5">
+                        {channel.topic || "No topic"}
+                      </p>
                     </div>
-
-                    <span className="text-gray-400 text-sm flex-shrink-0 ml-2 flex items-center gap-1">
-                      <FaUsers size={12} />
-                      {channel.userCount}
-                    </span>
                   </div>
                 );
               })}
@@ -607,7 +575,7 @@ const ChannelListModal: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </BaseModal>
   );
 };
 

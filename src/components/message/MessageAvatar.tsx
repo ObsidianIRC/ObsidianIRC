@@ -27,7 +27,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
   serverId,
 }) => {
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
-  const username = userId.split("-")[0];
+  const username = userId;
 
   // Get global settings and server info
   const { showSafeMedia, showExternalContent } = useStore(
@@ -48,7 +48,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
 
   if (!showHeader) {
     return (
-      <div className="mr-4">
+      <div className="mr-4 select-none">
         <div className="w-8" />
       </div>
     );
@@ -56,7 +56,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
 
   return (
     <div
-      className={`mr-4 ${isClickable ? "cursor-pointer" : ""}`}
+      className={`mr-4 select-none ${isClickable ? "cursor-pointer" : ""}`}
       onClick={onClick}
     >
       <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white relative">

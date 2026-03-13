@@ -137,7 +137,7 @@ export const EmojiAutocompleteDropdown: React.FC<
         </div>
         {displayEmojis.map((emojiItem, index) => (
           <div
-            key={`${emojiItem.unified}-${index}`}
+            key={emojiItem.unified}
             data-emoji-index={index}
             className={`px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors duration-150 ${
               index === selectedIndex

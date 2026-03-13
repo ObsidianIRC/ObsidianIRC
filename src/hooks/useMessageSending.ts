@@ -29,8 +29,66 @@ interface UseMessageSendingReturn {
   sendMessage: (text: string) => void;
 }
 
+interface WhisperContext {
+  isWhisper: boolean;
+  targetUser: string;
+  channelContext: string;
+}
+
+function getWhisperContext(
+  replyTo: Message | null,
+  currentUser: User | null,
+): WhisperContext | null {
+  if (!replyTo) {
+    return null;
+  }
+
+  const channelContext =
+    replyTo.tags?.["draft/channel-context"] ||
+    replyTo.tags?.["+draft/channel-context"];
+
+  if (!channelContext) {
+    return null;
+  }
+
+  const senderUserId = replyTo.userId;
+  const currentUserId = currentUser?.username || currentUser?.id;
+
+  const targetUser =
+    senderUserId === currentUserId
+      ? replyTo.whisperTarget || senderUserId
+      : senderUserId;
+
+  return {
+    isWhisper: true,
+    targetUser,
+    channelContext: channelContext as string,
+  };
+}
+
+type MessageSendCallback = (formattedLine: string) => void;
+
+function sendViaWhisperOrRegular(
+  serverId: string,
+  whisperContext: WhisperContext | null,
+  formattedText: string,
+  sendViaNormalChannel: MessageSendCallback,
+): void {
+  if (whisperContext) {
+    ircClient.sendWhisper(
+      serverId,
+      whisperContext.targetUser,
+      whisperContext.channelContext,
+      formattedText,
+    );
+  } else {
+    sendViaNormalChannel(formattedText);
+  }
+}
+
 /**
- * Handles all message sending logic including commands and multiline
+ * Hook for handling message sending logic including IRC commands,
+ * multiline messages, and protocol formatting
  */
 export function useMessageSending({
   selectedServerId,
@@ -43,7 +101,7 @@ export function useMessageSending({
   selectedFormatting,
   localReplyTo,
 }: UseMessageSendingOptions): UseMessageSendingReturn {
-  const { globalSettings } = useStore();
+  const { globalSettings, setAway, clearAway } = useStore();
 
   /**
    * Handle IRC commands like /join, /part, /nick, etc.
@@ -69,29 +127,96 @@ export function useMessageSending({
           console.error("No channel specified for /join command");
         }
       } else if (commandName === "part") {
-        ircClient.leaveChannel(selectedServerId, args[0]);
-        ircClient.triggerEvent("PART", {
-          serverId: selectedServerId,
-          username: currentUser?.username || "",
-          channelName: args[0],
-        });
+        const partTarget = args[0] || selectedChannel?.name;
+        if (partTarget) {
+          useStore.getState().leaveChannel(selectedServerId, partTarget);
+        }
       } else if (commandName === "msg") {
         const [target, ...messageParts] = args;
         const message = messageParts.join(" ");
         ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${message}`);
+      } else if (commandName === "whisper") {
+        const [targetUser, ...messageParts] = args;
+        if (!selectedChannel) {
+          console.error("Whispers can only be sent from a channel");
+          return;
+        }
+        if (!targetUser || messageParts.length === 0) {
+          console.error("Usage: /whisper <username> <message>");
+          return;
+        }
+        const message = messageParts.join(" ");
+        ircClient.sendWhisper(
+          selectedServerId,
+          targetUser,
+          selectedChannel.name,
+          message,
+        );
       } else if (commandName === "me") {
         const actionMessage = cleanedText.substring(4).trim();
-        ircClient.sendRaw(
-          selectedServerId,
-          `PRIVMSG ${selectedChannel?.name || ""} :\u0001ACTION ${actionMessage}\u0001`,
-        );
+        const whisperContext = getWhisperContext(localReplyTo, currentUser);
+        const target =
+          selectedChannel?.name ?? selectedPrivateChat?.username ?? "";
+        if (whisperContext) {
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperContext.targetUser,
+            whisperContext.channelContext,
+            `\u0001ACTION ${actionMessage}\u0001`,
+          );
+        } else {
+          if (!target) return;
+          ircClient.sendRaw(
+            selectedServerId,
+            `${localReplyTo?.msgid ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
+          );
+        }
+        // Non-echo fallback: servers without echo-message won't reflect our
+        // ACTION back, so add it locally the same way regular DMs are handled.
+        if (
+          selectedPrivateChat &&
+          currentUser &&
+          !ircClient.hasCapability(selectedServerId, "echo-message")
+        ) {
+          const { addMessage } = useStore.getState();
+          const outgoingMessage: Message = {
+            id: uuidv4(),
+            content: `\u0001ACTION ${actionMessage}\u0001`,
+            timestamp: new Date(),
+            userId: currentUser.username || currentUser.id,
+            channelId: selectedPrivateChat.id,
+            serverId: selectedServerId,
+            type: "message" as const,
+            reactions: [],
+            replyMessage: localReplyTo,
+            mentioned: [],
+          };
+          addMessage(outgoingMessage);
+        }
+      } else if (commandName === "away") {
+        const message = args.join(" ");
+        if (message) {
+          setAway(selectedServerId, message);
+        } else {
+          setAway(selectedServerId);
+        }
+      } else if (commandName === "back") {
+        clearAway(selectedServerId);
       } else {
         const fullCommand =
           args.length > 0 ? `${commandName} ${args.join(" ")}` : commandName;
         ircClient.sendRaw(selectedServerId, fullCommand);
       }
     },
-    [selectedServerId, selectedChannel, currentUser],
+    [
+      selectedServerId,
+      selectedChannel,
+      selectedPrivateChat,
+      currentUser,
+      localReplyTo,
+      setAway,
+      clearAway,
+    ],
   );
 
   /**
@@ -101,9 +226,27 @@ export function useMessageSending({
     (cleanedText: string, target: string, lines: string[]) => {
       if (!selectedServerId) return;
 
+      const whisperContext = getWhisperContext(localReplyTo, currentUser);
+
+      if (whisperContext) {
+        lines.forEach((line) => {
+          const formattedLine = formatMessageForIrc(line, {
+            color: selectedColor || "inherit",
+            formatting: selectedFormatting,
+          });
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperContext.targetUser,
+            whisperContext.channelContext,
+            formattedLine,
+          );
+        });
+        return;
+      }
+
       const batchId = createBatchId();
-      const replyPrefix = localReplyTo
-        ? `@+draft/reply=${localReplyTo.msgid};`
+      const replyPrefix = localReplyTo?.msgid
+        ? `@+draft/reply=${localReplyTo.msgid} `
         : "";
 
       ircClient.sendRaw(
@@ -114,7 +257,6 @@ export function useMessageSending({
       const hasMultipleLines = lines.length > 1;
 
       if (hasMultipleLines) {
-        // Multi-line message (preserve line breaks)
         lines.forEach((line) => {
           const formattedLine = formatMessageForIrc(line, {
             color: selectedColor || "inherit",
@@ -149,7 +291,6 @@ export function useMessageSending({
           }
         });
       } else {
-        // Single very long line (split and concat)
         const formattedText = formatMessageForIrc(cleanedText, {
           color: selectedColor || "inherit",
           formatting: selectedFormatting,
@@ -173,7 +314,13 @@ export function useMessageSending({
 
       ircClient.sendRaw(selectedServerId, `BATCH -${batchId}`);
     },
-    [selectedServerId, selectedColor, selectedFormatting, localReplyTo],
+    [
+      selectedServerId,
+      selectedColor,
+      selectedFormatting,
+      localReplyTo,
+      currentUser,
+    ],
   );
 
   /**
@@ -183,8 +330,29 @@ export function useMessageSending({
     (lines: string[], target: string) => {
       if (!selectedServerId) return;
 
+      const whisperContext = getWhisperContext(localReplyTo, currentUser);
+
+      if (whisperContext) {
+        lines.forEach((line) => {
+          const formattedLine = formatMessageForIrc(line, {
+            color: selectedColor || "inherit",
+            formatting: selectedFormatting,
+          });
+          ircClient.sendWhisper(
+            selectedServerId,
+            whisperContext.targetUser,
+            whisperContext.channelContext,
+            formattedLine,
+          );
+        });
+        return;
+      }
+
+      const messagePrefix = localReplyTo?.msgid
+        ? `@+draft/reply=${localReplyTo.msgid} `
+        : "";
+
       if (globalSettings.autoFallbackToSingleLine) {
-        // Concatenate with spaces and send as single message
         const combinedText = lines.join(" ");
         const formattedText = formatMessageForIrc(combinedText, {
           color: selectedColor || "inherit",
@@ -195,11 +363,10 @@ export function useMessageSending({
         splitLines.forEach((line: string) => {
           ircClient.sendRaw(
             selectedServerId,
-            `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
+            `${messagePrefix}PRIVMSG ${target} :${line}`,
           );
         });
       } else {
-        // Send as separate messages
         lines.forEach((line) => {
           const formattedLine = formatMessageForIrc(line, {
             color: selectedColor || "inherit",
@@ -210,7 +377,7 @@ export function useMessageSending({
           splitLines.forEach((splitLine: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${splitLine}`,
+              `${messagePrefix}PRIVMSG ${target} :${splitLine}`,
             );
           });
         });
@@ -221,6 +388,7 @@ export function useMessageSending({
       selectedColor,
       selectedFormatting,
       localReplyTo,
+      currentUser,
       globalSettings,
     ],
   );
@@ -237,15 +405,30 @@ export function useMessageSending({
         formatting: selectedFormatting,
       });
 
-      const splitLines = splitLongMessage(formattedText, target);
-      splitLines.forEach((line: string) => {
-        ircClient.sendRaw(
-          selectedServerId,
-          `${localReplyTo ? `@+draft/reply=${localReplyTo.msgid};` : ""} PRIVMSG ${target} :${line}`,
-        );
-      });
+      const whisperContext = getWhisperContext(localReplyTo, currentUser);
+
+      sendViaWhisperOrRegular(
+        selectedServerId,
+        whisperContext,
+        formattedText,
+        (formattedLine) => {
+          const splitLines = splitLongMessage(formattedLine, target);
+          splitLines.forEach((line: string) => {
+            ircClient.sendRaw(
+              selectedServerId,
+              `${localReplyTo?.msgid ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :${line}`,
+            );
+          });
+        },
+      );
     },
-    [selectedServerId, selectedColor, selectedFormatting, localReplyTo],
+    [
+      selectedServerId,
+      selectedColor,
+      selectedFormatting,
+      localReplyTo,
+      currentUser,
+    ],
   );
 
   /**
@@ -291,9 +474,12 @@ export function useMessageSending({
         sendRegularMessage(cleanedText, target);
       }
 
-      // For private messages, manually add our own message to the chat
-      // since the server doesn't echo private messages back to us
-      if (selectedPrivateChat && currentUser) {
+      // Only needed for servers that won't echo our outgoing DM back.
+      if (
+        selectedPrivateChat &&
+        currentUser &&
+        !ircClient.hasCapability(selectedServerId, "echo-message")
+      ) {
         const outgoingMessage: Message = {
           id: uuidv4(),
           content: cleanedText,

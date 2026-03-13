@@ -1,7 +1,11 @@
 import type React from "react";
-import { useState } from "react";
-import { FaQuestionCircle, FaTimes } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import { FaQuestionCircle } from "react-icons/fa";
+import BaseModal from "../../lib/modal/BaseModal";
+import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 export const AddServerModal: React.FC = () => {
   const {
@@ -9,7 +13,7 @@ export const AddServerModal: React.FC = () => {
     connect,
     isConnecting,
     connectionError,
-    ui: { prefillServerDetails },
+    ui: { prefillServerDetails, isAddServerModalOpen },
   } = useStore();
 
   const [serverName, setServerName] = useState(
@@ -19,7 +23,7 @@ export const AddServerModal: React.FC = () => {
     prefillServerDetails?.host || "",
   );
   const [serverPort, setServerPort] = useState(
-    prefillServerDetails?.port || "443",
+    prefillServerDetails?.port || (isTauri() ? "6697" : "443"),
   );
   const [nickname, setNickname] = useState(
     prefillServerDetails?.nickname || `user${Math.floor(Math.random() * 1000)}`,
@@ -31,19 +35,44 @@ export const AddServerModal: React.FC = () => {
   const [showServerPassword, setShowServerPassword] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [registerAccount, setRegisterAccount] = useState(false);
+  const [useWebSocket, setUseWebSocket] = useState(
+    prefillServerDetails?.useWebSocket ?? false,
+  );
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
 
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    setServerName(prefillServerDetails?.name || "");
+    setServerHost(prefillServerDetails?.host || "");
+    setServerPort(prefillServerDetails?.port || (isTauri() ? "6697" : "443"));
+    setNickname(
+      prefillServerDetails?.nickname ||
+        `user${Math.floor(Math.random() * 1000)}`,
+    );
+    setUseWebSocket(prefillServerDetails?.useWebSocket || false);
+  }, [prefillServerDetails]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const currentPort = serverPort;
+    const ircPorts = ["6667", "6697"];
+    const wssPorts = ["443"];
+
+    if (useWebSocket && ircPorts.includes(currentPort)) {
+      setServerPort("443");
+    } else if (!useWebSocket && wssPorts.includes(currentPort)) {
+      setServerPort("6697");
+    }
+  }, [useWebSocket, serverPort]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Default server name to server host if empty
     const finalServerName = serverName.trim() || serverHost.trim();
-
-    // Default SASL account name to nickname if empty
     const finalSaslAccountName = saslAccountName.trim() || nickname.trim();
 
     if (!finalServerName) {
@@ -67,9 +96,21 @@ export const AddServerModal: React.FC = () => {
     }
 
     try {
+      let finalHost = serverHost;
+      if (isTauri()) {
+        const port = Number.parseInt(serverPort, 10);
+        const cleanHost = serverHost.replace(
+          /^(https?|wss|ircs?|irc):\/\//,
+          "",
+        );
+        finalHost = useWebSocket
+          ? `wss://${cleanHost}:${port}`
+          : `ircs://${cleanHost}:${port}`;
+      }
+
       await connect(
         finalServerName,
-        serverHost,
+        finalHost,
         Number.parseInt(serverPort, 10),
         nickname,
         !!saslPassword,
@@ -79,6 +120,7 @@ export const AddServerModal: React.FC = () => {
         registerAccount,
         registerEmail,
         registerPassword,
+        true,
       );
       toggleAddServerModal(false);
     } catch (err) {
@@ -91,66 +133,58 @@ export const AddServerModal: React.FC = () => {
   const disableServerConnectionInfo =
     prefillServerDetails?.ui?.disableServerConnectionInfo;
   const hideServerInfo = prefillServerDetails?.ui?.hideServerInfo;
+  const lockWebSocket = prefillServerDetails?.ui?.lockWebSocket;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl font-bold">
-            {prefillServerDetails?.ui?.title || "Add IRC Server"}
-          </h2>
-          {!prefillServerDetails?.ui?.hideClose && (
-            <button
-              onClick={() => toggleAddServerModal(false)}
-              className="text-discord-text-muted hover:text-white"
-            >
-              <FaTimes />
-            </button>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit}>
+    <BaseModal
+      isOpen={!!isAddServerModalOpen}
+      onClose={() => toggleAddServerModal(false)}
+      title={prefillServerDetails?.ui?.title || "Add IRC Server"}
+      maxWidth="md"
+      showCloseButton={!prefillServerDetails?.ui?.hideClose}
+      closeOnEsc={!prefillServerDetails?.ui?.hideClose}
+      closeOnClickOutside={!prefillServerDetails?.ui?.hideClose}
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <ModalBody scrollable>
           {!hideServerInfo && (
             <>
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
                   Network Name
                 </label>
-                <input
-                  type="text"
+                <TextInput
                   value={serverName || serverHost || ""}
                   onChange={(e) => setServerName(e.target.value)}
-                  onFocus={(e) => {
-                    e.target.select();
-                  }}
                   placeholder="ExampleNET"
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
 
-              <div className="mb-4 flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                    Server Host
-                  </label>
-                  <input
-                    type="text"
-                    value={serverHost || ""}
-                    onChange={(e) => setServerHost(e.target.value)}
-                    onFocus={(e) => {
-                      e.target.select();
-                    }}
-                    placeholder="irc.example.com"
-                    className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
-                      disableServerConnectionInfo
-                        ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                        : "bg-discord-dark-400 text-discord-text-normal"
-                    }`}
-                    disabled={disableServerConnectionInfo}
-                  />
-                </div>
+              <div className="mb-4">
+                <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                  Server Host
+                </label>
+                <TextInput
+                  inputMode="url"
+                  value={
+                    disableServerConnectionInfo && serverHost.includes("://")
+                      ? new URL(serverHost).hostname
+                      : serverHost || ""
+                  }
+                  onChange={(e) => setServerHost(e.target.value)}
+                  placeholder="irc.example.com"
+                  className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
+                    disableServerConnectionInfo
+                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                      : "bg-discord-dark-400 text-discord-text-normal"
+                  }`}
+                  disabled={disableServerConnectionInfo}
+                />
+              </div>
 
-                <div className="w-28">
+              <div className="mb-4 flex items-end gap-4">
+                <div className="w-24 sm:w-28">
                   <label className="block text-discord-text-muted text-sm font-medium mb-1">
                     Port{" "}
                     <FaQuestionCircle
@@ -158,22 +192,48 @@ export const AddServerModal: React.FC = () => {
                       className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
                     />
                   </label>
-                  <input
-                    type="text"
+                  <TextInput
+                    inputMode="numeric"
                     value={serverPort}
                     onChange={(e) => setServerPort(e.target.value)}
-                    onFocus={(e) => {
-                      e.target.select();
-                    }}
                     placeholder="443"
                     className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
                       disableServerConnectionInfo
                         ? "bg-gray-700 text-gray-400 cursor-not-allowed"
                         : "bg-discord-dark-400 text-discord-text-normal"
                     }`}
-                    disabled={disableServerConnectionInfo}
+                    disabled={disableServerConnectionInfo || undefined}
                   />
                 </div>
+
+                {isTauri() && (
+                  <div className="flex items-center pb-2">
+                    <input
+                      type="checkbox"
+                      id="useWebSocket"
+                      checked={useWebSocket}
+                      onChange={() =>
+                        !lockWebSocket && setUseWebSocket(!useWebSocket)
+                      }
+                      disabled={!!lockWebSocket}
+                      className={`accent-discord-accent rounded ${lockWebSocket ? "opacity-50 cursor-not-allowed" : ""}`}
+                    />
+                    <label
+                      htmlFor="useWebSocket"
+                      className={`text-discord-text-muted text-sm flex items-center ml-2 ${lockWebSocket ? "opacity-50" : ""}`}
+                    >
+                      WSS{" "}
+                      <FaQuestionCircle
+                        title={
+                          lockWebSocket
+                            ? "This server only supports one connection type"
+                            : "Use WebSocket instead of raw TCP"
+                        }
+                        className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -182,20 +242,17 @@ export const AddServerModal: React.FC = () => {
             <label className="block text-discord-text-muted text-sm font-medium mb-1">
               Nickname
             </label>
-            <input
-              type="text"
+            <TextInput
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              onFocus={(e) => {
-                e.target.select();
-              }}
               placeholder="YourNickname"
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
             />
           </div>
 
-          <div className="mt-4 space-y-2">
-            <div className="mb-3 flex gap-4">
+          <div className="space-y-3">
+            {/* Login to an account */}
+            <div>
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -211,6 +268,27 @@ export const AddServerModal: React.FC = () => {
                   Login to an account
                 </label>
               </div>
+              {showAccount && (
+                <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                  <TextInput
+                    value={saslAccountName || nickname}
+                    onChange={(e) => setSaslAccountName(e.target.value)}
+                    placeholder="Account Name"
+                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                  />
+                  <TextInput
+                    type="password"
+                    value={atob(saslPassword)}
+                    onChange={(e) => setSaslPassword(btoa(e.target.value))}
+                    placeholder="Password"
+                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Server password */}
+            <div>
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -226,135 +304,80 @@ export const AddServerModal: React.FC = () => {
                   Use server password
                 </label>
               </div>
+              {showServerPassword && (
+                <div className="mt-2">
+                  <TextInput
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Server Password"
+                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                  />
+                </div>
+              )}
             </div>
-          </div>
-          {showServerPassword && (
-            <div className="mb-4">
-              <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                Server Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onFocus={(e) => {
-                  e.target.select();
-                }}
-                placeholder="Server Password"
-                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-              />
-            </div>
-          )}
-          {showAccount && (
-            <div className="mb-4 flex gap-4">
-              <div className="mb-4">
-                <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Account details
-                </label>
-                <input
-                  type="text"
-                  value={saslAccountName || nickname}
-                  onChange={(e) => setSaslAccountName(e.target.value)}
-                  onFocus={(e) => {
-                    e.target.select();
-                  }}
-                  placeholder="SASL Account Name"
-                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
-                <input
-                  type="password"
-                  value={atob(saslPassword)}
-                  onChange={(e) => setSaslPassword(btoa(e.target.value))}
-                  onFocus={(e) => {
-                    e.target.select();
-                  }}
-                  placeholder="Password"
-                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                />
-              </div>
-            </div>
-          )}
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="registerAccount"
-              checked={registerAccount}
-              onChange={() => setRegisterAccount(!registerAccount)}
-              className="accent-discord-accent rounded"
-            />
-            <label
-              htmlFor="registerAccount"
-              className="text-discord-text-muted text-sm"
-            >
-              Register for an account
-            </label>
+            {/* Register for an account */}
+            <div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="registerAccount"
+                  checked={registerAccount}
+                  onChange={() => setRegisterAccount(!registerAccount)}
+                  className="accent-discord-accent rounded"
+                />
+                <label
+                  htmlFor="registerAccount"
+                  className="text-discord-text-muted text-sm"
+                >
+                  Register for an account
+                </label>
+              </div>
+              {registerAccount && (
+                <div className="mt-2 space-y-2">
+                  <TextInput
+                    type="email"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                  />
+                  <TextInput
+                    type="password"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    placeholder="Choose a secure password"
+                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                  />
+                </div>
+              )}
+            </div>
           </div>
-          {registerAccount && (
-            <>
-              <div className="mb-4">
-                <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Account Email
-                </label>
-                <input
-                  type="email"
-                  value={registerEmail}
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                  onFocus={(e) => {
-                    e.target.select();
-                  }}
-                  placeholder="your@email.com"
-                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Account Password
-                </label>
-                <input
-                  type="password"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  onFocus={(e) => {
-                    e.target.select();
-                  }}
-                  placeholder="Choose a secure password"
-                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                />
-              </div>
-            </>
-          )}
 
           {(error || connectionError) && (
-            <div className="mb-4 text-discord-red text-sm">
+            <div className="mt-3 text-discord-red text-sm">
               {error || connectionError}
             </div>
           )}
+        </ModalBody>
 
-          <div className="flex justify-end">
-            {!prefillServerDetails?.ui?.hideClose && (
-              <button
-                type="button"
-                onClick={() => toggleAddServerModal(false)}
-                className="mr-3 px-4 py-2 text-discord-text-normal hover:underline"
-              >
-                Cancel
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={isConnecting}
-              className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-80"}`}
+        <ModalFooter>
+          {!prefillServerDetails?.ui?.hideClose && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => toggleAddServerModal(false)}
             >
-              {isConnecting ? "Connecting..." : "Connect"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" variant="primary" disabled={isConnecting}>
+            {isConnecting ? "Connecting..." : "Connect"}
+          </Button>
+        </ModalFooter>
+      </form>
+    </BaseModal>
   );
 };
 

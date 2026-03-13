@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
 import ircClient from "../src/lib/ircClient";
@@ -33,6 +34,11 @@ const mockStoreState = {
   ui: {
     selectedServerId: null,
     perServerSelections: {},
+    sidebarPreferences: {
+      channelList: { isVisible: true, width: 264 },
+      memberList: { isVisible: true, width: 280 },
+    },
+    isNarrowView: false,
     isAddServerModalOpen: false,
     isEditServerModalOpen: false,
     editServerId: null,
@@ -68,6 +74,8 @@ const mockStoreState = {
   toggleChannelList: vi.fn(),
   connectToSavedServers: vi.fn(),
   toggleMemberList: vi.fn(),
+  setIsNarrowView: vi.fn(),
+  updateSidebarPreferences: vi.fn(),
   toggleAddServerModal: vi.fn((open?: boolean) => {
     mockStoreState.ui.isAddServerModalOpen =
       open ?? !mockStoreState.ui.isAddServerModalOpen;
@@ -108,19 +116,26 @@ describe("App", () => {
 
   describe("Server Management", () => {
     it("Can open and close add server modal", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called with true
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
     });
 
     it("Can add a new server with valid information", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Mock successful connection
@@ -136,16 +151,19 @@ describe("App", () => {
         capabilities: [],
       });
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
     });
 
     it("Shows error message when server connection fails", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Mock failed connection
@@ -153,16 +171,19 @@ describe("App", () => {
         new Error("Connection failed"),
       );
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
     });
 
     it("Shows error message when server connection fails", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Mock failed connection
@@ -170,9 +191,8 @@ describe("App", () => {
         new Error("Connection failed"),
       );
 
-      // Open modal
-      await user.click(screen.getByTestId("server-list-options-button"));
-      await user.click(screen.getByText(/Add Server/i));
+      // Open modal by clicking add server button
+      await user.click(screen.getByTestId("server-list-add-button"));
 
       // Check that toggleAddServerModal was called
       expect(mockStoreState.toggleAddServerModal).toHaveBeenCalledWith(true);
@@ -181,14 +201,18 @@ describe("App", () => {
 
   describe("User Settings", () => {
     it("Can open and close user settings modal", async () => {
-      render(<App />);
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>,
+      );
       const user = userEvent.setup();
 
       // Open settings
       await user.click(screen.getByTestId("user-settings-button"));
 
-      // Check that toggleUserProfileModal was called
-      expect(mockStoreState.toggleUserProfileModal).toHaveBeenCalledWith(true);
+      // Check that toggleSettingsModal was called
+      expect(mockStoreState.toggleSettingsModal).toHaveBeenCalledWith(true);
     });
   });
 });

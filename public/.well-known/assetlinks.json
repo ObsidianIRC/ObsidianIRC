@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.obsidianirc.dev",
+      "sha256_cert_fingerprints": [
+        "67:44:19:FA:63:3B:A6:46:55:E4:31:25:F0:DD:D7:22:64:2C:60:81:EE:AF:8F:0A:29:F0:61:D0:C7:B5:F8:97"
+      ]
+    }
+  }
+]

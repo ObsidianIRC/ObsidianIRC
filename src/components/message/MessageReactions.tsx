@@ -1,4 +1,5 @@
 import type React from "react";
+import { MdAddReaction } from "react-icons/md";
 import type { MessageType } from "../../types";
 
 interface ReactionData {
@@ -11,12 +12,14 @@ interface MessageReactionsProps {
   reactions: MessageType["reactions"];
   currentUserUsername?: string;
   onReactionClick: (emoji: string, currentUserReacted: boolean) => void;
+  onAddReaction?: (el: Element) => void;
 }
 
 export const MessageReactions: React.FC<MessageReactionsProps> = ({
   reactions,
   currentUserUsername,
   onReactionClick,
+  onAddReaction,
 }) => {
   if (!reactions || reactions.length === 0) {
     return null;
@@ -37,7 +40,6 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
       }
       acc[reaction.emoji].count++;
       acc[reaction.emoji].users.push(reaction.userId);
-      // Check if current user reacted with this emoji
       if (reaction.userId === currentUserUsername) {
         acc[reaction.emoji].currentUserReacted = true;
       }
@@ -47,36 +49,40 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
   );
 
   return (
-    <div className="flex flex-wrap gap-1 mt-1">
+    <div className="flex flex-wrap gap-1 mt-1 select-none">
       {Object.entries(groupedReactions).map(([emoji, data]) => {
         const reactionData = data as ReactionData;
         return (
-          <div
+          <button
             key={emoji}
-            className="bg-discord-dark-300 hover:bg-discord-dark-200 text-white px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-colors cursor-pointer group"
-            title={`${emoji} ${reactionData.count} ${reactionData.count === 1 ? "reaction" : "reactions"} by ${reactionData.users.join(", ")}`}
+            type="button"
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-all cursor-pointer ${
+              reactionData.currentUserReacted
+                ? "bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                : "bg-discord-dark-300 text-discord-text-muted hover:bg-discord-dark-200"
+            }`}
+            title={`${emoji} · ${reactionData.count} · ${reactionData.users.join(", ")}`}
             onClick={() =>
               onReactionClick(emoji, reactionData.currentUserReacted)
             }
           >
             <span>{emoji}</span>
-            <span className="text-xs font-medium">{reactionData.count}</span>
-            {/* Show X button if current user reacted */}
-            {reactionData.currentUserReacted && (
-              <button
-                className="ml-1 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReactionClick(emoji, true);
-                }}
-                title="Remove reaction"
-              >
-                ×
-              </button>
-            )}
-          </div>
+            <span className="text-xs font-medium tabular-nums">
+              {reactionData.count}
+            </span>
+          </button>
         );
       })}
+      {onAddReaction && (
+        <button
+          type="button"
+          className="inline-flex items-center px-2 py-0.5 rounded-full text-sm bg-discord-dark-300 text-discord-channels-default hover:bg-discord-dark-200 hover:text-discord-text-muted transition-all"
+          title="Add reaction"
+          onClick={(e) => onAddReaction(e.currentTarget)}
+        >
+          <MdAddReaction className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 };

@@ -11,5 +11,6 @@ export { MessageAvatar } from "./MessageAvatar";
 export { MessageHeader } from "./MessageHeader";
 export { MessageReactions } from "./MessageReactions";
 export { MessageReply } from "./MessageReply";
+export { ReactionsWithActions } from "./ReactionsWithActions";
 export { SystemMessage } from "./SystemMessage";
 export { WhisperMessage } from "./WhisperMessage";

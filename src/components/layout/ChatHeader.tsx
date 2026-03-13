@@ -1,6 +1,6 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaBell,
   FaBellSlash,
@@ -8,25 +8,29 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEdit,
+  FaEllipsisV,
   FaHashtag,
   FaInfoCircle,
   FaList,
   FaPenAlt,
   FaSearch,
   FaThumbtack,
+  FaTimes,
   FaUser,
   FaUserPlus,
 } from "react-icons/fa";
-import ircClient from "../../lib/ircClient";
 import {
   getChannelAvatarUrl,
   getChannelDisplayName,
-  hasOpPermission,
   isUrlFromFilehost,
 } from "../../lib/ircUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
-import UserProfileModal from "../ui/UserProfileModal";
+import HeaderOverflowMenu, {
+  type HeaderOverflowMenuItem,
+} from "../ui/HeaderOverflowMenu";
+import { TextInput } from "../ui/TextInput";
+import TopicModal from "../ui/TopicModal";
 
 interface ChatHeaderProps {
   selectedChannel: Channel | null;
@@ -71,15 +75,26 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     toggleChannelListModal,
     toggleChannelRenameModal,
     toggleMemberList,
+    setMobileViewActiveColumn,
     pinPrivateChat,
     unpinPrivateChat,
+    setTopicModalRequest,
+    clearTopicModalRequest,
+    setProfileViewRequest,
+    toggleUserProfileModal,
   } = useStore();
-  const [isEditingTopic, setIsEditingTopic] = useState(false);
-  const [editedTopic, setEditedTopic] = useState("");
+  const ui = useStore((state) => state.ui);
+  const topicModalRequest = useStore((state) => state.ui.topicModalRequest);
+  const profileViewRequest = useStore((state) => state.ui.profileViewRequest);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
-  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
+  const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
   const servers = useStore((state) => state.servers);
+  const mobileViewActiveColumn = useStore(
+    (state) => state.ui.mobileViewActiveColumn,
+  );
 
   // Get global settings for media controls
   const { showSafeMedia, showExternalContent } = useStore(
@@ -219,184 +234,377 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const privateChatAvatar = privateChatUserMetadata?.avatar?.value;
 
   // Check if current user is operator
-  const isOperator = (() => {
+  const isOperator = useMemo(() => {
     if (!selectedChannel || !selectedServerId) return false;
-    const serverCurrentUser = ircClient.getCurrentUser(selectedServerId);
-    if (!serverCurrentUser) return false;
+    const selectedServer = servers.find((s) => s.id === selectedServerId);
+    if (!selectedServer) return false;
 
     const channelUser = selectedChannel.users.find(
-      (u) => u.username === serverCurrentUser.username,
+      (u) => u.username === currentUser?.username,
     );
     return (
       channelUser?.status?.includes("@") || channelUser?.status?.includes("~")
     );
-  })();
+  }, [selectedChannel, selectedServerId, servers, currentUser]);
 
-  return (
-    <div className="min-h-[56px] px-4 border-b border-discord-dark-400 flex flex-wrap items-start md:items-center justify-between shadow-sm py-2 md:py-0 md:h-12 gap-y-2">
-      <div className="flex items-center flex-1 min-w-0 w-full md:w-auto">
-        {!isChanListVisible && (
+  // Reset search expanded state and overflow menu when channel or mobile view changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to reset when channel or page changes
+  useEffect(() => {
+    setIsSearchExpanded(false);
+    setIsOverflowMenuOpen(false);
+  }, [selectedChannelId, mobileViewActiveColumn]);
+
+  // Minimal header for blank page (server selected but no channel) or home page
+  if (
+    !selectedChannel &&
+    !selectedPrivateChat &&
+    selectedChannelId !== "server-notices"
+  ) {
+    const title = selectedServerId ? "Select a channel" : "Home";
+    return (
+      <div className="px-4 py-2.5 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
+        {(isNarrowView || !isChanListVisible) && (
           <button
             onClick={onToggleChanList}
-            className="text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
+            className="p-2 md:p-0 text-discord-channels-default hover:text-white flex-shrink-0"
             aria-label="Expand channel list"
           >
             {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
           </button>
         )}
-        {selectedChannel && (
-          <div className="flex flex-col min-w-0 flex-1 md:flex-row md:items-center">
-            <div className="flex items-center min-w-0 flex-shrink-0">
-              {(() => {
-                const avatarUrl = getChannelAvatarUrl(
-                  selectedChannel.metadata,
-                  50,
-                );
-                const selectedServer = servers.find(
-                  (s) => s.id === selectedServerId,
-                );
-                const isFilehostAvatar =
-                  avatarUrl &&
-                  selectedServer?.filehost &&
-                  isUrlFromFilehost(avatarUrl, selectedServer.filehost);
-                const shouldShowAvatar =
-                  avatarUrl &&
-                  ((isFilehostAvatar && showSafeMedia) || showExternalContent);
+        <h2 className="ml-4 font-bold text-white">{title}</h2>
+      </div>
+    );
+  }
 
-                return shouldShowAvatar ? (
-                  <img
-                    src={avatarUrl}
-                    alt={selectedChannel.name}
-                    className="w-12 h-12 rounded-full object-cover mr-2 flex-shrink-0"
-                    onError={(e) => {
-                      // Fallback to # icon on error
-                      e.currentTarget.style.display = "none";
-                      const parent = e.currentTarget.parentElement;
-                      const fallbackIcon = parent?.querySelector(
-                        ".fallback-hash-icon",
-                      );
-                      if (fallbackIcon) {
-                        (fallbackIcon as HTMLElement).style.display =
-                          "inline-block";
-                      }
-                    }}
-                  />
-                ) : null;
-              })()}
-              <FaHashtag
-                className="text-discord-text-muted mr-2 fallback-hash-icon flex-shrink-0 text-3xl"
-                style={{
-                  display: (() => {
-                    const avatarUrl = getChannelAvatarUrl(
-                      selectedChannel.metadata,
-                      50,
+  // Define overflow menu items based on context
+  const overflowMenuItems: HeaderOverflowMenuItem[] = [
+    {
+      label: "Channel Settings",
+      icon: <FaPenAlt />,
+      onClick: onOpenChannelSettings,
+      show: !!selectedChannel,
+    },
+    {
+      label: "Invite User",
+      icon: <FaUserPlus />,
+      onClick: onOpenInviteUser,
+      show: !!selectedChannel,
+    },
+    {
+      label: "Server Channels",
+      icon: <FaList />,
+      onClick: () => toggleChannelListModal(true),
+      show: true,
+    },
+    {
+      label: "Rename Channel",
+      icon: <FaEdit />,
+      onClick: () => toggleChannelRenameModal(true),
+      show: !!(selectedChannel && isOperator),
+    },
+  ].filter((item) => item.show);
+
+  return (
+    <div className="pl-4 pr-0 md:px-4 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12 relative">
+      {/* Full-width search overlay (narrow view only) */}
+      {isSearchExpanded && (selectedChannel || selectedPrivateChat) && (
+        <div className="md:hidden absolute inset-0 z-10 flex items-center gap-2 px-2 bg-discord-dark-500">
+          {selectedChannel ? (
+            <FaHashtag className="text-discord-text-muted text-lg flex-shrink-0" />
+          ) : (
+            <FaUser className="text-discord-text-muted text-lg flex-shrink-0" />
+          )}
+          <TextInput
+            autoFocus
+            placeholder="Search messages…"
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setIsSearchExpanded(false);
+                onSearchQueryChange("");
+              }
+            }}
+            className="flex-1 bg-discord-dark-400 text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link min-w-0"
+          />
+          <button
+            className="p-2 text-discord-text-muted hover:text-white flex-shrink-0"
+            onClick={() => {
+              if (searchQuery) {
+                onSearchQueryChange("");
+              } else {
+                // Blur before closing so iOS WKWebView fires will-hide and clears
+                // root.style.position/bottom and data-keyboard-visible properly.
+                // Without this, onMouseDown's preventDefault keeps focus on the input,
+                // the unmount doesn't trigger the native keyboard dismiss sequence,
+                // and data-keyboard-visible stays set — blocking all swipe gestures.
+                (document.activeElement as HTMLElement)?.blur();
+                setIsSearchExpanded(false);
+              }
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <FaTimes />
+          </button>
+        </div>
+      )}
+      {/* CHANNELS */}
+      {selectedChannel && (
+        <div className="flex items-center justify-between w-full gap-2">
+          {/* Left: Back button */}
+          {(isNarrowView || !isChanListVisible) && (
+            <button
+              onClick={onToggleChanList}
+              className="p-2 md:p-0 text-discord-channels-default hover:text-white flex-shrink-0"
+              aria-label="Expand channel list"
+            >
+              {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
+            </button>
+          )}
+
+          {/* Avatar/Hash - spans 2 rows */}
+          <div className="flex-shrink-0 mr-2">
+            {(() => {
+              const avatarUrl = getChannelAvatarUrl(
+                selectedChannel.metadata,
+                50,
+              );
+              const selectedServer = servers.find(
+                (s) => s.id === selectedServerId,
+              );
+              const isFilehostAvatar =
+                avatarUrl &&
+                selectedServer?.filehost &&
+                isUrlFromFilehost(avatarUrl, selectedServer.filehost);
+              const shouldShowAvatar =
+                avatarUrl &&
+                ((isFilehostAvatar && showSafeMedia) || showExternalContent);
+
+              return shouldShowAvatar ? (
+                <img
+                  src={avatarUrl}
+                  alt={selectedChannel.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const parent = e.currentTarget.parentElement;
+                    const fallbackIcon = parent?.querySelector(
+                      ".fallback-hash-icon",
                     );
-                    const selectedServer = servers.find(
-                      (s) => s.id === selectedServerId,
-                    );
-                    const isFilehostAvatar =
-                      avatarUrl &&
-                      selectedServer?.filehost &&
-                      isUrlFromFilehost(avatarUrl, selectedServer.filehost);
-                    const shouldShowAvatar =
-                      avatarUrl &&
-                      ((isFilehostAvatar && showSafeMedia) ||
-                        showExternalContent);
-                    return shouldShowAvatar ? "none" : "inline-block";
-                  })(),
-                }}
-              />
-              <h2 className="font-bold text-white mr-4 truncate">
-                {getChannelDisplayName(
-                  selectedChannel.name,
-                  selectedChannel.metadata,
-                )}
-              </h2>
-            </div>
-            <div className="md:mx-2 md:text-discord-text-muted hidden md:block">
-              |
-            </div>
-            {isEditingTopic ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (selectedServerId && selectedChannel) {
-                    ircClient.setTopic(
-                      selectedServerId,
-                      selectedChannel.name,
-                      editedTopic,
-                    );
-                    setIsEditingTopic(false);
-                  }
-                }}
-                className="flex items-center gap-2 flex-1 max-w-md mt-1 md:mt-0"
-              >
-                <input
-                  type="text"
-                  value={editedTopic}
-                  onChange={(e) => setEditedTopic(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                      setIsEditingTopic(false);
+                    if (fallbackIcon) {
+                      (fallbackIcon as HTMLElement).style.display =
+                        "inline-block";
                     }
                   }}
-                  autoFocus
-                  className="flex-1 px-2 py-1 bg-discord-dark-300 text-white text-sm rounded"
-                  placeholder="Enter topic..."
                 />
-                <button
-                  type="submit"
-                  className="px-3 py-1 bg-discord-primary hover:bg-opacity-80 text-white text-sm rounded"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingTopic(false)}
-                  className="px-3 py-1 bg-discord-dark-400 hover:bg-discord-dark-500 text-white text-sm rounded"
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
+              ) : null;
+            })()}
+            <FaHashtag
+              className="text-discord-text-muted fallback-hash-icon flex-shrink-0 text-3xl"
+              style={{
+                display: (() => {
+                  const avatarUrl = getChannelAvatarUrl(
+                    selectedChannel.metadata,
+                    50,
+                  );
+                  const selectedServer = servers.find(
+                    (s) => s.id === selectedServerId,
+                  );
+                  const isFilehostAvatar =
+                    avatarUrl &&
+                    selectedServer?.filehost &&
+                    isUrlFromFilehost(avatarUrl, selectedServer.filehost);
+                  const shouldShowAvatar =
+                    avatarUrl &&
+                    ((isFilehostAvatar && showSafeMedia) ||
+                      showExternalContent);
+                  return shouldShowAvatar ? "none" : "inline-block";
+                })(),
+              }}
+            />
+          </div>
+
+          {/* Center: Title and Topic stacked */}
+          <div className="flex flex-col justify-center min-w-0 flex-1">
+            {/* Title */}
+            <h2 className="font-bold text-white truncate">
+              {getChannelDisplayName(
+                selectedChannel.name,
+                selectedChannel.metadata,
+              )}
+            </h2>
+
+            {/* Topic (only if exists) */}
+            {selectedChannel.topic && (
               <button
                 onClick={() => {
-                  if (selectedChannel) {
-                    const currentUserInChannel = selectedChannel.users.find(
-                      (u) => u.username === currentUser?.username,
-                    );
-                    if (hasOpPermission(currentUserInChannel?.status)) {
-                      setEditedTopic(selectedChannel.topic || "");
-                      setIsEditingTopic(true);
-                    }
+                  if (selectedServerId && selectedChannel.id) {
+                    setTopicModalRequest(selectedServerId, selectedChannel.id);
                   }
                 }}
-                className="text-discord-text-muted text-xs md:text-sm hover:text-white truncate min-w-0 md:max-w-md mt-0.5 mb-1 md:mt-0 md:mb-0"
-                title={
-                  selectedChannel.topic
-                    ? `Topic: ${selectedChannel.topic}${
-                        selectedChannel.users.find(
-                          (u) => u.username === currentUser?.username,
-                        ) &&
-                        hasOpPermission(
-                          selectedChannel.users.find(
-                            (u) => u.username === currentUser?.username,
-                          )?.status,
-                        )
-                          ? " (Click to edit)"
-                          : ""
-                      }`
-                    : "No topic set"
-                }
+                className="text-discord-text-muted text-xs hover:text-white truncate text-left"
+                title={selectedChannel.topic}
               >
-                {selectedChannel.topic || "No topic"}
+                {selectedChannel.topic}
               </button>
             )}
           </div>
-        )}
-        {selectedPrivateChat && (
-          <div className="flex items-center gap-3">
-            {/* User avatar */}
+
+          {/* Right: Action buttons */}
+          {selectedServerId && (
+            <div className="flex items-center gap-0 md:gap-3 text-discord-text-muted flex-shrink-0">
+              {/* Bell */}
+              <button
+                className="p-2 md:p-0 hover:text-discord-text-normal"
+                onClick={onToggleNotificationVolume}
+                aria-label={
+                  globalSettings.notificationVolume > 0
+                    ? "Mute notifications"
+                    : "Enable notifications"
+                }
+                title={
+                  globalSettings.notificationVolume > 0
+                    ? "Mute notifications"
+                    : "Enable notifications"
+                }
+              >
+                {globalSettings.notificationVolume > 0 ? (
+                  <FaBell />
+                ) : (
+                  <FaBellSlash />
+                )}
+              </button>
+
+              {/* Users */}
+              <button
+                className="p-2 md:p-0 hover:text-discord-text-normal"
+                onClick={() => {
+                  if (isNarrowView) {
+                    // Mobile: navigate between pages
+                    const currentColumn =
+                      useStore.getState().ui.mobileViewActiveColumn;
+                    const isOnMemberPage = currentColumn === "memberList";
+
+                    if (isOnMemberPage) {
+                      setMobileViewActiveColumn("chatView");
+                    } else {
+                      setMobileViewActiveColumn("memberList");
+                    }
+                  } else {
+                    // Desktop: toggle member list (sidebar or overlay depending on width)
+                    toggleMemberList(!isMemberListVisible);
+                  }
+                }}
+                aria-label={
+                  isMemberListVisible
+                    ? "Collapse member list"
+                    : "Expand member list"
+                }
+                data-testid="toggle-member-list"
+                data-no-swipe
+              >
+                {(
+                  isNarrowView
+                    ? mobileViewActiveColumn === "memberList"
+                    : isMemberListVisible
+                ) ? (
+                  <UsersIcon className="w-4 h-4 text-white" />
+                ) : (
+                  <UsersIcon className="w-4 h-4 text-gray" />
+                )}
+              </button>
+
+              {/* Desktop action buttons */}
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={onOpenChannelSettings}
+                title="Channel Settings"
+              >
+                <FaPenAlt />
+              </button>
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={onOpenInviteUser}
+                title="Invite User"
+              >
+                <FaUserPlus />
+              </button>
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={() => toggleChannelListModal(true)}
+                title="Server Channels"
+              >
+                <FaList />
+              </button>
+              {isOperator && (
+                <button
+                  className="hidden md:block hover:text-discord-text-normal"
+                  onClick={() => toggleChannelRenameModal(true)}
+                  title="Rename Channel"
+                >
+                  <FaEdit />
+                </button>
+              )}
+
+              {/* Search */}
+              <button
+                className="md:hidden p-2 hover:text-discord-text-normal"
+                onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                aria-label="Toggle search"
+                title="Search"
+              >
+                <FaSearch />
+              </button>
+
+              <div className="hidden md:block relative">
+                <TextInput
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => onSearchQueryChange(e.target.value)}
+                  className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
+                    onClick={() => onSearchQueryChange("")}
+                    title="Clear search"
+                  >
+                    <FaTimes />
+                  </button>
+                )}
+                <FaSearch className="absolute right-2 top-1.5 text-xs" />
+              </div>
+
+              {/* Overflow menu */}
+              <button
+                ref={overflowButtonRef}
+                className="md:hidden p-2 hover:text-discord-text-normal"
+                onClick={() => setIsOverflowMenuOpen(!isOverflowMenuOpen)}
+                aria-label="More actions"
+                aria-expanded={isOverflowMenuOpen}
+                title="More"
+              >
+                <FaEllipsisV />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PRIVATE CHATS */}
+      {selectedPrivateChat && (
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center min-w-0 flex-1 gap-3">
+            {(isNarrowView || !isChanListVisible) && (
+              <button
+                onClick={onToggleChanList}
+                className="p-2 md:p-0 text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
+                aria-label="Expand channel list"
+              >
+                {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
+              </button>
+            )}
             <div className="relative w-10 h-10 flex-shrink-0">
               {(() => {
                 const selectedServer = servers.find(
@@ -425,7 +633,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </div>
                 );
               })()}
-              {/* Status indicator */}
               <span
                 className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-discord-dark-200 ${
                   selectedPrivateChat.isOnline
@@ -443,7 +650,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 }
               />
             </div>
-            {/* Username and status */}
             <div className="flex flex-col">
               <h2 className="font-bold text-white">
                 {(() => {
@@ -457,7 +663,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   return (
                     <>
                       {displayName || selectedPrivateChat.username}
-                      {/* Only show verified badge if NO display-name (showing username directly) */}
                       {renderUserBadges(
                         selectedPrivateChat.username,
                         selectedPrivateChat,
@@ -475,7 +680,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 const displayName = userMetadata?.["display-name"]?.value;
                 const user = getUserFromChannels(selectedPrivateChat.username);
 
-                // Show username in badge if display-name exists
                 if (displayName) {
                   return (
                     <div className="flex items-center gap-1.5 text-xs truncate mt-0.5">
@@ -491,7 +695,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   );
                 }
 
-                // Show status if no display-name (status was already shown above when display-name exists)
                 return privateChatUserMetadata?.status?.value ? (
                   <span className="text-xs text-discord-text-muted">
                     {privateChatUserMetadata.status.value}
@@ -499,7 +702,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 ) : null;
               })()}
             </div>
-            {/* Pin/Unpin button */}
             {selectedServerId && (
               <button
                 className={`ml-2 ${
@@ -528,136 +730,123 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 />
               </button>
             )}
-            {/* User Info button */}
             {selectedServerId && (
               <button
                 className="ml-2 text-discord-text-muted hover:text-white"
-                onClick={() => setUserProfileModalOpen(true)}
+                onClick={() => {
+                  if (selectedServerId && selectedPrivateChat) {
+                    setProfileViewRequest(
+                      selectedServerId,
+                      selectedPrivateChat.username,
+                    );
+                    toggleUserProfileModal(true);
+                  }
+                }}
                 title="User Profile"
               >
                 <FaInfoCircle />
               </button>
             )}
           </div>
-        )}
-        {selectedChannelId === "server-notices" && (
-          <>
-            <FaList className="text-discord-text-muted mr-2" />
-            <h2 className="font-bold text-white mr-4">Server Notices</h2>
-          </>
-        )}
-      </div>
-      {!!selectedServerId && selectedChannelId !== "server-notices" && (
-        <div className="flex items-center gap-2 md:gap-4 text-discord-text-muted flex-shrink-0">
-          <button
-            className="hover:text-discord-text-normal"
-            onClick={onToggleNotificationVolume}
-            title={
-              globalSettings.notificationVolume > 0
-                ? "Mute notifications"
-                : "Enable notifications"
-            }
-          >
-            {globalSettings.notificationVolume > 0 ? (
-              <FaBell />
-            ) : (
-              <FaBellSlash />
-            )}
-          </button>
-          {selectedChannel && (
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={onOpenChannelSettings}
-              title="Channel Settings"
-            >
-              <FaPenAlt />
-            </button>
+
+          {selectedServerId && (
+            <div className="flex items-center gap-0 md:gap-4 text-discord-text-muted flex-shrink-0">
+              <button
+                className="p-2 md:p-0 hover:text-discord-text-normal"
+                onClick={onToggleNotificationVolume}
+                aria-label={
+                  globalSettings.notificationVolume > 0
+                    ? "Mute notifications"
+                    : "Enable notifications"
+                }
+                title={
+                  globalSettings.notificationVolume > 0
+                    ? "Mute notifications"
+                    : "Enable notifications"
+                }
+              >
+                {globalSettings.notificationVolume > 0 ? (
+                  <FaBell />
+                ) : (
+                  <FaBellSlash />
+                )}
+              </button>
+
+              <button
+                className="md:hidden p-2 hover:text-discord-text-normal"
+                onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                aria-label="Toggle search"
+                title="Search"
+              >
+                <FaSearch />
+              </button>
+
+              <div className="hidden md:block relative">
+                <TextInput
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => onSearchQueryChange(e.target.value)}
+                  className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
+                    onClick={() => onSearchQueryChange("")}
+                    title="Clear search"
+                  >
+                    <FaTimes />
+                  </button>
+                )}
+                <FaSearch className="absolute right-2 top-1.5 text-xs" />
+              </div>
+            </div>
           )}
-          {selectedChannel && (
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={onOpenInviteUser}
-              title="Invite User"
-            >
-              <FaUserPlus />
-            </button>
-          )}
-          <button
-            className="hover:text-discord-text-normal"
-            onClick={() => toggleChannelListModal(true)}
-            title="List Channels"
-          >
-            <FaList />
-          </button>
-          {selectedChannel && isOperator && (
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => toggleChannelRenameModal(true)}
-              title="Rename Channel"
-            >
-              <FaEdit />
-            </button>
-          )}
-          {/* Only show member list toggle for channels, not private chats */}
-          {selectedChannel && (
-            <button
-              className="hover:text-discord-text-normal"
-              onClick={() => toggleMemberList(!isMemberListVisible)}
-              aria-label={
-                isMemberListVisible
-                  ? "Collapse member list"
-                  : "Expand member list"
-              }
-              data-testid="toggle-member-list"
-            >
-              {isMemberListVisible ? (
-                <UsersIcon className="w-4 h-4 text-white" />
-              ) : (
-                <UsersIcon className="w-4 h-4 text-gray" />
-              )}
-            </button>
-          )}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 w-20 md:w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
-            />
-            <FaSearch className="absolute right-2 top-1.5 text-xs" />
-          </div>
-        </div>
-      )}
-      {selectedChannelId === "server-notices" && (
-        <div className="flex items-center gap-4 text-discord-text-muted">
-          {/* TODO: Re-enable pop out button for server notices
-          <button
-            className="hover:text-discord-text-normal"
-            onClick={() =>
-              setIsServerNoticesPoppedOut(!isServerNoticesPoppedOut)
-            }
-            title={
-              isServerNoticesPoppedOut
-                ? "Pop in server notices"
-                : "Pop out server notices"
-            }
-          >
-            <FaExternalLinkAlt />
-          </button>
-          */}
         </div>
       )}
 
-      {/* User Profile Modal */}
-      {userProfileModalOpen && selectedPrivateChat && selectedServerId && (
-        <UserProfileModal
-          isOpen={userProfileModalOpen}
-          onClose={() => setUserProfileModalOpen(false)}
-          serverId={selectedServerId}
-          username={selectedPrivateChat.username}
-        />
+      {/* SERVER NOTICES */}
+      {selectedChannelId === "server-notices" && (
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center min-w-0 flex-1">
+            {(isNarrowView || !isChanListVisible) && (
+              <button
+                onClick={onToggleChanList}
+                className="p-2 md:p-0 text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
+                aria-label="Expand channel list"
+              >
+                {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
+              </button>
+            )}
+            <FaList className="text-discord-text-muted mr-2" />
+            <h2 className="font-bold text-white mr-4">Server Notices</h2>
+          </div>
+        </div>
       )}
+
+      {/* Overflow Menu Component */}
+      <HeaderOverflowMenu
+        isOpen={isOverflowMenuOpen}
+        onClose={() => setIsOverflowMenuOpen(false)}
+        menuItems={overflowMenuItems}
+        anchorElement={overflowButtonRef.current}
+      />
+
+      {/* Topic Modal */}
+      {topicModalRequest &&
+        (() => {
+          const channel = servers
+            .find((s) => s.id === topicModalRequest.serverId)
+            ?.channels.find((c) => c.id === topicModalRequest.channelId);
+          return channel ? (
+            <TopicModal
+              isOpen={true}
+              onClose={() => clearTopicModalRequest()}
+              channel={channel}
+              serverId={topicModalRequest.serverId}
+              currentUser={currentUser}
+            />
+          ) : null;
+        })()}
     </div>
   );
 };

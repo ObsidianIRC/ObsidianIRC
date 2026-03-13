@@ -13,6 +13,26 @@ services:
       timeout: 10s
       retries: 3
 
+  gen-certs:
+    image: alpine:3.20
+    volumes:
+      - ${MKCERT_CAROOT:?Run ./scripts/setup-dev-certs.sh first}:/caroot:ro
+      - ./certs:/certs
+    command:
+      - sh
+      - -c
+      - |
+        openssl x509 -noout -in /certs/server.pem 2>/dev/null && exit 0
+        apk add --no-cache openssl -q
+        openssl genrsa -out /certs/server-key.pem 2048
+        openssl req -new -key /certs/server-key.pem -out /tmp/csr.pem -subj "/CN=localhost"
+        printf '[SAN]\nsubjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1\n' > /tmp/ext.cnf
+        openssl x509 -req -in /tmp/csr.pem \
+          -CA /caroot/rootCA.pem -CAkey /caroot/rootCA-key.pem -set_serial 1 \
+          -out /certs/server.pem -days 825 -sha256 -extfile /tmp/ext.cnf -extensions SAN
+    profiles:
+      - testing
+
   # TODO - Add IRC daemon + backend etc
   ircd:
     init: true
@@ -20,11 +40,16 @@ services:
     image: ghcr.io/ergochat/ergo:master
     container_name: ergo
     ports:
-      - '8097:8097'
-      - '6667:6667'
+      - '6667:6667'   # plain IRC (bots)
+      - '6697:6697'   # IRC over TLS — ircs://localhost:6697 (Tauri native TCP)
+      - '8097:8097'   # WebSocket over TLS — wss://localhost:8097 (browser / WebView)
     restart: unless-stopped
+    depends_on:
+      gen-certs:
+        condition: service_completed_successfully
     volumes:
       - ./docker/ergo.yaml:/ircd/ircd.yaml
+      - ./certs:/ircd/certs:ro
     profiles:
       - testing
 

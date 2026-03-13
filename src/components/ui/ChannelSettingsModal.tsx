@@ -1021,9 +1021,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {filteredModes.map((mode, index) => (
+                        {filteredModes.map((mode) => (
                           <div
-                            key={`${mode.type}-${mode.mask}-${index}`}
+                            key={`${mode.type}-${mode.mask}`}
                             className="flex items-center justify-between p-3 bg-discord-dark-300 rounded"
                           >
                             <div className="flex-1 min-w-0">

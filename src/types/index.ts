@@ -64,6 +64,7 @@ export interface ServerConfig {
   operUsername?: string;
   operPassword?: string;
   operOnConnect?: boolean;
+  addedAt?: number; // Timestamp when server was added (ms since epoch)
 }
 
 export interface Channel {
