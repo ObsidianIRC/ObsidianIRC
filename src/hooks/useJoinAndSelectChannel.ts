@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import useStore from "../store";
 
 /**
@@ -10,14 +10,35 @@ import useStore from "../store";
  */
 export const useJoinAndSelectChannel = () => {
   const { joinChannel, selectChannel, servers } = useStore();
+  const pollingAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Abort any in-flight polling when the hook unmounts
+  useEffect(() => {
+    return () => {
+      if (pollingAbortControllerRef.current) {
+        pollingAbortControllerRef.current.abort();
+        pollingAbortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   const joinAndSelectChannel = useCallback(
     (serverId: string, channelName: string) => {
+      // Abort any existing polling for a previous join operation
+      if (pollingAbortControllerRef.current) {
+        pollingAbortControllerRef.current.abort();
+      }
+      const abortController = new AbortController();
+      pollingAbortControllerRef.current = abortController;
+      const { signal } = abortController;
+
       // Send the JOIN command
       joinChannel(serverId, channelName);
 
       // Poll for the channel to appear in the store after JOIN event is processed
       const pollForChannel = (attempts = 0) => {
+        if (signal.aborted) return;
+
         // Give up after 2 seconds (20 attempts × 100ms)
         if (attempts > 20) {
           console.warn(

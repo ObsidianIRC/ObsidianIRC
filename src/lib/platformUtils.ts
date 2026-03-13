@@ -1,5 +1,3 @@
-import { platform } from "@tauri-apps/plugin-os";
-
 declare global {
   interface Window {
     __TAURI__?: unknown;
@@ -14,10 +12,7 @@ export const isTauri = (): boolean => {
 /** True only on Tauri desktop builds (macOS, Windows, Linux). False on browser, iOS, Android. */
 export const isTauriDesktop = (): boolean => {
   if (!isTauri()) return false;
-  try {
-    const p = platform();
-    return p !== "android" && p !== "ios";
-  } catch {
-    return false;
-  }
+  // platform() is async in Tauri v2; use navigator.userAgent as a reliable synchronous proxy.
+  // Mobile Tauri targets inject Android/iOS patterns; desktop targets do not.
+  return !/android|iphone|ipad|ipod/i.test(navigator.userAgent);
 };
