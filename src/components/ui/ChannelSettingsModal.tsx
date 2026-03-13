@@ -60,6 +60,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     timeoutsRef.current.push(t);
     return t;
   }, []);
+  const clearPendingTimeouts = useCallback(() => {
+    for (const t of timeoutsRef.current) clearTimeout(t);
+    timeoutsRef.current = [];
+  }, []);
   const [activeTab, setActiveTab] = useState<
     "b" | "e" | "I" | "general" | "settings" | "advanced"
   >("b");
@@ -200,18 +204,22 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setMobileView("categories");
+      // Always reset to a valid default first so stale tabs from a previous open
+      // don't show up if permissions changed
+      setActiveTab("b");
       if (userHasOpPermission && supportsMetadata) {
         setActiveTab("general");
       }
     }
   }, [isOpen, userHasOpPermission, supportsMetadata]);
 
-  // Reset fetch state when modal closes
+  // Reset fetch state and cancel in-flight timers when modal closes
   useEffect(() => {
     if (!isOpen) {
       hasFetchedRef.current = false;
+      clearPendingTimeouts();
     }
-  }, [isOpen]);
+  }, [isOpen, clearPendingTimeouts]);
 
   const clearLists = useCallback(() => {
     useStore.setState((state) => {
@@ -311,12 +319,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         let param =
           hasParam && argIndex < modeargs.length ? modeargs[argIndex++] : null;
 
-        // When the server hides the argument (sends null or "*" as placeholder),
-        // store a sentinel so we don't accidentally remove the mode on apply
-        if (
-          (mode === "k" || mode === "H" || mode === "L") &&
-          (param === null || param === "*")
-        ) {
+        // When the server omits the argument (null), store a sentinel to avoid
+        // accidentally removing the mode on apply. Note: "*" is NOT treated as hidden
+        // because some servers/users use "*" as a literal channel key.
+        if ((mode === "k" || mode === "H" || mode === "L") && param === null) {
           param = "__HIDDEN__";
         }
 
@@ -464,9 +470,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       // Re-fetch the lists and modes after the change
       addTimeout(() => {
         clearLists();
-        ircClient.sendRaw(serverId, `MODE ${channelName} +b`);
-        ircClient.sendRaw(serverId, `MODE ${channelName} +e`);
-        ircClient.sendRaw(serverId, `MODE ${channelName} +I`);
+        void Promise.all([
+          ircClient.sendRaw(serverId, `MODE ${channelName} +b`),
+          ircClient.sendRaw(serverId, `MODE ${channelName} +e`),
+          ircClient.sendRaw(serverId, `MODE ${channelName} +I`),
+        ]).catch((error) => {
+          console.error("Failed to refresh channel mode lists:", error);
+        });
 
         // Wait for responses and update UI
         addTimeout(() => {
@@ -496,9 +506,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       // Re-fetch the lists and modes after the change
       addTimeout(() => {
         clearLists();
-        ircClient.sendRaw(serverId, `MODE ${channelName} +b`);
-        ircClient.sendRaw(serverId, `MODE ${channelName} +e`);
-        ircClient.sendRaw(serverId, `MODE ${channelName} +I`);
+        void Promise.all([
+          ircClient.sendRaw(serverId, `MODE ${channelName} +b`),
+          ircClient.sendRaw(serverId, `MODE ${channelName} +e`),
+          ircClient.sendRaw(serverId, `MODE ${channelName} +I`),
+        ]).catch((error) => {
+          console.error("Failed to refresh channel mode lists:", error);
+        });
 
         // Wait for responses and update UI
         addTimeout(() => {
@@ -559,9 +573,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       // Re-fetch the lists and modes after the change
       addTimeout(() => {
         clearLists();
-        ircClient.sendRaw(serverId, `MODE ${channelName} +b`);
-        ircClient.sendRaw(serverId, `MODE ${channelName} +e`);
-        ircClient.sendRaw(serverId, `MODE ${channelName} +I`);
+        void Promise.all([
+          ircClient.sendRaw(serverId, `MODE ${channelName} +b`),
+          ircClient.sendRaw(serverId, `MODE ${channelName} +e`),
+          ircClient.sendRaw(serverId, `MODE ${channelName} +I`),
+        ]).catch((error) => {
+          console.error("Failed to refresh channel mode lists:", error);
+        });
 
         // Wait for responses and update UI
         addTimeout(() => {
@@ -944,11 +962,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
   // Cancel pending timeouts when component unmounts
   useEffect(() => {
-    return () => {
-      for (const t of timeoutsRef.current) clearTimeout(t);
-      timeoutsRef.current = [];
-    };
-  }, []);
+    return () => clearPendingTimeouts();
+  }, [clearPendingTimeouts]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Using channelName instead of channel to avoid infinite loop from object reference changes
   useEffect(() => {

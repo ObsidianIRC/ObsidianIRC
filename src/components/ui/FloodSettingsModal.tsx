@@ -181,12 +181,17 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
     [parseFloodRule],
   );
 
-  // Parse initial flood parameters
+  // Reset state and re-parse whenever the modal opens so stale rules from a
+  // previous channel don't leak into the new one
   useEffect(() => {
+    if (!isOpen) return;
+    setFloodProfile(initialFloodProfile);
+    setFloodRules([]);
+    setSeconds(60);
     if (initialFloodParams && initialFloodParams !== "Default") {
       parseFloodParams(initialFloodParams);
     }
-  }, [initialFloodParams, parseFloodParams]);
+  }, [isOpen, initialFloodProfile, initialFloodParams, parseFloodParams]);
 
   const addFloodRule = () => {
     setFloodRules([

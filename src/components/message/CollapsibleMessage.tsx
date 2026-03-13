@@ -41,17 +41,22 @@ export const CollapsibleMessage = forwardRef<
     const [collapsedMaxHeight, setCollapsedMaxHeight] =
       useState<string>("none");
     const contentRef = useRef<HTMLDivElement>(null);
+    // Inner wrapper whose box size changes freely — the outer contentRef is
+    // max-height-clamped, so ResizeObserver on it would never fire for growing content
+    const measuredContentRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
-      if (!contentRef.current) return;
+      if (!contentRef.current || !measuredContentRef.current) return;
 
       const element = contentRef.current;
+      const measuredContent = measuredContentRef.current;
 
       const measure = () => {
         const computedStyle = window.getComputedStyle(element);
         const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 16;
         const maxHeight = lineHeight * maxLines;
-        const fullHeight = element.scrollHeight;
+        // Use the unclamped inner wrapper's scrollHeight for accurate measurement
+        const fullHeight = measuredContent.scrollHeight;
         setContentHeight(fullHeight);
         setCollapsedMaxHeight(`${lineHeight * maxLines}px`);
         const needs = fullHeight > maxHeight;
@@ -61,10 +66,11 @@ export const CollapsibleMessage = forwardRef<
 
       measure();
 
-      // Re-measure whenever the content's rendered size changes (e.g. images loading,
-      // inline embeds, or dynamic content that arrives after initial render)
-      const resizeObserver = new ResizeObserver(() => measure());
-      resizeObserver.observe(element);
+      // Re-measure when the inner content's rendered size changes (images loading,
+      // dynamic embeds, etc.). Observing the inner element avoids the false-no-op
+      // from the clamped outer container staying the same size.
+      const resizeObserver = new ResizeObserver(measure);
+      resizeObserver.observe(measuredContent);
       return () => resizeObserver.disconnect();
     }, [maxLines, onNeedsCollapsing]);
 
@@ -113,7 +119,7 @@ export const CollapsibleMessage = forwardRef<
                   : "none",
             }}
           >
-            {content}
+            <div ref={measuredContentRef}>{content}</div>
           </div>
           {needsCollapsing && !isExpanded && (
             <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-b from-transparent to-discord-dark-100 group-hover:to-discord-message-hover pointer-events-none" />

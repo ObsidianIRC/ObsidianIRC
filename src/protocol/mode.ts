@@ -79,41 +79,27 @@ function parseModestring(
   const groupC = modeGroups[2] || ""; // Require param only when setting
   const groupD = modeGroups[3] || ""; // Never require param
 
+  let currentAction: "+" | "-" = "+";
   for (let i = 0; i < modestring.length; i++) {
     const char = modestring[i];
     if (char === "+" || char === "-") {
-      // This is a mode action
+      currentAction = char as "+" | "-";
       continue;
     }
 
-    const action =
-      i > 0 && (modestring[i - 1] === "+" || modestring[i - 1] === "-")
-        ? modestring[i - 1]
-        : "+";
     const mode = char;
-
-    // Determine if this mode requires an argument based on CHANMODES groups
-    let requiresArg = false;
-    if (groupA.includes(mode) || groupB.includes(mode)) {
-      requiresArg = true;
-    } else if (groupC.includes(mode)) {
-      requiresArg = action === "+";
-    } else if (groupD.includes(mode)) {
-      requiresArg = false;
-    } else {
-      // Fallback: user status and list modes always need arg; k/l only when setting; others never
-      if ("ovhqa".includes(mode) || "beI".includes(mode)) {
-        requiresArg = true;
-      } else if (mode === "k" || mode === "l") {
-        requiresArg = action === "+";
-      } else {
-        requiresArg = false;
-      }
-    }
+    const requiresArg = modeRequiresArg(
+      mode,
+      currentAction,
+      groupA,
+      groupB,
+      groupC,
+      groupD,
+    );
 
     const change: ModeChange = {
       mode,
-      action: action as "+" | "-",
+      action: currentAction,
       arg:
         requiresArg && argIndex < modeargs.length
           ? modeargs[argIndex++]
@@ -256,6 +242,24 @@ function isListMode(mode: string): boolean {
   return "beI".includes(mode);
 }
 
+/** Canonical arg-requirement logic shared by all mode-string parsers/generators. */
+function modeRequiresArg(
+  mode: string,
+  action: "+" | "-",
+  groupA: string,
+  groupB: string,
+  groupC: string,
+  groupD: string,
+): boolean {
+  if (groupA.includes(mode) || groupB.includes(mode)) return true;
+  if (groupC.includes(mode)) return action === "+";
+  if (groupD.includes(mode)) return false;
+  // Fallback when CHANMODES is absent
+  if ("ovhqa".includes(mode) || "beI".includes(mode)) return true;
+  if (mode === "k" || mode === "l") return action === "+";
+  return false;
+}
+
 function parseCurrentChannelModes(
   modestring: string,
   modeargs: string[],
@@ -282,13 +286,14 @@ function parseCurrentChannelModes(
 
     const mode = char;
 
-    // Determine if this mode should have a parameter
-    let hasParam = false;
-    if (groupA.includes(mode) || groupB.includes(mode)) {
-      hasParam = true;
-    } else if (groupC.includes(mode)) {
-      hasParam = currentAction === "+";
-    }
+    const hasParam = modeRequiresArg(
+      mode,
+      currentAction,
+      groupA,
+      groupB,
+      groupC,
+      groupD,
+    );
 
     const param =
       hasParam && argIndex < modeargs.length ? modeargs[argIndex++] : null;
@@ -315,23 +320,19 @@ function generateModestringAndArgs(
   const groupC = modeGroups[2] || ""; // Require param only when set
   const groupD = modeGroups[3] || ""; // Never require param
 
+  const sortedModes = Object.keys(parsedModes).sort();
+
+  if (sortedModes.length === 0) {
+    return { modes: "", modeArgs: [] };
+  }
+
   const modeArgs: string[] = [];
   let modestring = "+";
 
-  // Sort modes for consistency
-  const sortedModes = Object.keys(parsedModes).sort();
-
   sortedModes.forEach((mode) => {
     modestring += mode;
-
-    // Check if this mode should have a parameter
-    let hasParam = false;
-    if (groupA.includes(mode) || groupB.includes(mode)) {
-      hasParam = true;
-    } else if (groupC.includes(mode)) {
-      hasParam = true; // If it's set, it has a param
-    }
-
+    // All stored modes are "+"-action (we only persist set modes)
+    const hasParam = modeRequiresArg(mode, "+", groupA, groupB, groupC, groupD);
     if (hasParam && parsedModes[mode] !== null) {
       modeArgs.push(parsedModes[mode] as string);
     }
