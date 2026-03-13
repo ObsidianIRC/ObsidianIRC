@@ -5,6 +5,7 @@ import { FaPlus, FaSpinner, FaTimes, FaTrash } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 interface FloodRule {
+  id: string;
   amount: number;
   type: "c" | "j" | "k" | "m" | "n" | "t" | "r";
   action?: string;
@@ -59,7 +60,13 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
       }
     }
 
-    return { amount, type: type as FloodRule["type"], action, time };
+    return {
+      id: crypto.randomUUID(),
+      amount,
+      type: type as FloodRule["type"],
+      action,
+      time,
+    };
   }, []);
 
   const parseFloodParams = useCallback(
@@ -107,7 +114,10 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
   }, [initialFloodParams, parseFloodParams]);
 
   const addFloodRule = () => {
-    setFloodRules([...floodRules, { amount: 5, type: "m" }]);
+    setFloodRules([
+      ...floodRules,
+      { id: crypto.randomUUID(), amount: 5, type: "m" },
+    ]);
     // Scroll to bottom after adding rule
     setTimeout(() => {
       if (scrollContainerRef.current) {
@@ -117,14 +127,14 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
     }, 0);
   };
 
-  const updateFloodRule = (index: number, updates: Partial<FloodRule>) => {
-    const newRules = [...floodRules];
-    newRules[index] = { ...newRules[index], ...updates };
-    setFloodRules(newRules);
+  const updateFloodRule = (id: string, updates: Partial<FloodRule>) => {
+    setFloodRules(
+      floodRules.map((r) => (r.id === id ? { ...r, ...updates } : r)),
+    );
   };
 
-  const removeFloodRule = (index: number) => {
-    setFloodRules(floodRules.filter((_, i) => i !== index));
+  const removeFloodRule = (id: string) => {
+    setFloodRules(floodRules.filter((r) => r.id !== id));
   };
 
   const getTypeDescription = (type: FloodRule["type"]): string => {
@@ -327,9 +337,9 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {floodRules.map((rule, index) => (
+                  {floodRules.map((rule) => (
                     <div
-                      key={`${rule.amount}-${rule.type}-${index}`}
+                      key={rule.id}
                       className="p-4 bg-discord-dark rounded-lg"
                     >
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -342,7 +352,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                             type="number"
                             value={rule.amount}
                             onChange={(e) =>
-                              updateFloodRule(index, {
+                              updateFloodRule(rule.id, {
                                 amount:
                                   Number.parseInt(e.target.value, 10) || 1,
                               })
@@ -360,7 +370,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                           <select
                             value={rule.type}
                             onChange={(e) =>
-                              updateFloodRule(index, {
+                              updateFloodRule(rule.id, {
                                 type: e.target.value as FloodRule["type"],
                               })
                             }
@@ -398,7 +408,9 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                           <select
                             value={rule.action || getDefaultAction(rule.type)}
                             onChange={(e) =>
-                              updateFloodRule(index, { action: e.target.value })
+                              updateFloodRule(rule.id, {
+                                action: e.target.value,
+                              })
                             }
                             className="w-full px-2 py-1 bg-discord-darker border border-discord-border rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-discord-blue"
                           >
@@ -427,7 +439,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                             type="number"
                             value={rule.time || ""}
                             onChange={(e) =>
-                              updateFloodRule(index, {
+                              updateFloodRule(rule.id, {
                                 time: e.target.value
                                   ? Number.parseInt(e.target.value, 10)
                                   : undefined,
@@ -443,7 +455,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                       {/* Remove button */}
                       <div className="flex justify-end mt-3">
                         <button
-                          onClick={() => removeFloodRule(index)}
+                          onClick={() => removeFloodRule(rule.id)}
                           className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1"
                         >
                           <FaTrash size={12} />
