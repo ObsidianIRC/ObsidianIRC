@@ -70,7 +70,7 @@ const mockChannel: Channel = {
   messages: [
     {
       id: "msg1",
-      userId: "alice-server1",
+      userId: "alice",
       content: "Hello everyone!",
       timestamp: new Date(),
       type: "message" as const,
@@ -82,7 +82,7 @@ const mockChannel: Channel = {
     },
     {
       id: "msg2",
-      userId: "bob-server1",
+      userId: "bob",
       content: "Hi Alice!",
       timestamp: new Date(),
       type: "message" as const,
@@ -368,7 +368,7 @@ describe("Metadata Display Features", () => {
       // Update mock channel to have an action message
       const actionMessage = {
         id: "msg3",
-        userId: "alice-server1",
+        userId: "alice",
         content: "\u0001ACTION waves hello\u0001",
         timestamp: new Date(),
         type: "message" as const,

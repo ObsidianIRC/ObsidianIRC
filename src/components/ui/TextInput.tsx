@@ -40,6 +40,7 @@ const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
   const input = e.target;
 
   setTimeout(() => {
+    if (!input.isConnected) return;
     const scrollParent = findScrollParent(input);
     if (!scrollParent) {
       input.scrollIntoView({ behavior: "smooth", block: "center" });

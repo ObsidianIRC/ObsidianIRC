@@ -27,7 +27,7 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
   serverId,
 }) => {
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
-  const username = userId.split("-")[0];
+  const username = userId;
 
   // Get global settings and server info
   const { showSafeMedia, showExternalContent } = useStore(

@@ -36,6 +36,7 @@ import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
+import { MessageReply } from "../message/MessageReply";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
@@ -51,7 +52,6 @@ import LoadingSpinner from "../ui/LoadingSpinner";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
-import { ReplyBadge } from "../ui/ReplyBadge";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import { TextArea } from "../ui/TextInput";
 import UserContextMenu from "../ui/UserContextMenu";
@@ -274,6 +274,11 @@ export const ChatArea: React.FC<{
 
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isCompactInput = useMediaQuery("(max-width: 900px)");
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — clear reply state whenever the active channel/server changes
+  useEffect(() => {
+    setLocalReplyTo(null);
+  }, [selectedServerId, selectedChannelId, selectedPrivateChatId]);
 
   const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
     messagesContainerRef,
@@ -1510,7 +1515,7 @@ export const ChatArea: React.FC<{
         } else {
           // Private message, find by userId
           const privateChat = server.privateChats?.find(
-            (pc) => pc.username === message.userId.split("-")[0],
+            (pc) => pc.username === message.userId,
           );
           target = privateChat?.username;
         }
@@ -1785,23 +1790,20 @@ export const ChatArea: React.FC<{
             <div
               className={`${!isNarrowView && "px-4"} pb-4 relative chat-input-area`}
             >
+              {localReplyTo && (
+                <MessageReply
+                  replyMessage={localReplyTo}
+                  theme="discord"
+                  onClose={() => setLocalReplyTo(null)}
+                />
+              )}
               <TypingIndicator
                 serverId={selectedServerId ?? ""}
                 channelId={selectedChannelId || selectedPrivateChatId || ""}
               />
-              {localReplyTo && (
-                <ReplyBadge
-                  replyTo={localReplyTo}
-                  onClose={() => setLocalReplyTo(null)}
-                  isWhisper={
-                    !!(
-                      localReplyTo.tags?.["draft/channel-context"] ||
-                      localReplyTo.tags?.["+draft/channel-context"]
-                    )
-                  }
-                />
-              )}
-              <div className="bg-discord-dark-100 rounded-lg flex items-center relative flex-nowrap">
+              <div
+                className={`bg-discord-dark-100 ${localReplyTo ? "rounded-b-lg" : "rounded-lg"} flex items-center relative flex-nowrap`}
+              >
                 <button
                   className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
                   onClick={() => setShowPlusMenu((prev) => !prev)}

@@ -26,7 +26,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
   isVerified = false,
   isIrcOp = false,
 }) => {
-  const username = userId.split("-")[0];
+  const username = userId;
   const isSystem = userId === "system";
 
   const formatTime = (date: Date) => {
