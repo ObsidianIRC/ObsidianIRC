@@ -23,11 +23,10 @@ import {
   EventMessage,
   JsonLogMessage,
   LinkPreview,
-  MessageActions,
   MessageAvatar,
   MessageHeader,
-  MessageReactions,
   MessageReply,
+  ReactionsWithActions,
   StandardReplyNotification,
   SystemMessage,
   WhisperMessage,
@@ -1057,61 +1056,18 @@ export const MessageItem = (props: MessageItemProps) => {
               )}
             </div>
 
-            {/* Desktop with reactions: shared flex row so toolbar never overlaps pills */}
-            {!isTouchDevice &&
-            message.reactions &&
-            message.reactions.length > 0 ? (
-              <div className="flex items-end gap-2 mt-1">
-                <div className="flex-1 min-w-0">
-                  <MessageReactions
-                    reactions={message.reactions}
-                    currentUserUsername={ircCurrentUser?.username}
-                    onReactionClick={handleReactionClick}
-                    onAddReaction={
-                      message.type === "message"
-                        ? (el) => onReactClick(message, el)
-                        : undefined
-                    }
-                  />
-                </div>
-                <MessageActions
-                  message={message}
-                  onReplyClick={() => setReplyTo(message)}
-                  onReactClick={(el) => onReactClick(message, el)}
-                  onRedactClick={
-                    canRedact ? () => onRedactMessage?.(message) : undefined
-                  }
-                  canRedact={canRedact}
-                  canReply={message.type === "message"}
-                  inline
-                />
-              </div>
-            ) : (
-              <>
-                <MessageReactions
-                  reactions={message.reactions}
-                  currentUserUsername={ircCurrentUser?.username}
-                  onReactionClick={handleReactionClick}
-                  onAddReaction={
-                    message.type === "message"
-                      ? (el) => onReactClick(message, el)
-                      : undefined
-                  }
-                />
-                {!isTouchDevice && (
-                  <MessageActions
-                    message={message}
-                    onReplyClick={() => setReplyTo(message)}
-                    onReactClick={(el) => onReactClick(message, el)}
-                    onRedactClick={
-                      canRedact ? () => onRedactMessage?.(message) : undefined
-                    }
-                    canRedact={canRedact}
-                    canReply={message.type === "message"}
-                  />
-                )}
-              </>
-            )}
+            <ReactionsWithActions
+              message={message}
+              currentUserUsername={ircCurrentUser?.username}
+              onReactionClick={handleReactionClick}
+              onReactClick={(el) => onReactClick(message, el)}
+              onReplyClick={() => setReplyTo(message)}
+              onRedactClick={
+                canRedact ? () => onRedactMessage?.(message) : undefined
+              }
+              canRedact={canRedact}
+              canReply={message.type === "message"}
+            />
           </div>
         </div>
       </SwipeableMessage>
