@@ -522,11 +522,11 @@ export const registerAllSettings = () => {
 
 // Export individual categories for use in components
 export {
-  profileSettings,
+  accountSettings,
+  mediaSettings,
   notificationSettings,
   preferenceSettings,
-  mediaSettings,
-  accountSettings,
+  profileSettings,
 };
 
 // Initialize settings on module load
