@@ -230,12 +230,11 @@ describe("ImageLightboxModal", () => {
         />,
       );
 
+      // prev button is rendered but disabled (visually hidden) when on first image
       expect(
-        screen.queryByRole("button", { name: /previous image/i }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /next image/i }),
-      ).toBeInTheDocument();
+        screen.getByRole("button", { name: /previous image/i }),
+      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: /next image/i })).toBeEnabled();
     });
 
     test("keyboard arrow navigation works", () => {

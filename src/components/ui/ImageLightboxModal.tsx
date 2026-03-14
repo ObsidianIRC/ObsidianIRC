@@ -296,6 +296,18 @@ export function ImageLightboxModal({
   const cursor = isDragging ? "grabbing" : zoom > 1 ? "zoom-out" : "zoom-in";
   const portalTarget = document.getElementById("root") ?? document.body;
 
+  const MAX_THUMBS = 5;
+  const thumbStart = Math.max(
+    0,
+    Math.min(
+      currentIndex - Math.floor(MAX_THUMBS / 2),
+      imageList.length - MAX_THUMBS,
+    ),
+  );
+  const visibleThumbs = imageList
+    .slice(thumbStart, thumbStart + MAX_THUMBS)
+    .map((thumbUrl, i) => ({ url: thumbUrl, index: thumbStart + i }));
+
   return createPortal(
     <>
       <ExternalLinkWarningModal
@@ -336,39 +348,118 @@ export function ImageLightboxModal({
           aria-hidden="true"
         />
 
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute right-4 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/70 hover:text-white transition-colors backdrop-blur-sm"
-          style={{ top: "calc(1rem + var(--safe-area-inset-top, 0px))" }}
+        {/* Top bar: controls centered, close on the right */}
+        <div
+          data-no-gesture=""
+          className="absolute top-0 left-0 right-0 z-10 flex items-center px-4 pointer-events-none"
+          style={{
+            paddingTop: "calc(0.75rem + var(--safe-area-inset-top, 0px))",
+            paddingBottom: "0.75rem",
+          }}
         >
-          <XMarkIcon className="w-6 h-6" />
-        </button>
+          {/* Spacer mirrors close button to keep pill truly centered */}
+          <div className="w-10 flex-shrink-0" />
 
-        {hasPrev && (
+          <div className="flex-1 flex justify-center">
+            <div
+              data-no-gesture=""
+              className="pointer-events-auto flex items-center gap-2 bg-black/60 backdrop-blur-xl rounded-2xl px-4 py-2 shadow-2xl text-white/90"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => changeZoom(zoom - ZOOM_STEP)}
+                disabled={zoom <= ZOOM_MIN}
+                aria-label="Zoom out"
+                className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <FaMinus className="w-3 h-3" />
+              </button>
+
+              <input
+                type="range"
+                min={ZOOM_MIN}
+                max={ZOOM_MAX}
+                step={ZOOM_STEP}
+                value={zoom}
+                onChange={(e) => changeZoom(Number(e.target.value))}
+                aria-label="Zoom level"
+                className="hidden sm:block w-28 cursor-pointer accent-white"
+              />
+
+              <button
+                type="button"
+                onClick={() => changeZoom(zoom + ZOOM_STEP)}
+                disabled={zoom >= ZOOM_MAX}
+                aria-label="Zoom in"
+                className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <FaPlus className="w-3 h-3" />
+              </button>
+
+              {isTauri() && (
+                <>
+                  <div
+                    className="w-px h-4 bg-white/20 mx-1"
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={isDownloading}
+                    title="Download image"
+                    aria-label="Download image"
+                    className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isDownloading ? (
+                      <FaSpinner className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <FaDownload className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowWarning(true)}
+                title="Open in browser"
+                aria-label="Open in browser"
+                className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <FaExternalLinkAlt className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
-            aria-label="Previous image"
-            onClick={() => goTo(currentIndex - 1)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 mb-10 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/80 hover:text-white transition-colors backdrop-blur-sm z-10"
+            onClick={onClose}
+            aria-label="Close"
+            className="pointer-events-auto w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/70 hover:text-white transition-colors backdrop-blur-sm flex-shrink-0"
           >
-            <ChevronLeftIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Saved message toast below top bar */}
+        {savedMessage && (
+          <p className="absolute top-20 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap text-xs text-white/80 bg-black/60 rounded-lg px-3 py-1 pointer-events-none animate-in fade-in duration-150">
+            {savedMessage}
+          </p>
         )}
 
-        {hasNext && (
-          <button
-            type="button"
-            aria-label="Next image"
-            onClick={() => goTo(currentIndex + 1)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 mb-10 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/80 hover:text-white transition-colors backdrop-blur-sm z-10"
-          >
-            <ChevronRightIcon className="w-6 h-6" />
-          </button>
-        )}
-
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-20">
+        {/* Main image area */}
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          style={{
+            paddingTop: "calc(4rem + var(--safe-area-inset-top, 0px))",
+            paddingBottom:
+              imageList.length > 1
+                ? "calc(5.5rem + var(--safe-area-inset-bottom, 0px))"
+                : "1rem",
+          }}
+        >
           <img
             src={currentUrl}
             alt="Image preview"
@@ -388,80 +479,73 @@ export function ImageLightboxModal({
           />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-5 pointer-events-none">
+        {/* Bottom thumbnail strip — only when there are multiple images */}
+        {imageList.length > 1 && (
           <div
             data-no-gesture=""
-            className="pointer-events-auto flex items-center gap-2 bg-black/60 backdrop-blur-xl rounded-2xl px-4 py-2.5 shadow-2xl text-white/90"
-            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-0 left-0 right-0 z-10 flex justify-center pointer-events-none"
+            style={{
+              paddingBottom: "calc(1rem + var(--safe-area-inset-bottom, 0px))",
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              onClick={() => changeZoom(zoom - ZOOM_STEP)}
-              disabled={zoom <= ZOOM_MIN}
-              aria-label="Zoom out"
-              className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            <div
+              className="pointer-events-auto flex items-center gap-2 bg-black/60 backdrop-blur-xl rounded-2xl px-3 py-2 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
             >
-              <FaMinus className="w-3 h-3" />
-            </button>
+              {/* invisible when !hasPrev to preserve layout width */}
+              <button
+                type="button"
+                aria-label="Previous image"
+                onClick={() => goTo(currentIndex - 1)}
+                disabled={!hasPrev}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-white/60
+                           hover:text-white hover:bg-white/10 transition-all
+                           disabled:opacity-0 disabled:pointer-events-none flex-shrink-0"
+              >
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
 
-            <input
-              type="range"
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={ZOOM_STEP}
-              value={zoom}
-              onChange={(e) => changeZoom(Number(e.target.value))}
-              aria-label="Zoom level"
-              className="w-28 cursor-pointer accent-white"
-            />
-
-            <button
-              type="button"
-              onClick={() => changeZoom(zoom + ZOOM_STEP)}
-              disabled={zoom >= ZOOM_MAX}
-              aria-label="Zoom in"
-              className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <FaPlus className="w-3 h-3" />
-            </button>
-
-            {isTauri() && (
-              <>
-                <div className="w-px h-4 bg-white/20 mx-1" aria-hidden="true" />
+              {visibleThumbs.map(({ url: thumbUrl, index: thumbIndex }) => (
                 <button
+                  key={`${thumbUrl}-${thumbIndex}`}
                   type="button"
-                  onClick={handleDownload}
-                  disabled={isDownloading}
-                  title="Download image"
-                  aria-label="Download image"
-                  className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label={`Image ${thumbIndex + 1} of ${imageList.length}`}
+                  aria-current={
+                    thumbIndex === currentIndex ? "true" : undefined
+                  }
+                  onClick={() => goTo(thumbIndex)}
+                  className={`rounded-lg overflow-hidden flex-shrink-0 transition-all duration-150 ${
+                    thumbIndex === currentIndex
+                      ? "w-14 h-14 ring-2 ring-white ring-offset-1 ring-offset-transparent opacity-100"
+                      : "w-11 h-11 opacity-50 hover:opacity-80"
+                  }`}
                 >
-                  {isDownloading ? (
-                    <FaSpinner className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <FaDownload className="w-3.5 h-3.5" />
-                  )}
+                  <img
+                    src={thumbUrl}
+                    alt=""
+                    draggable={false}
+                    className="w-full h-full object-cover"
+                  />
                 </button>
-              </>
-            )}
+              ))}
 
-            <button
-              type="button"
-              onClick={() => setShowWarning(true)}
-              title="Open in browser"
-              aria-label="Open in browser"
-              className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
-            >
-              <FaExternalLinkAlt className="w-3.5 h-3.5" />
-            </button>
+              <button
+                type="button"
+                aria-label="Next image"
+                onClick={() => goTo(currentIndex + 1)}
+                disabled={!hasNext}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-white/60
+                           hover:text-white hover:bg-white/10 transition-all
+                           disabled:opacity-0 disabled:pointer-events-none flex-shrink-0"
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-
-          {savedMessage && (
-            <p className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-white/80 bg-black/60 rounded-lg px-3 py-1 pointer-events-none animate-in fade-in duration-150">
-              {savedMessage}
-            </p>
-          )}
-        </div>
+        )}
       </div>
     </>,
     portalTarget,
