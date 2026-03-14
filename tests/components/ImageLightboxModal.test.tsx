@@ -1,11 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   clampZoom,
   ImageLightboxModal,
   ZOOM_MAX,
   ZOOM_MIN,
 } from "../../src/components/ui/ImageLightboxModal";
+import * as store from "../../src/store";
 
 vi.mock("../../src/lib/openUrl", () => ({
   openExternalUrl: vi.fn(),
@@ -15,12 +16,24 @@ vi.mock("../../src/lib/platformUtils", () => ({
   isTauri: () => false,
 }));
 
+vi.mock("../../src/store", () => ({
+  getChannelMessages: vi.fn(() => []),
+  default: Object.assign(
+    vi.fn(() => null),
+    { getState: vi.fn(() => ({ messages: {} })) },
+  ),
+}));
+
 // ExternalLinkWarningModal → BaseModal → useMediaQuery needs matchMedia
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("clampZoom", () => {
   test("clamps to minimum", () => {
@@ -145,5 +158,128 @@ describe("ImageLightboxModal", () => {
     expect(
       screen.queryByRole("img", { name: "Image preview" }),
     ).not.toBeInTheDocument();
+  });
+
+  test("has download button", () => {
+    render(<ImageLightboxModal {...defaultProps} />);
+    expect(
+      screen.getByRole("button", { name: /download image/i }),
+    ).toBeInTheDocument();
+  });
+
+  test("download button opens image in new tab (browser path)", async () => {
+    // isTauri() returns false (mocked above), so code calls window.open.
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    render(<ImageLightboxModal {...defaultProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /download image/i }));
+
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        defaultProps.url,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    });
+  });
+
+  describe("navigation", () => {
+    test("no navigation arrows when no serverId/channelId provided", () => {
+      render(<ImageLightboxModal {...defaultProps} />);
+      expect(
+        screen.queryByRole("button", { name: /previous image/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /next image/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    test("shows next arrow when more images exist after current", () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue([
+        {
+          id: "1",
+          content: "https://example.com/image.jpg",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user1",
+          reactions: [],
+          msgid: "1",
+        },
+        {
+          id: "2",
+          content: "https://example.com/image2.png",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user1",
+          reactions: [],
+          msgid: "2",
+        },
+      ] as unknown as ReturnType<typeof store.getChannelMessages>);
+
+      render(
+        <ImageLightboxModal
+          {...defaultProps}
+          url="https://example.com/image.jpg"
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      expect(
+        screen.queryByRole("button", { name: /previous image/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /next image/i }),
+      ).toBeInTheDocument();
+    });
+
+    test("keyboard arrow navigation works", () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue([
+        {
+          id: "1",
+          content: "https://example.com/image.jpg",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user1",
+          reactions: [],
+          msgid: "1",
+        },
+        {
+          id: "2",
+          content: "https://example.com/image2.png",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user1",
+          reactions: [],
+          msgid: "2",
+        },
+      ] as unknown as ReturnType<typeof store.getChannelMessages>);
+
+      render(
+        <ImageLightboxModal
+          {...defaultProps}
+          url="https://example.com/image.jpg"
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      const img = screen.getByRole("img", { name: "Image preview" });
+      expect(img).toHaveAttribute("src", "https://example.com/image.jpg");
+
+      fireEvent.keyDown(document, { key: "ArrowRight" });
+      expect(img).toHaveAttribute("src", "https://example.com/image2.png");
+
+      fireEvent.keyDown(document, { key: "ArrowLeft" });
+      expect(img).toHaveAttribute("src", "https://example.com/image.jpg");
+    });
   });
 });

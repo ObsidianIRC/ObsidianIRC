@@ -136,8 +136,9 @@ const ImageWithFallback: React.FC<{
   url: string;
   isFilehostImage?: boolean;
   serverId?: string;
+  channelId?: string;
   onOpenProfile?: (username: string) => void;
-}> = ({ url, isFilehostImage = false, serverId, onOpenProfile }) => {
+}> = ({ url, isFilehostImage = false, serverId, channelId, onOpenProfile }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -306,6 +307,8 @@ const ImageWithFallback: React.FC<{
         isOpen={lightboxOpen}
         url={displayUrl}
         onClose={() => setLightboxOpen(false)}
+        serverId={serverId}
+        channelId={channelId}
       />
       <div className="max-w-md">
         <div className="relative inline-block rounded border border-discord-dark-500/50 overflow-hidden">
@@ -988,6 +991,7 @@ export const MessageItem = (props: MessageItemProps) => {
                     url={strippedContent}
                     isFilehostImage={isImageUrl}
                     serverId={message.serverId}
+                    channelId={channelId}
                     onOpenProfile={onOpenProfile}
                   />
                 ) : (
@@ -1012,6 +1016,7 @@ export const MessageItem = (props: MessageItemProps) => {
                     url={embeddedFilehostImages[0]}
                     isFilehostImage
                     serverId={message.serverId}
+                    channelId={channelId}
                     onOpenProfile={onOpenProfile}
                   />
                   {embeddedFilehostImages.length > 1 &&
@@ -1023,6 +1028,7 @@ export const MessageItem = (props: MessageItemProps) => {
                             url={imgUrl}
                             isFilehostImage
                             serverId={message.serverId}
+                            channelId={channelId}
                             onOpenProfile={onOpenProfile}
                           />
                         ))}
