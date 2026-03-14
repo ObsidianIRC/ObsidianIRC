@@ -73,6 +73,8 @@ export function ImageLightboxModal({
     startTransX: number;
     startTransY: number;
   } | null>(null);
+  const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const filmstripScrollRef = useRef<HTMLDivElement>(null);
 
   const currentUrl = currentIndex >= 0 ? imageList[currentIndex] : url;
 
@@ -97,6 +99,27 @@ export function ImageLightboxModal({
     setCurrentIndex(index);
     setZoom(1);
     setTranslate({ x: 0, y: 0 });
+  }, []);
+
+  useEffect(() => {
+    thumbRefs.current[currentIndex]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [currentIndex]);
+
+  // Convert vertical wheel to horizontal scroll on the filmstrip (desktop)
+  useEffect(() => {
+    const el = filmstripScrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      el.scrollLeft += e.deltaY || e.deltaX;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: goTo only calls stable setState functions, not a hook dependency
@@ -296,18 +319,6 @@ export function ImageLightboxModal({
   const cursor = isDragging ? "grabbing" : zoom > 1 ? "zoom-out" : "zoom-in";
   const portalTarget = document.getElementById("root") ?? document.body;
 
-  const MAX_THUMBS = 5;
-  const thumbStart = Math.max(
-    0,
-    Math.min(
-      currentIndex - Math.floor(MAX_THUMBS / 2),
-      imageList.length - MAX_THUMBS,
-    ),
-  );
-  const visibleThumbs = imageList
-    .slice(thumbStart, thumbStart + MAX_THUMBS)
-    .map((thumbUrl, i) => ({ url: thumbUrl, index: thumbStart + i }));
-
   return createPortal(
     <>
       <ExternalLinkWarningModal
@@ -479,7 +490,7 @@ export function ImageLightboxModal({
           />
         </div>
 
-        {/* Bottom thumbnail strip — only when there are multiple images */}
+        {/* Bottom filmstrip — only when there are multiple images */}
         {imageList.length > 1 && (
           <div
             data-no-gesture=""
@@ -492,10 +503,11 @@ export function ImageLightboxModal({
             onTouchEnd={(e) => e.stopPropagation()}
           >
             <div
-              className="pointer-events-auto flex items-center gap-2 bg-black/60 backdrop-blur-xl rounded-2xl px-3 py-2 shadow-2xl"
+              className="pointer-events-auto flex items-center gap-1 bg-black/60 backdrop-blur-xl rounded-2xl px-2 py-2 shadow-2xl"
+              style={{ maxWidth: "min(24rem, calc(100vw - 2rem))" }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* invisible when !hasPrev to preserve layout width */}
+              {/* invisible when !hasPrev to preserve layout */}
               <button
                 type="button"
                 aria-label="Previous image"
@@ -508,29 +520,43 @@ export function ImageLightboxModal({
                 <ChevronLeftIcon className="w-5 h-5" />
               </button>
 
-              {visibleThumbs.map(({ url: thumbUrl, index: thumbIndex }) => (
-                <button
-                  key={`${thumbUrl}-${thumbIndex}`}
-                  type="button"
-                  aria-label={`Image ${thumbIndex + 1} of ${imageList.length}`}
-                  aria-current={
-                    thumbIndex === currentIndex ? "true" : undefined
-                  }
-                  onClick={() => goTo(thumbIndex)}
-                  className={`rounded-lg overflow-hidden flex-shrink-0 transition-all duration-150 ${
-                    thumbIndex === currentIndex
-                      ? "w-14 h-14 ring-2 ring-white ring-offset-1 ring-offset-transparent opacity-100"
-                      : "w-11 h-11 opacity-50 hover:opacity-80"
-                  }`}
-                >
-                  <img
-                    src={thumbUrl}
-                    alt=""
-                    draggable={false}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
+              {/* Scrollable thumbnail row */}
+              <div
+                ref={filmstripScrollRef}
+                className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto px-1 py-0.5"
+                style={{
+                  scrollbarWidth: "none",
+                  scrollSnapType: "x mandatory",
+                }}
+              >
+                {imageList.map((thumbUrl, thumbIndex) => (
+                  <button
+                    key={thumbUrl}
+                    ref={(el) => {
+                      thumbRefs.current[thumbIndex] = el;
+                    }}
+                    type="button"
+                    aria-label={`Image ${thumbIndex + 1} of ${imageList.length}`}
+                    aria-current={
+                      thumbIndex === currentIndex ? "true" : undefined
+                    }
+                    onClick={() => goTo(thumbIndex)}
+                    style={{ scrollSnapAlign: "center" }}
+                    className={`rounded-lg overflow-hidden flex-shrink-0 transition-all duration-150 ${
+                      thumbIndex === currentIndex
+                        ? "w-14 h-14 ring-2 ring-white ring-offset-1 ring-offset-transparent opacity-100"
+                        : "w-11 h-11 opacity-50 hover:opacity-80"
+                    }`}
+                  >
+                    <img
+                      src={thumbUrl}
+                      alt=""
+                      draggable={false}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
 
               <button
                 type="button"
