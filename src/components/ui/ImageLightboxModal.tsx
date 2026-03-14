@@ -276,19 +276,14 @@ export function ImageLightboxModal({
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      if (isTauri()) {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const msg = await invoke<string>("download_image", { url: currentUrl });
-        if (msg) {
-          setSavedMessage(msg);
-          setTimeout(() => setSavedMessage(""), 4000);
-        }
-      } else {
-        // CORS blocks fetch() on cross-origin images; <img> display is exempt
-        window.open(currentUrl, "_blank", "noopener,noreferrer");
+      const { invoke } = await import("@tauri-apps/api/core");
+      const msg = await invoke<string>("download_image", { url: currentUrl });
+      if (msg) {
+        setSavedMessage(msg);
+        setTimeout(() => setSavedMessage(""), 4000);
       }
-    } catch (err) {
-      console.error("Download failed:", err);
+    } catch {
+      console.error("Download failed");
     } finally {
       setIsDownloading(false);
     }
@@ -430,22 +425,25 @@ export function ImageLightboxModal({
               <FaPlus className="w-3 h-3" />
             </button>
 
-            <div className="w-px h-4 bg-white/20 mx-1" aria-hidden="true" />
-
-            <button
-              type="button"
-              onClick={handleDownload}
-              disabled={isDownloading}
-              title="Download image"
-              aria-label="Download image"
-              className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              {isDownloading ? (
-                <FaSpinner className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <FaDownload className="w-3.5 h-3.5" />
-              )}
-            </button>
+            {isTauri() && (
+              <>
+                <div className="w-px h-4 bg-white/20 mx-1" aria-hidden="true" />
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  title="Download image"
+                  aria-label="Download image"
+                  className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isDownloading ? (
+                    <FaSpinner className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FaDownload className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </>
+            )}
 
             <button
               type="button"

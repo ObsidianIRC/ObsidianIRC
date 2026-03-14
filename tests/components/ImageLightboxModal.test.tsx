@@ -6,6 +6,7 @@ import {
   ZOOM_MAX,
   ZOOM_MIN,
 } from "../../src/components/ui/ImageLightboxModal";
+import * as platformUtils from "../../src/lib/platformUtils";
 import * as store from "../../src/store";
 
 vi.mock("../../src/lib/openUrl", () => ({
@@ -13,7 +14,7 @@ vi.mock("../../src/lib/openUrl", () => ({
 }));
 
 vi.mock("../../src/lib/platformUtils", () => ({
-  isTauri: () => false,
+  isTauri: vi.fn(() => false),
 }));
 
 vi.mock("../../src/store", () => ({
@@ -160,26 +161,26 @@ describe("ImageLightboxModal", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("has download button", () => {
+  test("download button hidden in browser (non-Tauri)", () => {
+    // isTauri() returns false (mocked above)
     render(<ImageLightboxModal {...defaultProps} />);
     expect(
-      screen.getByRole("button", { name: /download image/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /download image/i }),
+    ).not.toBeInTheDocument();
   });
 
-  test("download button opens image in new tab (browser path)", async () => {
-    // isTauri() returns false (mocked above), so code calls window.open.
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+  test("download button invokes Rust command on Tauri", async () => {
+    vi.mocked(platformUtils.isTauri).mockReturnValue(true);
+    const mockInvoke = vi.fn().mockResolvedValue("Saved to Downloads");
+    vi.doMock("@tauri-apps/api/core", () => ({ invoke: mockInvoke }));
 
     render(<ImageLightboxModal {...defaultProps} />);
     fireEvent.click(screen.getByRole("button", { name: /download image/i }));
 
     await waitFor(() => {
-      expect(openSpy).toHaveBeenCalledWith(
-        defaultProps.url,
-        "_blank",
-        "noopener,noreferrer",
-      );
+      expect(mockInvoke).toHaveBeenCalledWith("download_image", {
+        url: defaultProps.url,
+      });
     });
   });
 
