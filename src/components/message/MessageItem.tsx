@@ -10,9 +10,9 @@ import {
   processMarkdownInText,
 } from "../../lib/ircUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
-import { openExternalUrl } from "../../lib/openUrl";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
+import { ImageLightboxModal } from "../ui/ImageLightboxModal";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
 import { InviteMessage } from "./InviteMessage";
@@ -140,6 +140,7 @@ const ImageWithFallback: React.FC<{
 }> = ({ url, isFilehostImage = false, serverId, onOpenProfile }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [exifData, setExifData] = useState<{
     author?: string;
@@ -300,39 +301,43 @@ const ImageWithFallback: React.FC<{
   }
 
   return (
-    <div className="max-w-md">
-      <div className="relative inline-block rounded border border-discord-dark-500/50 overflow-hidden">
-        {!imageLoaded && !imageError && (
-          <div
-            className="flex items-center justify-center bg-discord-dark-400/50"
-            style={{ width: "200px", height: "150px" }}
-          >
-            <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
-          </div>
-        )}
-        <img
-          src={displayUrl}
-          alt={isFilehostImage ? "Filehost image" : "GIF"}
-          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${
-            imageLoaded ? "block" : "hidden"
-          }`}
-          onClick={async (e) => {
-            e.preventDefault();
-            await openExternalUrl(url);
-          }}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
-          style={{ maxHeight: "150px" }}
-        />
-        {isFilehostImage && exifData && imageLoaded && (
-          <FilehostImageBanner
-            exifData={exifData}
-            serverId={serverId}
-            onOpenProfile={onOpenProfile}
+    <>
+      <ImageLightboxModal
+        isOpen={lightboxOpen}
+        url={displayUrl}
+        onClose={() => setLightboxOpen(false)}
+      />
+      <div className="max-w-md">
+        <div className="relative inline-block rounded border border-discord-dark-500/50 overflow-hidden">
+          {!imageLoaded && !imageError && (
+            <div
+              className="flex items-center justify-center bg-discord-dark-400/50"
+              style={{ width: "200px", height: "150px" }}
+            >
+              <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
+            </div>
+          )}
+          <img
+            src={displayUrl}
+            alt={isFilehostImage ? "Filehost image" : "GIF"}
+            className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${
+              imageLoaded ? "block" : "hidden"
+            }`}
+            onClick={() => setLightboxOpen(true)}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+            style={{ maxHeight: "150px" }}
           />
-        )}
+          {isFilehostImage && exifData && imageLoaded && (
+            <FilehostImageBanner
+              exifData={exifData}
+              serverId={serverId}
+              onOpenProfile={onOpenProfile}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
