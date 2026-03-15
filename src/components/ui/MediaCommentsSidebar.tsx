@@ -131,9 +131,11 @@ export function MediaCommentsSidebar({
   // Live comments — useShallow prevents infinite loop from filter() returning a new array ref each call
   const comments = useStore(
     useShallow((state) => {
+      const sourceMsgId = sourceMessage.msgid?.trim();
+      if (!sourceMsgId) return [];
       const key = `${serverId}-${channelId}`;
       return (state.messages[key] ?? []).filter(
-        (m) => m.tags?.["+draft/reply"]?.trim() === sourceMessage.msgid,
+        (m) => m.tags?.["+draft/reply"]?.trim() === sourceMsgId,
       );
     }),
   );
@@ -153,6 +155,7 @@ export function MediaCommentsSidebar({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -211,14 +214,19 @@ export function MediaCommentsSidebar({
   // getPreviewStyles always returns color:"inherit" as a fallback, which as an
   // inline style overrides the Tailwind text-discord-text-normal class and makes
   // the text inherit the browser default (black) in the modal's DOM tree.
-  const hasActiveFormatting =
-    (selectedColor !== null && selectedColor !== "inherit") ||
-    selectedFormatting.length > 0;
+  const hasExplicitColor =
+    selectedColor !== null && selectedColor !== "inherit";
+  const hasActiveFormatting = hasExplicitColor || selectedFormatting.length > 0;
   const previewStyle = hasActiveFormatting
-    ? getPreviewStyles({
-        color: selectedColor ?? "inherit",
-        formatting: selectedFormatting,
-      })
+    ? {
+        ...getPreviewStyles({
+          color: selectedColor ?? "inherit",
+          formatting: selectedFormatting,
+        }),
+        // Don't let getPreviewStyles inject color:"inherit" as an inline style when no
+        // color is chosen — that overrides the Tailwind text class and makes text black.
+        ...(hasExplicitColor ? {} : { color: undefined }),
+      }
     : undefined;
 
   return (

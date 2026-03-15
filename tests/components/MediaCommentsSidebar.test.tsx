@@ -144,10 +144,8 @@ describe("MediaCommentsSidebar", () => {
 
   test("has emoji button", () => {
     render(<MediaCommentsSidebar {...defaultProps} />);
-    // InputToolbar renders emoji button — find by its icon presence via aria or text
-    // The toolbar is rendered, check the container renders at all
     expect(
-      screen.getByRole("button", { name: /attachment options/i }),
+      screen.getByRole("button", { name: /insert emoji/i }),
     ).toBeInTheDocument();
   });
 

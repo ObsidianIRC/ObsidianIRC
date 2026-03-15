@@ -19,7 +19,7 @@ class PluginHandle {
 
 public class PluginManager {
   static let shared: PluginManager = PluginManager()
-  public var viewController: UIViewController?
+  public weak var viewController: UIViewController?
   var plugins: [String: PluginHandle] = [:]
   var ipcDispatchQueue = DispatchQueue(label: "ipc")
   public var isSimEnvironment: Bool {

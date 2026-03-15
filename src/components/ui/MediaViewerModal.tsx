@@ -113,6 +113,10 @@ export function MediaViewerModal({
   // Debounce timer: slider state update is deferred during high-frequency gestures
   const sliderDebounceRef = useRef<ReturnType<typeof setTimeout>>();
 
+  useEffect(() => {
+    return () => clearTimeout(sliderDebounceRef.current);
+  }, []);
+
   const currentUrl = currentIndex >= 0 ? imageList[currentIndex] : url;
 
   // Derived values for comments sidebar

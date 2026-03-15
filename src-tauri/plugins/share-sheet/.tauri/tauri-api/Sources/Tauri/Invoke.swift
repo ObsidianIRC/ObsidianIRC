@@ -62,7 +62,7 @@ enum InvokeError: Error {
     do {
       return try data.jsonRepresentation() ?? "\"Failed to serialize payload\""
     } catch {
-      return "\"\(error)\""
+      return "\"Failed to serialize payload\""
     }
   }
 
@@ -83,7 +83,7 @@ enum InvokeError: Error {
       let json = try JSONEncoder().encode(data)
       sendResponse(callback, String(decoding: json, as: UTF8.self))
     } catch {
-      sendResponse(self.error, "\"\(error)\"")
+      sendResponse(self.error, "\"Failed to encode response payload\"")
     }
   }
 
