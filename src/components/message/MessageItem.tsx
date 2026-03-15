@@ -322,7 +322,7 @@ const ImageWithFallback: React.FC<{
         <img
           src={displayUrl}
           alt={isFilehostImage ? "Filehost image" : "GIF"}
-          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${
+          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity transparency-grid ${
             imageLoaded ? "block" : "hidden"
           }`}
           onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}

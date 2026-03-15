@@ -13,6 +13,7 @@ interface MessageReactionsProps {
   currentUserUsername?: string;
   onReactionClick: (emoji: string, currentUserReacted: boolean) => void;
   onAddReaction?: (el: Element) => void;
+  alwaysShowAdd?: boolean;
 }
 
 export const MessageReactions: React.FC<MessageReactionsProps> = ({
@@ -20,9 +21,22 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
   currentUserUsername,
   onReactionClick,
   onAddReaction,
+  alwaysShowAdd = false,
 }) => {
   if (!reactions || reactions.length === 0) {
-    return null;
+    if (!alwaysShowAdd || !onAddReaction) return null;
+    return (
+      <div className="flex flex-wrap gap-1 mt-1 select-none">
+        <button
+          type="button"
+          className="inline-flex items-center px-2 py-0.5 rounded-full text-sm bg-discord-dark-300 text-discord-channels-default hover:bg-discord-dark-200 hover:text-discord-text-muted transition-all"
+          title="Add reaction"
+          onClick={(e) => onAddReaction(e.currentTarget)}
+        >
+          <MdAddReaction className="w-4 h-4" />
+        </button>
+      </div>
+    );
   }
 
   // Group reactions by emoji

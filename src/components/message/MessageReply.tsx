@@ -1,7 +1,9 @@
 import type React from "react";
 import { FaTimes } from "react-icons/fa";
 import { RiReplyFill } from "react-icons/ri";
+import { canShowImageUrl } from "../../lib/imageUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
+import useStore from "../../store";
 import type { MessageType } from "../../types";
 
 interface MessageReplyProps {
@@ -25,16 +27,6 @@ function extractFirstImageUrl(content: string): string | null {
   return null;
 }
 
-function isImageOnlyMessage(content: string): boolean {
-  const stripped = stripIrcFormatting(content).trim();
-  // Single token means no whitespace — a URL with spaces is not a bare image URL
-  if (/\s/.test(stripped)) return false;
-  return (
-    (IMAGE_URL_RE.test(stripped) || stripped.includes("/images/")) &&
-    (stripped.startsWith("http://") || stripped.startsWith("https://"))
-  );
-}
-
 export const MessageReply: React.FC<MessageReplyProps> = ({
   replyMessage,
   theme,
@@ -43,6 +35,13 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
   onClose,
 }) => {
   const replyUsername = replyMessage.userId;
+
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
+  const server = replyMessage.serverId
+    ? useStore.getState().servers.find((s) => s.id === replyMessage.serverId)
+    : null;
 
   const handleUsernameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -54,7 +53,6 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
     .trim();
 
   const firstImageUrl = extractFirstImageUrl(replyMessage.content);
-  const imageOnly = isImageOnlyMessage(replyMessage.content);
 
   const isClickable = !!onReplyClick && !onClose;
 
@@ -81,22 +79,26 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
             {replyUsername}
           </span>
         </div>
-        {!imageOnly && (
-          <div
-            className={`text-xs text-${theme}-text-muted opacity-80 ${onClose ? "line-clamp-3" : "truncate"}`}
-          >
-            {plainContent}
-          </div>
-        )}
+        <div
+          className={`text-xs text-${theme}-text-muted opacity-80 ${onClose ? "line-clamp-3" : "truncate"}`}
+        >
+          {plainContent}
+        </div>
       </div>
-      {firstImageUrl && (
-        <img
-          src={firstImageUrl}
-          alt=""
-          className="w-10 h-10 rounded object-cover flex-shrink-0 self-center mr-1.5 my-1.5"
-          draggable={false}
-        />
-      )}
+      {firstImageUrl &&
+        canShowImageUrl(
+          firstImageUrl,
+          showSafeMedia,
+          showExternalContent,
+          server?.filehost,
+        ) && (
+          <img
+            src={firstImageUrl}
+            alt=""
+            className="w-10 h-10 rounded object-cover flex-shrink-0 self-center mr-1.5 my-1.5 transparency-grid"
+            draggable={false}
+          />
+        )}
       {onClose && (
         <button
           type="button"

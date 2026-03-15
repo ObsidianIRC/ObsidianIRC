@@ -5,6 +5,7 @@ import { FaPlus } from "react-icons/fa";
 import { useShallow } from "zustand/react/shallow";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
+import { canShowImageUrl } from "../../lib/imageUtils";
 import ircClient from "../../lib/ircClient";
 import {
   type FormattingType,
@@ -14,6 +15,7 @@ import {
 import useStore from "../../store";
 import type { Message } from "../../types";
 import { MessageItem } from "../message/MessageItem";
+import { MessageReactions } from "../message/MessageReactions";
 import AutocompleteDropdown from "./AutocompleteDropdown";
 import ColorPicker from "./ColorPicker";
 import { EmojiPickerInline } from "./EmojiPickerInline";
@@ -68,6 +70,13 @@ export function MediaCommentsSidebar({
     paddingBottom: number;
   } | null>(null);
 
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
+  const filehost = useStore
+    .getState()
+    .servers.find((s) => s.id === serverId)?.filehost;
+
   // Look up Channel object — useMessageSending needs channel.name for PRIVMSG target
   const selectedChannel = useStore((state) => {
     for (const server of state.servers) {
@@ -107,6 +116,17 @@ export function MediaCommentsSidebar({
     selectedFormatting,
     localReplyTo: sourceMessage,
   });
+
+  // Live source message — re-reads from store so reactions update in real time
+  const liveSourceMessage = useStore(
+    useShallow((state) => {
+      const key = `${serverId}-${channelId}`;
+      return (
+        (state.messages[key] ?? []).find((m) => m.id === sourceMessage.id) ??
+        sourceMessage
+      );
+    }),
+  );
 
   // Live comments — useShallow prevents infinite loop from filter() returning a new array ref each call
   const comments = useStore(
@@ -185,7 +205,7 @@ export function MediaCommentsSidebar({
     resizeTextarea();
   }, [resizeTextarea, commentText]);
 
-  const sourceText = stripIrcFormatting(sourceMessage.content);
+  const sourceText = stripIrcFormatting(liveSourceMessage.content);
   const commentCount = comments.length;
   // Only apply previewStyle when the user has actually chosen formatting/color.
   // getPreviewStyles always returns color:"inherit" as a fallback, which as an
@@ -272,19 +292,42 @@ export function MediaCommentsSidebar({
 
       {/* Context strip */}
       <div className="flex items-start gap-2.5 px-3 py-2.5 bg-discord-dark-100 border-b border-white/[0.06] flex-shrink-0">
-        <img
-          src={currentImageUrl}
-          alt=""
-          className="w-10 h-10 rounded object-cover flex-shrink-0"
-          draggable={false}
-        />
-        <div className="min-w-0">
+        {canShowImageUrl(
+          currentImageUrl,
+          showSafeMedia,
+          showExternalContent,
+          filehost,
+        ) && (
+          <img
+            src={currentImageUrl}
+            alt=""
+            className="w-10 h-10 rounded object-cover flex-shrink-0 transparency-grid"
+            draggable={false}
+          />
+        )}
+        <div className="min-w-0 flex-1">
           <p className="text-xs text-discord-text-muted leading-tight">
-            {isAlbum ? "Album" : "Image"} · @{sourceMessage.userId}
+            {isAlbum ? "Album" : "Image"} · @{liveSourceMessage.userId}
           </p>
           <p className="text-xs text-discord-text-normal/80 leading-snug mt-0.5 line-clamp-2 break-words">
             {sourceText}
           </p>
+          <MessageReactions
+            reactions={liveSourceMessage.reactions}
+            currentUserUsername={currentUser?.username}
+            alwaysShowAdd
+            onReactionClick={(emoji, currentUserReacted) => {
+              if (currentUserReacted) {
+                unreact(emoji, liveSourceMessage);
+              } else {
+                directReaction(emoji, liveSourceMessage);
+              }
+            }}
+            onAddReaction={(el) => {
+              setReactionAnchorRect(el.getBoundingClientRect());
+              openReactionModal(liveSourceMessage);
+            }}
+          />
         </div>
       </div>
 

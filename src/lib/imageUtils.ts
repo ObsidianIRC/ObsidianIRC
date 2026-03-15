@@ -1,5 +1,18 @@
 import type { Message } from "../types/index";
+import { isUrlFromFilehost } from "./ircUtils";
 import { stripIrcFormatting } from "./messageFormatter";
+
+export function canShowImageUrl(
+  url: string,
+  showSafeMedia: boolean,
+  showExternalContent: boolean,
+  filehost?: string | null,
+): boolean {
+  if (showExternalContent) return true;
+  if (showSafeMedia && filehost && isUrlFromFilehost(url, filehost))
+    return true;
+  return false;
+}
 
 export function isImageLikeUrl(url: string): boolean {
   return (

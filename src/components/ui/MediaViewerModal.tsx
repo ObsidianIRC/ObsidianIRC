@@ -15,7 +15,10 @@ import {
 } from "react-icons/fa";
 import { useShallow } from "zustand/react/shallow";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { extractImageUrlsFromMessage } from "../../lib/imageUtils";
+import {
+  canShowImageUrl,
+  extractImageUrlsFromMessage,
+} from "../../lib/imageUtils";
 import { openExternalUrl } from "../../lib/openUrl";
 import { isTauri } from "../../lib/platformUtils";
 import useStore, { getChannelMessages } from "../../store";
@@ -120,6 +123,10 @@ export function MediaViewerModal({
     serverId && channelId && currentSourceMsg?.msgid,
   );
 
+  const { showSafeMedia, showExternalContent } = useStore(
+    (state) => state.globalSettings,
+  );
+
   // Map of msgid → reply count, covers both the toolbar button and filmstrip thumbnails
   const commentCountByMsgid = useStore(
     useShallow((state) => {
@@ -165,15 +172,22 @@ export function MediaViewerModal({
   useEffect(() => {
     if (!isOpen || !serverId || !channelId) return;
     const messages = getChannelMessages(serverId, channelId);
-    const entries = messages.flatMap((msg) =>
-      extractImageUrlsFromMessage(msg).map((u, urlIdx) => ({
-        url: u,
-        msg,
-        // Unique per (message, position-within-message) so duplicate URLs across
-        // or within messages each get their own filmstrip slot.
-        entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
-      })),
-    );
+    const filehost = useStore
+      .getState()
+      .servers.find((s) => s.id === serverId)?.filehost;
+    const entries = messages
+      .flatMap((msg) =>
+        extractImageUrlsFromMessage(msg).map((u, urlIdx) => ({
+          url: u,
+          msg,
+          // Unique per (message, position-within-message) so duplicate URLs across
+          // or within messages each get their own filmstrip slot.
+          entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
+        })),
+      )
+      .filter((e) =>
+        canShowImageUrl(e.url, showSafeMedia, showExternalContent, filehost),
+      );
     setImageEntries(entries);
     setImageList(entries.map((e) => e.url));
     // Prefer matching by msgid+url so the correct entry is selected even when
@@ -182,7 +196,15 @@ export function MediaViewerModal({
       ? entries.findIndex((e) => e.msg.msgid === sourceMsgId && e.url === url)
       : entries.findIndex((e) => e.url === url);
     setCurrentIndex(idx);
-  }, [isOpen, serverId, channelId, url, sourceMsgId]);
+  }, [
+    isOpen,
+    serverId,
+    channelId,
+    url,
+    sourceMsgId,
+    showSafeMedia,
+    showExternalContent,
+  ]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -511,12 +533,13 @@ export function MediaViewerModal({
             backgroundImage: `url(${currentUrl})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "blur(40px) brightness(0.15) saturate(1.4)",
+            backgroundColor: "black",
+            filter: "blur(40px) brightness(0.3) saturate(1.4)",
             transform: "scale(1.12)",
           }}
           className="absolute inset-0"
         />
-        <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
+        <div className="absolute inset-0 bg-black/25" aria-hidden="true" />
 
         <div className="absolute inset-0 flex">
           {/* LEFT: image area — hidden on mobile when sidebar is open */}
@@ -685,12 +708,13 @@ export function MediaViewerModal({
                 src={currentUrl}
                 alt="Image preview"
                 draggable={false}
-                className="object-contain select-none pointer-events-auto"
+                className="select-none pointer-events-auto transparency-grid"
                 style={{
                   maxWidth: "calc(100% - 4rem)",
                   maxHeight: "calc(100vh - 10rem)",
                   transformOrigin: "center",
                   cursor,
+                  borderRadius: "4px",
                 }}
                 onMouseDown={handleMouseDown}
                 onClick={handleImageClick}
@@ -761,7 +785,7 @@ export function MediaViewerModal({
                             src={thumbUrl}
                             alt=""
                             draggable={false}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover transparency-grid"
                             onError={() => addFailedUrl(thumbUrl)}
                           />
                           {(() => {

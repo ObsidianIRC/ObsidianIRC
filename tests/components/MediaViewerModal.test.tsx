@@ -21,9 +21,14 @@ vi.mock("../../src/store", () => ({
   getChannelMessages: vi.fn(() => []),
   default: Object.assign(
     vi.fn((selector: (state: unknown) => unknown) =>
-      typeof selector === "function" ? selector({ messages: {} }) : null,
+      typeof selector === "function"
+        ? selector({
+            messages: {},
+            globalSettings: { showSafeMedia: true, showExternalContent: true },
+          })
+        : null,
     ),
-    { getState: vi.fn(() => ({ messages: {} })) },
+    { getState: vi.fn(() => ({ messages: {}, servers: [] })) },
   ),
 }));
 

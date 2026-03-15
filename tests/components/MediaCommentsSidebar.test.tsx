@@ -41,10 +41,11 @@ vi.mock("../../src/store", () => ({
       const state = {
         servers: [{ id: "s1", channels: [mockChannel] }],
         messages: {},
+        globalSettings: { showSafeMedia: true, showExternalContent: true },
       };
       return selector(state);
     }),
-    { getState: vi.fn(() => ({ messages: {} })) },
+    { getState: vi.fn(() => ({ messages: {}, servers: [] })) },
   ),
 }));
 

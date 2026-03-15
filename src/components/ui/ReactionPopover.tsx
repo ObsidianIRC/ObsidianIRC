@@ -37,7 +37,13 @@ function computeStyle(
 
   const left =
     placement === "left"
-      ? Math.max(MARGIN, (containerLeft ?? anchorRect.left) - PICKER_W - GAP)
+      ? Math.max(
+          MARGIN,
+          Math.min(
+            (containerLeft ?? anchorRect.left) - PICKER_W / 2,
+            vw - PICKER_W - MARGIN,
+          ),
+        )
       : Math.min(Math.max(MARGIN, anchorRect.left), vw - PICKER_W - MARGIN);
 
   return { position: "fixed", top, left, zIndex, width: PICKER_W };
