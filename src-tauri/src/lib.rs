@@ -122,9 +122,15 @@ fn write_bytes_to_content_uri(bytes: &[u8], uri_str: &str) -> Result<(), String>
         .l()
         .map_err(|e| e.to_string())?;
 
+    if stream.is_null() {
+        return Err("openOutputStream returned null — URI may be invalid or access denied".to_string());
+    }
+
     let arr = env.byte_array_from_slice(bytes).map_err(|e| e.to_string())?;
     env.call_method(&stream, "write", "([B)V", &[JValue::Object(&*arr)])
         .map_err(|e| e.to_string())?;
+    // Always close, even if write threw — map_err above already returned on write failure,
+    // so reaching here means write succeeded.
     env.call_method(&stream, "close", "()V", &[])
         .map_err(|e| e.to_string())?;
 

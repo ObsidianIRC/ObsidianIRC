@@ -5,6 +5,10 @@
 import Foundation
 import UIKit
 
+enum InvokeError: Error {
+  case invalidPayload(String)
+}
+
 @objc public class Invoke: NSObject {
   public let command: String
   let callback: UInt64
@@ -31,14 +35,24 @@ import UIKit
   }
 
   public func getArgs() throws -> JSObject {
-    let jsonData = self.data.data(using: .utf8)!
-    let data = try JSONSerialization.jsonObject(with: jsonData, options: [])
-    return JSTypes.coerceDictionaryToJSObject(
-      (data as! NSDictionary), formattingDatesAsStrings: true)!
+    guard let jsonData = self.data.data(using: .utf8) else {
+      throw InvokeError.invalidPayload("args string is not valid UTF-8")
+    }
+    let raw = try JSONSerialization.jsonObject(with: jsonData, options: [])
+    guard let dict = raw as? NSDictionary else {
+      throw InvokeError.invalidPayload("args payload is not a JSON object")
+    }
+    guard let result = JSTypes.coerceDictionaryToJSObject(dict, formattingDatesAsStrings: true)
+    else {
+      throw InvokeError.invalidPayload("args object could not be coerced to JSObject")
+    }
+    return result
   }
 
   public func parseArgs<T: Decodable>(_ type: T.Type) throws -> T {
-    let jsonData = self.data.data(using: .utf8)!
+    guard let jsonData = self.data.data(using: .utf8) else {
+      throw InvokeError.invalidPayload("args string is not valid UTF-8")
+    }
     let decoder = JSONDecoder()
     decoder.userInfo[channelDataKey] = sendChannelData
     return try decoder.decode(type, from: jsonData)
@@ -85,7 +99,7 @@ import UIKit
     }
 
     if let error = error {
-      payload["error"] = error
+      payload["error"] = error.localizedDescription
     }
 
     if let data = data {

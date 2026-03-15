@@ -41,14 +41,24 @@ export function ImageLightboxModal({
   serverId,
   channelId,
 }: ImageLightboxModalProps) {
+  // zoom drives the slider/buttons UI; the actual image transform is applied
+  // directly via imgRef to avoid React re-renders on every gesture event.
   const [zoom, setZoom] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [imageList, setImageList] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isDownloading, setIsDownloading] = useState(false);
   const [savedMessage, setSavedMessage] = useState("");
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(new Set());
+
+  // Sources of truth for transform — written directly by gesture handlers,
+  // never derived from React state, so renders can't fight them.
+  const zoomRef = useRef(1);
+  const translateRef = useRef({ x: 0, y: 0 });
+
+  const imgRef = useRef<HTMLImageElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     startMouseX: number;
     startMouseY: number;
@@ -57,12 +67,7 @@ export function ImageLightboxModal({
   } | null>(null);
   // Prevents the mouseup click event from firing the zoom toggle after a drag gesture
   const hasDraggedRef = useRef(false);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const lastPinchDistRef = useRef<number | null>(null);
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-  const translateRef = useRef(translate);
-  translateRef.current = translate;
   const currentIndexRef = useRef(currentIndex);
   currentIndexRef.current = currentIndex;
   const imageListRef = useRef(imageList);
@@ -75,15 +80,36 @@ export function ImageLightboxModal({
   } | null>(null);
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const filmstripScrollRef = useRef<HTMLDivElement>(null);
+  const filmstripPillRef = useRef<HTMLDivElement>(null);
+  const prevValidIndexRef = useRef<number | undefined>(undefined);
+  const nextValidIndexRef = useRef<number | undefined>(undefined);
+  // Debounce timer: slider state update is deferred during high-frequency gestures
+  const sliderDebounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const currentUrl = currentIndex >= 0 ? imageList[currentIndex] : url;
 
+  // Apply transform directly to the DOM element — zero React re-renders during gestures.
+  const applyTransform = useCallback((z: number, tx: number, ty: number) => {
+    zoomRef.current = z;
+    translateRef.current = { x: tx, y: ty };
+    if (imgRef.current) {
+      imgRef.current.style.transform = `translate(${tx}px, ${ty}px) scale(${z})`;
+    }
+  }, []);
+
+  // Schedule a slider state update, coalescing rapid gesture events.
+  const scheduleSliderUpdate = useCallback((z: number) => {
+    clearTimeout(sliderDebounceRef.current);
+    sliderDebounceRef.current = setTimeout(() => setZoom(z), 80);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
+      applyTransform(1, 0, 0);
       setZoom(1);
-      setTranslate({ x: 0, y: 0 });
+      setFailedUrls(new Set());
     }
-  }, [isOpen]);
+  }, [isOpen, applyTransform]);
 
   // Build navigation index when lightbox opens
   useEffect(() => {
@@ -95,10 +121,21 @@ export function ImageLightboxModal({
     setCurrentIndex(idx);
   }, [isOpen, serverId, channelId, url]);
 
-  const goTo = useCallback((index: number) => {
-    setCurrentIndex(index);
-    setZoom(1);
-    setTranslate({ x: 0, y: 0 });
+  const goTo = useCallback(
+    (index: number) => {
+      setCurrentIndex(index);
+      setZoom(1);
+      applyTransform(1, 0, 0);
+    },
+    [applyTransform],
+  );
+
+  const addFailedUrl = useCallback((u: string) => {
+    setFailedUrls((prev) => {
+      const next = new Set(prev);
+      next.add(u);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -109,57 +146,63 @@ export function ImageLightboxModal({
     });
   }, [currentIndex]);
 
-  // Convert vertical wheel to horizontal scroll on the filmstrip (desktop)
+  // Convert wheel to horizontal scroll over the whole filmstrip pill (desktop).
+  // Depends on imageList.length so it re-attaches once the filmstrip is rendered.
+  // Listener on the pill so prev/next buttons also intercept, not just the scroll div.
   useEffect(() => {
-    const el = filmstripScrollRef.current;
+    const el = filmstripPillRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      el.scrollLeft += e.deltaY || e.deltaX;
+      if (filmstripScrollRef.current) {
+        filmstripScrollRef.current.scrollLeft += e.deltaX + e.deltaY;
+      }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: goTo only calls stable setState functions, not a hook dependency
+  // biome-ignore lint/correctness/useExhaustiveDependencies: goTo only calls stable functions, not a hook dependency
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // Let the warning modal handle its own Escape; don't close the lightbox behind it
+        if (showWarning) return;
         e.preventDefault();
         onClose();
-      } else if (e.key === "ArrowLeft" && currentIndex > 0) {
-        goTo(currentIndex - 1);
-      } else if (
-        e.key === "ArrowRight" &&
-        currentIndex < imageList.length - 1
-      ) {
-        goTo(currentIndex + 1);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        // Don't steal arrow keys from the zoom range input
+        if ((e.target as Element).closest?.("input[type='range']")) return;
+        if (e.key === "ArrowLeft" && prevValidIndexRef.current !== undefined)
+          goTo(prevValidIndexRef.current);
+        if (e.key === "ArrowRight" && nextValidIndexRef.current !== undefined)
+          goTo(nextValidIndexRef.current);
       }
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose, currentIndex, imageList.length]);
+  }, [isOpen, onClose, showWarning, currentIndex, imageList.length]);
 
-  // Wheel zoom (non-passive)
+  // Wheel zoom — applies transform directly, debounces slider state update
   useEffect(() => {
     const el = overlayRef.current;
     if (!el || !isOpen) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-      setZoom((prev) => {
-        const next = clampZoom(prev + delta);
-        if (next <= 1) setTranslate({ x: 0, y: 0 });
-        return next;
-      });
+      const next = clampZoom(zoomRef.current + delta);
+      const tx = next <= 1 ? 0 : translateRef.current.x;
+      const ty = next <= 1 ? 0 : translateRef.current.y;
+      applyTransform(next, tx, ty);
+      scheduleSliderUpdate(next);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [isOpen]);
+  }, [isOpen, applyTransform, scheduleSliderUpdate]);
 
-  // Pinch-to-zoom (non-passive touch)
+  // Pinch-to-zoom and swipe (non-passive touch)
   useEffect(() => {
     const el = overlayRef.current;
     if (!el || !isOpen) return;
@@ -190,16 +233,17 @@ export function ImageLightboxModal({
         };
       }
     };
+
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
         e.preventDefault();
         const dist = pinchDist(e.touches);
         const ratio = dist / lastPinchDistRef.current;
-        setZoom((prev) => {
-          const next = clampZoom(prev * ratio);
-          if (next <= 1) setTranslate({ x: 0, y: 0 });
-          return next;
-        });
+        const next = clampZoom(zoomRef.current * ratio);
+        const tx = next <= 1 ? 0 : translateRef.current.x;
+        const ty = next <= 1 ? 0 : translateRef.current.y;
+        applyTransform(next, tx, ty);
+        scheduleSliderUpdate(next);
         lastPinchDistRef.current = dist;
       } else if (e.touches.length === 1 && singleTouchRef.current !== null) {
         const dx = e.touches[0].clientX - singleTouchRef.current.startX;
@@ -207,13 +251,15 @@ export function ImageLightboxModal({
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDraggedRef.current = true;
         if (zoomRef.current > 1) {
           e.preventDefault();
-          setTranslate({
-            x: singleTouchRef.current.startTransX + dx,
-            y: singleTouchRef.current.startTransY + dy,
-          });
+          applyTransform(
+            zoomRef.current,
+            singleTouchRef.current.startTransX + dx,
+            singleTouchRef.current.startTransY + dy,
+          );
         }
       }
     };
+
     const onTouchEnd = (e: TouchEvent) => {
       lastPinchDistRef.current = null;
       if (singleTouchRef.current !== null && zoomRef.current <= 1) {
@@ -221,13 +267,10 @@ export function ImageLightboxModal({
           (e.changedTouches[0]?.clientX ?? 0) - singleTouchRef.current.startX;
         const SWIPE_THRESHOLD = 60;
         if (Math.abs(dx) > SWIPE_THRESHOLD && hasDraggedRef.current) {
-          if (dx > 0 && currentIndexRef.current > 0) {
-            goTo(currentIndexRef.current - 1);
-          } else if (
-            dx < 0 &&
-            currentIndexRef.current < imageListRef.current.length - 1
-          ) {
-            goTo(currentIndexRef.current + 1);
+          if (dx > 0 && prevValidIndexRef.current !== undefined) {
+            goTo(prevValidIndexRef.current);
+          } else if (dx < 0 && nextValidIndexRef.current !== undefined) {
+            goTo(nextValidIndexRef.current);
           }
         }
       }
@@ -242,16 +285,22 @@ export function ImageLightboxModal({
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
     };
-  }, [isOpen, goTo]);
+  }, [isOpen, goTo, applyTransform, scheduleSliderUpdate]);
 
-  const changeZoom = (newZoom: number) => {
-    const clamped = clampZoom(newZoom);
-    setZoom(clamped);
-    if (clamped <= 1) setTranslate({ x: 0, y: 0 });
-  };
+  // changeZoom: called by slider, +/- buttons — explicit user action, update immediately
+  const changeZoom = useCallback(
+    (newZoom: number) => {
+      const clamped = clampZoom(newZoom);
+      const tx = clamped <= 1 ? 0 : translateRef.current.x;
+      const ty = clamped <= 1 ? 0 : translateRef.current.y;
+      applyTransform(clamped, tx, ty);
+      setZoom(clamped);
+    },
+    [applyTransform],
+  );
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom <= 1) return;
+    if (zoomRef.current <= 1) return;
     e.preventDefault();
     e.stopPropagation();
     hasDraggedRef.current = false;
@@ -259,8 +308,8 @@ export function ImageLightboxModal({
     dragRef.current = {
       startMouseX: e.clientX,
       startMouseY: e.clientY,
-      startTransX: translate.x,
-      startTransY: translate.y,
+      startTransX: translateRef.current.x,
+      startTransY: translateRef.current.y,
     };
   };
 
@@ -268,13 +317,12 @@ export function ImageLightboxModal({
     if (!dragRef.current) return;
     const dx = e.clientX - dragRef.current.startMouseX;
     const dy = e.clientY - dragRef.current.startMouseY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      hasDraggedRef.current = true;
-    }
-    setTranslate({
-      x: dragRef.current.startTransX + dx,
-      y: dragRef.current.startTransY + dy,
-    });
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDraggedRef.current = true;
+    applyTransform(
+      zoomRef.current,
+      dragRef.current.startTransX + dx,
+      dragRef.current.startTransY + dy,
+    );
   };
 
   const stopDrag = () => {
@@ -288,7 +336,15 @@ export function ImageLightboxModal({
       hasDraggedRef.current = false;
       return;
     }
-    changeZoom(zoom === 1 ? 2 : 1);
+    // Briefly enable CSS transition for the animated click-to-zoom, then remove it
+    // so it doesn't interfere with drag/wheel/pinch.
+    if (imgRef.current) {
+      imgRef.current.style.transition = "transform 0.15s ease";
+      setTimeout(() => {
+        if (imgRef.current) imgRef.current.style.transition = "";
+      }, 160);
+    }
+    changeZoom(zoomRef.current === 1 ? 2 : 1);
   };
 
   const handleConfirmOpen = async () => {
@@ -314,8 +370,27 @@ export function ImageLightboxModal({
 
   if (!isOpen) return null;
 
-  const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex >= 0 && currentIndex < imageList.length - 1;
+  // Walk outward from currentIndex to find nearest non-failed neighbours
+  let prevValidIndex: number | undefined;
+  for (let i = currentIndex - 1; i >= 0; i--) {
+    if (!failedUrls.has(imageList[i])) {
+      prevValidIndex = i;
+      break;
+    }
+  }
+  let nextValidIndex: number | undefined;
+  for (let i = currentIndex + 1; i < imageList.length; i++) {
+    if (!failedUrls.has(imageList[i])) {
+      nextValidIndex = i;
+      break;
+    }
+  }
+  // Keep refs in sync so touch/swipe handlers can read them without re-registering
+  prevValidIndexRef.current = prevValidIndex;
+  nextValidIndexRef.current = nextValidIndex;
+
+  const hasPrev = prevValidIndex !== undefined;
+  const hasNext = nextValidIndex !== undefined;
   const cursor = isDragging ? "grabbing" : zoom > 1 ? "zoom-out" : "zoom-in";
   const portalTarget = document.getElementById("root") ?? document.body;
 
@@ -344,7 +419,7 @@ export function ImageLightboxModal({
         <div
           aria-hidden="true"
           style={{
-            backgroundImage: `url(${url})`,
+            backgroundImage: `url(${currentUrl})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             filter: "blur(40px) brightness(0.15) saturate(1.4)",
@@ -472,16 +547,14 @@ export function ImageLightboxModal({
           }}
         >
           <img
+            ref={imgRef}
             src={currentUrl}
             alt="Image preview"
             draggable={false}
-            className={`object-contain select-none pointer-events-auto ${
-              isDragging ? "" : "transition-transform duration-150"
-            }`}
+            className="object-contain select-none pointer-events-auto"
             style={{
               maxWidth: "calc(100vw - 4rem)",
               maxHeight: "calc(100vh - 10rem)",
-              transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoom})`,
               transformOrigin: "center",
               cursor,
             }}
@@ -503,6 +576,7 @@ export function ImageLightboxModal({
             onTouchEnd={(e) => e.stopPropagation()}
           >
             <div
+              ref={filmstripPillRef}
               className="pointer-events-auto flex items-center gap-1 bg-black/60 backdrop-blur-xl rounded-2xl px-2 py-2 shadow-2xl"
               style={{ maxWidth: "min(24rem, calc(100vw - 2rem))" }}
               onClick={(e) => e.stopPropagation()}
@@ -511,7 +585,9 @@ export function ImageLightboxModal({
               <button
                 type="button"
                 aria-label="Previous image"
-                onClick={() => goTo(currentIndex - 1)}
+                onClick={() =>
+                  prevValidIndex !== undefined && goTo(prevValidIndex)
+                }
                 disabled={!hasPrev}
                 className="w-8 h-8 flex items-center justify-center rounded-full text-white/60
                            hover:text-white hover:bg-white/10 transition-all
@@ -524,44 +600,46 @@ export function ImageLightboxModal({
               <div
                 ref={filmstripScrollRef}
                 className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto px-1 py-0.5"
-                style={{
-                  scrollbarWidth: "none",
-                  scrollSnapType: "x mandatory",
-                }}
+                style={{ scrollbarWidth: "none" }}
               >
-                {imageList.map((thumbUrl, thumbIndex) => (
-                  <button
-                    key={thumbUrl}
-                    ref={(el) => {
-                      thumbRefs.current[thumbIndex] = el;
-                    }}
-                    type="button"
-                    aria-label={`Image ${thumbIndex + 1} of ${imageList.length}`}
-                    aria-current={
-                      thumbIndex === currentIndex ? "true" : undefined
-                    }
-                    onClick={() => goTo(thumbIndex)}
-                    style={{ scrollSnapAlign: "center" }}
-                    className={`rounded-lg overflow-hidden flex-shrink-0 transition-all duration-150 ${
-                      thumbIndex === currentIndex
-                        ? "w-14 h-14 ring-2 ring-white ring-offset-1 ring-offset-transparent opacity-100"
-                        : "w-11 h-11 opacity-50 hover:opacity-80"
-                    }`}
-                  >
-                    <img
-                      src={thumbUrl}
-                      alt=""
-                      draggable={false}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
+                {imageList.map((thumbUrl, thumbIndex) => {
+                  if (failedUrls.has(thumbUrl)) return null;
+                  return (
+                    <button
+                      key={thumbUrl}
+                      ref={(el) => {
+                        thumbRefs.current[thumbIndex] = el;
+                      }}
+                      type="button"
+                      aria-label={`Image ${thumbIndex + 1} of ${imageList.length}`}
+                      aria-current={
+                        thumbIndex === currentIndex ? "true" : undefined
+                      }
+                      onClick={() => goTo(thumbIndex)}
+                      className={`rounded-lg overflow-hidden flex-shrink-0 transition-opacity duration-150 ${
+                        thumbIndex === currentIndex
+                          ? "w-14 h-14 ring-2 ring-white ring-offset-1 ring-offset-transparent opacity-100"
+                          : "w-11 h-11 opacity-50 hover:opacity-80"
+                      }`}
+                    >
+                      <img
+                        src={thumbUrl}
+                        alt=""
+                        draggable={false}
+                        className="w-full h-full object-cover"
+                        onError={() => addFailedUrl(thumbUrl)}
+                      />
+                    </button>
+                  );
+                })}
               </div>
 
               <button
                 type="button"
                 aria-label="Next image"
-                onClick={() => goTo(currentIndex + 1)}
+                onClick={() =>
+                  nextValidIndex !== undefined && goTo(nextValidIndex)
+                }
                 disabled={!hasNext}
                 className="w-8 h-8 flex items-center justify-center rounded-full text-white/60
                            hover:text-white hover:bg-white/10 transition-all
