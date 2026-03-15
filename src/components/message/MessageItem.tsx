@@ -12,8 +12,8 @@ import {
 import { stripIrcFormatting } from "../../lib/messageFormatter";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
-import { ImageLightboxModal } from "../ui/ImageLightboxModal";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
+import { MediaViewerModal } from "../ui/MediaViewerModal";
 import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
 import { InviteMessage } from "./InviteMessage";
 import {
@@ -303,7 +303,7 @@ const ImageWithFallback: React.FC<{
 
   return (
     <>
-      <ImageLightboxModal
+      <MediaViewerModal
         isOpen={lightboxOpen}
         url={displayUrl}
         onClose={() => setLightboxOpen(false)}

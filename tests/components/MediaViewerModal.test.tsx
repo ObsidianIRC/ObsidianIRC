@@ -2,10 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   clampZoom,
-  ImageLightboxModal,
+  MediaViewerModal,
   ZOOM_MAX,
   ZOOM_MIN,
-} from "../../src/components/ui/ImageLightboxModal";
+} from "../../src/components/ui/MediaViewerModal";
 import * as platformUtils from "../../src/lib/platformUtils";
 import * as store from "../../src/store";
 
@@ -20,9 +20,16 @@ vi.mock("../../src/lib/platformUtils", () => ({
 vi.mock("../../src/store", () => ({
   getChannelMessages: vi.fn(() => []),
   default: Object.assign(
-    vi.fn(() => null),
+    vi.fn((selector: (state: unknown) => unknown) =>
+      typeof selector === "function" ? selector({ messages: {} }) : null,
+    ),
     { getState: vi.fn(() => ({ messages: {} })) },
   ),
+}));
+
+vi.mock("../../src/lib/ircClient", () => ({
+  default: { sendRaw: vi.fn() },
+  ircClient: { sendRaw: vi.fn() },
 }));
 
 // ExternalLinkWarningModal → BaseModal → useMediaQuery needs matchMedia
@@ -55,7 +62,7 @@ describe("clampZoom", () => {
   });
 });
 
-describe("ImageLightboxModal", () => {
+describe("MediaViewerModal", () => {
   const defaultProps = {
     isOpen: true,
     url: "https://example.com/image.jpg",
@@ -63,14 +70,14 @@ describe("ImageLightboxModal", () => {
   };
 
   test("renders image with correct src", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     const img = screen.getByRole("img", { name: "Image preview" });
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", defaultProps.url);
   });
 
   test("has zoom in and zoom out buttons", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     expect(screen.getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Zoom out" }),
@@ -78,7 +85,7 @@ describe("ImageLightboxModal", () => {
   });
 
   test("zoom in button increases slider value", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     const slider = screen.getByRole("slider", { name: "Zoom level" });
     expect(slider).toHaveValue("1");
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
@@ -86,7 +93,7 @@ describe("ImageLightboxModal", () => {
   });
 
   test("zoom out button decreases slider value", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     const slider = screen.getByRole("slider", { name: "Zoom level" });
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
     fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
@@ -94,7 +101,7 @@ describe("ImageLightboxModal", () => {
   });
 
   test("clicking image toggles between 1x and 2x zoom", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     const img = screen.getByRole("img", { name: "Image preview" });
     fireEvent.click(img);
     expect((img as HTMLImageElement).style.transform).toBe(
@@ -107,7 +114,7 @@ describe("ImageLightboxModal", () => {
   });
 
   test("dragging when zoomed pans the image", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     const img = screen.getByRole("img", { name: "Image preview" });
     const dialog = screen.getByRole("dialog");
 
@@ -124,7 +131,7 @@ describe("ImageLightboxModal", () => {
   });
 
   test("drag does not toggle zoom", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     const img = screen.getByRole("img", { name: "Image preview" });
     const dialog = screen.getByRole("dialog");
     const slider = screen.getByRole("slider", { name: "Zoom level" });
@@ -142,20 +149,20 @@ describe("ImageLightboxModal", () => {
   });
 
   test("shows ExternalLinkWarningModal when Open button clicked", () => {
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     fireEvent.click(screen.getByRole("button", { name: /open in browser/i }));
     expect(screen.getByText("External Link Warning")).toBeInTheDocument();
   });
 
   test("calls onClose when ESC pressed", () => {
     const onClose = vi.fn();
-    render(<ImageLightboxModal {...defaultProps} onClose={onClose} />);
+    render(<MediaViewerModal {...defaultProps} onClose={onClose} />);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
 
   test("does not render when closed", () => {
-    render(<ImageLightboxModal {...defaultProps} isOpen={false} />);
+    render(<MediaViewerModal {...defaultProps} isOpen={false} />);
     expect(
       screen.queryByRole("img", { name: "Image preview" }),
     ).not.toBeInTheDocument();
@@ -163,7 +170,7 @@ describe("ImageLightboxModal", () => {
 
   test("download button hidden in browser (non-Tauri)", () => {
     // isTauri() returns false (mocked above)
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     expect(
       screen.queryByRole("button", { name: /download image/i }),
     ).not.toBeInTheDocument();
@@ -174,7 +181,7 @@ describe("ImageLightboxModal", () => {
     const mockInvoke = vi.fn().mockResolvedValue("Saved to Downloads");
     vi.doMock("@tauri-apps/api/core", () => ({ invoke: mockInvoke }));
 
-    render(<ImageLightboxModal {...defaultProps} />);
+    render(<MediaViewerModal {...defaultProps} />);
     fireEvent.click(screen.getByRole("button", { name: /download image/i }));
 
     await waitFor(() => {
@@ -184,9 +191,16 @@ describe("ImageLightboxModal", () => {
     });
   });
 
+  test("comments toggle button not shown without serverId/channelId", () => {
+    render(<MediaViewerModal {...defaultProps} />);
+    expect(
+      screen.queryByRole("button", { name: /comments/i }),
+    ).not.toBeInTheDocument();
+  });
+
   describe("navigation", () => {
     test("no navigation arrows when no serverId/channelId provided", () => {
-      render(<ImageLightboxModal {...defaultProps} />);
+      render(<MediaViewerModal {...defaultProps} />);
       expect(
         screen.queryByRole("button", { name: /previous image/i }),
       ).not.toBeInTheDocument();
@@ -222,7 +236,7 @@ describe("ImageLightboxModal", () => {
       ] as unknown as ReturnType<typeof store.getChannelMessages>);
 
       render(
-        <ImageLightboxModal
+        <MediaViewerModal
           {...defaultProps}
           url="https://example.com/image.jpg"
           serverId="s1"
@@ -264,7 +278,7 @@ describe("ImageLightboxModal", () => {
       ] as unknown as ReturnType<typeof store.getChannelMessages>);
 
       render(
-        <ImageLightboxModal
+        <MediaViewerModal
           {...defaultProps}
           url="https://example.com/image.jpg"
           serverId="s1"
