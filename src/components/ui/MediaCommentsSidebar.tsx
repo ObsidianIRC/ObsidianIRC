@@ -58,6 +58,7 @@ export function MediaCommentsSidebar({
   const [reactionAnchorRect, setReactionAnchorRect] = useState<DOMRect | null>(
     null,
   );
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Cache line-height + padding after first read — same pattern as ChatArea
@@ -202,6 +203,7 @@ export function MediaCommentsSidebar({
 
   return (
     <div
+      ref={sidebarRef}
       data-comments-sidebar=""
       className={`flex flex-col bg-discord-dark-200 border-l border-white/[0.06] ${
         isMobile ? "w-full h-full" : "w-80 flex-shrink-0"
@@ -441,6 +443,7 @@ export function MediaCommentsSidebar({
           isOpen={reactionModal.isOpen}
           anchorRect={reactionAnchorRect}
           placement="left"
+          containerLeft={sidebarRef.current?.getBoundingClientRect().left}
           onClose={() => {
             closeReactionModal();
             setReactionAnchorRect(null);

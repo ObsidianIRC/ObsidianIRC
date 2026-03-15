@@ -296,4 +296,188 @@ describe("MediaViewerModal", () => {
       expect(img).toHaveAttribute("src", "https://example.com/image.jpg");
     });
   });
+
+  describe("duplicate URL handling", () => {
+    // Two different messages that both contain the same image URL.
+    const duplicateMessages = [
+      {
+        id: "msg-a",
+        msgid: "msgid-a",
+        content: "https://example.com/same.jpg",
+        serverId: "s1",
+        channelId: "c1",
+        type: "message",
+        timestamp: new Date(),
+        userId: "user1",
+        reactions: [],
+      },
+      {
+        id: "msg-b",
+        msgid: "msgid-b",
+        content: "https://example.com/same.jpg",
+        serverId: "s1",
+        channelId: "c1",
+        type: "message",
+        timestamp: new Date(),
+        userId: "user2",
+        reactions: [],
+      },
+    ] as unknown as ReturnType<typeof store.getChannelMessages>;
+
+    test("opening the second duplicate selects the second filmstrip entry", () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue(duplicateMessages);
+
+      render(
+        <MediaViewerModal
+          isOpen={true}
+          url="https://example.com/same.jpg"
+          sourceMsgId="msgid-b"
+          onClose={vi.fn()}
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      // The filmstrip should show two thumbnails (same URL, two separate entries).
+      const thumbs = screen.getAllByRole("button", { name: /image \d+ of 2/i });
+      expect(thumbs).toHaveLength(2);
+
+      // The SECOND thumbnail must be the active one (aria-current="true").
+      expect(thumbs[0]).not.toHaveAttribute("aria-current", "true");
+      expect(thumbs[1]).toHaveAttribute("aria-current", "true");
+    });
+
+    test("opening the first duplicate selects the first filmstrip entry", () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue(duplicateMessages);
+
+      render(
+        <MediaViewerModal
+          isOpen={true}
+          url="https://example.com/same.jpg"
+          sourceMsgId="msgid-a"
+          onClose={vi.fn()}
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      const thumbs = screen.getAllByRole("button", { name: /image \d+ of 2/i });
+      expect(thumbs[0]).toHaveAttribute("aria-current", "true");
+      expect(thumbs[1]).not.toHaveAttribute("aria-current", "true");
+    });
+
+    test("arrow navigation moves one entry at a time through duplicates", () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue(duplicateMessages);
+
+      render(
+        <MediaViewerModal
+          isOpen={true}
+          url="https://example.com/same.jpg"
+          sourceMsgId="msgid-a"
+          onClose={vi.fn()}
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      const thumbs = screen.getAllByRole("button", { name: /image \d+ of 2/i });
+      // Start at entry 0.
+      expect(thumbs[0]).toHaveAttribute("aria-current", "true");
+
+      // ArrowRight should advance to entry 1 (second duplicate).
+      fireEvent.keyDown(document, { key: "ArrowRight" });
+      expect(thumbs[1]).toHaveAttribute("aria-current", "true");
+      expect(thumbs[0]).not.toHaveAttribute("aria-current", "true");
+
+      // ArrowLeft should go back to entry 0.
+      fireEvent.keyDown(document, { key: "ArrowLeft" });
+      expect(thumbs[0]).toHaveAttribute("aria-current", "true");
+    });
+
+    test("message with multiple images creates one entry per image", () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue([
+        {
+          id: "msg-multi",
+          msgid: "msgid-multi",
+          content:
+            "check these out https://example.com/a.jpg and https://example.com/b.png",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user1",
+          reactions: [],
+        },
+      ] as unknown as ReturnType<typeof store.getChannelMessages>);
+
+      render(
+        <MediaViewerModal
+          isOpen={true}
+          url="https://example.com/a.jpg"
+          sourceMsgId="msgid-multi"
+          onClose={vi.fn()}
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      // Both images from the single message appear as separate filmstrip entries.
+      const thumbs = screen.getAllByRole("button", { name: /image \d+ of 2/i });
+      expect(thumbs).toHaveLength(2);
+      expect(thumbs[0]).toHaveAttribute("aria-current", "true");
+
+      // Arrow right navigates to the second image in the same message.
+      const img = screen.getByRole("img", { name: "Image preview" });
+      fireEvent.keyDown(document, { key: "ArrowRight" });
+      expect(img).toHaveAttribute("src", "https://example.com/b.png");
+      expect(thumbs[1]).toHaveAttribute("aria-current", "true");
+    });
+
+    test("same URL in multi-image message and another message are distinct entries", () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue([
+        {
+          id: "msg-1",
+          msgid: "msgid-1",
+          content:
+            "https://example.com/same.jpg and https://example.com/other.png",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user1",
+          reactions: [],
+        },
+        {
+          id: "msg-2",
+          msgid: "msgid-2",
+          content: "https://example.com/same.jpg",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user2",
+          reactions: [],
+        },
+      ] as unknown as ReturnType<typeof store.getChannelMessages>);
+
+      render(
+        <MediaViewerModal
+          isOpen={true}
+          url="https://example.com/same.jpg"
+          sourceMsgId="msgid-2"
+          onClose={vi.fn()}
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      // 3 entries total: same.jpg(msg-1), other.png(msg-1), same.jpg(msg-2)
+      const thumbs = screen.getAllByRole("button", { name: /image \d+ of 3/i });
+      expect(thumbs).toHaveLength(3);
+
+      // sourceMsgId="msgid-2" means the third entry (index 2) is active.
+      expect(thumbs[2]).toHaveAttribute("aria-current", "true");
+      expect(thumbs[0]).not.toHaveAttribute("aria-current", "true");
+    });
+  });
 });

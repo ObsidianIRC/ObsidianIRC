@@ -34,6 +34,9 @@ export function clampZoom(z: number): number {
 interface MediaViewerModalProps {
   isOpen: boolean;
   url: string;
+  /** msgid of the message that was clicked — used to select the correct entry
+   *  when the same URL appears in multiple messages. */
+  sourceMsgId?: string;
   onClose: () => void;
   serverId?: string;
   channelId?: string;
@@ -42,6 +45,7 @@ interface MediaViewerModalProps {
 export function MediaViewerModal({
   isOpen,
   url,
+  sourceMsgId,
   onClose,
   serverId,
   channelId,
@@ -53,7 +57,7 @@ export function MediaViewerModal({
   const [showWarning, setShowWarning] = useState(false);
   const [imageList, setImageList] = useState<string[]>([]);
   const [imageEntries, setImageEntries] = useState<
-    { url: string; msg: Message }[]
+    { url: string; msg: Message; entryKey: string }[]
   >([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -162,13 +166,23 @@ export function MediaViewerModal({
     if (!isOpen || !serverId || !channelId) return;
     const messages = getChannelMessages(serverId, channelId);
     const entries = messages.flatMap((msg) =>
-      extractImageUrlsFromMessage(msg).map((u) => ({ url: u, msg })),
+      extractImageUrlsFromMessage(msg).map((u, urlIdx) => ({
+        url: u,
+        msg,
+        // Unique per (message, position-within-message) so duplicate URLs across
+        // or within messages each get their own filmstrip slot.
+        entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
+      })),
     );
     setImageEntries(entries);
     setImageList(entries.map((e) => e.url));
-    const idx = entries.findIndex((e) => e.url === url);
+    // Prefer matching by msgid+url so the correct entry is selected even when
+    // the same URL appears in several messages.
+    const idx = sourceMsgId
+      ? entries.findIndex((e) => e.msg.msgid === sourceMsgId && e.url === url)
+      : entries.findIndex((e) => e.url === url);
     setCurrentIndex(idx);
-  }, [isOpen, serverId, channelId, url]);
+  }, [isOpen, serverId, channelId, url, sourceMsgId]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -399,12 +413,16 @@ export function MediaViewerModal({
 
   const handleCommentImageClick = useCallback(
     (imgUrl: string) => {
-      let idx = imageList.indexOf(imgUrl);
+      let idx = imageEntries.findIndex((e) => e.url === imgUrl);
       if (idx < 0 && serverId && channelId) {
         // Image might be from a comment posted after modal opened — rebuild index
         const freshEntries = getChannelMessages(serverId, channelId).flatMap(
           (msg) =>
-            extractImageUrlsFromMessage(msg).map((u) => ({ url: u, msg })),
+            extractImageUrlsFromMessage(msg).map((u, urlIdx) => ({
+              url: u,
+              msg,
+              entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
+            })),
         );
         idx = freshEntries.findIndex((e) => e.url === imgUrl);
         if (idx >= 0) {
@@ -414,7 +432,7 @@ export function MediaViewerModal({
       }
       if (idx >= 0) goTo(idx);
     },
-    [imageList, serverId, channelId, goTo],
+    [imageEntries, serverId, channelId, goTo],
   );
 
   const handleConfirmOpen = async () => {
@@ -723,7 +741,7 @@ export function MediaViewerModal({
                       if (failedUrls.has(thumbUrl)) return null;
                       return (
                         <button
-                          key={thumbUrl}
+                          key={imageEntries[thumbIndex]?.entryKey ?? thumbUrl}
                           ref={(el) => {
                             thumbRefs.current[thumbIndex] = el;
                           }}

@@ -13,6 +13,28 @@ interface MessageReplyProps {
   onClose?: () => void;
 }
 
+const IMAGE_URL_RE = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
+
+function extractFirstImageUrl(content: string): string | null {
+  const stripped = stripIrcFormatting(content).trim();
+  const urlRegex = /https?:\/\/[^\s,]+/gi;
+  for (const raw of stripped.match(urlRegex) ?? []) {
+    const url = raw.replace(/[.,!?;:)>\]]+$/, "");
+    if (IMAGE_URL_RE.test(url) || url.includes("/images/")) return url;
+  }
+  return null;
+}
+
+function isImageOnlyMessage(content: string): boolean {
+  const stripped = stripIrcFormatting(content).trim();
+  // Single token means no whitespace — a URL with spaces is not a bare image URL
+  if (/\s/.test(stripped)) return false;
+  return (
+    (IMAGE_URL_RE.test(stripped) || stripped.includes("/images/")) &&
+    (stripped.startsWith("http://") || stripped.startsWith("https://"))
+  );
+}
+
 export const MessageReply: React.FC<MessageReplyProps> = ({
   replyMessage,
   theme,
@@ -30,6 +52,9 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
   const plainContent = stripIrcFormatting(replyMessage.content)
     .replace(/\n+/g, " ")
     .trim();
+
+  const firstImageUrl = extractFirstImageUrl(replyMessage.content);
+  const imageOnly = isImageOnlyMessage(replyMessage.content);
 
   const isClickable = !!onReplyClick && !onClose;
 
@@ -56,12 +81,22 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
             {replyUsername}
           </span>
         </div>
-        <div
-          className={`text-xs text-${theme}-text-muted opacity-80 ${onClose ? "line-clamp-3" : "truncate"}`}
-        >
-          {plainContent}
-        </div>
+        {!imageOnly && (
+          <div
+            className={`text-xs text-${theme}-text-muted opacity-80 ${onClose ? "line-clamp-3" : "truncate"}`}
+          >
+            {plainContent}
+          </div>
+        )}
       </div>
+      {firstImageUrl && (
+        <img
+          src={firstImageUrl}
+          alt=""
+          className="w-10 h-10 rounded object-cover flex-shrink-0 self-center mr-1.5 my-1.5"
+          draggable={false}
+        />
+      )}
       {onClose && (
         <button
           type="button"

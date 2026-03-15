@@ -133,11 +133,19 @@ const FilehostImageBanner: React.FC<{
 // Component to render image with fallback to URL if loading fails
 const ImageWithFallback: React.FC<{
   url: string;
+  msgid?: string;
   isFilehostImage?: boolean;
   serverId?: string;
   channelId?: string;
   onOpenProfile?: (username: string) => void;
-}> = ({ url, isFilehostImage = false, serverId, channelId, onOpenProfile }) => {
+}> = ({
+  url,
+  msgid,
+  isFilehostImage = false,
+  serverId,
+  channelId,
+  onOpenProfile,
+}) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const openMedia = useStore((state) => state.openMedia);
@@ -317,7 +325,7 @@ const ImageWithFallback: React.FC<{
           className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${
             imageLoaded ? "block" : "hidden"
           }`}
-          onClick={() => openMedia(displayUrl, serverId, channelId)}
+          onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageError(true)}
           style={{ maxHeight: "150px" }}
@@ -981,6 +989,7 @@ export const MessageItem = (props: MessageItemProps) => {
                 (isExternalImageUrl && showExternalContent) ? (
                   <ImageWithFallback
                     url={strippedContent}
+                    msgid={message.msgid}
                     isFilehostImage={isImageUrl}
                     serverId={message.serverId}
                     channelId={channelId}
@@ -1006,6 +1015,7 @@ export const MessageItem = (props: MessageItemProps) => {
                 <div>
                   <ImageWithFallback
                     url={embeddedFilehostImages[0]}
+                    msgid={message.msgid}
                     isFilehostImage
                     serverId={message.serverId}
                     channelId={channelId}
@@ -1018,6 +1028,7 @@ export const MessageItem = (props: MessageItemProps) => {
                           <ImageWithFallback
                             key={imgUrl}
                             url={imgUrl}
+                            msgid={message.msgid}
                             isFilehostImage
                             serverId={message.serverId}
                             channelId={channelId}

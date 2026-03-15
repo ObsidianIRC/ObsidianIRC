@@ -10,6 +10,10 @@ interface Props {
   onSelectEmoji: (emoji: string) => void;
   zIndex?: number;
   placement?: "auto" | "left";
+  /** Left edge of the container (in viewport px). When placement="left" the
+   *  picker's right edge is anchored here instead of to anchorRect.left, so the
+   *  picker stays fully outside the container regardless of button indent. */
+  containerLeft?: number;
 }
 
 const PICKER_W = 352;
@@ -21,6 +25,7 @@ function computeStyle(
   anchorRect: DOMRect,
   zIndex = 50,
   placement: "auto" | "left" = "auto",
+  containerLeft?: number,
 ): React.CSSProperties {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -32,7 +37,7 @@ function computeStyle(
 
   const left =
     placement === "left"
-      ? Math.max(MARGIN, anchorRect.left - PICKER_W - GAP)
+      ? Math.max(MARGIN, (containerLeft ?? anchorRect.left) - PICKER_W - GAP)
       : Math.min(Math.max(MARGIN, anchorRect.left), vw - PICKER_W - MARGIN);
 
   return { position: "fixed", top, left, zIndex, width: PICKER_W };
@@ -45,6 +50,7 @@ export function ReactionPopover({
   onSelectEmoji,
   zIndex,
   placement,
+  containerLeft,
 }: Props) {
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -91,7 +97,10 @@ export function ReactionPopover({
   if (!isOpen || !anchorRect) return null;
 
   return createPortal(
-    <div ref={popoverRef} style={computeStyle(anchorRect, zIndex, placement)}>
+    <div
+      ref={popoverRef}
+      style={computeStyle(anchorRect, zIndex, placement, containerLeft)}
+    >
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 overflow-hidden">
         <AppEmojiPicker
           onEmojiClick={(d: EmojiClickData) => onSelectEmoji(d.emoji)}

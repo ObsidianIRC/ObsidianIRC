@@ -418,7 +418,12 @@ interface UIState {
   channelSettingsRequest: { serverId: string; channelId: string } | null;
   inviteUserRequest: { serverId: string; channelId: string } | null;
   // Global media viewer state — kept at root level so resizing never closes it
-  openedMedia: { url: string; serverId?: string; channelId?: string } | null;
+  openedMedia: {
+    url: string;
+    sourceMsgId?: string;
+    serverId?: string;
+    channelId?: string;
+  } | null;
 }
 
 export type { GlobalSettings };
@@ -701,7 +706,12 @@ export interface AppState {
     serverId: string | null,
     channelId: string | null,
   ) => void;
-  openMedia: (url: string, serverId?: string, channelId?: string) => void;
+  openMedia: (
+    url: string,
+    sourceMsgId?: string,
+    serverId?: string,
+    channelId?: string,
+  ) => void;
   closeMedia: () => void;
   toggleNotificationVolume: () => void;
   setIsNarrowView: (isNarrow: boolean) => void;
@@ -2785,9 +2795,12 @@ const useStore = create<AppState>((set, get) => ({
     }));
   },
 
-  openMedia: (url, serverId, channelId) => {
+  openMedia: (url, sourceMsgId, serverId, channelId) => {
     set((state) => ({
-      ui: { ...state.ui, openedMedia: { url, serverId, channelId } },
+      ui: {
+        ...state.ui,
+        openedMedia: { url, sourceMsgId, serverId, channelId },
+      },
     }));
   },
 

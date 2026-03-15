@@ -381,6 +381,7 @@ export const AppLayout: React.FC = () => {
       <MediaViewerModal
         isOpen={!!ui.openedMedia}
         url={ui.openedMedia?.url ?? ""}
+        sourceMsgId={ui.openedMedia?.sourceMsgId}
         onClose={closeMedia}
         serverId={ui.openedMedia?.serverId}
         channelId={ui.openedMedia?.channelId}
