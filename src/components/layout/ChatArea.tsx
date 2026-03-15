@@ -42,6 +42,7 @@ import BlankPage from "../ui/BlankPage";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
+import { EmojiPickerInline } from "../ui/EmojiPickerInline";
 import { EmojiPickerModal } from "../ui/EmojiPickerModal";
 import GifSelector from "../ui/GifSelector";
 import DiscoverGrid from "../ui/HomeScreen";
@@ -1925,12 +1926,14 @@ export const ChatArea: React.FC<{
                 </div>
               )}
 
-              <EmojiPickerModal
-                isOpen={isEmojiSelectorOpen}
-                onEmojiClick={handleEmojiSelect}
-                onClose={() => setIsEmojiSelectorOpen(false)}
-                onBackdropClick={handleEmojiModalBackdropClick}
-              />
+              {isNarrowView && (
+                <EmojiPickerModal
+                  isOpen={isEmojiSelectorOpen}
+                  onEmojiClick={handleEmojiSelect}
+                  onClose={() => setIsEmojiSelectorOpen(false)}
+                  onBackdropClick={handleEmojiModalBackdropClick}
+                />
+              )}
 
               <GifSelector
                 isOpen={isGifSelectorOpen}
@@ -1950,6 +1953,14 @@ export const ChatArea: React.FC<{
                   selectedColor={selectedColor} // Pass the selected color
                   selectedFormatting={selectedFormatting}
                   toggleFormatting={toggleFormatting}
+                />
+              )}
+
+              {!isNarrowView && (
+                <EmojiPickerInline
+                  isOpen={isEmojiSelectorOpen}
+                  onEmojiClick={(e) => setMessageText((prev) => prev + e.emoji)}
+                  onClose={() => setIsEmojiSelectorOpen(false)}
                 />
               )}
 

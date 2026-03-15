@@ -7,12 +7,14 @@ interface ReactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectEmoji: (emoji: string) => void;
+  zIndex?: number;
 }
 
 const ReactionModal: React.FC<ReactionModalProps> = ({
   isOpen,
   onClose,
   onSelectEmoji,
+  zIndex,
 }) => {
   if (!isOpen) return null;
 
@@ -28,7 +30,8 @@ const ReactionModal: React.FC<ReactionModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-container"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal-container"
+      style={{ zIndex: zIndex ?? 50 }}
       onClick={handleBackdropClick}
     >
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">

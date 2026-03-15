@@ -1,15 +1,10 @@
 import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import type { EmojiClickData } from "emoji-picker-react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { FaPlus } from "react-icons/fa";
 import { useShallow } from "zustand/react/shallow";
 import { useMessageSending } from "../../hooks/useMessageSending";
+import { useReactions } from "../../hooks/useReactions";
 import ircClient from "../../lib/ircClient";
 import {
   type FormattingType,
@@ -18,11 +13,14 @@ import {
 } from "../../lib/messageFormatter";
 import useStore from "../../store";
 import type { Message } from "../../types";
-import { MessageAvatar } from "../message/MessageAvatar";
+import { MessageItem } from "../message/MessageItem";
 import AutocompleteDropdown from "./AutocompleteDropdown";
 import ColorPicker from "./ColorPicker";
+import { EmojiPickerInline } from "./EmojiPickerInline";
 import { EmojiPickerModal } from "./EmojiPickerModal";
 import { InputToolbar } from "./InputToolbar";
+import ReactionModal from "./ReactionModal";
+import { ReactionPopover } from "./ReactionPopover";
 import { TextArea } from "./TextInput";
 
 interface MediaCommentsSidebarProps {
@@ -34,32 +32,7 @@ interface MediaCommentsSidebarProps {
   isMobile: boolean;
   onClose: () => void;
   onCloseAll: () => void;
-}
-
-function CommentItem({ message }: { message: Message }) {
-  return (
-    <div className="flex gap-2.5 px-3 py-1.5 rounded-lg hover:bg-white/5">
-      <MessageAvatar
-        userId={message.userId}
-        theme="discord"
-        showHeader={true}
-      />
-      <div className="min-w-0">
-        <span className="text-sm font-medium text-discord-text-normal">
-          {message.userId}
-        </span>
-        <span className="text-xs text-discord-text-muted ml-2">
-          {message.timestamp.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
-        <p className="text-sm text-discord-text-normal/90 break-words leading-snug mt-0.5">
-          {message.content}
-        </p>
-      </div>
-    </div>
-  );
+  onImageClick: (url: string) => void;
 }
 
 export function MediaCommentsSidebar({
@@ -71,6 +44,7 @@ export function MediaCommentsSidebar({
   isMobile,
   onClose,
   onCloseAll,
+  onImageClick,
 }: MediaCommentsSidebarProps) {
   const [commentText, setCommentText] = useState("");
   const [cursorPosition, setCursorPosition] = useState(0);
@@ -81,6 +55,9 @@ export function MediaCommentsSidebar({
   const [selectedFormatting, setSelectedFormatting] = useState<
     FormattingType[]
   >([]);
+  const [reactionAnchorRect, setReactionAnchorRect] = useState<DOMRect | null>(
+    null,
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Cache line-height + padding after first read — same pattern as ChatArea
@@ -102,6 +79,19 @@ export function MediaCommentsSidebar({
 
   const channelName = selectedChannel?.name ?? null;
   const currentUser = ircClient.getCurrentUser(serverId);
+  const redactMessage = useStore((state) => state.redactMessage);
+
+  const {
+    directReaction,
+    unreact,
+    reactionModal,
+    openReactionModal,
+    closeReactionModal,
+    selectReaction,
+  } = useReactions({
+    selectedServerId: serverId,
+    currentUser,
+  });
 
   // useMessageSending handles reply tag, IRC formatting, long-message splitting
   // localReplyTo = sourceMessage means every send gets @+draft/reply=<msgid> prepended
@@ -171,11 +161,6 @@ export function MediaCommentsSidebar({
     textareaRef.current?.focus();
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll only when count changes, not on full comments reference
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [comments.length]);
-
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -217,12 +202,10 @@ export function MediaCommentsSidebar({
 
   return (
     <div
+      data-comments-sidebar=""
       className={`flex flex-col bg-discord-dark-200 border-l border-white/[0.06] ${
         isMobile ? "w-full h-full" : "w-80 flex-shrink-0"
       }`}
-      // Prevent image gestures from firing through the sidebar
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-white/[0.06] flex-shrink-0">
@@ -303,15 +286,49 @@ export function MediaCommentsSidebar({
         </div>
       </div>
 
-      {/* Comments list */}
-      <div className="flex-1 overflow-y-auto py-2 min-h-0">
+      {/* Comments list — event delegation catches img clicks from MessageItem */}
+      <div
+        className="flex-1 overflow-y-auto py-2 min-h-0"
+        onClick={(e) => {
+          const img = (e.target as Element).closest("img");
+          if (img) {
+            const src = img.getAttribute("src");
+            if (src) onImageClick(src);
+          }
+        }}
+      >
         {comments.length === 0 ? (
           <p className="text-center text-xs text-discord-text-muted px-4 py-6">
             No comments yet. Be the first!
           </p>
         ) : (
           comments.map((comment) => (
-            <CommentItem key={comment.id} message={comment} />
+            <MessageItem
+              key={comment.id}
+              message={{ ...comment, replyMessage: null }}
+              showDate={false}
+              showHeader={true}
+              hideReply={true}
+              setReplyTo={() => {}}
+              onUsernameContextMenu={() => {}}
+              onReactClick={(msg, el) => {
+                setReactionAnchorRect(el.getBoundingClientRect());
+                openReactionModal(msg);
+              }}
+              onReactionUnreact={unreact}
+              onOpenReactionModal={(msg, _pos) => openReactionModal(msg)}
+              onDirectReaction={directReaction}
+              onRedactMessage={(msg) => {
+                if (!msg.msgid || !channelName) return;
+                if (
+                  window.confirm("Delete this message? This cannot be undone.")
+                ) {
+                  redactMessage(serverId, channelName, msg.msgid);
+                }
+              }}
+              serverId={serverId}
+              channelId={channelId}
+            />
           ))
         )}
         <div ref={bottomRef} />
@@ -380,6 +397,13 @@ export function MediaCommentsSidebar({
             toggleFormatting={toggleFormatting}
           />
         )}
+        {!isMobile && (
+          <EmojiPickerInline
+            isOpen={isEmojiSelectorOpen}
+            onEmojiClick={(e) => setCommentText((prev) => prev + e.emoji)}
+            onClose={() => setIsEmojiSelectorOpen(false)}
+          />
+        )}
         <AutocompleteDropdown
           users={selectedChannel?.users ?? []}
           isVisible={showMentionDropdown}
@@ -393,15 +417,38 @@ export function MediaCommentsSidebar({
         />
       </div>
 
-      <EmojiPickerModal
-        isOpen={isEmojiSelectorOpen}
-        onEmojiClick={handleEmojiSelect}
-        onClose={() => setIsEmojiSelectorOpen(false)}
-        onBackdropClick={(e) => {
-          if (e.target === e.currentTarget) setIsEmojiSelectorOpen(false);
-        }}
-        zIndex={9999}
-      />
+      {isMobile && (
+        <EmojiPickerModal
+          isOpen={isEmojiSelectorOpen}
+          onEmojiClick={handleEmojiSelect}
+          onClose={() => setIsEmojiSelectorOpen(false)}
+          onBackdropClick={(e) => {
+            if (e.target === e.currentTarget) setIsEmojiSelectorOpen(false);
+          }}
+          zIndex={9999}
+        />
+      )}
+
+      {isMobile ? (
+        <ReactionModal
+          isOpen={reactionModal.isOpen}
+          onClose={closeReactionModal}
+          onSelectEmoji={selectReaction}
+          zIndex={10000}
+        />
+      ) : (
+        <ReactionPopover
+          isOpen={reactionModal.isOpen}
+          anchorRect={reactionAnchorRect}
+          placement="left"
+          onClose={() => {
+            closeReactionModal();
+            setReactionAnchorRect(null);
+          }}
+          onSelectEmoji={selectReaction}
+          zIndex={10000}
+        />
+      )}
     </div>
   );
 }

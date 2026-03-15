@@ -3,4 +3,5 @@ export const defaultUIExtensions = {
   isUserProfileModalOpen: false,
   channelSettingsRequest: null,
   inviteUserRequest: null,
+  openedMedia: null,
 };

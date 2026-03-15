@@ -17,6 +17,17 @@ vi.mock("../../src/hooks/useMessageSending", () => ({
   useMessageSending: vi.fn(() => ({ sendMessage: vi.fn() })),
 }));
 
+vi.mock("../../src/hooks/useReactions", () => ({
+  useReactions: vi.fn(() => ({
+    directReaction: vi.fn(),
+    unreact: vi.fn(),
+    reactionModal: { isOpen: false, message: null },
+    openReactionModal: vi.fn(),
+    closeReactionModal: vi.fn(),
+    selectReaction: vi.fn(),
+  })),
+}));
+
 const mockChannel = {
   id: "c1",
   name: "#test",
@@ -72,6 +83,7 @@ const defaultProps = {
   isMobile: false,
   onClose: vi.fn(),
   onCloseAll: vi.fn(),
+  onImageClick: vi.fn(),
 };
 
 // --- Tests ---

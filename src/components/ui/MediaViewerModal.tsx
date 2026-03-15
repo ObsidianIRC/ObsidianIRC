@@ -91,7 +91,15 @@ export function MediaViewerModal({
   } | null>(null);
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const filmstripScrollRef = useRef<HTMLDivElement>(null);
-  const filmstripPillRef = useRef<HTMLDivElement>(null);
+  // useState + callback ref: effect re-runs when the filmstrip pill mounts/unmounts
+  // (useRef + [] never re-ran after AppLayout moved the modal to always-mounted)
+  const [filmstripPillEl, setFilmstripPillEl] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const filmstripPillRef = useCallback(
+    (el: HTMLDivElement | null) => setFilmstripPillEl(el),
+    [],
+  );
   const prevValidIndexRef = useRef<number | undefined>(undefined);
   const nextValidIndexRef = useRef<number | undefined>(undefined);
   // Debounce timer: slider state update is deferred during high-frequency gestures
@@ -188,11 +196,10 @@ export function MediaViewerModal({
   }, [currentIndex]);
 
   // Convert wheel to horizontal scroll over the whole filmstrip pill (desktop).
-  // Depends on imageList.length so it re-attaches once the filmstrip is rendered.
-  // Listener on the pill so prev/next buttons also intercept, not just the scroll div.
+  // filmstripPillEl comes from a callback ref so this effect runs exactly when the
+  // element mounts (filmstrip is conditional on imageList.length > 1).
   useEffect(() => {
-    const el = filmstripPillRef.current;
-    if (!el) return;
+    if (!filmstripPillEl) return;
     const onWheel = (e: WheelEvent) => {
       e.stopPropagation();
       e.preventDefault();
@@ -200,9 +207,9 @@ export function MediaViewerModal({
         filmstripScrollRef.current.scrollLeft += e.deltaX + e.deltaY;
       }
     };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
+    filmstripPillEl.addEventListener("wheel", onWheel, { passive: false });
+    return () => filmstripPillEl.removeEventListener("wheel", onWheel);
+  }, [filmstripPillEl]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: goTo only calls stable functions, not a hook dependency
   useEffect(() => {
@@ -342,6 +349,8 @@ export function MediaViewerModal({
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (zoomRef.current <= 1) return;
+    // Don't start drag when clicking inside the comments sidebar
+    if ((e.target as Element).closest?.("[data-comments-sidebar]")) return;
     e.preventDefault();
     e.stopPropagation();
     hasDraggedRef.current = false;
@@ -387,6 +396,26 @@ export function MediaViewerModal({
     }
     changeZoom(zoomRef.current === 1 ? 2 : 1);
   };
+
+  const handleCommentImageClick = useCallback(
+    (imgUrl: string) => {
+      let idx = imageList.indexOf(imgUrl);
+      if (idx < 0 && serverId && channelId) {
+        // Image might be from a comment posted after modal opened — rebuild index
+        const freshEntries = getChannelMessages(serverId, channelId).flatMap(
+          (msg) =>
+            extractImageUrlsFromMessage(msg).map((u) => ({ url: u, msg })),
+        );
+        idx = freshEntries.findIndex((e) => e.url === imgUrl);
+        if (idx >= 0) {
+          setImageEntries(freshEntries);
+          setImageList(freshEntries.map((e) => e.url));
+        }
+      }
+      if (idx >= 0) goTo(idx);
+    },
+    [imageList, serverId, channelId, goTo],
+  );
 
   const handleConfirmOpen = async () => {
     await openExternalUrl(currentUrl);
@@ -768,6 +797,7 @@ export function MediaViewerModal({
                 isMobile={false}
                 onClose={() => setShowComments(false)}
                 onCloseAll={onClose}
+                onImageClick={handleCommentImageClick}
               />
             )}
 
@@ -788,6 +818,7 @@ export function MediaViewerModal({
                   isMobile={true}
                   onClose={() => setShowComments(false)}
                   onCloseAll={onClose}
+                  onImageClick={handleCommentImageClick}
                 />
               </div>
             )}

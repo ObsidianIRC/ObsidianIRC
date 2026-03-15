@@ -417,6 +417,8 @@ interface UIState {
   // Request state for ChatArea modals (using request pattern)
   channelSettingsRequest: { serverId: string; channelId: string } | null;
   inviteUserRequest: { serverId: string; channelId: string } | null;
+  // Global media viewer state — kept at root level so resizing never closes it
+  openedMedia: { url: string; serverId?: string; channelId?: string } | null;
 }
 
 export type { GlobalSettings };
@@ -699,6 +701,8 @@ export interface AppState {
     serverId: string | null,
     channelId: string | null,
   ) => void;
+  openMedia: (url: string, serverId?: string, channelId?: string) => void;
+  closeMedia: () => void;
   toggleNotificationVolume: () => void;
   setIsNarrowView: (isNarrow: boolean) => void;
   showContextMenu: (
@@ -867,6 +871,7 @@ const useStore = create<AppState>((set, get) => ({
     // Request state for ChatArea modals
     channelSettingsRequest: null,
     inviteUserRequest: null,
+    openedMedia: null,
   },
   globalSettings: {
     enableNotifications: false,
@@ -2778,6 +2783,16 @@ const useStore = create<AppState>((set, get) => ({
           serverId && channelId ? { serverId, channelId } : null,
       },
     }));
+  },
+
+  openMedia: (url, serverId, channelId) => {
+    set((state) => ({
+      ui: { ...state.ui, openedMedia: { url, serverId, channelId } },
+    }));
+  },
+
+  closeMedia: () => {
+    set((state) => ({ ui: { ...state.ui, openedMedia: null } }));
   },
 
   toggleNotificationVolume: () => {

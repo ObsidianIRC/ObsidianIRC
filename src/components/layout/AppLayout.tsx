@@ -7,6 +7,7 @@ import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
+import { MediaViewerModal } from "../ui/MediaViewerModal";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
@@ -27,6 +28,7 @@ export const AppLayout: React.FC = () => {
     setMobileViewActiveColumn,
     setIsNarrowView,
     updateSidebarPreferences,
+    closeMedia,
   } = useStore();
 
   const [channelListWidth, setChannelListWidth] = useState<number>(
@@ -375,6 +377,14 @@ export const AppLayout: React.FC = () => {
         </>
       )}
       <GlobalNotifications />
+      {/* Rendered here so window resizes never unmount it */}
+      <MediaViewerModal
+        isOpen={!!ui.openedMedia}
+        url={ui.openedMedia?.url ?? ""}
+        onClose={closeMedia}
+        serverId={ui.openedMedia?.serverId}
+        channelId={ui.openedMedia?.channelId}
+      />
     </div>
   );
 };

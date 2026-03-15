@@ -48,16 +48,14 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           <FaReply className="w-4 h-4" />
         </button>
       )}
-      {canReply && (
-        <button
-          type="button"
-          className="px-2.5 py-1.5 text-discord-text-muted hover:text-discord-text-normal hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
-          onClick={(e) => onReactClick(e.currentTarget)}
-          title="Add reaction"
-        >
-          <MdAddReaction className="w-5 h-5" />
-        </button>
-      )}
+      <button
+        type="button"
+        className="px-2.5 py-1.5 text-discord-text-muted hover:text-discord-text-normal hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
+        onClick={(e) => onReactClick(e.currentTarget)}
+        title="Add reaction"
+      >
+        <MdAddReaction className="w-5 h-5" />
+      </button>
     </div>
   );
 };
