@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 import { FaGift, FaList, FaPlus, FaTimes } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
+import { useShallow } from "zustand/react/shallow";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
@@ -545,6 +546,21 @@ export const ChatArea: React.FC<{
   });
   const [reactionAnchorRect, setReactionAnchorRect] = useState<DOMRect | null>(
     null,
+  );
+
+  // Read live reactions from store — reactionModal.message is stale after optimistic updates.
+  // useShallow ensures reference stability: same emoji strings → same array ref → no re-render loop.
+  const reactedEmojis = useStore(
+    useShallow((state) => {
+      const msg = reactionModal.message;
+      if (!msg) return [];
+      const key = `${msg.serverId}-${msg.channelId}`;
+      const live =
+        (state.messages[key] ?? []).find((m) => m.id === msg.id) ?? msg;
+      return live.reactions
+        .filter((r) => r.userId === currentUser?.username)
+        .map((r) => r.emoji);
+    }),
   );
 
   // Memoize preview styles — selectedColor/selectedFormatting don't change while typing,
@@ -2066,6 +2082,7 @@ export const ChatArea: React.FC<{
           isOpen={reactionModal.isOpen}
           onClose={closeReactionModal}
           onSelectEmoji={selectReaction}
+          reactedEmojis={reactedEmojis}
         />
       ) : (
         <ReactionPopover
@@ -2073,6 +2090,7 @@ export const ChatArea: React.FC<{
           anchorRect={reactionAnchorRect}
           onClose={closeReactionModal}
           onSelectEmoji={selectReaction}
+          reactedEmojis={reactedEmojis}
         />
       )}
 

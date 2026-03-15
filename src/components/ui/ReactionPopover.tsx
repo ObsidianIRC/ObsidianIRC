@@ -14,6 +14,7 @@ interface Props {
    *  picker's right edge is anchored here instead of to anchorRect.left, so the
    *  picker stays fully outside the container regardless of button indent. */
   containerLeft?: number;
+  reactedEmojis?: string[];
 }
 
 const PICKER_W = 352;
@@ -57,6 +58,7 @@ export function ReactionPopover({
   zIndex,
   placement,
   containerLeft,
+  reactedEmojis,
 }: Props) {
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +112,7 @@ export function ReactionPopover({
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 overflow-hidden">
         <AppEmojiPicker
           onEmojiClick={(d: EmojiClickData) => onSelectEmoji(d.emoji)}
+          reactedEmojis={reactedEmojis}
         />
       </div>
     </div>,

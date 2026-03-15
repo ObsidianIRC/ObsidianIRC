@@ -28,6 +28,18 @@ vi.mock("../../src/hooks/useReactions", () => ({
   })),
 }));
 
+vi.mock("../../src/hooks/useScrollToBottom", () => ({
+  useScrollToBottom: vi.fn(() => ({
+    isScrolledUp: false,
+    wasAtBottomRef: { current: true },
+    scrollToBottom: vi.fn(),
+  })),
+}));
+
+vi.mock("@tauri-apps/plugin-os", () => ({
+  platform: vi.fn(() => "linux"),
+}));
+
 const mockChannel = {
   id: "c1",
   name: "#test",
@@ -47,12 +59,6 @@ vi.mock("../../src/store", () => ({
     }),
     { getState: vi.fn(() => ({ messages: {}, servers: [] })) },
   ),
-}));
-
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
 }));
 
 afterEach(() => {

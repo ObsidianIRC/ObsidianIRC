@@ -8,6 +8,7 @@ interface ReactionModalProps {
   onClose: () => void;
   onSelectEmoji: (emoji: string) => void;
   zIndex?: number;
+  reactedEmojis?: string[];
 }
 
 const ReactionModal: React.FC<ReactionModalProps> = ({
@@ -15,6 +16,7 @@ const ReactionModal: React.FC<ReactionModalProps> = ({
   onClose,
   onSelectEmoji,
   zIndex,
+  reactedEmojis,
 }) => {
   if (!isOpen) return null;
 
@@ -36,7 +38,10 @@ const ReactionModal: React.FC<ReactionModalProps> = ({
     >
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">
         <div className="p-2">
-          <AppEmojiPicker onEmojiClick={handleEmojiSelect} />
+          <AppEmojiPicker
+            onEmojiClick={handleEmojiSelect}
+            reactedEmojis={reactedEmojis}
+          />
         </div>
         <div className="p-2 border-t border-discord-dark-300">
           <button

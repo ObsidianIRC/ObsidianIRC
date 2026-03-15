@@ -303,8 +303,11 @@ export function MediaViewerModal({
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      // toolbar touches bubble to overlayRef and would trip swipe/pan tracking
-      if ((e.target as Element).closest?.("[data-no-gesture]")) {
+      // toolbar touches and comment sidebar touches must not trigger swipe/pan
+      if (
+        (e.target as Element).closest?.("[data-no-gesture]") ||
+        (e.target as Element).closest?.("[data-comments-sidebar]")
+      ) {
         singleTouchRef.current = null;
         return;
       }

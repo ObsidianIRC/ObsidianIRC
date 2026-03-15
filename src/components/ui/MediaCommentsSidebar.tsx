@@ -1,10 +1,18 @@
 import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { FaPlus } from "react-icons/fa";
 import { useShallow } from "zustand/react/shallow";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
+import { useScrollToBottom } from "../../hooks/useScrollToBottom";
 import { canShowImageUrl } from "../../lib/imageUtils";
 import ircClient from "../../lib/ircClient";
 import {
@@ -12,6 +20,7 @@ import {
   getPreviewStyles,
   stripIrcFormatting,
 } from "../../lib/messageFormatter";
+import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -23,6 +32,7 @@ import { EmojiPickerModal } from "./EmojiPickerModal";
 import { InputToolbar } from "./InputToolbar";
 import ReactionModal from "./ReactionModal";
 import { ReactionPopover } from "./ReactionPopover";
+import { ScrollToBottomButton } from "./ScrollToBottomButton";
 import { TextArea } from "./TextInput";
 
 interface MediaCommentsSidebarProps {
@@ -63,6 +73,9 @@ export function MediaCommentsSidebar({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
   // Cache line-height + padding after first read — same pattern as ChatArea
   const textareaMetricsRef = useRef<{
     lineHeight: number;
@@ -102,6 +115,27 @@ export function MediaCommentsSidebar({
     selectedServerId: serverId,
     currentUser,
   });
+
+  const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
+    scrollContainerRef,
+    bottomRef,
+    { channelId },
+  );
+
+  // Read live reactions from store — reactionModal.message is stale after optimistic updates.
+  // useShallow ensures reference stability: same emoji strings → same array ref → no re-render loop.
+  const reactedEmojis = useStore(
+    useShallow((state) => {
+      const msg = reactionModal.message;
+      if (!msg) return [];
+      const key = `${msg.serverId}-${msg.channelId}`;
+      const live =
+        (state.messages[key] ?? []).find((m) => m.id === msg.id) ?? msg;
+      return live.reactions
+        .filter((r) => r.userId === currentUser?.username)
+        .map((r) => r.emoji);
+    }),
+  );
 
   // useMessageSending handles reply tag, IRC formatting, long-message splitting
   // localReplyTo = sourceMessage means every send gets @+draft/reply=<msgid> prepended
@@ -155,6 +189,7 @@ export function MediaCommentsSidebar({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isNativeMobile) return;
     if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -208,6 +243,11 @@ export function MediaCommentsSidebar({
     resizeTextarea();
   }, [resizeTextarea, commentText]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: wasAtBottomRef is a stable ref
+  useEffect(() => {
+    if (wasAtBottomRef.current) scrollToBottom();
+  }, [comments, scrollToBottom]);
+
   const sourceText = stripIrcFormatting(liveSourceMessage.content);
   const commentCount = comments.length;
   // Only apply previewStyle when the user has actually chosen formatting/color.
@@ -236,7 +276,16 @@ export function MediaCommentsSidebar({
       className="flex flex-col w-full h-full bg-discord-dark-200 border-l border-white/[0.06]"
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-3 border-b border-white/[0.06] flex-shrink-0">
+      <div
+        className="flex items-center gap-2 px-3 pb-3 pt-3 border-b border-white/[0.06] flex-shrink-0"
+        style={
+          isMobile
+            ? {
+                paddingTop: "calc(0.75rem + var(--safe-area-inset-top, 0px))",
+              }
+            : undefined
+        }
+      >
         {isMobile ? (
           <>
             <button
@@ -339,6 +388,7 @@ export function MediaCommentsSidebar({
 
       {/* Comments list — event delegation catches img clicks from MessageItem */}
       <div
+        ref={scrollContainerRef}
         className="flex-1 overflow-y-auto py-2 min-h-0"
         onClick={(e) => {
           const img = (e.target as Element).closest("img");
@@ -382,11 +432,24 @@ export function MediaCommentsSidebar({
             />
           ))
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-px" />
       </div>
+      <ScrollToBottomButton isVisible={isScrolledUp} onClick={scrollToBottom} />
 
-      {/* Input — same structure as main ChatArea input */}
-      <div className="px-3 pb-3 pt-1 relative">
+      {/* Input — same structure as main ChatArea input.
+          keyboard-aware-layout: CSS rule zeroes padding-bottom when keyboard is visible
+          (using !important to beat the inline safe-area style below). */}
+      <div
+        className="px-3 pb-3 pt-1 relative keyboard-aware-layout"
+        style={
+          isMobile
+            ? {
+                paddingBottom:
+                  "calc(0.75rem + var(--safe-area-inset-bottom, 0px))",
+              }
+            : undefined
+        }
+      >
         <div className="bg-discord-dark-100 rounded-lg flex items-center relative flex-nowrap">
           <button
             type="button"
@@ -405,7 +468,7 @@ export function MediaCommentsSidebar({
             autoCorrect="on"
             autoCapitalize="sentences"
             spellCheck={true}
-            enterKeyHint={isMobile ? "enter" : "send"}
+            enterKeyHint={isNativeMobile ? "enter" : "send"}
             placeholder={
               sourceMessage.msgid
                 ? `Reply in ${channelName ?? "channel"}…`
@@ -434,7 +497,8 @@ export function MediaCommentsSidebar({
               setIsColorPickerOpen(false);
             }}
             onSendClick={handleSend}
-            showSendButton={isMobile}
+            showSendButton={isNativeMobile}
+            hideEmoji={isNativeMobile}
             hasText={commentText.trim().length > 0}
           />
         </div>
@@ -455,6 +519,17 @@ export function MediaCommentsSidebar({
             onClose={() => setIsEmojiSelectorOpen(false)}
           />
         )}
+        {!isNativeMobile && isMobile && (
+          <EmojiPickerModal
+            isOpen={isEmojiSelectorOpen}
+            onEmojiClick={handleEmojiSelect}
+            onClose={() => setIsEmojiSelectorOpen(false)}
+            onBackdropClick={(e) => {
+              if (e.target === e.currentTarget) setIsEmojiSelectorOpen(false);
+            }}
+            zIndex={9999}
+          />
+        )}
         <AutocompleteDropdown
           users={selectedChannel?.users ?? []}
           isVisible={showMentionDropdown}
@@ -468,24 +543,13 @@ export function MediaCommentsSidebar({
         />
       </div>
 
-      {isMobile && (
-        <EmojiPickerModal
-          isOpen={isEmojiSelectorOpen}
-          onEmojiClick={handleEmojiSelect}
-          onClose={() => setIsEmojiSelectorOpen(false)}
-          onBackdropClick={(e) => {
-            if (e.target === e.currentTarget) setIsEmojiSelectorOpen(false);
-          }}
-          zIndex={9999}
-        />
-      )}
-
       {isMobile ? (
         <ReactionModal
           isOpen={reactionModal.isOpen}
           onClose={closeReactionModal}
           onSelectEmoji={selectReaction}
           zIndex={10000}
+          reactedEmojis={reactedEmojis}
         />
       ) : (
         <ReactionPopover
@@ -499,6 +563,7 @@ export function MediaCommentsSidebar({
           }}
           onSelectEmoji={selectReaction}
           zIndex={10000}
+          reactedEmojis={reactedEmojis}
         />
       )}
     </div>
