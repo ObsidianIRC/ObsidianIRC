@@ -225,9 +225,7 @@ export function MediaCommentsSidebar({
     <div
       ref={sidebarRef}
       data-comments-sidebar=""
-      className={`flex flex-col bg-discord-dark-200 border-l border-white/[0.06] ${
-        isMobile ? "w-full h-full" : "w-80 flex-shrink-0"
-      }`}
+      className="flex flex-col w-full h-full bg-discord-dark-200 border-l border-white/[0.06]"
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-white/[0.06] flex-shrink-0">

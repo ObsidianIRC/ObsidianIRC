@@ -23,6 +23,7 @@ import { openExternalUrl } from "../../lib/openUrl";
 import { isTauri } from "../../lib/platformUtils";
 import useStore, { getChannelMessages } from "../../store";
 import type { Message } from "../../types";
+import { ResizableSidebar } from "../layout/ResizableSidebar";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 import { MediaCommentsSidebar } from "./MediaCommentsSidebar";
 
@@ -830,17 +831,26 @@ export function MediaViewerModal({
             currentSourceMsg &&
             serverId &&
             channelId && (
-              <MediaCommentsSidebar
-                sourceMessage={currentSourceMsg}
-                currentImageUrl={currentUrl}
-                serverId={serverId}
-                channelId={channelId}
-                isAlbum={isAlbum}
-                isMobile={false}
-                onClose={() => setShowComments(false)}
-                onCloseAll={onClose}
-                onImageClick={handleCommentImageClick}
-              />
+              <ResizableSidebar
+                side="right"
+                isVisible={true}
+                defaultWidth={320}
+                minWidth={240}
+                maxWidth={Math.floor(window.innerWidth / 2)}
+                bypass={false}
+              >
+                <MediaCommentsSidebar
+                  sourceMessage={currentSourceMsg}
+                  currentImageUrl={currentUrl}
+                  serverId={serverId}
+                  channelId={channelId}
+                  isAlbum={isAlbum}
+                  isMobile={false}
+                  onClose={() => setShowComments(false)}
+                  onCloseAll={onClose}
+                  onImageClick={handleCommentImageClick}
+                />
+              </ResizableSidebar>
             )}
 
           {/* Mobile sidebar — full-screen overlay */}
