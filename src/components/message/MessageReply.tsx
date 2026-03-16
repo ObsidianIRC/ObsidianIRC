@@ -103,6 +103,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
         <button
           type="button"
           className="flex-shrink-0 self-center p-3 mr-1 rounded-lg hover:bg-white/10 text-discord-text-muted hover:text-discord-text-normal transition-colors"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => {
             e.stopPropagation();
             onClose();

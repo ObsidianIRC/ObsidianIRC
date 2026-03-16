@@ -636,7 +636,6 @@ export const MessageItem = (props: MessageItemProps) => {
     <CollapsibleMessage
       ref={collapsibleRef}
       content={htmlContent}
-      hoverOnly={!isTouchDevice}
       onNeedsCollapsing={setMessageNeedsCollapsing}
     />
   );

@@ -13,6 +13,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
 import { useScrollToBottom } from "../../hooks/useScrollToBottom";
+import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { canShowImageUrl } from "../../lib/imageUtils";
 import ircClient from "../../lib/ircClient";
 import {
@@ -83,9 +84,8 @@ export function MediaCommentsSidebar({
     paddingBottom: number;
   } | null>(null);
 
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
-  );
+  const { showSafeMedia, showExternalContent, sendTypingNotifications } =
+    useStore((state) => state.globalSettings);
   const filehost = useStore
     .getState()
     .servers.find((s) => s.id === serverId)?.filehost;
@@ -121,6 +121,11 @@ export function MediaCommentsSidebar({
     bottomRef,
     { channelId },
   );
+
+  const typingNotification = useTypingNotification({
+    serverId,
+    enabled: sendTypingNotifications,
+  });
 
   // Read live reactions from store — reactionModal.message is stale after optimistic updates.
   // useShallow ensures reference stability: same emoji strings → same array ref → no re-render loop.
@@ -186,6 +191,7 @@ export function MediaCommentsSidebar({
     if (!commentText.trim() || !sourceMessage.msgid) return;
     sendMessage(commentText);
     setCommentText("");
+    if (channelName) typingNotification.notifyTypingDone(channelName);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -461,7 +467,11 @@ export function MediaCommentsSidebar({
           <TextArea
             ref={textareaRef}
             value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
+            onChange={(e) => {
+              setCommentText(e.target.value);
+              if (channelName)
+                typingNotification.notifyTyping(channelName, e.target.value);
+            }}
             onKeyDown={handleKeyDown}
             onKeyUp={trackCursor}
             onClick={trackCursor}
