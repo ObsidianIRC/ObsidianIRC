@@ -17,8 +17,20 @@ vi.mock("../../src/lib/platformUtils", () => ({
   isTauri: vi.fn(() => false),
 }));
 
+const defaultMessage = {
+  id: "1",
+  content: "https://example.com/image.jpg",
+  serverId: "s1",
+  channelId: "c1",
+  type: "message",
+  timestamp: new Date(),
+  userId: "user1",
+  reactions: [],
+  msgid: "msg1",
+};
+
 vi.mock("../../src/store", () => ({
-  getChannelMessages: vi.fn(() => []),
+  getChannelMessages: vi.fn(() => [defaultMessage]),
   default: Object.assign(
     vi.fn((selector: (state: unknown) => unknown) =>
       typeof selector === "function"
@@ -29,6 +41,12 @@ vi.mock("../../src/store", () => ({
         : null,
     ),
     { getState: vi.fn(() => ({ messages: {}, servers: [] })) },
+  ),
+}));
+
+vi.mock("../../src/lib/mediaProbe", () => ({
+  probeMediaUrl: vi.fn((_url: string) =>
+    Promise.resolve({ type: "image", skipped: false }),
   ),
 }));
 
@@ -72,6 +90,8 @@ describe("MediaViewerModal", () => {
     isOpen: true,
     url: "https://example.com/image.jpg",
     onClose: vi.fn(),
+    serverId: "s1",
+    channelId: "c1",
   };
 
   test("renders image with correct src", () => {
@@ -177,7 +197,7 @@ describe("MediaViewerModal", () => {
     // isTauri() returns false (mocked above)
     render(<MediaViewerModal {...defaultProps} />);
     expect(
-      screen.queryByRole("button", { name: /download image/i }),
+      screen.queryByRole("button", { name: /download/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -187,7 +207,7 @@ describe("MediaViewerModal", () => {
     vi.doMock("@tauri-apps/api/core", () => ({ invoke: mockInvoke }));
 
     render(<MediaViewerModal {...defaultProps} />);
-    fireEvent.click(screen.getByRole("button", { name: /download image/i }));
+    fireEvent.click(screen.getByRole("button", { name: /download/i }));
 
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith("download_image", {
@@ -197,7 +217,13 @@ describe("MediaViewerModal", () => {
   });
 
   test("comments toggle button not shown without serverId/channelId", () => {
-    render(<MediaViewerModal {...defaultProps} />);
+    render(
+      <MediaViewerModal
+        {...defaultProps}
+        serverId={undefined}
+        channelId={undefined}
+      />,
+    );
     expect(
       screen.queryByRole("button", { name: /comments/i }),
     ).not.toBeInTheDocument();
@@ -205,7 +231,13 @@ describe("MediaViewerModal", () => {
 
   describe("navigation", () => {
     test("no navigation arrows when no serverId/channelId provided", () => {
-      render(<MediaViewerModal {...defaultProps} />);
+      render(
+        <MediaViewerModal
+          {...defaultProps}
+          serverId={undefined}
+          channelId={undefined}
+        />,
+      );
       expect(
         screen.queryByRole("button", { name: /previous image/i }),
       ).not.toBeInTheDocument();

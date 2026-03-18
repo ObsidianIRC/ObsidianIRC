@@ -10,9 +10,11 @@ interface SwipeableMessageProps {
   onReply: () => void;
   onReact: (buttonElement: Element) => void;
   onDelete?: () => void;
+  onOpenMedia?: () => void;
   onTap?: () => void;
   canReply: boolean;
   canDelete: boolean;
+  canOpenMedia?: boolean;
   isNarrowView: boolean;
 }
 
@@ -23,9 +25,11 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
   onReply,
   onReact,
   onDelete,
+  onOpenMedia,
   onTap,
   canReply,
   canDelete,
+  canOpenMedia = false,
   isNarrowView,
 }) => {
   const [translateX, setTranslateX] = useState(0);
@@ -206,9 +210,11 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
         onReply={onReply}
         onReact={onReact}
         onDelete={onDelete}
+        onOpenMedia={onOpenMedia}
         canReply={canReply}
         canReact={!!canReply}
         canDelete={canDelete}
+        canOpenMedia={canOpenMedia}
       />
     </>
   );

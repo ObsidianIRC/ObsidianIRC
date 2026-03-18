@@ -424,6 +424,17 @@ interface UIState {
     serverId?: string;
     channelId?: string;
   } | null;
+  activeMedia: {
+    url: string;
+    type: "video" | "audio" | "embed";
+    thumbnailUrl?: string;
+    isPlaying: boolean;
+    isInlineVisible: boolean;
+    currentTime?: number;
+    msgid?: string;
+    serverId?: string;
+    channelId?: string;
+  } | null;
 }
 
 export type { GlobalSettings };
@@ -713,6 +724,18 @@ export interface AppState {
     channelId?: string,
   ) => void;
   closeMedia: () => void;
+  playMedia: (
+    url: string,
+    type: "video" | "audio" | "embed",
+    thumbnailUrl?: string,
+    msgid?: string,
+    serverId?: string,
+    channelId?: string,
+  ) => void;
+  pauseActiveMedia: () => void;
+  stopActiveMedia: () => void;
+  setMediaInlineVisible: (visible: boolean, currentTime?: number) => void;
+  setActiveMediaThumbnail: (url: string, thumbnailUrl: string) => void;
   toggleNotificationVolume: () => void;
   setIsNarrowView: (isNarrow: boolean) => void;
   showContextMenu: (
@@ -882,6 +905,7 @@ const useStore = create<AppState>((set, get) => ({
     channelSettingsRequest: null,
     inviteUserRequest: null,
     openedMedia: null,
+    activeMedia: null,
   },
   globalSettings: {
     enableNotifications: false,
@@ -910,6 +934,7 @@ const useStore = create<AppState>((set, get) => ({
     autoFallbackToSingleLine: true,
     // Media settings
     showSafeMedia: true,
+    showTrustedSourcesMedia: false,
     showExternalContent: false,
     // Markdown settings
     enableMarkdownRendering: false,
@@ -2796,6 +2821,7 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   openMedia: (url, sourceMsgId, serverId, channelId) => {
+    get().stopActiveMedia();
     set((state) => ({
       ui: {
         ...state.ui,
@@ -2806,6 +2832,75 @@ const useStore = create<AppState>((set, get) => ({
 
   closeMedia: () => {
     set((state) => ({ ui: { ...state.ui, openedMedia: null } }));
+  },
+
+  playMedia: (url, type, thumbnailUrl, msgid, serverId, channelId) => {
+    set((state) => {
+      const prev = state.ui.activeMedia;
+      // Preserve isInlineVisible for the same URL so MiniMediaPlayer can resume
+      // its hidden video when VideoPreview is unmounted (channel evicted).
+      // New URLs always start inline-visible; VideoPreview will set it on mount.
+      const isInlineVisible = prev?.url === url ? prev.isInlineVisible : true;
+      return {
+        ui: {
+          ...state.ui,
+          activeMedia: {
+            url,
+            type,
+            thumbnailUrl,
+            isPlaying: true,
+            isInlineVisible,
+            msgid,
+            serverId,
+            channelId,
+          },
+        },
+      };
+    });
+  },
+
+  pauseActiveMedia: () => {
+    set((state) => {
+      if (state.ui.activeMedia === null) return state;
+      return {
+        ui: {
+          ...state.ui,
+          activeMedia: { ...state.ui.activeMedia, isPlaying: false },
+        },
+      };
+    });
+  },
+
+  stopActiveMedia: () => {
+    set((state) => ({ ui: { ...state.ui, activeMedia: null } }));
+  },
+
+  setActiveMediaThumbnail: (url, thumbnailUrl) => {
+    set((state) => {
+      if (state.ui.activeMedia?.url !== url) return state;
+      return {
+        ui: {
+          ...state.ui,
+          activeMedia: { ...state.ui.activeMedia, thumbnailUrl },
+        },
+      };
+    });
+  },
+
+  setMediaInlineVisible: (visible, currentTime) => {
+    set((state) => {
+      if (state.ui.activeMedia === null) return state;
+      return {
+        ui: {
+          ...state.ui,
+          activeMedia: {
+            ...state.ui.activeMedia,
+            isInlineVisible: visible,
+            ...(currentTime !== undefined ? { currentTime } : {}),
+          },
+        },
+      };
+    });
   },
 
   toggleNotificationVolume: () => {
@@ -7686,17 +7781,26 @@ ircClient.on(
         }
       }
 
-      // Save metadata to localStorage (unless we're in fetch mode - already saved above)
-      if (hasChanges && (!isFetchingOwn || target !== "*")) {
-        const savedMetadata = loadSavedMetadata();
-        if (!savedMetadata[serverId]) {
-          savedMetadata[serverId] = {};
+      // Save valid metadata for any user, not just channel members.
+      // Also marks hasChanges so metadataChangeCounter increments for DM re-renders.
+      if (!isFetchingOwn || target !== "*") {
+        if (value !== null && value !== undefined && value !== "") {
+          const savedMetadata = loadSavedMetadata();
+          if (!savedMetadata[serverId]) {
+            savedMetadata[serverId] = {};
+          }
+          if (!savedMetadata[serverId][resolvedTarget]) {
+            savedMetadata[serverId][resolvedTarget] = {};
+          }
+          if (savedMetadata[serverId][resolvedTarget][key]?.value !== value) {
+            savedMetadata[serverId][resolvedTarget][key] = {
+              value,
+              visibility,
+            };
+            saveMetadataToLocalStorage(savedMetadata);
+            hasChanges = true;
+          }
         }
-        if (!savedMetadata[serverId][resolvedTarget]) {
-          savedMetadata[serverId][resolvedTarget] = {};
-        }
-        savedMetadata[serverId][resolvedTarget][key] = { value, visibility };
-        saveMetadataToLocalStorage(savedMetadata);
       }
 
       // Update channel metadata cache if this is for a channel
@@ -7789,37 +7893,44 @@ ircClient.on("METADATA_KEYNOTSET", ({ serverId, target, key }) => {
     }
   }
 
-  // Handle key not set responses
+  // Handle key not set responses — only update state if the key actually exists
   useStore.setState((state) => {
+    let anyChange = false;
     const updatedServers = state.servers.map((server) => {
-      if (server.id === serverId) {
-        // Remove metadata for users in channels
-        const updatedChannels = server.channels.map((channel) => {
-          const updatedUsers = channel.users.map((user) => {
-            if (user.username === resolvedTarget) {
-              const metadata = user.metadata || {};
-              delete metadata[key];
-              return { ...user, metadata };
-            }
-            return user;
-          });
+      if (server.id !== serverId) return server;
 
-          // Remove metadata for the channel itself if target matches channel name
-          const channelMetadata = channel.metadata || {};
-          if (
-            resolvedTarget === channel.name ||
-            resolvedTarget.startsWith("#")
-          ) {
-            delete channelMetadata[key];
-          }
-
-          return { ...channel, users: updatedUsers, metadata: channelMetadata };
+      const updatedChannels = server.channels.map((channel) => {
+        let usersChanged = false;
+        const updatedUsers = channel.users.map((user) => {
+          if (user.username !== resolvedTarget) return user;
+          if (!user.metadata || !(key in user.metadata)) return user;
+          const { [key]: _, ...rest } = user.metadata;
+          usersChanged = true;
+          return { ...user, metadata: rest };
         });
-        return { ...server, channels: updatedChannels };
-      }
-      return server;
+
+        const isChannelTarget =
+          resolvedTarget === channel.name || resolvedTarget.startsWith("#");
+        const channelHasKey =
+          isChannelTarget && channel.metadata && key in channel.metadata;
+
+        if (!usersChanged && !channelHasKey) return channel;
+        anyChange = true;
+
+        const result = { ...channel };
+        if (usersChanged) result.users = updatedUsers;
+        if (channelHasKey && channel.metadata) {
+          const { [key]: _, ...rest } = channel.metadata;
+          result.metadata = rest;
+        }
+        return result;
+      });
+
+      if (!anyChange) return server;
+      return { ...server, channels: updatedChannels };
     });
 
+    if (!anyChange) return {};
     return { servers: updatedServers };
   });
 });

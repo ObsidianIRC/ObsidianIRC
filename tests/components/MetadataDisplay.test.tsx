@@ -189,6 +189,7 @@ describe("Metadata Display Features", () => {
         multilineOnShiftEnter: true,
         autoFallbackToSingleLine: true,
         showSafeMedia: true,
+        showTrustedSourcesMedia: false,
         showExternalContent: true,
         enableMarkdownRendering: false,
         awayMessage: "",

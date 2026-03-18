@@ -16,6 +16,7 @@ import { useScrollToBottom } from "../../hooks/useScrollToBottom";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { canShowImageUrl } from "../../lib/imageUtils";
 import ircClient from "../../lib/ircClient";
+import { detectMediaType, getEmbedThumbnailUrl } from "../../lib/mediaUtils";
 import {
   type FormattingType,
   getPreviewStyles,
@@ -353,22 +354,68 @@ export function MediaCommentsSidebar({
 
       {/* Context strip */}
       <div className="flex items-start gap-2.5 px-3 py-2.5 bg-discord-dark-100 border-b border-white/[0.06] flex-shrink-0">
-        {canShowImageUrl(
-          currentImageUrl,
-          showSafeMedia,
-          showExternalContent,
-          filehost,
-        ) && (
-          <img
-            src={currentImageUrl}
-            alt=""
-            className="w-10 h-10 rounded object-cover flex-shrink-0 transparency-grid"
-            draggable={false}
-          />
-        )}
+        {(() => {
+          const mediaType = detectMediaType(currentImageUrl);
+          const embedThumb =
+            mediaType === "embed"
+              ? getEmbedThumbnailUrl(currentImageUrl)
+              : null;
+          if (
+            mediaType === "image" &&
+            canShowImageUrl(
+              currentImageUrl,
+              showSafeMedia,
+              showExternalContent,
+              filehost,
+            )
+          ) {
+            return (
+              <img
+                src={currentImageUrl}
+                alt=""
+                className="w-10 h-10 rounded object-cover flex-shrink-0 transparency-grid"
+                draggable={false}
+              />
+            );
+          }
+          if (embedThumb) {
+            return (
+              <img
+                src={embedThumb}
+                alt=""
+                className="w-10 h-10 rounded object-cover flex-shrink-0"
+                draggable={false}
+              />
+            );
+          }
+          if (mediaType && mediaType !== "image") {
+            return (
+              <div className="w-10 h-10 rounded flex-shrink-0 bg-discord-dark-400 flex items-center justify-center text-discord-text-muted text-xs font-bold uppercase">
+                {mediaType === "video"
+                  ? "VID"
+                  : mediaType === "audio"
+                    ? "AUD"
+                    : mediaType === "pdf"
+                      ? "PDF"
+                      : "▶"}
+              </div>
+            );
+          }
+          return null;
+        })()}
         <div className="min-w-0 flex-1">
           <p className="text-xs text-discord-text-muted leading-tight">
-            {isAlbum ? "Album" : "Image"} · @{liveSourceMessage.userId}
+            {isAlbum
+              ? "Album"
+              : (() => {
+                  const t = detectMediaType(currentImageUrl);
+                  if (t === "video") return "Video";
+                  if (t === "audio") return "Audio";
+                  if (t === "pdf") return "PDF";
+                  if (t === "embed") return "Embed";
+                  return "Image";
+                })()}{" "}
+            · @{liveSourceMessage.userId}
           </p>
           <p className="text-xs text-discord-text-normal/80 leading-snug mt-0.5 line-clamp-2 break-words">
             {sourceText}

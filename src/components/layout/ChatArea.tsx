@@ -1,14 +1,7 @@
 import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaGift, FaList, FaPlus, FaTimes } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
@@ -18,13 +11,9 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
-import {
-  isScrolledToBottom,
-  useScrollToBottom,
-} from "../../hooks/useScrollToBottom";
+import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
-import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
 import {
@@ -35,7 +24,6 @@ import {
 import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
-import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
 import { MessageReply } from "../message/MessageReply";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
@@ -50,18 +38,28 @@ import DiscoverGrid from "../ui/HomeScreen";
 import { ImagePreviewModal } from "../ui/ImagePreviewModal";
 import { InputToolbar } from "../ui/InputToolbar";
 import InviteUserModal from "../ui/InviteUserModal";
-import LoadingSpinner from "../ui/LoadingSpinner";
+import { MiniMediaPlayer } from "../ui/MiniMediaPlayer";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
-import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 import { TextArea } from "../ui/TextInput";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
+import {
+  MemoChannelMessageList as ChannelMessageList,
+  type ChannelMessageListHandle,
+} from "./ChannelMessageList";
 import { ChatHeader } from "./ChatHeader";
 import { MemberList } from "./MemberList";
 
 const EMPTY_ARRAY: User[] = [];
+
+interface AliveChannel {
+  key: string;
+  serverId: string;
+  channelId: string | null;
+  privateChatId: string | null;
+}
 
 export const TypingIndicator: React.FC<{
   serverId: string;
@@ -92,7 +90,11 @@ export const ChatArea: React.FC<{
   isChanListVisible: boolean;
 }> = ({ onToggleChanList, isChanListVisible }) => {
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
-  const [messageText, setMessageText] = useState("");
+  // messageText is NOT React state — stored in a ref to avoid re-renders on every keystroke.
+  // hasText tracks the empty↔non-empty boundary for send-button rendering (rare transitions).
+  // autocompleteInputText is updated only when autocomplete dropdowns are visible.
+  const [hasText, setHasText] = useState(false);
+  const [autocompleteInputText, setAutocompleteInputText] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export const ChatArea: React.FC<{
     FormattingType[]
   >([]);
   const [isFormattingInitialized, setIsFormattingInitialized] = useState(false);
-  const [cursorPosition, setCursorPosition] = useState(0);
+  const cursorPositionRef = useRef(0);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [showEmojiAutocomplete, setShowEmojiAutocomplete] = useState(false);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
@@ -168,14 +170,18 @@ export const ChatArea: React.FC<{
   const [inviteUserModalOpen, setInviteUserModalOpen] = useState(false);
   const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [visibleMessageCount, setVisibleMessageCount] = useState(100);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  // Tracks the slice start into filteredMessages at which the display window was frozen when the
-  // user first scrolled up. Prevents mass DOM insertion at the top when isScrolledUp becomes true,
-  // which caused WKWebView scroll anchoring to fail and the viewport to jump to the top.
-  const scrollUpStartRef = useRef<number | null>(null);
+  // Per-channel draft storage. messageTextRef is the source of truth for the input value.
+  // It is updated imperatively (never from state), so no re-render occurs on each keystroke.
+  const draftMap = useRef<Map<string, string>>(new Map());
+  const messageTextRef = useRef("");
+  const hasTextRef = useRef(false);
+  // Keep-alive: last 3 visited channels are kept in the DOM (display:none) to preserve
+  // scroll position and media element state across channel switches.
+  const [aliveChannels, setAliveChannels] = useState<AliveChannel[]>([]);
+  const channelListRefs = useRef<Map<string, ChannelMessageListHandle | null>>(
+    new Map(),
+  );
   // lineHeight/padding are static CSS values — cache them after first read to avoid
   // getComputedStyle on every keystroke, which forces layout flush on mobile WebView.
   const textareaMetricsRef = useRef<{
@@ -204,10 +210,21 @@ export const ChatArea: React.FC<{
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: messageText is intentionally listed so the effect re-runs on every keystroke, even though it isn't referenced inside the body
-  useLayoutEffect(() => {
-    resizeTextarea();
-  }, [resizeTextarea, messageText]);
+  // Imperatively set textarea value and update the send-button state.
+  // Using a ref as truth means typing never triggers a ChatArea re-render.
+  const applyText = useCallback(
+    (text: string) => {
+      messageTextRef.current = text;
+      if (inputRef.current) inputRef.current.value = text;
+      resizeTextarea();
+      const ht = text.trim().length > 0;
+      if (ht !== hasTextRef.current) {
+        hasTextRef.current = ht;
+        setHasText(ht);
+      }
+    },
+    [resizeTextarea],
+  );
 
   const servers = useStore((state) => state.servers);
   const ui = useStore((state) => state.ui);
@@ -281,14 +298,6 @@ export const ChatArea: React.FC<{
   useEffect(() => {
     setLocalReplyTo(null);
   }, [selectedServerId, selectedChannelId, selectedPrivateChatId]);
-
-  const { isScrolledUp, wasAtBottomRef, scrollToBottom } = useScrollToBottom(
-    messagesContainerRef,
-    messagesEndRef,
-    {
-      channelId: `${selectedChannelId || selectedPrivateChatId}-${isMemberListVisible}`,
-    },
-  );
 
   // Get the current user for the selected server with metadata from store
   const currentUser = useMemo(() => {
@@ -368,25 +377,31 @@ export const ChatArea: React.FC<{
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
   const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
 
-  const handleIrcLinkClick = (rawUrl: string) => {
-    const parsed = parseIrcUrl(rawUrl, currentUser?.username || "user");
+  const handleIrcLinkClick = useCallback(
+    (rawUrl: string) => {
+      const ircCurrentUser = selectedServerId
+        ? ircClient.getCurrentUser(selectedServerId)
+        : null;
+      const parsed = parseIrcUrl(rawUrl, ircCurrentUser?.username || "user");
 
-    // Open the connect modal with pre-filled server details
-    toggleAddServerModal(true, {
-      name: parsed.host,
-      host: parsed.host,
-      port: parsed.port.toString(),
-      nickname: parsed.nick || "user",
-    });
-  };
+      // Open the connect modal with pre-filled server details
+      toggleAddServerModal(true, {
+        name: parsed.host,
+        host: parsed.host,
+        port: parsed.port.toString(),
+        nickname: parsed.nick || "user",
+      });
+    },
+    [selectedServerId, toggleAddServerModal],
+  );
 
   // Handle setting reply and focusing input
-  const handleSetReplyTo = (message: MessageType | null) => {
+  const handleSetReplyTo = useCallback((message: MessageType | null) => {
     // Focus synchronously before the state update so iOS treats it as a
     // direct user-gesture response and opens the keyboard immediately.
     inputRef.current?.focus();
     setLocalReplyTo(message);
-  };
+  }, []);
 
   // Toggle notification sound volume
   const handleToggleNotificationVolume = async () => {
@@ -596,107 +611,46 @@ export const ChatArea: React.FC<{
     selectedPrivateChatId,
   });
 
-  // Filter messages based on search query
-  const filteredMessages = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return channelMessages;
-    }
-    const query = searchQuery.toLowerCase();
-    return channelMessages.filter(
-      (msg) =>
-        msg.content.toLowerCase().includes(query) ||
-        msg.userId.toLowerCase().includes(query),
-    );
-  }, [channelMessages, searchQuery]);
-
-  // Freeze the display-window start index when the user first scrolls up, and clear it when
-  // they return to the bottom. This prevents dumping all hidden messages into the DOM at once
-  // when isScrolledUp becomes true (which caused WKWebView flex scroll anchoring to fail).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally omit filteredMessages.length and visibleMessageCount — start index must be captured only once when isScrolledUp first becomes true
+  // Save outgoing channel's draft on cleanup; messageText read through ref so the
+  // cleanup always sees the latest typed value, not the stale closure at effect-run time.
   useEffect(() => {
-    if (isScrolledUp) {
-      if (scrollUpStartRef.current === null) {
-        scrollUpStartRef.current = Math.max(
-          0,
-          filteredMessages.length - visibleMessageCount,
-        );
-      }
-    } else {
-      scrollUpStartRef.current = null;
-    }
-  }, [isScrolledUp]);
+    const key = channelKey;
+    return () => {
+      if (key) draftMap.current.set(key, messageTextRef.current);
+    };
+  }, [channelKey]);
 
-  // Virtualize messages - only show a bounded window unless searching
-  const displayedMessages = useMemo(() => {
-    if (searchQuery.trim()) {
-      return filteredMessages;
-    }
-    // While scrolled up, grow the window downward only (new messages append at the bottom).
-    // The start is frozen so no messages are ever inserted at the top while reading,
-    // which avoids the WKWebView scroll anchoring jump.
-    const frozenStart = scrollUpStartRef.current;
-    if (isScrolledUp && frozenStart !== null) {
-      return filteredMessages.slice(frozenStart);
-    }
-    return filteredMessages.slice(-visibleMessageCount);
-  }, [filteredMessages, visibleMessageCount, searchQuery, isScrolledUp]);
-
-  const hasMoreMessages = filteredMessages.length > displayedMessages.length;
-
-  // Memoize grouped events to prevent recalculation on every render
-  const eventGroups = useMemo(
-    () => groupConsecutiveEvents(displayedMessages),
-    [displayedMessages],
-  );
-
-  // Scroll down on channel / DM change
-  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedServerId): We want to scroll down only if server or channel changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): We want to scroll down only if server or channel changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): We want to scroll down only if DM changes
+  // Restore the new channel's draft (empty string if none saved yet).
   useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight;
+    if (channelKey) {
+      applyText(draftMap.current.get(channelKey) ?? "");
     }
-    wasAtBottomRef.current = true;
-    scrollUpStartRef.current = null;
-    setVisibleMessageCount(100);
+  }, [channelKey, applyText]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: channelKey intentionally triggers search clear without being used in the body
+  useEffect(() => {
     setSearchQuery("");
-  }, [
-    selectedServerId,
-    selectedChannelId,
-    selectedPrivateChatId,
-    wasAtBottomRef,
-  ]);
+  }, [channelKey]);
 
-  // Scroll to bottom after chat history finishes loading
-  const wasLoadingHistoryRef = useRef(false);
-  const isLoadingHistory = selectedChannel?.isLoadingHistory ?? false;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom is stable via useCallback
+  const handleClearSearch = useCallback(() => setSearchQuery(""), []);
+
+  // Keep-alive: maintain last 3 visited channels in an LRU list so their message list
+  // DOMs are preserved with display:none (scroll position + media elements stay alive).
   useEffect(() => {
-    if (wasLoadingHistoryRef.current && !isLoadingHistory) {
-      requestAnimationFrame(() => {
-        scrollToBottom();
-        wasAtBottomRef.current = true;
-      });
-    }
-    wasLoadingHistoryRef.current = isLoadingHistory;
-  }, [isLoadingHistory]);
-
-  // Auto scroll to bottom on new messages
-  // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to scroll when messages change, not when isScrolledUp changes
-  useEffect(() => {
-    const isNarrowView = window.matchMedia("(max-width: 768px)").matches;
-    const isChatVisible =
-      !isNarrowView || ui.mobileViewActiveColumn === "chatView";
-
-    // Only auto-scroll if:
-    // 1. User was at bottom before messages arrived
-    // 2. Chat is currently visible (not on channel list in mobile)
-    if (wasAtBottomRef.current && isChatVisible) {
-      scrollToBottom();
-    }
-  }, [displayedMessages, ui.mobileViewActiveColumn, scrollToBottom]);
+    if (!channelKey || !selectedServerId) return;
+    setAliveChannels((prev) => {
+      const filtered = prev.filter((c) => c.key !== channelKey);
+      return [
+        {
+          key: channelKey,
+          serverId: selectedServerId,
+          channelId: selectedChannelId,
+          privateChatId: selectedPrivateChatId,
+        },
+        ...filtered,
+      ].slice(0, 3);
+    });
+  }, [channelKey, selectedServerId, selectedChannelId, selectedPrivateChatId]);
 
   // Close plus menu on outside click
   useEffect(() => {
@@ -711,13 +665,16 @@ export const ChatArea: React.FC<{
   }, [showPlusMenu]);
 
   const handleSendMessage = () => {
-    if (messageText.trim() === "") return;
+    if (!hasText) return;
 
-    wasAtBottomRef.current = true;
-    sendMessage(messageText);
+    // Tell the active channel's message list to auto-scroll after the new message lands.
+    channelListRefs.current.get(channelKey)?.setAtBottom();
+    sendMessage(messageTextRef.current);
 
     // Cleanup after sending
-    setMessageText("");
+    applyText("");
+    setAutocompleteInputText("");
+    draftMap.current.delete(channelKey);
     setLocalReplyTo(null);
     setShowAutocomplete(false);
     messageHistory.resetHistory();
@@ -892,7 +849,10 @@ export const ChatArea: React.FC<{
         handleEmojiCompletion();
       } else {
         // Check if we're starting emoji completion context
-        const textBeforeCursor = messageText.substring(0, cursorPosition);
+        const textBeforeCursor = messageTextRef.current.substring(
+          0,
+          cursorPositionRef.current,
+        );
         const emojiMatch = textBeforeCursor.match(/:([a-zA-Z_]*)$/);
 
         if (emojiMatch) {
@@ -920,14 +880,19 @@ export const ChatArea: React.FC<{
     // Handle message history navigation with arrow keys
     if (e.key === "ArrowUp") {
       // Only activate if input is empty or already in history mode
-      if (messageText === "" || messageHistory.messageHistoryIndex >= 0) {
+      if (
+        messageTextRef.current === "" ||
+        messageHistory.messageHistoryIndex >= 0
+      ) {
         e.preventDefault();
 
         if (messageHistory.userMessageHistory.length === 0) return;
 
-        const previousMessage = messageHistory.navigateUp(messageText);
+        const previousMessage = messageHistory.navigateUp(
+          messageTextRef.current,
+        );
         if (previousMessage !== null) {
-          setMessageText(previousMessage);
+          applyText(previousMessage);
 
           // Move cursor to end of text
           setTimeout(() => {
@@ -950,7 +915,7 @@ export const ChatArea: React.FC<{
 
         const nextMessage = messageHistory.navigateDown();
         if (nextMessage !== null) {
-          setMessageText(nextMessage);
+          applyText(nextMessage);
 
           // Move cursor to end
           setTimeout(() => {
@@ -986,7 +951,7 @@ export const ChatArea: React.FC<{
 
       // Force clear any newlines that might have been added to the textarea
       if (inputRef.current) {
-        inputRef.current.value = messageText.trim();
+        inputRef.current.value = messageTextRef.current.trim();
       }
 
       handleSendMessage();
@@ -1034,14 +999,15 @@ export const ChatArea: React.FC<{
           ]
         : []);
     const result = tabCompletion.handleTabCompletion(
-      messageText,
-      cursorPosition,
+      messageTextRef.current,
+      cursorPositionRef.current,
       users,
     );
 
     if (result) {
-      setMessageText(result.newText);
-      setCursorPosition(result.newCursorPosition);
+      applyText(result.newText);
+      setAutocompleteInputText(result.newText);
+      cursorPositionRef.current = result.newCursorPosition;
 
       // Show dropdown when there are any matches available
       const shouldShow = tabCompletion.matches.length > 0;
@@ -1066,13 +1032,14 @@ export const ChatArea: React.FC<{
     if (!inputRef.current) return;
 
     const result = emojiCompletion.handleEmojiCompletion(
-      messageText,
-      cursorPosition,
+      messageTextRef.current,
+      cursorPositionRef.current,
     );
 
     if (result) {
-      setMessageText(result.newText);
-      setCursorPosition(result.newCursorPosition);
+      applyText(result.newText);
+      setAutocompleteInputText(result.newText);
+      cursorPositionRef.current = result.newCursorPosition;
 
       // Show dropdown when there are any matches available
       const shouldShow = emojiCompletion.matches.length > 0;
@@ -1097,8 +1064,18 @@ export const ChatArea: React.FC<{
     const newText = e.target.value;
     const newCursorPosition = e.target.selectionStart || 0;
 
-    setMessageText(newText);
-    setCursorPosition(newCursorPosition);
+    // Update ref — no state setter, so no ChatArea re-render on every keystroke.
+    messageTextRef.current = newText;
+    resizeTextarea();
+
+    // Only trigger re-render when send-button state changes (empty ↔ non-empty).
+    const ht = newText.trim().length > 0;
+    if (ht !== hasTextRef.current) {
+      hasTextRef.current = ht;
+      setHasText(ht);
+    }
+
+    cursorPositionRef.current = newCursorPosition;
     handleUpdatedText(newText);
 
     // Exit history mode if user starts typing
@@ -1115,14 +1092,14 @@ export const ChatArea: React.FC<{
     }
 
     // Hide autocomplete when typing (only show on Tab completion)
-    setShowAutocomplete(false);
-    setShowEmojiAutocomplete(false);
+    if (showAutocomplete) setShowAutocomplete(false);
+    if (showEmojiAutocomplete) setShowEmojiAutocomplete(false);
   };
 
   const handleInputClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
     const target = e.target as HTMLTextAreaElement;
     const newCursorPos = target.selectionStart || 0;
-    setCursorPosition(newCursorPos);
+    cursorPositionRef.current = newCursorPos;
   };
 
   const handleUsernameSelect = (username: string) => {
@@ -1141,10 +1118,11 @@ export const ChatArea: React.FC<{
           tabCompletion.completionStart + tabCompletion.originalPrefix.length,
         );
 
-      setMessageText(newText);
+      applyText(newText);
+      setAutocompleteInputText(newText);
       const newCursorPosition =
         tabCompletion.completionStart + username.length + suffix.length;
-      setCursorPosition(newCursorPosition);
+      cursorPositionRef.current = newCursorPosition;
 
       setTimeout(() => {
         if (inputRef.current) {
@@ -1157,23 +1135,27 @@ export const ChatArea: React.FC<{
       }, 0);
     } else {
       // Fallback to current logic when tab completion is not active
-      const textBeforeCursor = messageText.substring(0, cursorPosition);
+      const textBeforeCursor = messageTextRef.current.substring(
+        0,
+        cursorPositionRef.current,
+      );
       const words = textBeforeCursor.split(/\s+/);
       const currentWord = words[words.length - 1];
-      const completionStart = cursorPosition - currentWord.length;
+      const completionStart = cursorPositionRef.current - currentWord.length;
 
       const isAtMessageStart = textBeforeCursor.trim() === currentWord;
       const suffix = isAtMessageStart ? ": " : " ";
       const newText =
-        messageText.substring(0, completionStart) +
+        messageTextRef.current.substring(0, completionStart) +
         username +
         suffix +
-        messageText.substring(cursorPosition);
+        messageTextRef.current.substring(cursorPositionRef.current);
 
-      setMessageText(newText);
+      applyText(newText);
+      setAutocompleteInputText(newText);
       const newCursorPosition =
         completionStart + username.length + suffix.length;
-      setCursorPosition(newCursorPosition);
+      cursorPositionRef.current = newCursorPosition;
 
       setTimeout(() => {
         if (inputRef.current) {
@@ -1204,9 +1186,10 @@ export const ChatArea: React.FC<{
             emojiCompletion.originalPrefix.length,
         );
 
-      setMessageText(newText);
+      applyText(newText);
+      setAutocompleteInputText(newText);
       const newCursorPosition = emojiCompletion.completionStart + emoji.length;
-      setCursorPosition(newCursorPosition);
+      cursorPositionRef.current = newCursorPosition;
 
       setTimeout(() => {
         if (inputRef.current) {
@@ -1250,9 +1233,10 @@ export const ChatArea: React.FC<{
             emojiCompletion.originalPrefix.length,
         );
 
-      setMessageText(newText);
+      applyText(newText);
+      setAutocompleteInputText(newText);
       const newCursorPosition = emojiCompletion.completionStart + emoji.length;
-      setCursorPosition(newCursorPosition);
+      cursorPositionRef.current = newCursorPosition;
 
       // Update the hook's internal previousTextRef to prevent reset on next tab
       emojiCompletion.updatePreviousText(newText);
@@ -1290,10 +1274,11 @@ export const ChatArea: React.FC<{
           tabCompletion.completionStart + tabCompletion.originalPrefix.length,
         );
 
-      setMessageText(newText);
+      applyText(newText);
+      setAutocompleteInputText(newText);
       const newCursorPosition =
         tabCompletion.completionStart + username.length + suffix.length;
-      setCursorPosition(newCursorPosition);
+      cursorPositionRef.current = newCursorPosition;
 
       setTimeout(() => {
         if (inputRef.current) {
@@ -1313,7 +1298,7 @@ export const ChatArea: React.FC<{
 
     const target = e.target as HTMLTextAreaElement;
     const newCursorPos = target.selectionStart || 0;
-    setCursorPosition(newCursorPos);
+    cursorPositionRef.current = newCursorPos;
   };
 
   const handleUpdatedText = (text: string) => {
@@ -1322,63 +1307,72 @@ export const ChatArea: React.FC<{
     typingNotification.notifyTyping(target, text);
   };
 
-  const handleUsernameClick = (
-    e: React.MouseEvent,
-    username: string,
-    serverId: string,
-    channelId: string,
-    avatarElement?: Element | null,
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reads servers/currentUser via getState() to avoid stale deps and prevent re-creation on every store update
+  const handleUsernameClick = useCallback(
+    (
+      e: React.MouseEvent,
+      username: string,
+      serverId: string,
+      channelId: string,
+      avatarElement?: Element | null,
+    ) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    // Don't show context menu for own username
-    if (currentUser?.username === username) {
-      return;
-    }
+      // Read fresh state to avoid closure staleness without adding frequently-changing deps
+      const { servers: currentServers } = useStore.getState();
+      const ircCurrentUser = ircClient.getCurrentUser(serverId);
 
-    let x = e.clientX;
-    let y = e.clientY;
-
-    // If avatar element is provided, position menu relative to it
-    if (avatarElement) {
-      const rect = avatarElement.getBoundingClientRect();
-      x = rect.left;
-      y = rect.top - 5; // Position above the avatar with small gap
-    }
-
-    // Calculate user's status in the specific channel
-    let userStatusInChannel: string | undefined;
-    if (channelId && channelId !== "server-notices") {
-      const selectedServer = servers.find((s) => s.id === serverId);
-      const channel = selectedServer?.channels.find((c) => c.id === channelId);
-      if (channel && currentUser) {
-        const serverCurrentUser = ircClient.getCurrentUser(serverId);
-        const userInChannel =
-          channel.users.find(
-            (u) =>
-              u.username.toLowerCase() ===
-              serverCurrentUser?.username.toLowerCase(),
-          ) ||
-          selectedServer?.users.find(
-            (u) =>
-              u.username.toLowerCase() ===
-              serverCurrentUser?.username.toLowerCase(),
-          );
-        userStatusInChannel = userInChannel?.status;
+      // Don't show context menu for own username
+      if (ircCurrentUser?.username === username) {
+        return;
       }
-    }
 
-    setUserContextMenu({
-      isOpen: true,
-      x,
-      y,
-      username,
-      serverId,
-      channelId,
-      userStatusInChannel,
-    });
-  };
+      let x = e.clientX;
+      let y = e.clientY;
+
+      // If avatar element is provided, position menu relative to it
+      if (avatarElement) {
+        const rect = avatarElement.getBoundingClientRect();
+        x = rect.left;
+        y = rect.top - 5; // Position above the avatar with small gap
+      }
+
+      // Calculate user's status in the specific channel
+      let userStatusInChannel: string | undefined;
+      if (channelId && channelId !== "server-notices") {
+        const selectedServer = currentServers.find((s) => s.id === serverId);
+        const channel = selectedServer?.channels.find(
+          (c) => c.id === channelId,
+        );
+        if (channel && ircCurrentUser) {
+          const userInChannel =
+            channel.users.find(
+              (u) =>
+                u.username.toLowerCase() ===
+                ircCurrentUser.username.toLowerCase(),
+            ) ||
+            selectedServer?.users.find(
+              (u) =>
+                u.username.toLowerCase() ===
+                ircCurrentUser.username.toLowerCase(),
+            );
+          userStatusInChannel = userInChannel?.status;
+        }
+      }
+
+      setUserContextMenu({
+        isOpen: true,
+        x,
+        y,
+        username,
+        serverId,
+        channelId,
+        userStatusInChannel,
+      });
+    },
+    [setUserContextMenu],
+  );
 
   const handleCloseUserContextMenu = () => {
     setUserContextMenu({
@@ -1407,10 +1401,10 @@ export const ChatArea: React.FC<{
     }
   };
 
-  const handleOpenProfile = (username: string) => {
+  const handleOpenProfile = useCallback((username: string) => {
     setSelectedProfileUsername(username);
     setUserProfileModalOpen(true);
-  };
+  }, []);
 
   // Server notices popup drag handlers
   const handleServerNoticesMouseDown = (e: React.MouseEvent) => {
@@ -1461,10 +1455,13 @@ export const ChatArea: React.FC<{
     handleServerNoticesMouseUp,
   ]);
 
-  const handleReactClick = (message: MessageType, buttonElement: Element) => {
-    setReactionAnchorRect(buttonElement.getBoundingClientRect());
-    openReactionModal(message);
-  };
+  const handleReactClick = useCallback(
+    (message: MessageType, buttonElement: Element) => {
+      setReactionAnchorRect(buttonElement.getBoundingClientRect());
+      openReactionModal(message);
+    },
+    [openReactionModal],
+  );
 
   const handleCloseModerationModal = () => {
     setModerationModal({
@@ -1514,38 +1511,42 @@ export const ChatArea: React.FC<{
     handleCloseModerationModal();
   };
 
-  const handleRedactMessage = (message: MessageType) => {
-    if (message.msgid && selectedServerId) {
-      const confirmed = window.confirm(
-        "Are you sure you want to delete this message? This action cannot be undone.",
-      );
-      if (confirmed) {
-        const server = servers.find((s) => s.id === selectedServerId);
-        if (!server) return;
+  const handleRedactMessage = useCallback(
+    (message: MessageType) => {
+      if (message.msgid && selectedServerId) {
+        const confirmed = window.confirm(
+          "Are you sure you want to delete this message? This action cannot be undone.",
+        );
+        if (confirmed) {
+          const { servers: currentServers } = useStore.getState();
+          const server = currentServers.find((s) => s.id === selectedServerId);
+          if (!server) return;
 
-        let target: string | undefined;
-        if (message.channelId) {
-          const channel = server.channels.find(
-            (c) => c.id === message.channelId,
-          );
-          target = channel?.name;
-        } else {
-          // Private message, find by userId
-          const privateChat = server.privateChats?.find(
-            (pc) => pc.username === message.userId,
-          );
-          target = privateChat?.username;
-        }
+          let target: string | undefined;
+          if (message.channelId) {
+            const channel = server.channels.find(
+              (c) => c.id === message.channelId,
+            );
+            target = channel?.name;
+          } else {
+            // Private message, find by userId
+            const privateChat = server.privateChats?.find(
+              (pc) => pc.username === message.userId,
+            );
+            target = privateChat?.username;
+          }
 
-        if (target) {
-          redactMessage(selectedServerId, target, message.msgid);
+          if (target) {
+            redactMessage(selectedServerId, target, message.msgid);
+          }
         }
       }
-    }
-  };
+    },
+    [selectedServerId, redactMessage],
+  );
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
-    setMessageText((prev) => prev + emojiData.emoji);
+    applyText(messageTextRef.current + emojiData.emoji);
     setIsEmojiSelectorOpen(false);
   };
 
@@ -1560,6 +1561,7 @@ export const ChatArea: React.FC<{
       const newValue = !prev;
       // Close other dropdowns when opening members dropdown
       if (newValue) {
+        setAutocompleteInputText(messageTextRef.current);
         setShowAutocomplete(false);
         setShowEmojiAutocomplete(false);
         setIsEmojiSelectorOpen(false);
@@ -1626,6 +1628,8 @@ export const ChatArea: React.FC<{
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
 
+      <MiniMediaPlayer />
+
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}
       {showMemberListOverlay && (
         <div className="flex-grow overflow-hidden bg-discord-dark-100">
@@ -1641,166 +1645,56 @@ export const ChatArea: React.FC<{
             !selectedPrivateChat &&
             selectedChannelId !== "server-notices" && (
               <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
-                <BlankPage /> {/* Render the blank page */}
+                <BlankPage />
               </div>
             )}
-          {(selectedChannel ||
-            selectedPrivateChat ||
-            selectedChannelId === "server-notices") && (
-            <div
-              ref={messagesContainerRef}
-              className="flex-grow overflow-y-auto overflow-x-hidden flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
-            >
-              {selectedChannel?.isLoadingHistory ? (
-                // Show loading spinner when channel is loading history
-                <div className="flex-grow flex items-center justify-center">
-                  <LoadingSpinner
-                    size="lg"
-                    text="Loading chat history..."
-                    className="text-discord-text-muted"
+          {!selectedServer && <DiscoverGrid />}
+
+          {/* Keep-alive channel message lists — last 3 channels stay in DOM with display:none
+              so scroll position, media elements, and loaded images are preserved. */}
+          {aliveChannels.map(
+            ({
+              key,
+              serverId: aServerId,
+              channelId: aChannelId,
+              privateChatId: aPrivateChatId,
+            }) => {
+              const isKeyActive = key === channelKey;
+              return (
+                <div
+                  key={key}
+                  className={
+                    isKeyActive ? "flex flex-col flex-grow min-h-0" : "hidden"
+                  }
+                >
+                  <ChannelMessageList
+                    ref={(handle) => {
+                      if (handle) channelListRefs.current.set(key, handle);
+                      else channelListRefs.current.delete(key);
+                    }}
+                    channelKey={key}
+                    serverId={aServerId}
+                    channelId={aChannelId}
+                    privateChatId={aPrivateChatId}
+                    isActive={isKeyActive}
+                    searchQuery={isKeyActive ? searchQuery : ""}
+                    isMemberListVisible={isMemberListVisible}
+                    onReply={handleSetReplyTo}
+                    onUsernameContextMenu={handleUsernameClick}
+                    onIrcLinkClick={handleIrcLinkClick}
+                    onReactClick={handleReactClick}
+                    onReactionUnreact={unreact}
+                    onOpenReactionModal={openReactionModal}
+                    onDirectReaction={directReaction}
+                    onRedactMessage={handleRedactMessage}
+                    onOpenProfile={handleOpenProfile}
+                    joinChannel={joinChannel}
+                    onClearSearch={handleClearSearch}
                   />
                 </div>
-              ) : (
-                // Show messages when not loading
-                <>
-                  {/* View older messages button */}
-                  {hasMoreMessages && !searchQuery && (
-                    <div className="flex justify-center py-4">
-                      <button
-                        onClick={() => {
-                          // When scrolled up, slide the frozen start back 100 instead of
-                          // changing visibleMessageCount — avoids insertions above viewport.
-                          if (scrollUpStartRef.current !== null) {
-                            scrollUpStartRef.current = Math.max(
-                              0,
-                              scrollUpStartRef.current - 100,
-                            );
-                          }
-                          setVisibleMessageCount((prev) => prev + 100);
-                        }}
-                        className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
-                      >
-                        View older messages (
-                        {filteredMessages.length - displayedMessages.length}{" "}
-                        hidden)
-                      </button>
-                    </div>
-                  )}
-                  {/* Search results indicator */}
-                  {searchQuery && (
-                    <div className="flex justify-center items-center gap-2 py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
-                      <span>
-                        Found {filteredMessages.length} message
-                        {filteredMessages.length === 1 ? "" : "s"} matching "
-                        {searchQuery}"
-                      </span>
-                      <button
-                        onClick={() => setSearchQuery("")}
-                        className="text-red-400 hover:text-red-300"
-                        title="Clear search"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                  {eventGroups.map((group) => {
-                    if (group.type === "eventGroup") {
-                      // Create a stable key from the first and last message IDs in the group
-                      const firstId = group.messages[0]?.id || "";
-                      const lastId =
-                        group.messages[group.messages.length - 1]?.id || "";
-                      const groupKey = `group-${firstId}-${lastId}`;
-
-                      return (
-                        <CollapsedEventMessage
-                          key={groupKey}
-                          eventGroup={group}
-                          users={selectedChannel?.users || []}
-                          onUsernameContextMenu={(
-                            e,
-                            username,
-                            serverId,
-                            channelId,
-                            avatarElement,
-                          ) =>
-                            handleUsernameClick(
-                              e,
-                              username,
-                              serverId,
-                              channelId,
-                              avatarElement,
-                            )
-                          }
-                        />
-                      );
-                    }
-                    // Single message - find its original index for date/header logic
-                    const message = group.messages[0];
-                    const originalIndex = channelMessages.findIndex(
-                      (m) => m.id === message.id,
-                    );
-                    const previousMessage = channelMessages[originalIndex - 1];
-                    const showHeader =
-                      !previousMessage ||
-                      previousMessage.type !== "message" ||
-                      previousMessage.userId !== message.userId ||
-                      new Date(message.timestamp).getTime() -
-                        new Date(previousMessage.timestamp).getTime() >
-                        5 * 60 * 1000;
-
-                    return (
-                      <MessageItem
-                        key={message.id}
-                        message={message}
-                        showDate={
-                          originalIndex === 0 ||
-                          new Date(message.timestamp).toDateString() !==
-                            new Date(
-                              channelMessages[originalIndex - 1]?.timestamp,
-                            ).toDateString()
-                        }
-                        showHeader={showHeader}
-                        setReplyTo={handleSetReplyTo}
-                        onUsernameContextMenu={(
-                          e,
-                          username,
-                          serverId,
-                          channelId,
-                          avatarElement,
-                        ) =>
-                          handleUsernameClick(
-                            e,
-                            username,
-                            serverId,
-                            channelId,
-                            avatarElement,
-                          )
-                        }
-                        onIrcLinkClick={handleIrcLinkClick}
-                        onReactClick={handleReactClick}
-                        joinChannel={joinChannel}
-                        onReactionUnreact={unreact}
-                        onOpenReactionModal={openReactionModal}
-                        onDirectReaction={directReaction}
-                        serverId={selectedServerId || ""}
-                        channelId={selectedChannelId || undefined}
-                        onRedactMessage={handleRedactMessage}
-                        onOpenProfile={handleOpenProfile}
-                      />
-                    );
-                  })}
-                </>
-              )}
-
-              <div ref={messagesEndRef} className="h-px" />
-            </div>
+              );
+            },
           )}
-          {!selectedServer && <DiscoverGrid />}
-          {/* Scroll to bottom button */}
-          <ScrollToBottomButton
-            isVisible={isScrolledUp}
-            onClick={scrollToBottom}
-          />
 
           {/* Input area */}
           {(selectedChannel || selectedPrivateChat) && (
@@ -1830,7 +1724,7 @@ export const ChatArea: React.FC<{
 
                 <TextArea
                   ref={inputRef}
-                  value={messageText}
+                  defaultValue=""
                   onChange={handleInputChange}
                   onClick={handleInputClick}
                   onKeyUp={handleInputKeyUp}
@@ -1886,7 +1780,7 @@ export const ChatArea: React.FC<{
                   onSendClick={handleSendMessage}
                   showSendButton={isNativeMobile}
                   hideEmoji={isNativeMobile}
-                  hasText={messageText.trim().length > 0}
+                  hasText={hasText}
                 />
               </div>
 
@@ -1975,7 +1869,9 @@ export const ChatArea: React.FC<{
               {!isNarrowView && (
                 <EmojiPickerInline
                   isOpen={isEmojiSelectorOpen}
-                  onEmojiClick={(e) => setMessageText((prev) => prev + e.emoji)}
+                  onEmojiClick={(e) =>
+                    applyText(messageTextRef.current + e.emoji)
+                  }
                   onClose={() => setIsEmojiSelectorOpen(false)}
                 />
               )}
@@ -1995,8 +1891,8 @@ export const ChatArea: React.FC<{
                     : [])
                 }
                 isVisible={showAutocomplete}
-                inputValue={messageText}
-                cursorPosition={cursorPosition}
+                inputValue={autocompleteInputText}
+                cursorPosition={cursorPositionRef.current}
                 tabCompletionMatches={tabCompletion.matches}
                 currentMatchIndex={tabCompletion.currentIndex}
                 onSelect={handleUsernameSelect}
@@ -2007,8 +1903,8 @@ export const ChatArea: React.FC<{
 
               <EmojiAutocompleteDropdown
                 isVisible={showEmojiAutocomplete || emojiCompletion.isActive}
-                inputValue={messageText}
-                cursorPosition={cursorPosition}
+                inputValue={autocompleteInputText}
+                cursorPosition={cursorPositionRef.current}
                 emojiMatches={emojiCompletion.matches}
                 currentMatchIndex={emojiCompletion.currentIndex}
                 onSelect={handleEmojiAutocompleteSelect}
@@ -2034,14 +1930,14 @@ export const ChatArea: React.FC<{
                     : [])
                 }
                 isVisible={showMembersDropdown}
-                inputValue={messageText}
-                cursorPosition={cursorPosition}
+                inputValue={autocompleteInputText}
+                cursorPosition={cursorPositionRef.current}
                 tabCompletionMatches={[]}
                 currentMatchIndex={-1}
                 onSelect={(username) => {
-                  const isAtMessageStart = messageText.trim() === "";
+                  const isAtMessageStart = messageTextRef.current.trim() === "";
                   const suffix = isAtMessageStart ? ": " : " ";
-                  setMessageText((prev) => prev + username + suffix);
+                  applyText(messageTextRef.current + username + suffix);
                   setShowMembersDropdown(false);
                 }}
                 onClose={() => setShowMembersDropdown(false)}
