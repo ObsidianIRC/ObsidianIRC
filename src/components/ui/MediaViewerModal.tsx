@@ -790,12 +790,13 @@ export function MediaViewerModal({
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const msg = await invoke<string>("download_image", { url: currentUrl });
-      if (msg) {
-        setSavedMessage(msg);
-        setTimeout(() => setSavedMessage(""), 4000);
-      }
-    } catch {
-      console.error("Download failed");
+      const toast = msg || "Saved";
+      setSavedMessage(toast);
+      setTimeout(() => setSavedMessage(""), 4000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSavedMessage(`Save failed: ${msg}`);
+      setTimeout(() => setSavedMessage(""), 6000);
     } finally {
       setIsDownloading(false);
     }
