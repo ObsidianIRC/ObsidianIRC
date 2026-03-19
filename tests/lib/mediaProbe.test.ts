@@ -42,12 +42,13 @@ function uniqueUrl(suffix = "") {
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
 
-  // jsdom doesn't fire loadedmetadata/error on media elements for HTTP URLs.
+  // jsdom doesn't fire loadedmetadata/error on media/image elements for HTTP URLs.
   // Return a stub that immediately fires "error" as a microtask so probeViaMediaElement
-  // resolves false without waiting 5 seconds.
+  // and probeViaImageElement resolve false without waiting 5 seconds.
   const origCreate = document.createElement.bind(document);
   vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
-    if (tagName !== "audio" && tagName !== "video") return origCreate(tagName);
+    if (tagName !== "audio" && tagName !== "video" && tagName !== "img")
+      return origCreate(tagName);
     const listeners = new Map<string, (e: Event) => void>();
     const el = {
       preload: "",

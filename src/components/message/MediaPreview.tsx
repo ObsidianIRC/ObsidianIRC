@@ -247,6 +247,12 @@ const ImagePreview: React.FC<{
   const displayUrl = resolvedUrl || url;
 
   if (imageError) {
+    // Filehost images embed a JWT in the URL — expiry is the likely cause.
+    // For all other images, return null and let the URL text in the message
+    // body serve as the fallback (the probe already confirmed it was an image,
+    // so the server likely returned the image but it failed to render — e.g.
+    // expired CDN token, corrupted file).
+    if (!isFilehostImage) return null;
     return (
       <div className="max-w-md">
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
@@ -532,92 +538,90 @@ const VideoPreview: React.FC<{
           className="cursor-pointer"
           onClick={handlePlayPause}
         />
-        <>
-          {thumbnail && !isPlaying && (
-            <img
-              src={thumbnail}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-            />
-          )}
-          {!isPlaying && (
+        {thumbnail && !isPlaying && (
+          <img
+            src={thumbnail}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+        )}
+        {!isPlaying && (
+          <button
+            type="button"
+            aria-label="Play"
+            onClick={handlePlayPause}
+            className="absolute inset-0 flex items-center justify-center z-10"
+          >
+            <div className="bg-black/50 backdrop-blur-sm rounded-full p-5 text-white hover:scale-110 hover:bg-black/70 transition-all duration-150 shadow-xl">
+              <FaPlay className="w-7 h-7 ml-0.5" />
+            </div>
+          </button>
+        )}
+        <div
+          className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-2 px-3 transition-opacity duration-200 ${
+            isPlaying
+              ? "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+              : "opacity-100"
+          }`}
+        >
+          <div className="flex items-center gap-2 text-white">
             <button
               type="button"
-              aria-label="Play"
+              aria-label={isPlaying ? "Pause" : "Play"}
+              className="shrink-0 hover:scale-110 transition-transform"
               onClick={handlePlayPause}
-              className="absolute inset-0 flex items-center justify-center z-10"
             >
-              <div className="bg-black/50 backdrop-blur-sm rounded-full p-5 text-white hover:scale-110 hover:bg-black/70 transition-all duration-150 shadow-xl">
-                <FaPlay className="w-7 h-7 ml-0.5" />
-              </div>
+              {isPlaying ? (
+                <FaPause className="w-3.5 h-3.5" />
+              ) : (
+                <FaPlay className="w-3.5 h-3.5" />
+              )}
             </button>
-          )}
-          <div
-            className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-2 px-3 transition-opacity duration-200 ${
-              isPlaying
-                ? "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
-                : "opacity-100"
-            }`}
-          >
-            <div className="flex items-center gap-2 text-white">
+            <span
+              ref={timeDisplayRef}
+              className="text-xs tabular-nums shrink-0 text-white/75"
+            />
+            <input
+              ref={seekRef}
+              type="range"
+              min={0}
+              max={duration > 0 ? duration : 0}
+              step={0.1}
+              defaultValue={0}
+              onChange={handleSeek}
+              className="flex-1 h-0.5 accent-white cursor-pointer rounded-full"
+              aria-label="Seek"
+            />
+            <span className="text-xs tabular-nums shrink-0 text-white/40">
+              {formatVideoTime(duration)}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                aria-label={isPlaying ? "Pause" : "Play"}
-                className="shrink-0 hover:scale-110 transition-transform"
-                onClick={handlePlayPause}
+                aria-label={volume === 0 ? "Unmute" : "Mute"}
+                className="shrink-0 hover:scale-110 transition-transform text-white/75 hover:text-white"
+                onClick={handleToggleMute}
               >
-                {isPlaying ? (
-                  <FaPause className="w-3.5 h-3.5" />
+                {volume === 0 ? (
+                  <FaVolumeMute className="w-3.5 h-3.5" />
                 ) : (
-                  <FaPlay className="w-3.5 h-3.5" />
+                  <FaVolumeUp className="w-3.5 h-3.5" />
                 )}
               </button>
-              <span
-                ref={timeDisplayRef}
-                className="text-xs tabular-nums shrink-0 text-white/75"
-              />
               <input
-                ref={seekRef}
                 type="range"
                 min={0}
-                max={duration > 0 ? duration : 0}
-                step={0.1}
-                defaultValue={0}
-                onChange={handleSeek}
-                className="flex-1 h-0.5 accent-white cursor-pointer rounded-full"
-                aria-label="Seek"
+                max={1}
+                step={0.05}
+                value={volume}
+                onChange={handleVolumeChange}
+                className="w-14 h-0.5 accent-white cursor-pointer"
+                aria-label="Volume"
               />
-              <span className="text-xs tabular-nums shrink-0 text-white/40">
-                {formatVideoTime(duration)}
-              </span>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  aria-label={volume === 0 ? "Unmute" : "Mute"}
-                  className="shrink-0 hover:scale-110 transition-transform text-white/75 hover:text-white"
-                  onClick={handleToggleMute}
-                >
-                  {volume === 0 ? (
-                    <FaVolumeMute className="w-3.5 h-3.5" />
-                  ) : (
-                    <FaVolumeUp className="w-3.5 h-3.5" />
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={volume}
-                  onChange={handleVolumeChange}
-                  className="w-14 h-0.5 accent-white cursor-pointer"
-                  aria-label="Volume"
-                />
-              </div>
             </div>
           </div>
-        </>
+        </div>
       </div>
     </div>
   );
@@ -740,16 +744,15 @@ const EmbedPreview: React.FC<{
     (state) => state.setMediaInlineVisible,
   );
   const [playerKey, setPlayerKey] = useState(0);
+  const wasEmbedActiveRef = useRef(false);
 
   const isThisEmbedActive =
     activeMedia?.url === url && activeMedia?.type === "embed";
 
-  // Reset the player (remount iframe) when transitioning active → inactive,
-  // i.e. the user clicks Stop in the Now Playing Bar. Without this, the YouTube
-  // iframe keeps playing because ReactPlayer passes playing={undefined} which
-  // doesn't send a stop command.
-  const wasEmbedActiveRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: url change itself resets the key via playerKey
+  // Remount the iframe (increment key) when this embed goes from active → inactive.
+  // This is legitimate useEffect use: synchronizing an external system (YouTube iframe)
+  // with a state transition. The during-render pattern was unreliable — any extra render
+  // triggered by setMediaInlineVisible while active could silently reset prevRef to false.
   useEffect(() => {
     const isActive = activeMedia?.url === url;
     if (wasEmbedActiveRef.current && !isActive) {
@@ -758,9 +761,11 @@ const EmbedPreview: React.FC<{
     wasEmbedActiveRef.current = isActive;
   }, [activeMedia?.url, url]);
 
-  // Tell the store when this inline embed player is mounted/unmounted.
-  // MiniMediaPlayer renders its own ReactPlayer only when isInlineVisible=false,
-  // preventing double-playback while keeping audio alive across channel switches.
+  // Tell the store when this inline embed player is mounted/unmounted so
+  // MiniMediaPlayer's hidden ReactPlayer can take over on non-keep-alive channel
+  // switches (where EmbedPreview unmounts). With keep-alive, EmbedPreview is never
+  // unmounted — the YouTube iframe continues playing audio through display:none on its
+  // parent without interruption, so this cleanup never fires and nothing needs to.
   // biome-ignore lint/correctness/useExhaustiveDependencies: setMediaInlineVisible is a stable store action
   useEffect(() => {
     if (!isThisEmbedActive) return;
@@ -770,6 +775,9 @@ const EmbedPreview: React.FC<{
     };
   }, [isThisEmbedActive]);
 
+  // undefined when inactive: leave the iframe uncontrolled so the user can
+  // interact with YouTube natively. The playerKey reset above handles the
+  // "reset to beginning on stop" without needing to force-pause the iframe.
   const playing = mediaViewerOpen
     ? false
     : activeMedia?.url === url
@@ -793,8 +801,7 @@ const EmbedPreview: React.FC<{
             playing={playing}
             style={{ borderRadius: "4px", overflow: "hidden" }}
             onPlay={() => {
-              // Guard against spurious onPlay events fired by the YouTube iframe when its
-              // container transitions from display:none back to visible (keep-alive channels).
+              // Guard against spurious onPlay events fired by YouTube.
               // If the user explicitly paused (isPlaying=false in store), ignore the event.
               const current = useStore.getState().ui.activeMedia;
               if (current?.url === url && current.isPlaying === false) return;

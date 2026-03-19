@@ -29,6 +29,7 @@ import { probeMediaUrl } from "../../lib/mediaProbe";
 import type { MediaEntry, MediaType } from "../../lib/mediaUtils";
 import {
   canShowMedia,
+  detectMediaType,
   extractMediaFromMessage,
   getEmbedThumbnailUrl,
 } from "../../lib/mediaUtils";
@@ -411,12 +412,15 @@ export function MediaViewerModal({
       .filter(
         (e) =>
           // Include entries when:
-          // 1. Type is known (typed entries).
-          // 2. Extensionless filehost URL — type resolved via HEAD probe.
-          // 3. The specifically opened URL, regardless of domain — user already saw it
+          // 1. Type is known from trusted domain (e.type !== null).
+          // 2. URL has a recognisable extension — entry has type:null now (HEAD probed)
+          //    but extension suggests it's media; HEAD will confirm or deny at render time.
+          // 3. Extensionless filehost URL — type resolved via HEAD probe.
+          // 4. The specifically opened URL, regardless of domain — user already saw it
           //    in chat so canShowMedia is satisfied; we need it in the list for comments
           //    and filmstrip positioning (e.g. radio streams on a different subdomain).
           (e.type !== null ||
+            detectMediaType(e.url) !== null ||
             (filehost != null && isUrlFromFilehost(e.url, filehost)) ||
             (e.url === url && (!sourceMsgId || e.msg.msgid === sourceMsgId))) &&
           canShowMedia(
@@ -823,13 +827,22 @@ export function MediaViewerModal({
   const cursor = isDragging ? "grabbing" : zoom > 1 ? "zoom-out" : "zoom-in";
   const portalTarget = document.getElementById("root") ?? document.body;
 
-  // When currentEntry is null, the URL was opened without a typed entry — use probe result.
+  // When currentEntry has type: null (extension-based URL), use URL extension as an optimistic
+  // hint while the HEAD probe is in flight so the UI renders immediately. The probe result
+  // takes over once it resolves, allowing the server's Content-Type to correct wrong guesses.
   const effectiveType: MediaType | null =
     currentEntry?.type ??
-    (probedType === "probing" || probedType === "failed" ? null : probedType);
+    (probedType === "probing"
+      ? detectMediaType(currentUrl) // optimistic hint from URL extension while probing
+      : probedType === "failed"
+        ? null
+        : probedType);
+  // Only show the spinner when both the probe is still in flight AND the URL extension gives
+  // no hint — i.e., we truly don't know the type yet.
   const isViewerProbing =
     (currentEntry === null || currentEntry.type === null) &&
-    probedType === "probing";
+    probedType === "probing" &&
+    detectMediaType(currentUrl) === null;
   // Treat as image only when we know it's an image — never fall back for unknown types
   // (avoids feeding stream URLs into <img> which hangs the browser).
   const isImageEntry = effectiveType === "image";

@@ -52,19 +52,38 @@ export function detectMediaType(url: string): MediaType | null {
   return null;
 }
 
+/** Like detectMediaType but trusted domains only — no extension guessing.
+ *  Extension-based URLs get type:null so they are always HEAD-probed at render
+ *  time. This lets the server's actual Content-Type override the URL hint
+ *  (e.g. a .png path that serves text/html should produce no preview). */
+function detectTrustedDomainType(url: string): MediaType | null {
+  const hostname = extractHostname(url);
+  if (hostname === null) return null;
+  for (const domain of Object.keys(TRUSTED_EMBED_DOMAINS)) {
+    if (hostname === domain || hostname.endsWith(`.${domain}`)) {
+      return TRUSTED_EMBED_DOMAINS[domain];
+    }
+  }
+  return null;
+}
+
 export function isImageLikeUrl(url: string): boolean {
   return detectMediaType(url) === "image";
 }
 
 /** Returns all media entries found in a message's content, deduplicated by URL.
- *  Entries with type === null have no detectable extension and should be HEAD-probed. */
+ *  Trusted-domain URLs (YouTube, Tenor, etc.) get their type pre-set.
+ *  All other URLs — including those with image/video/audio extensions — get
+ *  type:null so ProbeablePreview HEAD-probes them. This ensures the server's
+ *  actual Content-Type is authoritative: a .png path returning text/html will
+ *  produce no preview instead of a broken image widget. */
 export function extractMediaFromMessage(message: Message): MediaEntry[] {
   const content = stripIrcFormatting(message.content).trim();
 
   // Single-token message that starts with http — check it directly
   if (!/\s/.test(content) && content.startsWith("http")) {
     const clean = content.replace(/[.,!?;:)>\]*]+$/, "");
-    return [{ url: clean, type: detectMediaType(clean) }];
+    return [{ url: clean, type: detectTrustedDomainType(clean) }];
   }
 
   const matches = content.match(/https?:\/\/[^\s,]+/gi) ?? [];
@@ -74,7 +93,7 @@ export function extractMediaFromMessage(message: Message): MediaEntry[] {
     const u = raw.replace(/[.,!?;:)>\]*]+$/, "");
     if (seen.has(u)) continue;
     seen.add(u);
-    entries.push({ url: u, type: detectMediaType(u) });
+    entries.push({ url: u, type: detectTrustedDomainType(u) });
   }
   return entries;
 }

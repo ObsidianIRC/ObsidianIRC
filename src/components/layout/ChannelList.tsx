@@ -125,6 +125,16 @@ export const ChannelList: React.FC<{
   const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
     useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  // During-render reset: when user or server changes, the avatar key changes and
+  // any previous load failure is no longer relevant to the new avatar.
+  const prevAvatarKeyRef = useRef(
+    `${currentUser?.username}-${selectedServerId}`,
+  );
+  const currentAvatarKey = `${currentUser?.username}-${selectedServerId}`;
+  if (prevAvatarKeyRef.current !== currentAvatarKey) {
+    prevAvatarKeyRef.current = currentAvatarKey;
+    setAvatarLoadFailed(false);
+  }
   const [clickedPM, setClickedPM] = useState<string | null>(null);
   const lastSelectedPM = useRef<string | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -133,12 +143,6 @@ export const ChannelList: React.FC<{
   const selectedServer = servers.find(
     (server) => server.id === selectedServerId,
   );
-
-  // Reset avatar load failed state when user or server changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: We want to reset when user/server changes
-  useEffect(() => {
-    setAvatarLoadFailed(false);
-  }, [currentUser?.username, selectedServerId]);
 
   // Get user status based on server connection and away status
   const userStatus = useMemo(() => {

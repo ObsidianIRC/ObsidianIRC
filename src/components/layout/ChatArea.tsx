@@ -236,6 +236,7 @@ export const ChatArea: React.FC<{
   const connect = useStore((state) => state.connect);
   const joinChannel = useStore((state) => state.joinChannel);
   const toggleAddServerModal = useStore((state) => state.toggleAddServerModal);
+  const stopActiveMedia = useStore((state) => state.stopActiveMedia);
   const redactMessage = useStore((state) => state.redactMessage);
   const warnUser = useStore((state) => state.warnUser);
   const kickUser = useStore((state) => state.kickUser);
@@ -651,6 +652,15 @@ export const ChatArea: React.FC<{
       ].slice(0, 3);
     });
   }, [channelKey, selectedServerId, selectedChannelId, selectedPrivateChatId]);
+
+  // Stop embed media (YouTube, etc.) when switching channels.
+  // HTML5 video/audio keep playing via MiniMediaPlayer's hidden element,
+  // but embedded iframes are suspended by display:none anyway — stopping them
+  // keeps the store consistent and resets the player for the next visit.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: stopActiveMedia is a stable store action
+  useEffect(() => {
+    if (ui.activeMedia?.type === "embed") stopActiveMedia();
+  }, [channelKey]);
 
   // Close plus menu on outside click
   useEffect(() => {
@@ -1650,51 +1660,59 @@ export const ChatArea: React.FC<{
             )}
           {!selectedServer && <DiscoverGrid />}
 
-          {/* Keep-alive channel message lists — last 3 channels stay in DOM with display:none
-              so scroll position, media elements, and loaded images are preserved. */}
-          {aliveChannels.map(
-            ({
-              key,
-              serverId: aServerId,
-              channelId: aChannelId,
-              privateChatId: aPrivateChatId,
-            }) => {
-              const isKeyActive = key === channelKey;
-              return (
-                <div
-                  key={key}
-                  className={
-                    isKeyActive ? "flex flex-col flex-grow min-h-0" : "hidden"
-                  }
-                >
-                  <ChannelMessageList
-                    ref={(handle) => {
-                      if (handle) channelListRefs.current.set(key, handle);
-                      else channelListRefs.current.delete(key);
-                    }}
-                    channelKey={key}
-                    serverId={aServerId}
-                    channelId={aChannelId}
-                    privateChatId={aPrivateChatId}
-                    isActive={isKeyActive}
-                    searchQuery={isKeyActive ? searchQuery : ""}
-                    isMemberListVisible={isMemberListVisible}
-                    onReply={handleSetReplyTo}
-                    onUsernameContextMenu={handleUsernameClick}
-                    onIrcLinkClick={handleIrcLinkClick}
-                    onReactClick={handleReactClick}
-                    onReactionUnreact={unreact}
-                    onOpenReactionModal={openReactionModal}
-                    onDirectReaction={directReaction}
-                    onRedactMessage={handleRedactMessage}
-                    onOpenProfile={handleOpenProfile}
-                    joinChannel={joinChannel}
-                    onClearSearch={handleClearSearch}
-                  />
-                </div>
-              );
-            },
-          )}
+          {/* Keep-alive channel message lists — last 3 channels stay in DOM with
+              display:none to preserve scroll position across channel switches.
+              HTML5 <video>/<audio> elements keep playing inside display:none (no
+              suspension), so video/audio background playback continues uninterrupted.
+              Embedded iframes (YouTube) are suspended by the browser, but we
+              explicitly stop embed media on channel switch (see effect below). */}
+          <div
+            className={`flex flex-col min-h-0 ${channelKey ? "flex-grow" : ""}`}
+          >
+            {aliveChannels.map(
+              ({
+                key,
+                serverId: aServerId,
+                channelId: aChannelId,
+                privateChatId: aPrivateChatId,
+              }) => {
+                const isKeyActive = key === channelKey;
+                return (
+                  <div
+                    key={key}
+                    className={
+                      isKeyActive ? "flex flex-col flex-grow min-h-0" : "hidden"
+                    }
+                  >
+                    <ChannelMessageList
+                      ref={(handle) => {
+                        if (handle) channelListRefs.current.set(key, handle);
+                        else channelListRefs.current.delete(key);
+                      }}
+                      channelKey={key}
+                      serverId={aServerId}
+                      channelId={aChannelId}
+                      privateChatId={aPrivateChatId}
+                      isActive={isKeyActive}
+                      searchQuery={isKeyActive ? searchQuery : ""}
+                      isMemberListVisible={isMemberListVisible}
+                      onReply={handleSetReplyTo}
+                      onUsernameContextMenu={handleUsernameClick}
+                      onIrcLinkClick={handleIrcLinkClick}
+                      onReactClick={handleReactClick}
+                      onReactionUnreact={unreact}
+                      onOpenReactionModal={openReactionModal}
+                      onDirectReaction={directReaction}
+                      onRedactMessage={handleRedactMessage}
+                      onOpenProfile={handleOpenProfile}
+                      joinChannel={joinChannel}
+                      onClearSearch={handleClearSearch}
+                    />
+                  </div>
+                );
+              },
+            )}
+          </div>
 
           {/* Input area */}
           {(selectedChannel || selectedPrivateChat) && (

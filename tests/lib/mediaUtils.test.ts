@@ -80,25 +80,50 @@ describe("detectMediaType", () => {
 });
 
 describe("extractMediaFromMessage", () => {
-  test("extracts single URL message", () => {
+  // Extension-based URLs now return type:null — they are HEAD-probed at render
+  // time so the server's Content-Type takes precedence over the URL hint.
+  // Only trusted-domain URLs (YouTube, Tenor, etc.) get a pre-set type.
+
+  test("extension-based image URL gets type:null (HEAD-probed)", () => {
     const entries = extractMediaFromMessage(
       makeMessage("https://example.com/photo.jpg"),
     );
     expect(entries).toHaveLength(1);
     expect(entries[0]).toEqual({
       url: "https://example.com/photo.jpg",
-      type: "image",
+      type: null,
     });
   });
-  test("extracts multiple URLs from text", () => {
+  test("extension-based video URL gets type:null (HEAD-probed)", () => {
+    const entries = extractMediaFromMessage(
+      makeMessage("https://example.com/clip.mp4"),
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].type).toBeNull();
+  });
+  test("trusted domain URL gets pre-set type (no HEAD needed)", () => {
+    const entries = extractMediaFromMessage(
+      makeMessage("https://www.youtube.com/watch?v=abc"),
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].type).toBe("embed");
+  });
+  test("tenor.com URL gets pre-set image type", () => {
+    const entries = extractMediaFromMessage(
+      makeMessage("https://media.tenor.com/abc.gif"),
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].type).toBe("image");
+  });
+  test("extracts multiple URLs from text — all non-trusted get null", () => {
     const entries = extractMediaFromMessage(
       makeMessage(
         "Check this https://example.com/a.jpg and https://example.com/b.mp4",
       ),
     );
     expect(entries).toHaveLength(2);
-    expect(entries[0].type).toBe("image");
-    expect(entries[1].type).toBe("video");
+    expect(entries[0].type).toBeNull();
+    expect(entries[1].type).toBeNull();
   });
   test("deduplicates identical URLs", () => {
     const entries = extractMediaFromMessage(
@@ -132,21 +157,43 @@ describe("extractMediaFromMessage", () => {
     );
     expect(entries).toHaveLength(1);
     expect(entries[0].url).toBe("https://example.com/video.mp4");
-    expect(entries[0].type).toBe("video");
+    expect(entries[0].type).toBeNull();
   });
   test("handles URL with fragment/hash", () => {
     const entries = extractMediaFromMessage(
       makeMessage("https://example.com/photo.jpg#section"),
     );
     expect(entries).toHaveLength(1);
-    expect(entries[0].type).toBe("image");
+    expect(entries[0].type).toBeNull();
   });
   test("handles URL with both query and extension", () => {
     const entries = extractMediaFromMessage(
       makeMessage("https://example.com/video.mp4?token=abc123"),
     );
     expect(entries).toHaveLength(1);
-    expect(entries[0].type).toBe("video");
+    expect(entries[0].type).toBeNull();
+  });
+  test("grouped path (.png,file.png) sent alone: extracted whole, gets null type", () => {
+    // Single-token path: no whitespace, full URL including commas preserved.
+    // HEAD probe will return text/html → no preview shown.
+    const entries = extractMediaFromMessage(
+      makeMessage("https://s.h4ks.com/group/F7d.png,F7e.png,F7f.png"),
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].url).toBe(
+      "https://s.h4ks.com/group/F7d.png,F7e.png,F7f.png",
+    );
+    expect(entries[0].type).toBeNull();
+  });
+  test("grouped path in multi-word message: comma stops URL extraction", () => {
+    // Multi-token path uses [^\s,]+ regex — stops at comma.
+    // The truncated URL (before comma) also gets type:null → HEAD-probed.
+    const entries = extractMediaFromMessage(
+      makeMessage("see https://s.h4ks.com/group/F7d.png,F7e.png here"),
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].url).toBe("https://s.h4ks.com/group/F7d.png");
+    expect(entries[0].type).toBeNull();
   });
 });
 

@@ -122,9 +122,45 @@ export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
       return result;
     }
 
+    // Image elements load cross-origin without CORS restrictions — use them
+    // as a last resort to confirm image URLs when fetch() is blocked.
+    // If the server returns HTML (e.g. a .png path that serves a gallery page),
+    // the img element fires onerror, keeping the result null.
+    const isImage = await probeViaImageElement(url);
+    if (isImage) {
+      const result: ProbeResult = {
+        type: "image",
+        streamable: false,
+        skipped: false,
+      };
+      cacheSet(url, result);
+      return result;
+    }
+
     cacheSet(url, null);
     return null;
   }
+}
+
+// Tries to load a URL as an image using a temporary img element.
+// Browsers load cross-origin images without CORS restrictions, so this works
+// even when fetch() is blocked. An HTML response causes onerror to fire
+// because the browser cannot decode HTML as image data.
+function probeViaImageElement(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let settled = false;
+    const done = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      img.src = "";
+      resolve(result);
+    };
+    img.addEventListener("load", () => done(true), { once: true });
+    img.addEventListener("error", () => done(false), { once: true });
+    setTimeout(() => done(false), 5_000);
+    img.src = url;
+  });
 }
 
 // Tries to load a URL as audio or video using a temporary media element.

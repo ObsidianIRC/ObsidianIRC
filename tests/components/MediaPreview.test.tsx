@@ -1,23 +1,26 @@
 import { render } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { MediaPreview } from "../../src/components/message/MediaPreview";
 import type { MediaEntry } from "../../src/lib/mediaUtils";
 
+type ActiveMedia = {
+  url: string;
+  type: string;
+  isPlaying: boolean;
+  isInlineVisible: boolean;
+} | null;
+
 const mockState = {
   ui: {
-    activeMedia: null as null | {
-      url: string;
-      type: string;
-      isPlaying: boolean;
-      isInlineVisible: boolean;
-    },
-    openedMedia: null,
+    activeMedia: null as ActiveMedia,
+    openedMedia: null as { url: string } | null,
   },
   openMedia: vi.fn(),
   playMedia: vi.fn(),
   pauseActiveMedia: vi.fn(),
   stopActiveMedia: vi.fn(),
   setMediaInlineVisible: vi.fn(),
+  setActiveMediaThumbnail: vi.fn(),
 };
 
 vi.mock("../../src/store", () => ({
@@ -42,8 +45,12 @@ vi.mock("react-pdf", () => ({
 }));
 
 vi.mock("react-player", () => ({
-  default: ({ src }: { src: string }) => (
-    <div data-testid="react-player" data-src={src} />
+  default: ({ src, playing }: { src: string; playing?: boolean }) => (
+    <div
+      data-testid="react-player"
+      data-src={src}
+      data-playing={String(playing)}
+    />
   ),
 }));
 
@@ -56,7 +63,14 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }));
 
+const EMBED_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
 describe("MediaPreview", () => {
+  beforeEach(() => {
+    mockState.ui.activeMedia = null;
+    mockState.ui.openedMedia = null;
+  });
+
   const makeEntry = (
     type: MediaEntry["type"],
     url = "https://example.com/media",
@@ -106,5 +120,101 @@ describe("MediaPreview", () => {
     expect(container.querySelector("audio")).toBeNull();
     // Play button should be present
     expect(getByLabelText("Play")).toBeTruthy();
+  });
+});
+
+describe("EmbedPreview — Now Playing Bar stop behaviour", () => {
+  beforeEach(() => {
+    mockState.ui.activeMedia = null;
+    mockState.ui.openedMedia = null;
+  });
+
+  const embedEntry = (): MediaEntry => ({ url: EMBED_URL, type: "embed" });
+
+  // ReactPlayer is lazy-loaded; findByTestId waits for Suspense to resolve.
+  test("playing=undefined when no active media — iframe is uncontrolled", async () => {
+    const { findByTestId } = render(<MediaPreview entry={embedEntry()} />);
+    const player = await findByTestId("react-player");
+    // undefined = don't interfere; user can click play inside YouTube natively.
+    // Passing false would force-pause the iframe and break playback initiation.
+    expect(player.dataset.playing).toBe("undefined");
+  });
+
+  test("playing=true when this embed is active and playing", async () => {
+    mockState.ui.activeMedia = {
+      url: EMBED_URL,
+      type: "embed",
+      isPlaying: true,
+      isInlineVisible: true,
+    };
+    const { findByTestId } = render(<MediaPreview entry={embedEntry()} />);
+    const player = await findByTestId("react-player");
+    expect(player.dataset.playing).toBe("true");
+  });
+
+  test("playing=false when active but paused", async () => {
+    mockState.ui.activeMedia = {
+      url: EMBED_URL,
+      type: "embed",
+      isPlaying: false,
+      isInlineVisible: true,
+    };
+    const { findByTestId } = render(<MediaPreview entry={embedEntry()} />);
+    const player = await findByTestId("react-player");
+    expect(player.dataset.playing).toBe("false");
+  });
+
+  test("playing=false when media viewer modal is open", async () => {
+    mockState.ui.activeMedia = {
+      url: EMBED_URL,
+      type: "embed",
+      isPlaying: true,
+      isInlineVisible: true,
+    };
+    mockState.ui.openedMedia = { url: EMBED_URL };
+    const { findByTestId } = render(<MediaPreview entry={embedEntry()} />);
+    const player = await findByTestId("react-player");
+    expect(player.dataset.playing).toBe("false");
+  });
+
+  test("ReactPlayer remounts when stopped — embed resets to beginning", async () => {
+    mockState.ui.activeMedia = {
+      url: EMBED_URL,
+      type: "embed",
+      isPlaying: true,
+      isInlineVisible: true,
+    };
+    const { findByTestId, rerender } = render(
+      <MediaPreview entry={embedEntry()} />,
+    );
+    const nodeBeforeStop = await findByTestId("react-player");
+
+    // Simulate user clicking Stop in the Now Playing Bar
+    mockState.ui.activeMedia = null;
+    rerender(<MediaPreview entry={embedEntry()} />);
+
+    // A new DOM node means ReactPlayer was remounted (playerKey incremented).
+    // Without the remount, the embed stays paused mid-video instead of resetting.
+    const nodeAfterStop = await findByTestId("react-player");
+    expect(nodeAfterStop).not.toBe(nodeBeforeStop);
+  });
+
+  test("playing=undefined after stop — remounted iframe is uncontrolled again", async () => {
+    mockState.ui.activeMedia = {
+      url: EMBED_URL,
+      type: "embed",
+      isPlaying: true,
+      isInlineVisible: true,
+    };
+    const { findByTestId, rerender } = render(
+      <MediaPreview entry={embedEntry()} />,
+    );
+    await findByTestId("react-player");
+
+    mockState.ui.activeMedia = null;
+    rerender(<MediaPreview entry={embedEntry()} />);
+
+    const player = await findByTestId("react-player");
+    expect(player.dataset.playing).toBe("undefined");
   });
 });

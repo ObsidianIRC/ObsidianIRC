@@ -10,6 +10,7 @@ import {
 import {
   canShowMedia,
   extractMediaFromMessage,
+  type MediaEntry,
   type MediaType,
 } from "../../lib/mediaUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
@@ -111,6 +112,17 @@ const getUserFromChannels = (username: string, serverId: string) => {
 
   return null;
 };
+
+// When index 0 has no preview (type null), the first known-type entry must be shown
+// directly, not collapsed — otherwise there would be 0 visible previews before "Show more".
+export function partitionMediaEntries(entries: MediaEntry[]) {
+  const extraNullEntries = entries.slice(1).filter((e) => e.type === null);
+  const allKnownEntries = entries.filter((e) => e.type !== null);
+  const firstKnownNotAtZero =
+    entries[0]?.type === null ? (allKnownEntries[0] ?? null) : null;
+  const extraKnownEntries = allKnownEntries.slice(1);
+  return { extraNullEntries, firstKnownNotAtZero, extraKnownEntries };
+}
 
 export const MessageItem = (props: MessageItemProps) => {
   const {
@@ -697,7 +709,8 @@ export const MessageItem = (props: MessageItemProps) => {
                     entry={mediaEntries[0]}
                     msgid={message.msgid}
                     isFilehostImage={
-                      isFilehostUrl && mediaEntries[0].type === "image"
+                      !!server?.filehost &&
+                      isUrlFromFilehost(mediaEntries[0].url, server.filehost)
                     }
                     serverId={message.serverId}
                     channelId={mediaChannelId}
@@ -728,19 +741,22 @@ export const MessageItem = (props: MessageItemProps) => {
               ) &&
                 mediaEntries.length > 0 &&
                 (() => {
-                  const extraNullEntries = mediaEntries
-                    .slice(1)
-                    .filter((e) => e.type === null);
-                  const extraKnownEntries = mediaEntries
-                    .slice(1)
-                    .filter((e) => e.type !== null);
+                  const {
+                    extraNullEntries,
+                    firstKnownNotAtZero,
+                    extraKnownEntries,
+                  } = partitionMediaEntries(mediaEntries);
                   return (
                     <div>
                       <MediaPreview
                         entry={mediaEntries[0]}
                         msgid={message.msgid}
                         isFilehostImage={
-                          isFilehostUrl && mediaEntries[0].type === "image"
+                          !!server?.filehost &&
+                          isUrlFromFilehost(
+                            mediaEntries[0].url,
+                            server.filehost,
+                          )
                         }
                         serverId={message.serverId}
                         channelId={mediaChannelId}
@@ -759,6 +775,23 @@ export const MessageItem = (props: MessageItemProps) => {
                           onTypeResolved={handleTypeResolved}
                         />
                       ))}
+                      {firstKnownNotAtZero && (
+                        <MediaPreview
+                          key={firstKnownNotAtZero.url}
+                          entry={firstKnownNotAtZero}
+                          msgid={message.msgid}
+                          isFilehostImage={
+                            !!server?.filehost &&
+                            isUrlFromFilehost(
+                              firstKnownNotAtZero.url,
+                              server.filehost,
+                            )
+                          }
+                          serverId={message.serverId}
+                          channelId={mediaChannelId}
+                          onOpenProfile={onOpenProfile}
+                        />
+                      )}
                       {extraKnownEntries.length > 0 &&
                         (showAllImages ? (
                           <>
@@ -768,7 +801,8 @@ export const MessageItem = (props: MessageItemProps) => {
                                 entry={entry}
                                 msgid={message.msgid}
                                 isFilehostImage={
-                                  isFilehostUrl && entry.type === "image"
+                                  !!server?.filehost &&
+                                  isUrlFromFilehost(entry.url, server.filehost)
                                 }
                                 serverId={message.serverId}
                                 channelId={mediaChannelId}

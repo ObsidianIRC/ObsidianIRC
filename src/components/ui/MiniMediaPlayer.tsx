@@ -456,8 +456,6 @@ export const MiniMediaPlayer: React.FC = () => {
 
       {type === "embed" && (
         <>
-          {/* Hidden ReactPlayer — takes over when the inline EmbedPreview unmounts
-              (e.g. user switches channels). Prevents audio from cutting out. */}
           {!isInlineVisible && (
             <div
               style={{
@@ -474,7 +472,7 @@ export const MiniMediaPlayer: React.FC = () => {
                 <ReactPlayer
                   src={url}
                   playing={isPlaying}
-                  controls
+                  controls={false}
                   width="1px"
                   height="1px"
                   onPlay={() =>
