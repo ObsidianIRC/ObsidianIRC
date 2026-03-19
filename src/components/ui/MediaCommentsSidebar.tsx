@@ -10,6 +10,7 @@ import {
 } from "react";
 import { FaPlus } from "react-icons/fa";
 import { useShallow } from "zustand/react/shallow";
+import { useAutoFocusTyping } from "../../hooks/useAutoFocusTyping";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
 import { useScrollToBottom } from "../../hooks/useScrollToBottom";
@@ -76,6 +77,27 @@ export function MediaCommentsSidebar({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isHoveredRef = useRef(false);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sidebarRef is stable
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return;
+    const onEnter = () => {
+      isHoveredRef.current = true;
+    };
+    const onLeave = () => {
+      isHoveredRef.current = false;
+    };
+    el.addEventListener("mouseenter", onEnter);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mouseenter", onEnter);
+      el.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
+
+  useAutoFocusTyping(textareaRef, () => !isHoveredRef.current);
 
   const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
   // Cache line-height + padding after first read — same pattern as ChatArea

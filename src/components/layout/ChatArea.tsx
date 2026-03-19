@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { FaGift, FaList, FaPlus, FaTimes } from "react-icons/fa";
 import { v4 as uuidv4 } from "uuid";
 import { useShallow } from "zustand/react/shallow";
+import { useAutoFocusTyping } from "../../hooks/useAutoFocusTyping";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
@@ -254,6 +255,30 @@ export const ChatArea: React.FC<{
     (state) => state.setChannelSettingsRequest,
   );
   const setInviteUserRequest = useStore((state) => state.setInviteUserRequest);
+
+  const isAnyModalOpen = useStore((state) => {
+    const { ui } = state;
+    return !!(
+      ui.isAddServerModalOpen ||
+      ui.isEditServerModalOpen ||
+      ui.isSettingsModalOpen ||
+      ui.isQuickActionsOpen ||
+      ui.isChannelListModalOpen ||
+      ui.isChannelRenameModalOpen ||
+      ui.contextMenu?.isOpen ||
+      ui.isServerNoticesPopupOpen ||
+      ui.profileViewRequest ||
+      ui.topicModalRequest ||
+      ui.isUserProfileModalOpen ||
+      ui.channelSettingsRequest ||
+      ui.inviteUserRequest ||
+      ui.openedMedia ||
+      (ui.linkSecurityWarnings?.length ?? 0) > 0
+    );
+  });
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: isAnyModalOpen is a primitive read via ref inside the hook
+  useAutoFocusTyping(inputRef, () => isAnyModalOpen);
 
   useEffect(() => {
     if (channelSettingsRequest) {
