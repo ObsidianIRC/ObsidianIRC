@@ -213,14 +213,16 @@ const App: React.FC = () => {
 
   // Handle deeplinks
   useEffect(() => {
+    let unlisten: (() => void) | null = null;
+
     const setupDeepLinkHandler = async () => {
       if (!isTauri()) {
         return;
       }
 
       try {
-        // Register handler for when app is already running
-        await onOpenUrl((urls) => {
+        // Register handler for when app is already running; store unlisten for cleanup
+        unlisten = await onOpenUrl((urls) => {
           console.log("Deep link received:", urls);
 
           for (const url of urls) {
@@ -249,6 +251,11 @@ const App: React.FC = () => {
     };
 
     setupDeepLinkHandler();
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
   }, [toggleAddServerModal]);
 
   // Global keyboard shortcut for Quick Actions (Cmd+K / Ctrl+K)
@@ -265,6 +272,21 @@ const App: React.FC = () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [toggleQuickActions]);
+
+  // Suppress CSS :hover toolbar popups when the window loses focus — they can
+  // stick in WKWebView / browsers after alt-tab or clicking another app.
+  useEffect(() => {
+    const onBlur = () =>
+      document.documentElement.classList.add("window-blurred");
+    const onFocus = () =>
+      document.documentElement.classList.remove("window-blurred");
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   // Suppress CSS :hover toolbar popups when the window loses focus — they can
   // stick in WKWebView / browsers after alt-tab or clicking another app.

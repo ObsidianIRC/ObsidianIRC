@@ -16,6 +16,7 @@ import {
   handleNames,
   handleRename,
   handleRplBanList,
+  handleRplChannelModeIs,
   handleRplEndOfBanList,
   handleRplEndOfExceptList,
   handleRplEndOfInviteList,
@@ -204,6 +205,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleListChannel(ctx, serverId, source, parv, mtags),
   "323": (ctx, serverId, source, parv, mtags) =>
     handleListEnd(ctx, serverId, source, parv, mtags),
+  "324": (ctx, serverId, source, parv, mtags) =>
+    handleRplChannelModeIs(ctx, serverId, source, parv, mtags),
   "367": (ctx, serverId, source, parv, mtags) =>
     handleRplBanList(ctx, serverId, source, parv, mtags),
   "346": (ctx, serverId, source, parv, mtags) =>

@@ -1227,23 +1227,19 @@ export function MediaViewerModal({
                               : "w-11 h-11 opacity-50 hover:opacity-80"
                           }`}
                         >
-                          {(entry?.type === "image" ||
-                            entry?.type === null) && (
-                            // For type:null (unprobed), optimistically try to show the image.
-                            // onError falls back to a hidden state so the button slot stays but is empty.
+                          {entry?.type === "image" && (
                             <img
                               src={thumbUrl}
                               alt=""
                               draggable={false}
                               className="w-full h-full object-cover transparency-grid"
-                              onError={(e) => {
-                                // Hide the broken img; the slot remains (so the button still exists)
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                                if (entry?.type === null)
-                                  addFailedUrl(thumbUrl);
-                              }}
+                              onError={() => addFailedUrl(thumbUrl)}
                             />
+                          )}
+                          {entry?.type === null && (
+                            <div className="w-full h-full flex items-center justify-center bg-discord-dark-600">
+                              <FaMusic className="text-white/60 text-lg" />
+                            </div>
                           )}
                           {entry?.type === "video" && (
                             <div className="w-full h-full flex items-center justify-center bg-discord-dark-600">

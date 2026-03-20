@@ -6,88 +6,75 @@ import { serverSupportsMetadata } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
+function applyUserModeDelta(prev: string, delta: string): string {
+  const currentModes = new Set(
+    prev.replace(/[+-]/g, "").split("").filter(Boolean),
+  );
+  let adding = true;
+  for (const char of delta) {
+    if (char === "+") {
+      adding = true;
+      continue;
+    }
+    if (char === "-") {
+      adding = false;
+      continue;
+    }
+    if (adding) currentModes.add(char);
+    else currentModes.delete(char);
+  }
+  return [...currentModes].sort().join("");
+}
+
 export function registerChannelHandlers(store: StoreApi<AppState>): void {
   ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
-    // Handle channel mode responses
-    if (target.startsWith("#")) {
-      // This is a channel mode change - let the protocol handler deal with it
-      // The protocol handler will update the store with list changes
-      // We still update the basic mode info for the channel
+    // Channel modes are handled via RPL_CHANNELMODEIS (324); only handle user modes here
+    if (!target.startsWith("#")) {
       store.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id === serverId) {
-            const updatedChannels = server.channels.map((channel) => {
-              if (channel.name.toLowerCase() === target.toLowerCase()) {
-                // Parse the modestring and modeargs to update channel modes
-                // For now, we'll store the raw modestring
-                return {
-                  ...channel,
-                  modes: modestring,
-                  modeArgs: modeargs,
-                };
-              }
-              return channel;
-            });
-            return { ...server, channels: updatedChannels };
-          }
-          return server;
-        });
-        return { servers: updatedServers };
-      });
-    } else {
-      // This is a user mode change
-      store.setState((state) => {
-        // Check if this is the current user
         const currentUser = state.currentUser;
         if (
           currentUser &&
           currentUser.username.toLowerCase() === target.toLowerCase()
         ) {
-          // Check if this is an IRC operator mode change
-          const isIrcOp = modestring.includes("o");
-          // Update current user's modes and IRC operator status
+          const nextModes = applyUserModeDelta(
+            currentUser.modes || "",
+            modestring,
+          );
           return {
             currentUser: {
               ...currentUser,
-              modes: modestring,
-              isIrcOp: isIrcOp,
+              modes: nextModes,
+              isIrcOp: nextModes.includes("o"),
             },
           };
         }
 
-        // If no currentUser in store, check if this MODE is for the IRC current user
         const ircCurrentUser = ircClient.getCurrentUser(serverId);
         if (
           !currentUser &&
           ircCurrentUser &&
           ircCurrentUser.username.toLowerCase() === target.toLowerCase()
         ) {
-          // Check if this is an IRC operator mode change
-          const isIrcOp = modestring.includes("o");
-          // Set the current user with modes and IRC operator status
+          const nextModes = applyUserModeDelta(
+            ircCurrentUser.modes || "",
+            modestring,
+          );
           return {
             currentUser: {
               ...ircCurrentUser,
-              modes: modestring,
-              isIrcOp: isIrcOp,
+              modes: nextModes,
+              isIrcOp: nextModes.includes("o"),
             },
           };
         }
 
-        // Update user in server users list
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
             const updatedUsers = server.users.map((user) => {
               if (user.username.toLowerCase() === target.toLowerCase()) {
-                console.log(
-                  "Updated user",
-                  user.username,
-                  "modes to",
-                  modestring,
-                );
                 return {
                   ...user,
-                  modes: modestring,
+                  modes: applyUserModeDelta(user.modes || "", modestring),
                 };
               }
               return user;
@@ -101,6 +88,27 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
       });
     }
   });
+
+  ircClient.on(
+    "RPL_CHANNELMODEIS",
+    ({ serverId, channelName, modestring, modeargs }) => {
+      store.setState((state) => {
+        const updatedServers = state.servers.map((server) => {
+          if (server.id === serverId) {
+            const updatedChannels = server.channels.map((channel) => {
+              if (channel.name.toLowerCase() === channelName.toLowerCase()) {
+                return { ...channel, modes: modestring, modeArgs: modeargs };
+              }
+              return channel;
+            });
+            return { ...server, channels: updatedChannels };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+    },
+  );
 
   ircClient.on(
     "RPL_BANLIST",

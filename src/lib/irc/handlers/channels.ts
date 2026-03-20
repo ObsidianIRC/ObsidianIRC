@@ -155,6 +155,24 @@ export function handleListEnd(
   ctx.triggerEvent("LIST_END", { serverId });
 }
 
+export function handleRplChannelModeIs(
+  ctx: IRCClientContext,
+  serverId: string,
+  _source: string,
+  parv: string[],
+  _mtags: Record<string, string> | undefined,
+): void {
+  const channelName = parv[1];
+  const modestring = parv[2] || "";
+  const modeargs = parv.slice(3);
+  ctx.triggerEvent("RPL_CHANNELMODEIS", {
+    serverId,
+    channelName,
+    modestring,
+    modeargs,
+  });
+}
+
 export function handleRplBanList(
   ctx: IRCClientContext,
   serverId: string,

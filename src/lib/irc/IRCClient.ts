@@ -61,6 +61,11 @@ export interface EventMap {
     modestring: string;
     modeargs: string[];
   };
+  RPL_CHANNELMODEIS: BaseIRCEvent & {
+    channelName: string;
+    modestring: string;
+    modeargs: string[];
+  };
   CHANMSG: BaseMessageEvent & {
     channelName: string;
   };

@@ -39,6 +39,7 @@ export interface Server {
   capabilities?: string[];
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
   prefix?: string;
+  chanmodes?: string; // CHANMODES ISUPPORT value defining mode groups A,B,C,D
   botMode?: string;
   filehost?: string;
   linkSecurity?: number; // Link security level from unrealircd.org/link-security
