@@ -48,6 +48,7 @@ export interface GlobalSettings {
   multilineOnShiftEnter: boolean;
   autoFallbackToSingleLine: boolean;
   showSafeMedia: boolean;
+  showTrustedSourcesMedia: boolean;
   showExternalContent: boolean;
   enableMarkdownRendering: boolean;
   awayMessage: string;

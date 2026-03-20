@@ -107,11 +107,11 @@ export const migrationVersion = {
   },
 };
 
-export { KEYS };
 export type {
-  SavedMetadata,
-  PinnedPrivateChatsMap,
   ChannelOrderMap,
   GlobalSettings,
+  PinnedPrivateChatsMap,
+  SavedMetadata,
   UISelections,
 };
+export { KEYS };

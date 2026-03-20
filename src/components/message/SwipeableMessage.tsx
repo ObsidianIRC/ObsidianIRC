@@ -10,9 +10,11 @@ interface SwipeableMessageProps {
   onReply: () => void;
   onReact: (buttonElement: Element) => void;
   onDelete?: () => void;
+  onOpenMedia?: () => void;
   onTap?: () => void;
   canReply: boolean;
   canDelete: boolean;
+  canOpenMedia?: boolean;
   isNarrowView: boolean;
 }
 
@@ -23,9 +25,11 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
   onReply,
   onReact,
   onDelete,
+  onOpenMedia,
   onTap,
   canReply,
   canDelete,
+  canOpenMedia = false,
   isNarrowView,
 }) => {
   const [translateX, setTranslateX] = useState(0);
@@ -119,6 +123,15 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
         }}
         {...swipeEventHandlers}
         onTouchStartCapture={(e) => {
+          // Skip long-press detection when a lightbox overlay is on screen —
+          // the overlay sits on top in the DOM but SwipeableMessage is its
+          // ancestor in the React fiber tree, so capture fires here first.
+          if ((e.target as Element).closest?.("[data-lightbox-overlay]")) {
+            // Nullify refs so the paired onTouchEndCapture can't fire onTap
+            touchStartTargetRef.current = null;
+            hasMovedRef.current = true;
+            return;
+          }
           const touch = e.touches[0];
           touchStartTargetRef.current = e.target;
           touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
@@ -197,9 +210,11 @@ export const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
         onReply={onReply}
         onReact={onReact}
         onDelete={onDelete}
+        onOpenMedia={onOpenMedia}
         canReply={canReply}
         canReact={!!canReply}
         canDelete={canDelete}
+        canOpenMedia={canOpenMedia}
       />
     </>
   );

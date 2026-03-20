@@ -7,6 +7,8 @@ interface EmojiPickerModalProps {
   onEmojiClick: (emojiData: EmojiClickData) => void;
   onClose: () => void;
   onBackdropClick: (e: React.MouseEvent) => void;
+  /** Override z-index when rendering inside a high-z-index overlay (e.g. media viewer at 9998) */
+  zIndex?: number;
 }
 
 export function EmojiPickerModal({
@@ -14,12 +16,14 @@ export function EmojiPickerModal({
   onEmojiClick,
   onClose,
   onBackdropClick,
+  zIndex,
 }: EmojiPickerModalProps) {
   if (!isOpen) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-container"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal-container"
+      style={{ zIndex: zIndex ?? 50 }}
       onClick={onBackdropClick}
     >
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">

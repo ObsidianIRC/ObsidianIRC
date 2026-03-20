@@ -1,5 +1,5 @@
 import type React from "react";
-import { FaReply, FaTrash } from "react-icons/fa";
+import { FaExpand, FaReply, FaTrash } from "react-icons/fa";
 import { MdAddReaction } from "react-icons/md";
 import type { MessageType } from "../../types";
 
@@ -8,8 +8,10 @@ interface MessageActionsProps {
   onReplyClick: () => void;
   onReactClick: (buttonElement: Element) => void;
   onRedactClick?: () => void;
+  onOpenMedia?: () => void;
   canRedact?: boolean;
   canReply?: boolean;
+  canOpenMedia?: boolean;
   inline?: boolean;
 }
 
@@ -18,8 +20,10 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   onReplyClick,
   onReactClick,
   onRedactClick,
+  onOpenMedia,
   canRedact = false,
   canReply = !!message.msgid,
+  canOpenMedia = false,
   inline = false,
 }) => {
   return (
@@ -28,6 +32,16 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         inline ? "flex-shrink-0 self-end" : "absolute bottom-1 right-4"
       }`}
     >
+      {canOpenMedia && onOpenMedia && (
+        <button
+          type="button"
+          className="px-2.5 py-1.5 text-discord-text-muted/70 hover:text-discord-text-normal hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
+          onClick={onOpenMedia}
+          title="Open in viewer"
+        >
+          <FaExpand className="w-3.5 h-3.5" />
+        </button>
+      )}
       {canRedact && onRedactClick && (
         <button
           type="button"
@@ -48,16 +62,14 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           <FaReply className="w-4 h-4" />
         </button>
       )}
-      {canReply && (
-        <button
-          type="button"
-          className="px-2.5 py-1.5 text-discord-text-muted hover:text-discord-text-normal hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
-          onClick={(e) => onReactClick(e.currentTarget)}
-          title="Add reaction"
-        >
-          <MdAddReaction className="w-5 h-5" />
-        </button>
-      )}
+      <button
+        type="button"
+        className="px-2.5 py-1.5 text-discord-text-muted hover:text-discord-text-normal hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
+        onClick={(e) => onReactClick(e.currentTarget)}
+        title="Add reaction"
+      >
+        <MdAddReaction className="w-5 h-5" />
+      </button>
     </div>
   );
 };

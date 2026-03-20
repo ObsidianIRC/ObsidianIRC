@@ -9,6 +9,7 @@ interface ButtonProps {
   disabled?: boolean;
   className?: string;
   type?: "button" | "submit" | "reset";
+  "aria-label"?: string;
 }
 
 const variantStyles = {
@@ -26,11 +27,13 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   className = "",
   type = "button",
+  "aria-label": ariaLabel,
 }) => (
   <button
     type={type}
     onClick={onClick}
     disabled={disabled}
+    aria-label={ariaLabel}
     className={`px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantStyles[variant]} ${className}`}
   >
     {children}

@@ -29,22 +29,21 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const username = userId;
 
-  // Get global settings and server info
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
-  );
+  const { showSafeMedia, showTrustedSourcesMedia, showExternalContent } =
+    useStore((state) => state.globalSettings);
   const server = serverId
     ? useStore.getState().servers.find((s) => s.id === serverId)
     : null;
 
-  // Check if avatar is from our trusted FILEHOST
   const isFilehostAvatar =
     avatarUrl &&
     server?.filehost &&
     isUrlFromFilehost(avatarUrl, server.filehost);
-  // Show avatar if it's from FILEHOST (trusted) and safe media is enabled, or if external content is allowed
   const shouldShowAvatar =
-    avatarUrl && ((isFilehostAvatar && showSafeMedia) || showExternalContent);
+    avatarUrl &&
+    ((isFilehostAvatar && showSafeMedia) ||
+      showTrustedSourcesMedia ||
+      showExternalContent);
 
   if (!showHeader) {
     return (

@@ -1,0 +1,15 @@
+[package]
+name = "tauri-plugin-share-sheet"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+links = "tauri-plugin-share-sheet"
+
+[lib]
+name = "tauri_plugin_share_sheet"
+
+[dependencies]
+tauri = { version = "2" }
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
