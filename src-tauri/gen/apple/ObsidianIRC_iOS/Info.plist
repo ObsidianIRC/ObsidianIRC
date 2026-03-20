@@ -44,15 +44,19 @@
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
-			<array/>
+			<array>
+				<string>irc</string>
+			</array>
 			<key>CFBundleURLName</key>
-			<string>https</string>
+			<string>irc</string>
 		</dict>
 		<dict>
 			<key>CFBundleURLSchemes</key>
-			<array/>
+			<array>
+				<string>ircs</string>
+			</array>
 			<key>CFBundleURLName</key>
-			<string>https</string>
+			<string>ircs</string>
 		</dict>
 	</array>
 </dict>

@@ -52,6 +52,7 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
     <div className="flex flex-wrap gap-1 mt-1 select-none">
       {Object.entries(groupedReactions).map(([emoji, data]) => {
         const reactionData = data as ReactionData;
+        const reactionAriaLabel = `${reactionData.currentUserReacted ? "Remove" : "Add"} reaction ${emoji}`;
         return (
           <button
             key={emoji}
@@ -62,6 +63,7 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
                 : "bg-discord-dark-300 text-discord-text-muted hover:bg-discord-dark-200"
             }`}
             title={`${emoji} · ${reactionData.count} · ${reactionData.users.join(", ")}`}
+            aria-label={reactionAriaLabel}
             onClick={() =>
               onReactionClick(emoji, reactionData.currentUserReacted)
             }

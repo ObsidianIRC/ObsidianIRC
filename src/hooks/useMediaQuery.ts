@@ -4,11 +4,25 @@ export function useMediaQuery(
   query = "(max-width: 768px)",
   debounceMs = 0,
 ): boolean {
-  const [matches, setMatches] = useState(() => {
-    return window.matchMedia(query).matches;
-  });
+  const getMatches = (q: string): boolean => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return false;
+    }
+    return window.matchMedia(q).matches;
+  };
+
+  const [matches, setMatches] = useState(() => getMatches(query));
 
   useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return;
+    }
     const mediaQuery = window.matchMedia(query);
     setMatches(mediaQuery.matches);
 

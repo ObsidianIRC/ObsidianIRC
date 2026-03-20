@@ -63,6 +63,11 @@ export interface EventMap {
     modestring: string;
     modeargs: string[];
   };
+  RPL_CHANNELMODEIS: BaseIRCEvent & {
+    channelName: string;
+    modestring: string;
+    modeargs: string[];
+  };
   CHANMSG: BaseMessageEvent & {
     channelName: string;
   };
@@ -1780,6 +1785,17 @@ export class IRCClient {
             version,
           });
         }
+      } else if (command === "324") {
+        // RPL_CHANNELMODEIS - Channel mode response
+        const channelName = parv[1];
+        const modestring = parv[2] || "";
+        const modeargs = parv.slice(3);
+        this.triggerEvent("RPL_CHANNELMODEIS", {
+          serverId,
+          channelName,
+          modestring,
+          modeargs,
+        });
       } else if (command === "CAP") {
         let i = 0;
         let caps = "";
