@@ -79,7 +79,6 @@ export function MediaCommentsSidebar({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isHoveredRef = useRef(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sidebarRef is stable
   useEffect(() => {
     const el = sidebarRef.current;
     if (!el) return;

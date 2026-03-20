@@ -41,14 +41,24 @@ export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
     if (!response.ok) {
       // Some streaming servers (e.g. Icecast) return 4xx status with a media Content-Type.
       // Trust the Content-Type for known media MIME types rather than bailing on status code.
-      const ct = (response.headers.get("Content-Type") ?? "").split(";")[0].trim();
+      const ct = (response.headers.get("Content-Type") ?? "")
+        .split(";")[0]
+        .trim();
       if (ct.startsWith("audio/")) {
-        const result: ProbeResult = { type: "audio", streamable: true, skipped: false };
+        const result: ProbeResult = {
+          type: "audio",
+          streamable: true,
+          skipped: false,
+        };
         cacheSet(url, result);
         return result;
       }
       if (ct.startsWith("video/")) {
-        const result: ProbeResult = { type: "video", streamable: false, skipped: false };
+        const result: ProbeResult = {
+          type: "video",
+          streamable: false,
+          skipped: false,
+        };
         cacheSet(url, result);
         return result;
       }
