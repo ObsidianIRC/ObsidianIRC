@@ -55,7 +55,7 @@ const DiscoverGrid = () => {
 
     // Tauri: prefer raw TCP (ircs); if only wss available, use that.
     // Browser: always wss (non-wss servers are already filtered out above).
-    const useWebSocket = isTauri() ? !hasIrcs : false;
+    const useWebSocket = isTauri() ? !hasIrcs : true;
     const uri = isTauri()
       ? useWebSocket
         ? server.wss

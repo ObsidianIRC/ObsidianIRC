@@ -42,7 +42,7 @@ const ColorPicker: React.FC<{
       {ircColors.map((color, index) => {
         const isSelected = selectedColor === color;
         // There are duplicate colors due to things like 98 being the same as white (00)
-        const keyToken = `${color}-${index}-${Math.floor(Math.random() * 9999)}`;
+        const keyToken = `${color}-${index}`;
         return (
           <button
             key={keyToken}
