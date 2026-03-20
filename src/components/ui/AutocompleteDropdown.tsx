@@ -46,7 +46,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   const getDisplayUsers = () => {
     // If triggered by @ button, show all users
     if (isAtButtonTriggered) {
-      return users
+      return [...users]
         .sort((a, b) => a.username.localeCompare(b.username))
         .slice(0, 20); // Show up to 20 users for @ button
     }
@@ -84,7 +84,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
           )
           .sort((a, b) => a.username.localeCompare(b.username))
       : isNarrowView && isAtButtonTriggered
-        ? users.sort((a, b) => a.username.localeCompare(b.username))
+        ? [...users].sort((a, b) => a.username.localeCompare(b.username))
         : displayUsers;
 
   useEffect(() => {

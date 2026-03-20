@@ -277,7 +277,6 @@ export const ChatArea: React.FC<{
     );
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: isAnyModalOpen is a primitive read via ref inside the hook
   useAutoFocusTyping(inputRef, () => isAnyModalOpen);
 
   useEffect(() => {

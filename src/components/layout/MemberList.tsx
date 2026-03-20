@@ -369,25 +369,16 @@ export const MemberList: React.FC = () => {
         (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
       );
       if (userInServer?.status && userInServer.status !== currentUser.status) {
-        console.log(
-          "MemberList - updating currentUser.status from server.users:",
-          userInServer.status,
+        useStore.setState((state) =>
+          state.currentUser
+            ? {
+                currentUser: {
+                  ...state.currentUser,
+                  status: userInServer.status,
+                },
+              }
+            : {},
         );
-        useStore.setState((state) => ({
-          ...state,
-          currentUser: {
-            ...currentUser,
-            status: userInServer.status,
-          },
-        }));
-        // Also update in channel.users
-        const userInChannel = selectedChannel.users.find(
-          (u) =>
-            u.username.toLowerCase() === currentUser.username.toLowerCase(),
-        );
-        if (userInChannel) {
-          userInChannel.status = userInServer.status;
-        }
       }
     }
   }, [selectedServer, currentUser, selectedChannel]);

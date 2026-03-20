@@ -199,10 +199,11 @@ export const ChannelList: React.FC<{
     return sorted;
   }, [selectedServer, selectedServerId, channelOrder]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset PM click tracking when selection changes
   useEffect(() => {
     setClickedPM(null);
     lastSelectedPM.current = null;
-  });
+  }, [selectedPrivateChatId]);
 
   // Helper function to get user metadata for a private chat
   const getUserMetadata = (username: string) => {
