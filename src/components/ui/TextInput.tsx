@@ -107,8 +107,8 @@ export const TextInput = forwardRef<
 >(({ onKeyDown, onFocus, ...props }, ref) => {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
-      handleMobileDone(e);
-      if (!e.defaultPrevented) onKeyDown?.(e);
+      onKeyDown?.(e);
+      if (!e.defaultPrevented) handleMobileDone(e);
     },
     [onKeyDown],
   );

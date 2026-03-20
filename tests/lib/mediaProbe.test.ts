@@ -1,0 +1,264 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { probeMediaUrl, shouldProbeUrl } from "../../src/lib/mediaProbe";
+
+vi.mock("../../src/lib/mediaUtils", () => ({
+  detectMediaType: vi.fn((url: string) => {
+    if (url.endsWith(".mp4")) return "video";
+    if (url.endsWith(".mp3")) return "audio";
+    if (url.endsWith(".jpg")) return "image";
+    if (url.endsWith(".pdf")) return "pdf";
+    return null;
+  }),
+}));
+
+// Helpers to build mock fetch responses
+function makeHeaders(headers: Record<string, string>): {
+  get: (n: string) => string | null;
+  has: (n: string) => boolean;
+} {
+  const lower = Object.fromEntries(
+    Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]),
+  );
+  return {
+    get: (name: string) => lower[name.toLowerCase()] ?? null,
+    has: (name: string) => name.toLowerCase() in lower,
+  };
+}
+
+function makeResponse(headers: Record<string, string>): Response {
+  return {
+    headers: makeHeaders(headers),
+    ok: true,
+    status: 200,
+  } as unknown as Response;
+}
+
+// Use unique URL counters per test to avoid cache collisions
+let urlCounter = 0;
+function uniqueUrl(suffix = "") {
+  return `https://filehost.example.com/unique${++urlCounter}${suffix}`;
+}
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn());
+
+  // jsdom doesn't fire loadedmetadata/error on media/image elements for HTTP URLs.
+  // Return a stub that immediately fires "error" as a microtask so probeViaMediaElement
+  // and probeViaImageElement resolve false without waiting 5 seconds.
+  const origCreate = document.createElement.bind(document);
+  vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+    if (tagName !== "audio" && tagName !== "video" && tagName !== "img")
+      return origCreate(tagName);
+    const listeners = new Map<string, (e: Event) => void>();
+    const el = {
+      preload: "",
+      load: vi.fn(),
+      set src(value: string) {
+        if (value) {
+          Promise.resolve().then(() => {
+            const cb = listeners.get("error");
+            if (cb) cb(new Event("error"));
+          });
+        }
+      },
+      get src() {
+        return "";
+      },
+      addEventListener(event: string, cb: (e: Event) => void) {
+        listeners.set(event, cb);
+      },
+    };
+    return el as unknown as HTMLElement;
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+});
+
+describe("probeMediaUrl", () => {
+  test("video/mp4 content-type → type video, skipped false", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        "content-type": "video/mp4",
+        "content-length": "1000000",
+      }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.type).toBe("video");
+    expect(result?.skipped).toBe(false);
+    expect(result?.size).toBe(1000000);
+  });
+
+  test("audio/mpeg content-type → type audio", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        "content-type": "audio/mpeg",
+        "content-length": "500000",
+      }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.type).toBe("audio");
+    expect(result?.streamable).toBe(false);
+  });
+
+  test("image/jpeg content-type → type image", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "image/jpeg", "content-length": "50000" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.type).toBe("image");
+  });
+
+  test("application/pdf content-type → type pdf", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        "content-type": "application/pdf",
+        "content-length": "200000",
+      }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.type).toBe("pdf");
+  });
+
+  test("unknown content-type → null", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "text/html" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result).toBeNull();
+  });
+
+  test("content-type with charset stripped correctly", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        "content-type": "audio/mpeg; charset=utf-8",
+        "content-length": "100000",
+      }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.type).toBe("audio");
+  });
+
+  test("video > 50 MB → skipped: true", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        "content-type": "video/mp4",
+        "content-length": String(52_428_801),
+      }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.skipped).toBe(true);
+    expect(result?.type).toBe("video");
+  });
+
+  test("video exactly 50 MB → skipped: false", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        "content-type": "video/mp4",
+        "content-length": String(52_428_800),
+      }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.skipped).toBe(false);
+  });
+
+  test("audio without content-length → streamable: true", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "audio/ogg" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.streamable).toBe(true);
+    expect(result?.size).toBeUndefined();
+  });
+
+  test("404 response → null", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      headers: makeHeaders({ "content-type": "text/html" }),
+      ok: false,
+      status: 404,
+    } as unknown as Response);
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result).toBeNull();
+  });
+
+  test("network error → null", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result).toBeNull();
+  });
+
+  test("timeout after 5 s → null", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetch).mockImplementationOnce(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        }),
+    );
+    const promise = probeMediaUrl(uniqueUrl());
+    vi.advanceTimersByTime(5001);
+    const result = await promise;
+    expect(result).toBeNull();
+    vi.useRealTimers();
+  });
+
+  test("cache hit: fetch called only once for same URL", async () => {
+    const url = uniqueUrl();
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse({
+        "content-type": "audio/mpeg",
+        "content-length": "100000",
+      }),
+    );
+    await probeMediaUrl(url);
+    await probeMediaUrl(url);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("cache eviction: oldest entry removed when size exceeds 200", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse({ "content-type": "audio/mpeg" }),
+    );
+
+    // Fill cache: urls 0..199 (200 entries)
+    const base = uniqueUrl();
+    const firstUrl = base;
+    await probeMediaUrl(firstUrl);
+
+    for (let i = 1; i < 200; i++) {
+      await probeMediaUrl(uniqueUrl());
+    }
+
+    // 201st entry triggers eviction of the first URL
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse({ "content-type": "audio/mpeg" }),
+    );
+    await probeMediaUrl(uniqueUrl());
+
+    const callsBefore = vi.mocked(fetch).mock.calls.length;
+    // firstUrl was evicted — should trigger a new fetch
+    await probeMediaUrl(firstUrl);
+    expect(vi.mocked(fetch).mock.calls.length).toBe(callsBefore + 1);
+  });
+});
+
+describe("shouldProbeUrl", () => {
+  test("returns false for URL with detectable extension", () => {
+    // detectMediaType mock returns 'video' for .mp4
+    expect(shouldProbeUrl("https://example.com/video.mp4")).toBe(false);
+    expect(shouldProbeUrl("https://example.com/audio.mp3")).toBe(false);
+    expect(shouldProbeUrl("https://example.com/image.jpg")).toBe(false);
+  });
+
+  test("returns true for URL with no detectable extension", () => {
+    // detectMediaType mock returns null for extensionless URLs
+    expect(shouldProbeUrl("https://radio.example.com/stream")).toBe(true);
+    expect(shouldProbeUrl("https://files.example.com/abc123")).toBe(true);
+    expect(shouldProbeUrl("https://example.com/page")).toBe(true);
+  });
+});

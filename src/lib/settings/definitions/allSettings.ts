@@ -393,11 +393,31 @@ const mediaSettings: SettingDefinition[] = [
     category: "media",
     subcategory: "Display",
     title: "Show Safe Media",
-    description: "Automatically display media from trusted sources",
+    description: "Display media shared via this server's trusted file host",
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["media", "images", "safe", "trusted"],
     priority: 1,
+  },
+  {
+    id: "media.showTrusted",
+    key: "showTrustedSourcesMedia",
+    category: "media",
+    subcategory: "Display",
+    title: "Show Trusted Source Media",
+    description:
+      "Show previews from well-known sites like YouTube, Vimeo, and SoundCloud",
+    type: "toggle",
+    defaultValue: false,
+    searchKeywords: [
+      "youtube",
+      "vimeo",
+      "soundcloud",
+      "trusted",
+      "embed",
+      "preview",
+    ],
+    priority: 2,
   },
   {
     id: "media.showExternal",
@@ -405,11 +425,12 @@ const mediaSettings: SettingDefinition[] = [
     category: "media",
     subcategory: "Display",
     title: "Show External Content",
-    description: "Display content from external websites",
+    description:
+      "Display all external images and media (may include unknown sources)",
     type: "toggle",
     defaultValue: false,
     searchKeywords: ["external", "content", "embed", "preview"],
-    priority: 2,
+    priority: 3,
   },
 ];
 

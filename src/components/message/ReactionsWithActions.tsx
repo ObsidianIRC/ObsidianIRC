@@ -11,8 +11,10 @@ interface ReactionsWithActionsProps {
   onReactClick: (buttonElement: Element) => void;
   onReplyClick: () => void;
   onRedactClick?: () => void;
+  onOpenMedia?: () => void;
   canRedact?: boolean;
   canReply?: boolean;
+  canOpenMedia?: boolean;
 }
 
 export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
@@ -22,8 +24,10 @@ export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
   onReactClick,
   onReplyClick,
   onRedactClick,
+  onOpenMedia,
   canRedact = false,
   canReply = true,
+  canOpenMedia = false,
 }) => {
   const isTouchDevice = useMediaQuery("(pointer: coarse)");
   const hasReactions = !!message.reactions?.length;
@@ -44,8 +48,10 @@ export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
           onReplyClick={onReplyClick}
           onReactClick={onReactClick}
           onRedactClick={onRedactClick}
+          onOpenMedia={onOpenMedia}
           canRedact={canRedact}
           canReply={canReply}
+          canOpenMedia={canOpenMedia}
           inline
         />
       </div>
@@ -66,8 +72,10 @@ export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
           onReplyClick={onReplyClick}
           onReactClick={onReactClick}
           onRedactClick={onRedactClick}
+          onOpenMedia={onOpenMedia}
           canRedact={canRedact}
           canReply={canReply}
+          canOpenMedia={canOpenMedia}
         />
       )}
     </>

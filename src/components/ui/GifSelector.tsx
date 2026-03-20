@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { FaTimes } from "react-icons/fa";
 import { TextInput } from "./TextInput";
@@ -47,11 +47,11 @@ const GifSelector: React.FC<GifSelectorProps> = ({
   const [gifs, setGifs] = useState<Gif[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: We want to clear GIFs and search when switching providers
-  useEffect(() => {
+  function handleProviderChange(provider: GifProvider) {
+    setActiveProvider(provider);
     setGifs([]);
     setSearchQuery("");
-  }, [activeProvider]);
+  }
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -170,7 +170,7 @@ const GifSelector: React.FC<GifSelectorProps> = ({
                   ? "bg-discord-blue text-white"
                   : "bg-discord-dark-200 text-discord-text-muted hover:text-white"
               }`}
-              onClick={() => setActiveProvider("giphy")}
+              onClick={() => handleProviderChange("giphy")}
             >
               GIPHY
             </button>
@@ -180,7 +180,7 @@ const GifSelector: React.FC<GifSelectorProps> = ({
                   ? "bg-discord-blue text-white"
                   : "bg-discord-dark-200 text-discord-text-muted hover:text-white"
               }`}
-              onClick={() => setActiveProvider("tenor")}
+              onClick={() => handleProviderChange("tenor")}
             >
               Tenor
             </button>

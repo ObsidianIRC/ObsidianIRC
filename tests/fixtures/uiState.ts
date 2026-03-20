@@ -4,4 +4,5 @@ export const defaultUIExtensions = {
   channelSettingsRequest: null,
   inviteUserRequest: null,
   openedMedia: null,
+  activeMedia: null,
 };

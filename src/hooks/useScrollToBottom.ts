@@ -47,17 +47,51 @@ export function useScrollToBottom(
 
     if (!container || !endElement) return;
 
+    // Tracks whether the user is actively wheeling upward.
+    // Suppresses scroll/IO callbacks from resetting wasAtBottomRef to true while the
+    // user is mid-gesture — prevents the "within-tolerance bounce" where a slow upward
+    // wheel fires, then the scroll event re-checks position (still within 30px) and
+    // immediately re-enables auto-scroll.
+    let wheelUpActive = false;
+    let wheelUpCooldown: ReturnType<typeof setTimeout> | null = null;
+
+    const clearWheelUp = () => {
+      wheelUpActive = false;
+      if (wheelUpCooldown !== null) {
+        clearTimeout(wheelUpCooldown);
+        wheelUpCooldown = null;
+      }
+    };
+
     const checkIfScrolledToBottom = () => {
       const atBottom = isScrolledToBottom(container, tolerance);
       setIsScrolledUp(!atBottom);
-      wasAtBottomRef.current = atBottom;
+      if (wheelUpActive) {
+        // User is still mid-gesture. Only cancel suppression once they've
+        // genuinely scrolled past the tolerance zone.
+        if (!atBottom) {
+          clearWheelUp();
+          wasAtBottomRef.current = false;
+        }
+        // If atBottom while suppressed: keep wasAtBottomRef false so the next
+        // message doesn't trigger auto-scroll back down.
+      } else {
+        wasAtBottomRef.current = atBottom;
+      }
     };
 
     const observer = new IntersectionObserver(
       (entries) => {
         const isVisible = entries[0].isIntersecting;
         setIsScrolledUp(!isVisible);
-        wasAtBottomRef.current = isVisible;
+        if (wheelUpActive) {
+          if (!isVisible) {
+            clearWheelUp();
+            wasAtBottomRef.current = false;
+          }
+        } else {
+          wasAtBottomRef.current = isVisible;
+        }
       },
       {
         root: container,
@@ -88,11 +122,19 @@ export function useScrollToBottom(
     // is stale (still true) when a new message arrives, causing auto-scroll to
     // fire and pull content back down while the user is still swiping up.
     // The wheel event fires synchronously with the physical gesture, before any
-    // scroll events, so we use it to immediately clear wasAtBottomRef.
+    // scroll events, so we use it to immediately clear wasAtBottomRef and arm
+    // the suppression window.
     const handleWheel = (e: WheelEvent) => {
       if (e.deltaY < 0) {
+        wheelUpActive = true;
         wasAtBottomRef.current = false;
         setIsScrolledUp(true);
+        if (wheelUpCooldown !== null) clearTimeout(wheelUpCooldown);
+        // 400ms covers trackpad momentum; after that, normal scroll detection resumes.
+        wheelUpCooldown = setTimeout(() => {
+          wheelUpActive = false;
+          wheelUpCooldown = null;
+        }, 400);
       }
     };
     container.addEventListener("wheel", handleWheel, { passive: true });
@@ -102,6 +144,7 @@ export function useScrollToBottom(
       container.removeEventListener("scroll", checkIfScrolledToBottom);
       container.removeEventListener("touchend", checkIfScrolledToBottom);
       container.removeEventListener("wheel", handleWheel);
+      if (wheelUpCooldown !== null) clearTimeout(wheelUpCooldown);
     };
   }, [containerRef, endElementRef, tolerance, channelId]);
 

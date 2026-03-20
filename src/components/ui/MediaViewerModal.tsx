@@ -3,22 +3,36 @@ import {
   ChevronRightIcon,
   XMarkIcon,
 } from "@heroicons/react/24/solid";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   FaComments,
   FaDownload,
   FaExternalLinkAlt,
   FaMinus,
+  FaMusic,
   FaPlus,
   FaSpinner,
+  FaVideo,
 } from "react-icons/fa";
 import { useShallow } from "zustand/react/shallow";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { isUrlFromFilehost } from "../../lib/ircUtils";
+import { probeMediaUrl } from "../../lib/mediaProbe";
+import type { MediaEntry, MediaType } from "../../lib/mediaUtils";
 import {
-  canShowImageUrl,
-  extractImageUrlsFromMessage,
-} from "../../lib/imageUtils";
+  canShowMedia,
+  detectMediaType,
+  extractMediaFromMessage,
+  getEmbedThumbnailUrl,
+} from "../../lib/mediaUtils";
 import { openExternalUrl } from "../../lib/openUrl";
 import { isTauri } from "../../lib/platformUtils";
 import useStore, { getChannelMessages } from "../../store";
@@ -27,6 +41,14 @@ import { ResizableSidebar } from "../layout/ResizableSidebar";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 import { MediaCommentsSidebar } from "./MediaCommentsSidebar";
 
+const LazyDocument = lazy(() =>
+  import("react-pdf").then((m) => ({ default: m.Document })),
+);
+const LazyPage = lazy(() =>
+  import("react-pdf").then((m) => ({ default: m.Page })),
+);
+const ReactPlayer = lazy(() => import("react-player"));
+
 const ZOOM_STEP = 0.25;
 export const ZOOM_MIN = 0.5;
 export const ZOOM_MAX = 4;
@@ -34,6 +56,187 @@ export const ZOOM_MAX = 4;
 export function clampZoom(z: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 }
+
+function formatAudioTime(t: number): string {
+  if (!Number.isFinite(t) || t < 0) return "--:--";
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Custom audio player used inside the viewer — avoids browser-native loading indicators. */
+const AudioViewerPlayer: React.FC<{ url: string }> = ({ url }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [duration, setDuration] = useState(Number.NaN);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onCanPlay = () => setIsLoading(false);
+    const onPlaying = () => {
+      setIsPlaying(true);
+      setIsLoading(false);
+    };
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
+    const onError = () => {
+      setHasError(true);
+      setIsLoading(false);
+    };
+    const onDuration = () => setDuration(audio.duration);
+    const onTime = () => setCurrentTime(audio.currentTime);
+    audio.addEventListener("canplay", onCanPlay);
+    audio.addEventListener("playing", onPlaying);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+    audio.addEventListener("durationchange", onDuration);
+    audio.addEventListener("timeupdate", onTime);
+    return () => {
+      audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("playing", onPlaying);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
+      audio.removeEventListener("durationchange", onDuration);
+      audio.removeEventListener("timeupdate", onTime);
+    };
+  }, []);
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      setIsLoading(true);
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+  }, []);
+
+  // Per the HTML5 media spec, live/unbounded streams always report duration === Infinity.
+  // NaN means "not yet known" (before durationchange fires) — not the same as live.
+  const isLive = duration === Number.POSITIVE_INFINITY;
+
+  const filename = (() => {
+    try {
+      return (
+        decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "") || url
+      );
+    } catch {
+      return url;
+    }
+  })();
+
+  return (
+    <div
+      className="flex flex-col items-center justify-center gap-8 pointer-events-auto w-full px-6 sm:px-12 select-none"
+      style={{ maxWidth: "36rem" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* biome-ignore lint/a11y/useMediaCaption: user-linked IRC media, no captions available */}
+      <audio ref={audioRef} src={url} hidden />
+
+      {/* Icon + filename */}
+      <div className="flex flex-col items-center gap-3">
+        <FaMusic
+          className="text-discord-text-muted"
+          style={{ fontSize: "4rem" }}
+        />
+        <span className="text-sm text-discord-text-muted text-center break-all">
+          {filename}
+        </span>
+      </div>
+
+      {/* Seek bar / LIVE badge / error */}
+      {hasError ? (
+        <span className="text-sm text-red-400">Failed to load audio</span>
+      ) : isLive ? (
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-[11px] font-semibold tracking-widest text-red-400 uppercase">
+            Live
+          </span>
+        </div>
+      ) : (
+        <div className="w-full flex flex-col gap-1.5">
+          <input
+            type="range"
+            className="w-full h-1 cursor-pointer accent-white"
+            min={0}
+            max={duration || 0}
+            step={0.1}
+            value={currentTime}
+            aria-label="Seek"
+            onChange={(e) => {
+              if (audioRef.current)
+                audioRef.current.currentTime = Number(e.target.value);
+            }}
+          />
+          <div className="flex justify-between text-[11px] text-discord-text-muted tabular-nums">
+            <span>{formatAudioTime(currentTime)}</span>
+            <span>{formatAudioTime(duration)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Circular play/pause — spinner lives inside the button, not beside it */}
+      <button
+        type="button"
+        onClick={togglePlay}
+        disabled={hasError}
+        aria-label={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"}
+        className="w-16 h-16 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {isLoading ? (
+          <svg
+            className="w-7 h-7 animate-spin"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeOpacity="0.25"
+            />
+            <path
+              d="M12 3a9 9 0 0 1 9 9"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        ) : isPlaying ? (
+          <svg
+            className="w-7 h-7"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+          </svg>
+        ) : (
+          <svg
+            className="w-7 h-7"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+};
 
 interface MediaViewerModalProps {
   isOpen: boolean;
@@ -60,14 +263,19 @@ export function MediaViewerModal({
   const [isDragging, setIsDragging] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [imageList, setImageList] = useState<string[]>([]);
-  const [imageEntries, setImageEntries] = useState<
-    { url: string; msg: Message; entryKey: string }[]
+  const [mediaEntries, setMediaEntries] = useState<
+    { url: string; type: MediaType | null; msg: Message; entryKey: string }[]
   >([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isDownloading, setIsDownloading] = useState(false);
   const [savedMessage, setSavedMessage] = useState("");
   const [failedUrls, setFailedUrls] = useState<Set<string>>(new Set());
   const [showComments, setShowComments] = useState(false);
+  // When the opened URL has no typed entry (extensionless filehost URL), probe it.
+  // 'probing' = in flight, MediaType = resolved, 'failed' = no media found.
+  const [probedType, setProbedType] = useState<
+    MediaType | "probing" | "failed"
+  >("probing");
 
   const isMobile = useMediaQuery();
 
@@ -119,18 +327,22 @@ export function MediaViewerModal({
 
   const currentUrl = currentIndex >= 0 ? imageList[currentIndex] : url;
 
+  // Derived values for current entry type — kept in a ref so non-reactive handlers can read it
+  const currentEntry = mediaEntries[currentIndex] ?? null;
+  const currentEntryRef = useRef(currentEntry);
+  currentEntryRef.current = currentEntry;
+
   // Derived values for comments sidebar
-  const currentSourceMsg = imageEntries[currentIndex]?.msg ?? null;
+  const currentSourceMsg = mediaEntries[currentIndex]?.msg ?? null;
   const isAlbum =
     currentSourceMsg !== null &&
-    imageEntries.filter((e) => e.msg.id === currentSourceMsg.id).length > 1;
+    mediaEntries.filter((e) => e.msg.id === currentSourceMsg.id).length > 1;
   const canShowComments = Boolean(
     serverId && channelId && currentSourceMsg?.msgid,
   );
 
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
-  );
+  const { showSafeMedia, showTrustedSourcesMedia, showExternalContent } =
+    useStore((state) => state.globalSettings);
 
   // Map of msgid → reply count, covers both the toolbar button and filmstrip thumbnails
   const commentCountByMsgid = useStore(
@@ -175,25 +387,49 @@ export function MediaViewerModal({
 
   // Build navigation index when lightbox opens
   useEffect(() => {
-    if (!isOpen || !serverId || !channelId) return;
+    if (!isOpen) return;
+    if (!serverId || !channelId) {
+      setMediaEntries([]);
+      setImageList([]);
+      setCurrentIndex(-1);
+      return;
+    }
     const messages = getChannelMessages(serverId, channelId);
     const filehost = useStore
       .getState()
       .servers.find((s) => s.id === serverId)?.filehost;
     const entries = messages
       .flatMap((msg) =>
-        extractImageUrlsFromMessage(msg).map((u, urlIdx) => ({
-          url: u,
+        extractMediaFromMessage(msg).map((e, urlIdx) => ({
+          url: e.url,
+          type: e.type,
           msg,
           // Unique per (message, position-within-message) so duplicate URLs across
           // or within messages each get their own filmstrip slot.
           entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
         })),
       )
-      .filter((e) =>
-        canShowImageUrl(e.url, showSafeMedia, showExternalContent, filehost),
+      .filter(
+        (e) =>
+          // Include entries when:
+          // 1. Type is known from trusted domain (e.type !== null).
+          // 2. URL has a recognisable extension — entry has type:null now (HEAD probed)
+          //    but extension suggests it's media; HEAD will confirm or deny at render time.
+          // 3. Extensionless filehost URL — type resolved via HEAD probe.
+          // 4. The specifically opened URL, regardless of domain — user already saw it
+          //    in chat so canShowMedia is satisfied; we need it in the list for comments
+          //    and filmstrip positioning (e.g. radio streams on a different subdomain).
+          (e.type !== null ||
+            detectMediaType(e.url) !== null ||
+            (filehost != null && isUrlFromFilehost(e.url, filehost)) ||
+            (e.url === url && (!sourceMsgId || e.msg.msgid === sourceMsgId))) &&
+          canShowMedia(
+            e.url,
+            { showSafeMedia, showTrustedSourcesMedia, showExternalContent },
+            filehost,
+          ),
       );
-    setImageEntries(entries);
+    setMediaEntries(entries);
     setImageList(entries.map((e) => e.url));
     // Prefer matching by msgid+url so the correct entry is selected even when
     // the same URL appears in several messages.
@@ -208,6 +444,7 @@ export function MediaViewerModal({
     url,
     sourceMsgId,
     showSafeMedia,
+    showTrustedSourcesMedia,
     showExternalContent,
   ]);
 
@@ -235,6 +472,36 @@ export function MediaViewerModal({
       block: "nearest",
     });
   }, [currentIndex]);
+
+  // Probe the URL when it has no typed entry, or the entry's type is null
+  // (extensionless filehost URLs like /radio that need a HEAD request to determine type).
+  // On resolve, patch the type in mediaEntries so the filmstrip and comments update too.
+  useEffect(() => {
+    if (!isOpen || (currentEntry !== null && currentEntry.type !== null)) {
+      setProbedType("probing");
+      return;
+    }
+    let cancelled = false;
+    setProbedType("probing");
+    probeMediaUrl(currentUrl).then((result) => {
+      if (!cancelled) {
+        const resolved = result && !result.skipped ? result.type : null;
+        setProbedType(resolved ?? "failed");
+        if (resolved) {
+          setMediaEntries((prev) =>
+            prev.map((e) =>
+              e.url === currentUrl && e.type === null
+                ? { ...e, type: resolved }
+                : e,
+            ),
+          );
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, currentUrl, currentEntry]);
 
   // Convert wheel to horizontal scroll over the whole filmstrip pill (desktop).
   // filmstripPillEl comes from a callback ref so this effect runs exactly when the
@@ -279,6 +546,12 @@ export function MediaViewerModal({
     const el = overlayRef.current;
     if (!el || !isOpen) return;
     const onWheel = (e: WheelEvent) => {
+      // Only zoom for images
+      if (
+        currentEntryRef.current?.type &&
+        currentEntryRef.current.type !== "image"
+      )
+        return;
       e.preventDefault();
       const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
       const next = clampZoom(zoomRef.current + delta);
@@ -328,6 +601,12 @@ export function MediaViewerModal({
 
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
+        // Only pinch-zoom for images
+        if (
+          currentEntryRef.current?.type &&
+          currentEntryRef.current.type !== "image"
+        )
+          return;
         e.preventDefault();
         const dist = pinchDist(e.touches);
         const ratio = dist / lastPinchDistRef.current;
@@ -392,6 +671,12 @@ export function MediaViewerModal({
   );
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Only drag for images
+    if (
+      currentEntryRef.current?.type &&
+      currentEntryRef.current.type !== "image"
+    )
+      return;
     if (zoomRef.current <= 1) return;
     // Don't start drag when clicking inside the comments sidebar
     if ((e.target as Element).closest?.("[data-comments-sidebar]")) return;
@@ -443,26 +728,56 @@ export function MediaViewerModal({
 
   const handleCommentImageClick = useCallback(
     (imgUrl: string) => {
-      let idx = imageEntries.findIndex((e) => e.url === imgUrl);
+      let idx = mediaEntries.findIndex((e) => e.url === imgUrl);
       if (idx < 0 && serverId && channelId) {
         // Image might be from a comment posted after modal opened — rebuild index
-        const freshEntries = getChannelMessages(serverId, channelId).flatMap(
-          (msg) =>
-            extractImageUrlsFromMessage(msg).map((u, urlIdx) => ({
-              url: u,
-              msg,
-              entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
-            })),
-        );
+        const filehost = useStore
+          .getState()
+          .servers.find((s) => s.id === serverId)?.filehost;
+        const freshEntries = getChannelMessages(serverId, channelId)
+          .flatMap((msg) =>
+            extractMediaFromMessage(msg).map(
+              (e: MediaEntry, urlIdx: number) => ({
+                url: e.url,
+                type: e.type,
+                msg,
+                entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
+              }),
+            ),
+          )
+          .filter(
+            (
+              e,
+            ): e is {
+              url: string;
+              type: MediaType;
+              msg: Message;
+              entryKey: string;
+            } =>
+              e.type !== null &&
+              canShowMedia(
+                e.url,
+                { showSafeMedia, showTrustedSourcesMedia, showExternalContent },
+                filehost,
+              ),
+          );
         idx = freshEntries.findIndex((e) => e.url === imgUrl);
         if (idx >= 0) {
-          setImageEntries(freshEntries);
+          setMediaEntries(freshEntries);
           setImageList(freshEntries.map((e) => e.url));
         }
       }
       if (idx >= 0) goTo(idx);
     },
-    [imageEntries, serverId, channelId, goTo],
+    [
+      mediaEntries,
+      serverId,
+      channelId,
+      goTo,
+      showSafeMedia,
+      showTrustedSourcesMedia,
+      showExternalContent,
+    ],
   );
 
   const handleConfirmOpen = async () => {
@@ -475,12 +790,13 @@ export function MediaViewerModal({
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const msg = await invoke<string>("download_image", { url: currentUrl });
-      if (msg) {
-        setSavedMessage(msg);
-        setTimeout(() => setSavedMessage(""), 4000);
-      }
-    } catch {
-      console.error("Download failed");
+      const toast = msg || "Saved";
+      setSavedMessage(toast);
+      setTimeout(() => setSavedMessage(""), 4000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSavedMessage(`Save failed: ${msg}`);
+      setTimeout(() => setSavedMessage(""), 6000);
     } finally {
       setIsDownloading(false);
     }
@@ -512,6 +828,44 @@ export function MediaViewerModal({
   const cursor = isDragging ? "grabbing" : zoom > 1 ? "zoom-out" : "zoom-in";
   const portalTarget = document.getElementById("root") ?? document.body;
 
+  // When currentEntry has type: null (extension-based URL), use URL extension as an optimistic
+  // hint while the HEAD probe is in flight so the UI renders immediately. The probe result
+  // takes over once it resolves, allowing the server's Content-Type to correct wrong guesses.
+  const effectiveType: MediaType | null =
+    currentEntry?.type ??
+    (probedType === "probing"
+      ? detectMediaType(currentUrl) // optimistic hint from URL extension while probing
+      : probedType === "failed"
+        ? null
+        : probedType);
+  // Only show the spinner when both the probe is still in flight AND the URL extension gives
+  // no hint — i.e., we truly don't know the type yet.
+  const isViewerProbing =
+    (currentEntry === null || currentEntry.type === null) &&
+    probedType === "probing" &&
+    detectMediaType(currentUrl) === null;
+  // Treat as image only when we know it's an image — never fall back for unknown types
+  // (avoids feeding stream URLs into <img> which hangs the browser).
+  const isImageEntry = effectiveType === "image";
+
+  // Only offer download for definite files — not embeds, PDFs, or live audio streams.
+  // Audio is downloadable only when the URL has a recognised extension (streams don't).
+  const isDownloadable = (() => {
+    const t = effectiveType;
+    if (!t || t === "embed") return false;
+    if (t === "image" || t === "video" || t === "pdf") return true;
+    if (t === "audio") {
+      try {
+        return /\.(mp3|ogg|wav|flac|aac|m4a|opus)$/i.test(
+          new URL(currentUrl).pathname,
+        );
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  })();
+
   return createPortal(
     <>
       <ExternalLinkWarningModal
@@ -538,7 +892,9 @@ export function MediaViewerModal({
         <div
           aria-hidden="true"
           style={{
-            backgroundImage: `url(${currentUrl})`,
+            // Only use the URL as background for images — feeding streams or videos
+            // into backgroundImage causes the browser to attempt an image fetch.
+            backgroundImage: isImageEntry ? `url(${currentUrl})` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundColor: "black",
@@ -579,49 +935,56 @@ export function MediaViewerModal({
                   className="pointer-events-auto flex items-center gap-2 bg-black/60 backdrop-blur-xl rounded-2xl px-4 py-2 shadow-2xl text-white/90"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    onClick={() => changeZoom(zoom - ZOOM_STEP)}
-                    disabled={zoom <= ZOOM_MIN}
-                    aria-label="Zoom out"
-                    className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <FaMinus className="w-3 h-3" />
-                  </button>
-
-                  <input
-                    type="range"
-                    min={ZOOM_MIN}
-                    max={ZOOM_MAX}
-                    step={ZOOM_STEP}
-                    value={zoom}
-                    onChange={(e) => changeZoom(Number(e.target.value))}
-                    aria-label="Zoom level"
-                    className="hidden sm:block w-28 cursor-pointer accent-white"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => changeZoom(zoom + ZOOM_STEP)}
-                    disabled={zoom >= ZOOM_MAX}
-                    aria-label="Zoom in"
-                    className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <FaPlus className="w-3 h-3" />
-                  </button>
-
-                  {isTauri() && (
+                  {/* Zoom controls — images only */}
+                  {isImageEntry && (
                     <>
-                      <div
-                        className="w-px h-4 bg-white/20 mx-1"
-                        aria-hidden="true"
+                      <button
+                        type="button"
+                        onClick={() => changeZoom(zoom - ZOOM_STEP)}
+                        disabled={zoom <= ZOOM_MIN}
+                        aria-label="Zoom out"
+                        className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FaMinus className="w-3 h-3" />
+                      </button>
+
+                      <input
+                        type="range"
+                        min={ZOOM_MIN}
+                        max={ZOOM_MAX}
+                        step={ZOOM_STEP}
+                        value={zoom}
+                        onChange={(e) => changeZoom(Number(e.target.value))}
+                        aria-label="Zoom level"
+                        className="hidden sm:block w-28 cursor-pointer accent-white"
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => changeZoom(zoom + ZOOM_STEP)}
+                        disabled={zoom >= ZOOM_MAX}
+                        aria-label="Zoom in"
+                        className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FaPlus className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
+
+                  {isTauri() && isDownloadable && (
+                    <>
+                      {isImageEntry && (
+                        <div
+                          className="w-px h-4 bg-white/20 mx-1"
+                          aria-hidden="true"
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={handleDownload}
                         disabled={isDownloading}
-                        title="Download image"
-                        aria-label="Download image"
+                        title="Download"
+                        aria-label="Download"
                         className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
                         {isDownloading ? (
@@ -700,7 +1063,7 @@ export function MediaViewerModal({
               </p>
             )}
 
-            {/* Main image area */}
+            {/* Main media area */}
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
               style={{
@@ -711,25 +1074,99 @@ export function MediaViewerModal({
                     : "1rem",
               }}
             >
-              <img
-                ref={imgRef}
-                src={currentUrl}
-                alt="Image preview"
-                draggable={false}
-                className="select-none pointer-events-auto transparency-grid"
-                style={{
-                  maxWidth: "calc(100% - 4rem)",
-                  maxHeight: "calc(100vh - 10rem)",
-                  transformOrigin: "center",
-                  cursor,
-                  borderRadius: "4px",
-                }}
-                onMouseDown={handleMouseDown}
-                onClick={handleImageClick}
-              />
+              {/* Loading spinner — while probing an extensionless URL */}
+              {isViewerProbing && (
+                <div className="flex flex-col items-center gap-3 text-discord-text-muted pointer-events-none">
+                  <FaSpinner className="animate-spin text-4xl" />
+                  <span className="text-sm">Loading…</span>
+                </div>
+              )}
+              {/* Image */}
+              {isImageEntry && (
+                <img
+                  ref={imgRef}
+                  src={currentUrl}
+                  alt="Image preview"
+                  draggable={false}
+                  className="select-none pointer-events-auto transparency-grid"
+                  style={{
+                    maxWidth: "calc(100% - 4rem)",
+                    maxHeight: "calc(100vh - 10rem)",
+                    transformOrigin: "center",
+                    cursor,
+                    borderRadius: "4px",
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onClick={handleImageClick}
+                />
+              )}
+              {/* Video */}
+              {effectiveType === "video" && (
+                // biome-ignore lint/a11y/useMediaCaption: user-linked IRC media, no captions available
+                <video
+                  src={currentUrl}
+                  controls
+                  className="max-h-full max-w-full rounded pointer-events-auto select-none"
+                  style={{
+                    maxWidth: "calc(100% - 4rem)",
+                    maxHeight: "calc(100vh - 10rem)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )}
+              {/* Audio */}
+              {effectiveType === "audio" && (
+                <AudioViewerPlayer key={currentUrl} url={currentUrl} />
+              )}
+              {/* PDF */}
+              {effectiveType === "pdf" && (
+                <div
+                  className="pointer-events-auto overflow-auto"
+                  style={{ maxHeight: "calc(100vh - 10rem)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Suspense
+                    fallback={
+                      <div className="w-48 h-64 bg-discord-dark-400/50 animate-pulse rounded" />
+                    }
+                  >
+                    <LazyDocument file={currentUrl}>
+                      <LazyPage
+                        pageNumber={1}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    </LazyDocument>
+                  </Suspense>
+                </div>
+              )}
+              {/* Embed (YouTube, Vimeo, etc.) */}
+              {effectiveType === "embed" && (
+                <div
+                  className="pointer-events-auto w-full h-full flex items-center justify-center"
+                  style={{
+                    maxWidth: "calc(100% - 4rem)",
+                    maxHeight: "calc(100vh - 10rem)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Suspense
+                    fallback={
+                      <div className="w-full h-64 bg-discord-dark-400/50 animate-pulse rounded" />
+                    }
+                  >
+                    <ReactPlayer
+                      src={currentUrl}
+                      width="100%"
+                      height="100%"
+                      controls
+                    />
+                  </Suspense>
+                </div>
+              )}
             </div>
 
-            {/* Bottom filmstrip — only when there are multiple images */}
+            {/* Bottom filmstrip — only when there are multiple media items */}
             {imageList.length > 1 && (
               <div
                 data-no-gesture=""
@@ -771,9 +1208,10 @@ export function MediaViewerModal({
                   >
                     {imageList.map((thumbUrl, thumbIndex) => {
                       if (failedUrls.has(thumbUrl)) return null;
+                      const entry = mediaEntries[thumbIndex];
                       return (
                         <button
-                          key={imageEntries[thumbIndex]?.entryKey ?? thumbUrl}
+                          key={mediaEntries[thumbIndex]?.entryKey ?? thumbUrl}
                           ref={(el) => {
                             thumbRefs.current[thumbIndex] = el;
                           }}
@@ -789,15 +1227,57 @@ export function MediaViewerModal({
                               : "w-11 h-11 opacity-50 hover:opacity-80"
                           }`}
                         >
-                          <img
-                            src={thumbUrl}
-                            alt=""
-                            draggable={false}
-                            className="w-full h-full object-cover transparency-grid"
-                            onError={() => addFailedUrl(thumbUrl)}
-                          />
+                          {entry?.type === "image" && (
+                            <img
+                              src={thumbUrl}
+                              alt=""
+                              draggable={false}
+                              className="w-full h-full object-cover transparency-grid"
+                              onError={() => addFailedUrl(thumbUrl)}
+                            />
+                          )}
+                          {entry?.type === null && (
+                            <div className="w-full h-full flex items-center justify-center bg-discord-dark-600">
+                              <FaMusic className="text-white/60 text-lg" />
+                            </div>
+                          )}
+                          {entry?.type === "video" && (
+                            <div className="w-full h-full flex items-center justify-center bg-discord-dark-600">
+                              <FaVideo className="text-white/60 text-lg" />
+                            </div>
+                          )}
+                          {entry?.type === "audio" && (
+                            <div className="w-full h-full flex items-center justify-center bg-discord-dark-600">
+                              <FaMusic className="text-white/60 text-lg" />
+                            </div>
+                          )}
+                          {entry?.type === "pdf" && (
+                            <div className="w-full h-full flex items-center justify-center bg-discord-dark-600 text-white/60 text-xs font-bold">
+                              PDF
+                            </div>
+                          )}
+                          {entry?.type === "embed" &&
+                            (() => {
+                              const yt = getEmbedThumbnailUrl(entry.url);
+                              if (yt) {
+                                return (
+                                  <img
+                                    src={yt}
+                                    alt=""
+                                    draggable={false}
+                                    className="w-full h-full object-cover"
+                                    onError={() => addFailedUrl(thumbUrl)}
+                                  />
+                                );
+                              }
+                              return (
+                                <div className="w-full h-full flex items-center justify-center bg-discord-dark-600">
+                                  <FaVideo className="text-white/60 text-lg" />
+                                </div>
+                              );
+                            })()}
                           {(() => {
-                            const msgid = imageEntries[thumbIndex]?.msg?.msgid;
+                            const msgid = mediaEntries[thumbIndex]?.msg?.msgid;
                             const count = msgid
                               ? (commentCountByMsgid[msgid] ?? 0)
                               : 0;
