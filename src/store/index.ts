@@ -6075,6 +6075,14 @@ ircClient.on("TOPIC", ({ serverId, channelName, topic, sender }) => {
 });
 
 ircClient.on("RPL_TOPIC", ({ serverId, channelName, topic }) => {
+  // Skip entirely when the topic hasn't changed — servers.map() always returns a new
+  // array reference, so calling setState unconditionally floods React with no-op updates.
+  const existing = useStore
+    .getState()
+    .servers.find((s) => s.id === serverId)
+    ?.channels.find((ch) => ch.name.toLowerCase() === channelName.toLowerCase());
+  if (existing?.topic === topic) return;
+
   useStore.setState((state) => {
     const updatedServers = state.servers.map((server) => {
       if (server.id === serverId) {
@@ -8732,6 +8740,10 @@ ircClient.on(
         }
         return s;
       });
+      // No-op if every server reference is unchanged — servers.map() always produces
+      // a new array, so without this guard every WHOX reply causes a re-render even
+      // when all user data was already current, triggering maximum-update-depth warnings.
+      if (updatedServers.every((s, i) => s === state.servers[i])) return state;
       return { servers: updatedServers };
     });
 
