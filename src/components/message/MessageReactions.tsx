@@ -60,6 +60,7 @@ const ReactionButton: React.FC<{
             : "bg-discord-dark-300 text-discord-text-muted hover:bg-discord-dark-200"
         }`}
         onClick={() => onReactionClick(emoji, reactionData.currentUserReacted)}
+        aria-label={`${reactionData.currentUserReacted ? "Remove" : "Add"} reaction ${emoji}`}
       >
         <span>{emoji}</span>
         <span className="text-xs font-medium tabular-nums">

@@ -102,9 +102,11 @@ export function useScrollToBottom(
 
     observer.observe(endElement);
 
+    let rafId1: number;
+    let rafId2: number;
     const checkInitial = () => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(checkIfScrolledToBottom);
+      rafId1 = requestAnimationFrame(() => {
+        rafId2 = requestAnimationFrame(checkIfScrolledToBottom);
       });
     };
     checkInitial();
@@ -145,6 +147,8 @@ export function useScrollToBottom(
       container.removeEventListener("touchend", checkIfScrolledToBottom);
       container.removeEventListener("wheel", handleWheel);
       if (wheelUpCooldown !== null) clearTimeout(wheelUpCooldown);
+      cancelAnimationFrame(rafId1);
+      cancelAnimationFrame(rafId2);
     };
   }, [containerRef, endElementRef, tolerance, channelId]);
 

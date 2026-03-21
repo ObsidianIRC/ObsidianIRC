@@ -44,6 +44,7 @@ import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
 import { TextArea } from "../ui/TextInput";
+import { TopicMediaStrip } from "../ui/TopicMediaStrip";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
 import {
@@ -264,7 +265,6 @@ export const ChatArea: React.FC<{
       ui.isSettingsModalOpen ||
       ui.isQuickActionsOpen ||
       ui.isChannelListModalOpen ||
-      ui.isChannelRenameModalOpen ||
       ui.contextMenu?.isOpen ||
       ui.isServerNoticesPopupOpen ||
       ui.profileViewRequest ||
@@ -277,7 +277,6 @@ export const ChatArea: React.FC<{
     );
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: isAnyModalOpen is a primitive read via ref inside the hook
   useAutoFocusTyping(inputRef, () => isAnyModalOpen);
 
   useEffect(() => {
@@ -313,7 +312,6 @@ export const ChatArea: React.FC<{
     isSettingsModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
-    isChannelRenameModalOpen,
     isServerNoticesPopupOpen,
   } = ui;
 
@@ -1626,8 +1624,7 @@ export const ChatArea: React.FC<{
       isSettingsModalOpen ||
       userProfileModalOpen ||
       isAddServerModalOpen ||
-      isChannelListModalOpen ||
-      isChannelRenameModalOpen
+      isChannelListModalOpen
     )
       return;
     inputRef.current?.focus();
@@ -1638,7 +1635,6 @@ export const ChatArea: React.FC<{
     userProfileModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
-    isChannelRenameModalOpen,
   ]);
 
   return (
@@ -1663,6 +1659,7 @@ export const ChatArea: React.FC<{
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
 
+      <TopicMediaStrip />
       <MiniMediaPlayer />
 
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}

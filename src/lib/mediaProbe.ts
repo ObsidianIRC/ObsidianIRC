@@ -25,6 +25,19 @@ export function shouldProbeUrl(url: string): boolean {
   return detectMediaType(url) === null;
 }
 
+/**
+ * Synchronous cache lookup. Returns:
+ *   undefined   — URL has never been probed
+ *   null        — URL was probed but is not a media file
+ *   ProbeResult — URL was probed and is a media file
+ */
+export function getCachedProbeResult(
+  url: string,
+): ProbeResult | null | undefined {
+  if (!cache.has(url)) return undefined;
+  return cache.get(url) ?? null;
+}
+
 export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
   if (cache.has(url)) return cache.get(url) ?? null;
 
@@ -41,14 +54,24 @@ export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
     if (!response.ok) {
       // Some streaming servers (e.g. Icecast) return 4xx status with a media Content-Type.
       // Trust the Content-Type for known media MIME types rather than bailing on status code.
-      const ct = (response.headers.get("Content-Type") ?? "").split(";")[0].trim();
+      const ct = (response.headers.get("Content-Type") ?? "")
+        .split(";")[0]
+        .trim();
       if (ct.startsWith("audio/")) {
-        const result: ProbeResult = { type: "audio", streamable: true, skipped: false };
+        const result: ProbeResult = {
+          type: "audio",
+          streamable: true,
+          skipped: false,
+        };
         cacheSet(url, result);
         return result;
       }
       if (ct.startsWith("video/")) {
-        const result: ProbeResult = { type: "video", streamable: false, skipped: false };
+        const result: ProbeResult = {
+          type: "video",
+          streamable: false,
+          skipped: false,
+        };
         cacheSet(url, result);
         return result;
       }

@@ -36,8 +36,8 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
 }) => {
   const replyUsername = replyMessage.userId;
 
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const mediaVisibilityLevel = useStore(
+    (state) => state.globalSettings.mediaVisibilityLevel,
   );
   const server = replyMessage.serverId
     ? useStore.getState().servers.find((s) => s.id === replyMessage.serverId)
@@ -88,8 +88,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
       {firstImageUrl &&
         canShowImageUrl(
           firstImageUrl,
-          showSafeMedia,
-          showExternalContent,
+          mediaVisibilityLevel,
           server?.filehost,
         ) && (
           <img

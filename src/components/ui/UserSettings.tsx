@@ -274,8 +274,6 @@ export const UserSettings: React.FC = React.memo(() => {
 
   // User Profile Modal state
   const [viewProfileModalOpen, setViewProfileModalOpen] = useState(false);
-  const [showExternalContentWarning, setShowExternalContentWarning] =
-    useState(false);
 
   // Profile metadata state
   const [avatar, setAvatar] = useState("");
@@ -723,6 +721,109 @@ export const UserSettings: React.FC = React.memo(() => {
     setOriginalValues(null);
     toggleSettingsModal(false);
   }, [hasUnsavedChanges, toggleSettingsModal]);
+
+  // Render media settings with progressive slider
+  const renderMediaFields = () => {
+    type LevelInfo = { label: string; description: string; warning?: true };
+    const LEVELS: LevelInfo[] = [
+      { label: "Off", description: "No media previews are loaded." },
+      {
+        label: "Safe",
+        description:
+          "Shows media from your server's trusted file host. No requests are made to external services.",
+      },
+      {
+        label: "Trusted Sources",
+        description:
+          "Also shows previews from YouTube, Vimeo, SoundCloud, and similar known services.",
+      },
+      {
+        label: "All Content",
+        description:
+          "Shows all external media. Any URL may cause a request to an unknown server.",
+        warning: true,
+      },
+    ];
+
+    const level = (settings.mediaVisibilityLevel as number | undefined) ?? 1;
+    const current = LEVELS[level as 0 | 1 | 2 | 3];
+    const fillPct = (level / 3) * 100;
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-discord-text-muted">
+            Display
+          </p>
+
+          {/* Title row */}
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-discord-text-normal">
+              Media Previews
+            </span>
+            <span
+              className={`text-xs font-semibold ${current.warning ? "text-yellow-400" : "text-discord-primary"}`}
+            >
+              {current.label}
+            </span>
+          </div>
+          <p className="mb-5 text-xs text-discord-text-muted">
+            Control how much external media is loaded in chat.
+          </p>
+
+          {/* Slider track */}
+          <input
+            type="range"
+            min={0}
+            max={3}
+            step={1}
+            value={level}
+            onChange={(e) =>
+              handleSettingChange(
+                "mediaVisibilityLevel",
+                Number(e.target.value),
+              )
+            }
+            className="media-level-slider w-full h-2 cursor-pointer appearance-none rounded-full outline-none"
+            style={{
+              background: `linear-gradient(to right, #5865f2 ${fillPct}%, #3f4147 ${fillPct}%)`,
+            }}
+          />
+
+          {/* Tick labels */}
+          <div className="mt-2 flex justify-between">
+            {LEVELS.map((l, i) => (
+              <button
+                key={l.label}
+                type="button"
+                onClick={() => handleSettingChange("mediaVisibilityLevel", i)}
+                className={`text-xs leading-tight transition-colors ${
+                  i === level
+                    ? "font-medium text-discord-text-normal"
+                    : "text-discord-text-muted hover:text-discord-text-normal"
+                }`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-white/[0.06]" />
+
+        {/* Description — updates as slider moves */}
+        <div
+          className={`text-sm leading-relaxed ${current.warning ? "text-yellow-400" : "text-discord-text-muted"}`}
+        >
+          {current.warning && (
+            <span className="mr-1 font-semibold">⚠ Privacy Warning —</span>
+          )}
+          {current.description}
+        </div>
+      </div>
+    );
+  };
 
   // Render privacy settings
   const renderPrivacyFields = () => {
@@ -1278,9 +1379,11 @@ export const UserSettings: React.FC = React.memo(() => {
             <div className="flex-1 overflow-y-auto p-4">
               {activeCategory === "profile" && renderProfileFields()}
               {activeCategory === "account" && renderAccountFields()}
+              {activeCategory === "media" && renderMediaFields()}
               {activeCategory === "privacy" && renderPrivacyFields()}
               {activeCategory !== "profile" &&
                 activeCategory !== "account" &&
+                activeCategory !== "media" &&
                 activeCategory !== "privacy" && (
                   <div className="space-y-4">
                     {categorySettings.map((setting) => (
@@ -1407,12 +1510,16 @@ export const UserSettings: React.FC = React.memo(() => {
             {/* Account category - custom rendering */}
             {activeCategory === "account" && renderAccountFields()}
 
+            {/* Media category - custom slider rendering */}
+            {activeCategory === "media" && renderMediaFields()}
+
             {/* Privacy category - custom rendering */}
             {activeCategory === "privacy" && renderPrivacyFields()}
 
             {/* Other categories - use SettingRenderer */}
             {activeCategory !== "profile" &&
               activeCategory !== "account" &&
+              activeCategory !== "media" &&
               activeCategory !== "privacy" && (
                 <div className="space-y-4">
                   {categorySettings.map((setting) => (

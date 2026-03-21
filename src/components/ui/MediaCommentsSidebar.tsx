@@ -79,7 +79,6 @@ export function MediaCommentsSidebar({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isHoveredRef = useRef(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sidebarRef is stable
   useEffect(() => {
     const el = sidebarRef.current;
     if (!el) return;
@@ -107,8 +106,9 @@ export function MediaCommentsSidebar({
     paddingBottom: number;
   } | null>(null);
 
-  const { showSafeMedia, showExternalContent, sendTypingNotifications } =
-    useStore((state) => state.globalSettings);
+  const { mediaVisibilityLevel, sendTypingNotifications } = useStore(
+    (state) => state.globalSettings,
+  );
   const filehost = useStore
     .getState()
     .servers.find((s) => s.id === serverId)?.filehost;
@@ -384,12 +384,7 @@ export function MediaCommentsSidebar({
               : null;
           if (
             mediaType === "image" &&
-            canShowImageUrl(
-              currentImageUrl,
-              showSafeMedia,
-              showExternalContent,
-              filehost,
-            )
+            canShowImageUrl(currentImageUrl, mediaVisibilityLevel, filehost)
           ) {
             return (
               <img

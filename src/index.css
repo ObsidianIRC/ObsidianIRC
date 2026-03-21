@@ -139,6 +139,30 @@ html, body, #root {
   animation: message-flash 2s ease-in-out;
 }
 
+/* Media visibility level slider */
+.media-level-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+.media-level-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+.media-level-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
 /* Bottom sheet slide-up animation for mobile message actions */
 @keyframes bottom-sheet-slide-up {
   from {
@@ -176,11 +200,18 @@ html.window-blurred .group:hover .message-actions-container {
   opacity: 0;
 }
 
+/* When the window is not focused, cancel any in-progress hover animations
+   and keep toolbars hidden even if the mouse is still over an element. */
+html.window-blurred .group:hover .message-actions-container {
+  animation: none;
+  opacity: 0;
+}
+
 @keyframes scroll-btn-appear {
-  0%   { opacity: 0; transform: translateY(18px) scale(0.6); }
+  0%   { opacity: 0; transform: translateY(18px) scale(0.6); background-color: #202225; }
   55%  { opacity: 1; transform: translateY(-5px) scale(1.12); }
   75%  { transform: translateY(3px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 1; transform: translateY(0) scale(1); background-color: #202225; }
 }
 .scroll-to-bottom-btn {
   animation: scroll-btn-appear 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;

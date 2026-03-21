@@ -24,6 +24,7 @@ import {
   isUrlFromFilehost,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import { isTauriDesktop } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
@@ -65,9 +66,8 @@ export const ChannelList: React.FC<{
     );
   });
 
-  // Get global settings for media controls
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
   // Get the current user for the selected server from the store data (includes metadata)
@@ -199,10 +199,11 @@ export const ChannelList: React.FC<{
     return sorted;
   }, [selectedServer, selectedServerId, channelOrder]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset PM click tracking when selection changes
   useEffect(() => {
     setClickedPM(null);
     lastSelectedPM.current = null;
-  });
+  }, [selectedPrivateChatId]);
 
   // Helper function to get user metadata for a private chat
   const getUserMetadata = (username: string) => {

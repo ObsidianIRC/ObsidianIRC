@@ -4,6 +4,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/solid";
 import {
+  Fragment,
   lazy,
   Suspense,
   useCallback,
@@ -16,6 +17,7 @@ import {
   FaComments,
   FaDownload,
   FaExternalLinkAlt,
+  FaFilm,
   FaMinus,
   FaMusic,
   FaPlus,
@@ -25,13 +27,15 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isUrlFromFilehost } from "../../lib/ircUtils";
-import { probeMediaUrl } from "../../lib/mediaProbe";
+import { getCachedProbeResult, probeMediaUrl } from "../../lib/mediaProbe";
 import type { MediaEntry, MediaType } from "../../lib/mediaUtils";
 import {
   canShowMedia,
   detectMediaType,
   extractMediaFromMessage,
+  extractMediaFromText,
   getEmbedThumbnailUrl,
+  mediaLevelToSettings,
 } from "../../lib/mediaUtils";
 import { openExternalUrl } from "../../lib/openUrl";
 import { isTauri } from "../../lib/platformUtils";
@@ -247,6 +251,10 @@ interface MediaViewerModalProps {
   onClose: () => void;
   serverId?: string;
   channelId?: string;
+  /** When true, prefer finding the URL in topic entries before message entries. */
+  preferTopicEntry?: boolean;
+  /** When true, open at the last entry in the filmstrip (media explorer mode). */
+  preferLastEntry?: boolean;
 }
 
 export function MediaViewerModal({
@@ -256,6 +264,8 @@ export function MediaViewerModal({
   onClose,
   serverId,
   channelId,
+  preferTopicEntry,
+  preferLastEntry,
 }: MediaViewerModalProps) {
   // zoom drives the slider/buttons UI; the actual image transform is applied
   // directly via imgRef to avoid React re-renders on every gesture event.
@@ -264,7 +274,13 @@ export function MediaViewerModal({
   const [showWarning, setShowWarning] = useState(false);
   const [imageList, setImageList] = useState<string[]>([]);
   const [mediaEntries, setMediaEntries] = useState<
-    { url: string; type: MediaType | null; msg: Message; entryKey: string }[]
+    {
+      url: string;
+      type: MediaType | null;
+      msg: Message | null;
+      entryKey: string;
+      isTopicEntry: boolean;
+    }[]
   >([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -276,6 +292,9 @@ export function MediaViewerModal({
   const [probedType, setProbedType] = useState<
     MediaType | "probing" | "failed"
   >("probing");
+  // True once the build entries effect has completed at least once for the current open.
+  // Used to distinguish "loading" from "genuinely empty" for the empty state UI.
+  const [entriesBuilt, setEntriesBuilt] = useState(false);
 
   const isMobile = useMediaQuery();
 
@@ -336,13 +355,18 @@ export function MediaViewerModal({
   const currentSourceMsg = mediaEntries[currentIndex]?.msg ?? null;
   const isAlbum =
     currentSourceMsg !== null &&
-    mediaEntries.filter((e) => e.msg.id === currentSourceMsg.id).length > 1;
+    mediaEntries.filter(
+      (e) => e.msg !== null && e.msg.id === currentSourceMsg.id,
+    ).length > 1;
   const canShowComments = Boolean(
     serverId && channelId && currentSourceMsg?.msgid,
   );
+  const topicEntryCount = mediaEntries.filter((e) => e.isTopicEntry).length;
 
   const { showSafeMedia, showTrustedSourcesMedia, showExternalContent } =
-    useStore((state) => state.globalSettings);
+    mediaLevelToSettings(
+      useStore((state) => state.globalSettings.mediaVisibilityLevel),
+    );
 
   // Map of msgid → reply count, covers both the toolbar button and filmstrip thumbnails
   const commentCountByMsgid = useStore(
@@ -382,6 +406,7 @@ export function MediaViewerModal({
       setZoom(1);
       setFailedUrls(new Set());
       setShowComments(false);
+      setEntriesBuilt(false);
     }
   }, [isOpen, applyTransform]);
 
@@ -394,20 +419,62 @@ export function MediaViewerModal({
       setCurrentIndex(-1);
       return;
     }
+    const storeState = useStore.getState();
+    const filehost = storeState.servers.find(
+      (s) => s.id === serverId,
+    )?.filehost;
+    const mediaSettings = {
+      showSafeMedia,
+      showTrustedSourcesMedia,
+      showExternalContent,
+    };
+
+    // Build topic entries (prepended before message entries)
+    const channel = storeState.servers
+      .find((s) => s.id === serverId)
+      ?.channels.find((c) => c.id === channelId);
+    const topicEntries = channel?.topic
+      ? extractMediaFromText(channel.topic)
+          .filter((e) => canShowMedia(e.url, mediaSettings, filehost))
+          .map((e, i) => {
+            let type = e.type;
+            if (type === null) {
+              const cached = getCachedProbeResult(e.url);
+              if (cached != null && !cached.skipped) type = cached.type;
+            }
+            return {
+              url: e.url,
+              type,
+              msg: null as Message | null,
+              entryKey: `topic:${i}`,
+              isTopicEntry: true,
+            };
+          })
+      : [];
+
     const messages = getChannelMessages(serverId, channelId);
-    const filehost = useStore
-      .getState()
-      .servers.find((s) => s.id === serverId)?.filehost;
-    const entries = messages
+    const msgEntries = messages
       .flatMap((msg) =>
-        extractMediaFromMessage(msg).map((e, urlIdx) => ({
-          url: e.url,
-          type: e.type,
-          msg,
-          // Unique per (message, position-within-message) so duplicate URLs across
-          // or within messages each get their own filmstrip slot.
-          entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
-        })),
+        extractMediaFromMessage(msg).map((e, urlIdx) => {
+          // extractMediaFromMessage returns type:null for all non-embed-domain URLs so
+          // the server's Content-Type is authoritative. On re-open we can use the
+          // module-level probe cache to restore previously resolved types synchronously,
+          // avoiding a flash of music-note icons for already-visited URLs.
+          let type = e.type;
+          if (type === null) {
+            const cached = getCachedProbeResult(e.url);
+            if (cached != null && !cached.skipped) type = cached.type;
+          }
+          return {
+            url: e.url,
+            type,
+            msg,
+            // Unique per (message, position-within-message) so duplicate URLs across
+            // or within messages each get their own filmstrip slot.
+            entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
+            isTopicEntry: false,
+          };
+        }),
       )
       .filter(
         (e) =>
@@ -423,26 +490,67 @@ export function MediaViewerModal({
             detectMediaType(e.url) !== null ||
             (filehost != null && isUrlFromFilehost(e.url, filehost)) ||
             (e.url === url && (!sourceMsgId || e.msg.msgid === sourceMsgId))) &&
-          canShowMedia(
-            e.url,
-            { showSafeMedia, showTrustedSourcesMedia, showExternalContent },
-            filehost,
-          ),
+          canShowMedia(e.url, mediaSettings, filehost),
       );
+
+    const entries = [...topicEntries, ...msgEntries];
     setMediaEntries(entries);
     setImageList(entries.map((e) => e.url));
-    // Prefer matching by msgid+url so the correct entry is selected even when
-    // the same URL appears in several messages.
-    const idx = sourceMsgId
-      ? entries.findIndex((e) => e.msg.msgid === sourceMsgId && e.url === url)
-      : entries.findIndex((e) => e.url === url);
+
+    // Determine initial index:
+    // - preferLastEntry (media explorer): go to the last entry
+    // - preferTopicEntry: find url in topic entries first
+    // - otherwise: match by msgid+url, then url-only
+    let idx = -1;
+    if (preferLastEntry && entries.length > 0) {
+      idx = entries.length - 1;
+    } else if (preferTopicEntry) {
+      idx = entries.findIndex((e) => e.isTopicEntry && e.url === url);
+    }
+    if (idx === -1 && sourceMsgId) {
+      idx = entries.findIndex(
+        (e) => e.msg !== null && e.msg.msgid === sourceMsgId && e.url === url,
+      );
+    }
+    if (idx === -1) {
+      idx = entries.findIndex((e) => e.url === url);
+    }
     setCurrentIndex(idx);
+    setEntriesBuilt(true);
+
+    // Probe all filmstrip entries whose type is still unknown so thumbnails
+    // resolve without requiring the user to visit each item individually.
+    // probeMediaUrl is already cached at the module level, so previously-visited
+    // URLs resolve synchronously on the next tick with no network round-trip.
+    let cancelled = false;
+    const urlsToProbe = [
+      ...new Set(entries.filter((e) => e.type === null).map((e) => e.url)),
+    ];
+    for (const probeUrl of urlsToProbe) {
+      probeMediaUrl(probeUrl).then((result) => {
+        if (cancelled) return;
+        if (result && !result.skipped) {
+          setMediaEntries((prev) =>
+            prev.map((e) =>
+              e.url === probeUrl && e.type === null
+                ? { ...e, type: result.type }
+                : e,
+            ),
+          );
+        }
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
   }, [
     isOpen,
     serverId,
     channelId,
     url,
     sourceMsgId,
+    preferTopicEntry,
+    preferLastEntry,
     showSafeMedia,
     showTrustedSourcesMedia,
     showExternalContent,
@@ -477,7 +585,11 @@ export function MediaViewerModal({
   // (extensionless filehost URLs like /radio that need a HEAD request to determine type).
   // On resolve, patch the type in mediaEntries so the filmstrip and comments update too.
   useEffect(() => {
-    if (!isOpen || (currentEntry !== null && currentEntry.type !== null)) {
+    if (
+      !isOpen ||
+      !currentUrl ||
+      (currentEntry !== null && currentEntry.type !== null)
+    ) {
       setProbedType("probing");
       return;
     }
@@ -742,6 +854,7 @@ export function MediaViewerModal({
                 type: e.type,
                 msg,
                 entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
+                isTopicEntry: false as const,
               }),
             ),
           )
@@ -753,6 +866,7 @@ export function MediaViewerModal({
               type: MediaType;
               msg: Message;
               entryKey: string;
+              isTopicEntry: false;
             } =>
               e.type !== null &&
               canShowMedia(
@@ -803,6 +917,9 @@ export function MediaViewerModal({
   };
 
   if (!isOpen) return null;
+
+  // True when entries have been built but there is nothing to show.
+  const isEmptyState = entriesBuilt && imageList.length === 0;
 
   // Walk outward from currentIndex to find nearest non-failed neighbours
   let prevValidIndex: number | undefined;
@@ -1006,7 +1123,7 @@ export function MediaViewerModal({
                     <FaExternalLinkAlt className="w-3.5 h-3.5" />
                   </button>
 
-                  {canShowComments && (
+                  {canShowComments && !currentEntry?.isTopicEntry && (
                     <>
                       <div
                         className="w-px h-4 bg-white/20 mx-1"
@@ -1074,8 +1191,15 @@ export function MediaViewerModal({
                     : "1rem",
               }}
             >
+              {/* Empty state — entries built but nothing passed the visibility filter */}
+              {isEmptyState && (
+                <div className="flex flex-col items-center gap-3 text-discord-text-muted pointer-events-none">
+                  <FaFilm className="text-4xl opacity-40" />
+                  <span className="text-sm">No media in this channel</span>
+                </div>
+              )}
               {/* Loading spinner — while probing an extensionless URL */}
-              {isViewerProbing && (
+              {!isEmptyState && isViewerProbing && (
                 <div className="flex flex-col items-center gap-3 text-discord-text-muted pointer-events-none">
                   <FaSpinner className="animate-spin text-4xl" />
                   <span className="text-sm">Loading…</span>
@@ -1209,9 +1333,13 @@ export function MediaViewerModal({
                     {imageList.map((thumbUrl, thumbIndex) => {
                       if (failedUrls.has(thumbUrl)) return null;
                       const entry = mediaEntries[thumbIndex];
-                      return (
+                      // Separator between topic entries and message entries
+                      const showSeparator =
+                        thumbIndex === topicEntryCount &&
+                        topicEntryCount > 0 &&
+                        imageList.length > topicEntryCount;
+                      const thumbBtn = (
                         <button
-                          key={mediaEntries[thumbIndex]?.entryKey ?? thumbUrl}
                           ref={(el) => {
                             thumbRefs.current[thumbIndex] = el;
                           }}
@@ -1290,6 +1418,19 @@ export function MediaViewerModal({
                           })()}
                         </button>
                       );
+                      return (
+                        <Fragment key={entry?.entryKey ?? thumbUrl}>
+                          {showSeparator && (
+                            <span
+                              className="self-center text-white/30 text-sm flex-shrink-0 select-none mx-0.5"
+                              aria-hidden="true"
+                            >
+                              |
+                            </span>
+                          )}
+                          {thumbBtn}
+                        </Fragment>
+                      );
                     })}
                   </div>
 
@@ -1314,6 +1455,7 @@ export function MediaViewerModal({
           {/* Desktop sidebar — inline beside image */}
           {showComments &&
             canShowComments &&
+            !currentEntry?.isTopicEntry &&
             !isMobile &&
             currentSourceMsg &&
             serverId &&
@@ -1343,6 +1485,7 @@ export function MediaViewerModal({
           {/* Mobile sidebar — full-screen overlay */}
           {showComments &&
             canShowComments &&
+            !currentEntry?.isTopicEntry &&
             isMobile &&
             currentSourceMsg &&
             serverId &&

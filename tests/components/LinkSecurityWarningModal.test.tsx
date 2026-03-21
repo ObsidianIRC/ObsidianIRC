@@ -90,7 +90,6 @@ describe("LinkSecurityWarningModal", () => {
         isMemberListVisible: false,
         isChannelListVisible: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         // biome-ignore lint/suspicious/noExplicitAny: Partial mock type
         mobileViewActiveColumn: "chat" as any,
         isServerMenuOpen: false,
