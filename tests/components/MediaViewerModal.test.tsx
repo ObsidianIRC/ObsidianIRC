@@ -36,7 +36,7 @@ vi.mock("../../src/store", () => ({
       typeof selector === "function"
         ? selector({
             messages: {},
-            globalSettings: { showSafeMedia: true, showExternalContent: true },
+            globalSettings: { mediaVisibilityLevel: 3 },
           })
         : null,
     ),

@@ -32,6 +32,7 @@ import {
   detectMediaType,
   extractMediaFromMessage,
   getEmbedThumbnailUrl,
+  mediaLevelToSettings,
 } from "../../lib/mediaUtils";
 import { openExternalUrl } from "../../lib/openUrl";
 import { isTauri } from "../../lib/platformUtils";
@@ -342,7 +343,9 @@ export function MediaViewerModal({
   );
 
   const { showSafeMedia, showTrustedSourcesMedia, showExternalContent } =
-    useStore((state) => state.globalSettings);
+    mediaLevelToSettings(
+      useStore((state) => state.globalSettings.mediaVisibilityLevel),
+    );
 
   // Map of msgid → reply count, covers both the toolbar button and filmstrip thumbnails
   const commentCountByMsgid = useStore(

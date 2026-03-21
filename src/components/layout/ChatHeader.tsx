@@ -23,6 +23,7 @@ import {
   getChannelDisplayName,
   isUrlFromFilehost,
 } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
 import HeaderOverflowMenu, {
@@ -94,9 +95,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     (state) => state.ui.mobileViewActiveColumn,
   );
 
-  // Get global settings for media controls
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
   // Get private chat user metadata - first check localStorage, then check shared channels

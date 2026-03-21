@@ -8,6 +8,7 @@ import {
   isUrlFromFilehost,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
@@ -107,9 +108,8 @@ const UserItem: React.FC<{
 }> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
-  // Get global settings for media controls
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
   // Get server for filehost detection

@@ -12,6 +12,7 @@ import {
   extractMediaFromMessage,
   type MediaEntry,
   type MediaType,
+  mediaLevelToSettings,
 } from "../../lib/mediaUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
 import useStore, { loadSavedMetadata } from "../../store";
@@ -315,15 +316,11 @@ export const MessageItem = (props: MessageItemProps) => {
       [message.serverId],
     ),
   );
-  const showSafeMedia = useStore(
-    useCallback((state) => state.globalSettings.showSafeMedia, []),
+  const mediaVisibilityLevel = useStore(
+    useCallback((state) => state.globalSettings.mediaVisibilityLevel, []),
   );
-  const showTrustedSourcesMedia = useStore(
-    useCallback((state) => state.globalSettings.showTrustedSourcesMedia, []),
-  );
-  const showExternalContent = useStore(
-    useCallback((state) => state.globalSettings.showExternalContent, []),
-  );
+  const { showSafeMedia, showTrustedSourcesMedia, showExternalContent } =
+    mediaLevelToSettings(mediaVisibilityLevel);
   const enableMarkdownRendering = useStore(
     useCallback((state) => state.globalSettings.enableMarkdownRendering, []),
   );
@@ -379,13 +376,7 @@ export const MessageItem = (props: MessageItemProps) => {
         server?.filehost,
       ),
     );
-  }, [
-    strippedContent,
-    showSafeMedia,
-    showTrustedSourcesMedia,
-    showExternalContent,
-    server?.filehost,
-  ]);
+  }, [strippedContent, mediaVisibilityLevel, server?.filehost]);
 
   const [showAllImages, setShowAllImages] = useState(false);
 

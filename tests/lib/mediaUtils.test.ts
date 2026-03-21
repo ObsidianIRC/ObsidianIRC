@@ -4,6 +4,7 @@ import {
   detectMediaType,
   extractMediaFromMessage,
   getEmbedThumbnailUrl,
+  mediaLevelToSettings,
   TRUSTED_EMBED_DOMAINS,
 } from "../../src/lib/mediaUtils";
 import type { Message } from "../../src/types/index";
@@ -330,6 +331,87 @@ describe("canShowMedia", () => {
         null,
       ),
     ).toBe(false);
+  });
+});
+
+describe("mediaLevelToSettings", () => {
+  test("level 0 disables all media", () => {
+    expect(mediaLevelToSettings(0)).toEqual({
+      showSafeMedia: false,
+      showTrustedSourcesMedia: false,
+      showExternalContent: false,
+    });
+  });
+
+  test("level 1 enables only safe media", () => {
+    expect(mediaLevelToSettings(1)).toEqual({
+      showSafeMedia: true,
+      showTrustedSourcesMedia: false,
+      showExternalContent: false,
+    });
+  });
+
+  test("level 2 enables safe and trusted sources", () => {
+    expect(mediaLevelToSettings(2)).toEqual({
+      showSafeMedia: true,
+      showTrustedSourcesMedia: true,
+      showExternalContent: false,
+    });
+  });
+
+  test("level 3 enables all media", () => {
+    expect(mediaLevelToSettings(3)).toEqual({
+      showSafeMedia: true,
+      showTrustedSourcesMedia: true,
+      showExternalContent: true,
+    });
+  });
+
+  test("level 1 allows filehost URL via canShowMedia", () => {
+    const filehost = "https://files.example.com";
+    expect(
+      canShowMedia(`${filehost}/img.jpg`, mediaLevelToSettings(1), filehost),
+    ).toBe(true);
+  });
+
+  test("level 1 blocks external URL via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://external.example.com/img.jpg",
+        mediaLevelToSettings(1),
+        null,
+      ),
+    ).toBe(false);
+  });
+
+  test("level 2 allows YouTube URL via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://youtube.com/watch?v=abc",
+        mediaLevelToSettings(2),
+        null,
+      ),
+    ).toBe(true);
+  });
+
+  test("level 2 blocks arbitrary external URL via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://external.example.com/img.jpg",
+        mediaLevelToSettings(2),
+        null,
+      ),
+    ).toBe(false);
+  });
+
+  test("level 3 allows all URLs via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://unknown.example.com/img.jpg",
+        mediaLevelToSettings(3),
+        null,
+      ),
+    ).toBe(true);
   });
 });
 

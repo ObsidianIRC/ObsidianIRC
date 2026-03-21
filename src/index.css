@@ -139,6 +139,30 @@ html, body, #root {
   animation: message-flash 2s ease-in-out;
 }
 
+/* Media visibility level slider */
+.media-level-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+.media-level-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+.media-level-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
 /* Bottom sheet slide-up animation for mobile message actions */
 @keyframes bottom-sheet-slide-up {
   from {

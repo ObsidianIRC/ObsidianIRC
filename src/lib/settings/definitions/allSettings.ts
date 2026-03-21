@@ -385,52 +385,34 @@ const preferenceSettings: SettingDefinition[] = [
 
 /**
  * Media Settings
+ * The slider UI is rendered as a custom branch in UserSettings ("media" category),
+ * so this entry exists only to make the setting discoverable via search.
  */
 const mediaSettings: SettingDefinition[] = [
   {
-    id: "media.showSafe",
-    key: "showSafeMedia",
+    id: "media.visibilityLevel",
+    key: "mediaVisibilityLevel",
     category: "media",
     subcategory: "Display",
-    title: "Show Safe Media",
-    description: "Display media shared via this server's trusted file host",
-    type: "toggle",
-    defaultValue: true,
-    searchKeywords: ["media", "images", "safe", "trusted"],
-    priority: 1,
-  },
-  {
-    id: "media.showTrusted",
-    key: "showTrustedSourcesMedia",
-    category: "media",
-    subcategory: "Display",
-    title: "Show Trusted Source Media",
+    title: "Media Previews",
     description:
-      "Show previews from well-known sites like YouTube, Vimeo, and SoundCloud",
+      "Control how much external media is loaded. Off / Safe / Trusted Sources / All Content.",
     type: "toggle",
-    defaultValue: false,
+    defaultValue: 1,
     searchKeywords: [
+      "media",
+      "images",
+      "safe",
+      "trusted",
       "youtube",
       "vimeo",
       "soundcloud",
-      "trusted",
       "embed",
       "preview",
+      "external",
+      "content",
     ],
-    priority: 2,
-  },
-  {
-    id: "media.showExternal",
-    key: "showExternalContent",
-    category: "media",
-    subcategory: "Display",
-    title: "Show External Content",
-    description:
-      "Display all external images and media (may include unknown sources)",
-    type: "toggle",
-    defaultValue: false,
-    searchKeywords: ["external", "content", "embed", "preview"],
-    priority: 3,
+    priority: 1,
   },
 ];
 

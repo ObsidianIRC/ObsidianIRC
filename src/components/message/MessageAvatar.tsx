@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { isUrlFromFilehost } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import useStore from "../../store";
 
 interface MessageAvatarProps {
@@ -30,7 +31,9 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
   const username = userId;
 
   const { showSafeMedia, showTrustedSourcesMedia, showExternalContent } =
-    useStore((state) => state.globalSettings);
+    mediaLevelToSettings(
+      useStore((state) => state.globalSettings.mediaVisibilityLevel),
+    );
   const server = serverId
     ? useStore.getState().servers.find((s) => s.id === serverId)
     : null;

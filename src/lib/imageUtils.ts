@@ -1,5 +1,9 @@
 import type { Message } from "../types/index";
-import { canShowMedia, extractMediaFromMessage } from "./mediaUtils";
+import {
+  canShowMedia,
+  extractMediaFromMessage,
+  type MediaVisibilityLevel,
+} from "./mediaUtils";
 
 export { isImageLikeUrl } from "./mediaUtils";
 
@@ -12,14 +16,18 @@ export function extractImageUrlsFromMessage(message: Message): string[] {
 
 export function canShowImageUrl(
   url: string,
-  showSafeMedia: boolean,
-  showExternalContent: boolean,
+  level: MediaVisibilityLevel,
   filehost?: string | null,
 ): boolean {
-  // Backwards-compat wrapper: trusted-sources flag intentionally absent to preserve old image-only behaviour
+  // Trusted-sources (level 2) covers embedded services, not arbitrary images,
+  // so showTrustedSourcesMedia is intentionally false for image-only contexts.
   return canShowMedia(
     url,
-    { showSafeMedia, showTrustedSourcesMedia: false, showExternalContent },
+    {
+      showSafeMedia: level >= 1,
+      showTrustedSourcesMedia: false,
+      showExternalContent: level >= 3,
+    },
     filehost,
   );
 }

@@ -22,6 +22,7 @@ import type {
   ConnectionDetails,
   GlobalSettings,
   layoutColumn,
+  MediaVisibilityLevel,
 } from "./types";
 
 const NARROW_VIEW_QUERY = "(max-width: 768px)";
@@ -921,9 +922,7 @@ const useStore = create<AppState>((set, get) => ({
     multilineOnShiftEnter: true,
     autoFallbackToSingleLine: true,
     // Media settings
-    showSafeMedia: true,
-    showTrustedSourcesMedia: false,
-    showExternalContent: false,
+    mediaVisibilityLevel: 1 as MediaVisibilityLevel,
     // Markdown settings
     enableMarkdownRendering: false,
     // Status messages

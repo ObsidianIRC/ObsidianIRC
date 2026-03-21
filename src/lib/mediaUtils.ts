@@ -104,6 +104,23 @@ export interface MediaSettings {
   showExternalContent: boolean;
 }
 
+export type MediaVisibilityLevel = 0 | 1 | 2 | 3;
+// 0 — Off:      no previews
+// 1 — Safe:     server's trusted filehost only
+// 2 — Trusted:  filehost + known embed services (YouTube, Vimeo, etc.)
+// 3 — External: all URLs are candidates
+
+/** Single source of truth for the enum → MediaSettings conversion. */
+export function mediaLevelToSettings(
+  level: MediaVisibilityLevel,
+): MediaSettings {
+  return {
+    showSafeMedia: level >= 1,
+    showTrustedSourcesMedia: level >= 2,
+    showExternalContent: level >= 3,
+  };
+}
+
 /**
  * Returns a static thumbnail URL for known embed platforms.
  * Currently supports YouTube (CDN thumbnail, no API key needed).

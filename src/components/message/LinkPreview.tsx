@@ -22,8 +22,8 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
 }) => {
   const [showWarningModal, setShowWarningModal] = useState(false);
 
-  // Get global settings
-  const { showExternalContent } = useStore((state) => state.globalSettings);
+  const showExternalContent =
+    useStore((state) => state.globalSettings.mediaVisibilityLevel) >= 3;
 
   // Don't render if there's no content to show
   if (!title && !snippet && !imageUrl) {
