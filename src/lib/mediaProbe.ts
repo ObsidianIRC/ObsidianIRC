@@ -25,6 +25,19 @@ export function shouldProbeUrl(url: string): boolean {
   return detectMediaType(url) === null;
 }
 
+/**
+ * Synchronous cache lookup. Returns:
+ *   undefined   — URL has never been probed
+ *   null        — URL was probed but is not a media file
+ *   ProbeResult — URL was probed and is a media file
+ */
+export function getCachedProbeResult(
+  url: string,
+): ProbeResult | null | undefined {
+  if (!cache.has(url)) return undefined;
+  return cache.get(url) ?? null;
+}
+
 export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
   if (cache.has(url)) return cache.get(url) ?? null;
 

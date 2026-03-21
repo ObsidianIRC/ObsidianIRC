@@ -11,7 +11,6 @@ import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
-import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
@@ -84,7 +83,6 @@ const App: React.FC = () => {
     ui: {
       isAddServerModalOpen,
       isChannelListModalOpen,
-      isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
       isSettingsModalOpen,
@@ -322,7 +320,6 @@ const App: React.FC = () => {
               {isSettingsModalOpen && <UserSettings />}
               {isQuickActionsOpen && <QuickActions />}
               {isChannelListModalOpen && <ChannelListModal />}
-              {isChannelRenameModalOpen && <ChannelRenameModal />}
               <LinkSecurityWarningModal />
               {userProfileModalState?.isOpen && (
                 <UserProfileModal

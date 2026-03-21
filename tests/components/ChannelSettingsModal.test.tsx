@@ -97,7 +97,6 @@ describe("ChannelSettingsModal", () => {
       isMemberListVisible: false,
       isChannelListVisible: false,
       isChannelListModalOpen: false,
-      isChannelRenameModalOpen: false,
       mobileViewActiveColumn: "chat" as const,
       isServerMenuOpen: false,
       contextMenu: {

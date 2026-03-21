@@ -370,7 +370,6 @@ interface UIState {
   isMemberListVisible: boolean;
   isChannelListVisible: boolean;
   isChannelListModalOpen: boolean;
-  isChannelRenameModalOpen: boolean;
   mobileViewActiveColumn: layoutColumn;
   isServerMenuOpen: boolean;
   contextMenu: {
@@ -689,7 +688,6 @@ export interface AppState {
     memberList?: { isVisible: boolean; width: number };
   }) => void;
   toggleChannelListModal: (isOpen?: boolean) => void;
-  toggleChannelRenameModal: (isOpen?: boolean) => void;
   toggleServerMenu: (isOpen?: boolean) => void;
   // New modal actions for QuickActions
   toggleTopicModal: (
@@ -867,7 +865,6 @@ const useStore = create<AppState>((set, get) => ({
     isChannelListVisible:
       loadUISelections().sidebarPreferences?.channelList.isVisible ?? true,
     isChannelListModalOpen: false,
-    isChannelRenameModalOpen: false,
     mobileViewActiveColumn: "serverList", // Always start on server/channel list, never auto-navigate to chat
     isServerMenuOpen: false,
     contextMenu: {
@@ -2747,16 +2744,6 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isChannelListModalOpen:
           isOpen !== undefined ? isOpen : !state.ui.isChannelListModalOpen,
-      },
-    }));
-  },
-
-  toggleChannelRenameModal: (isOpen?: boolean) => {
-    set((state) => ({
-      ui: {
-        ...state.ui,
-        isChannelRenameModalOpen:
-          isOpen !== undefined ? isOpen : !state.ui.isChannelRenameModalOpen,
       },
     }));
   },

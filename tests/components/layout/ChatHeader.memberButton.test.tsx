@@ -64,7 +64,6 @@ describe("ChatHeader - Members Button", () => {
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "chatView",
         isServerMenuOpen: false,

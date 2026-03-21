@@ -264,7 +264,6 @@ export const ChatArea: React.FC<{
       ui.isSettingsModalOpen ||
       ui.isQuickActionsOpen ||
       ui.isChannelListModalOpen ||
-      ui.isChannelRenameModalOpen ||
       ui.contextMenu?.isOpen ||
       ui.isServerNoticesPopupOpen ||
       ui.profileViewRequest ||
@@ -312,7 +311,6 @@ export const ChatArea: React.FC<{
     isSettingsModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
-    isChannelRenameModalOpen,
     isServerNoticesPopupOpen,
   } = ui;
 
@@ -1625,8 +1623,7 @@ export const ChatArea: React.FC<{
       isSettingsModalOpen ||
       userProfileModalOpen ||
       isAddServerModalOpen ||
-      isChannelListModalOpen ||
-      isChannelRenameModalOpen
+      isChannelListModalOpen
     )
       return;
     inputRef.current?.focus();
@@ -1637,7 +1634,6 @@ export const ChatArea: React.FC<{
     userProfileModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
-    isChannelRenameModalOpen,
   ]);
 
   return (

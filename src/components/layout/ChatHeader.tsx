@@ -7,7 +7,6 @@ import {
   FaCheckCircle,
   FaChevronLeft,
   FaChevronRight,
-  FaEdit,
   FaEllipsisV,
   FaHashtag,
   FaInfoCircle,
@@ -73,7 +72,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const {
     toggleChannelListModal,
-    toggleChannelRenameModal,
     toggleMemberList,
     setMobileViewActiveColumn,
     pinPrivateChat,
@@ -296,12 +294,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       icon: <FaList />,
       onClick: () => toggleChannelListModal(true),
       show: true,
-    },
-    {
-      label: "Rename Channel",
-      icon: <FaEdit />,
-      onClick: () => toggleChannelRenameModal(true),
-      show: !!(selectedChannel && isOperator),
     },
   ].filter((item) => item.show);
 
@@ -537,16 +529,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               >
                 <FaList />
               </button>
-              {isOperator && (
-                <button
-                  className="hidden md:block hover:text-discord-text-normal"
-                  onClick={() => toggleChannelRenameModal(true)}
-                  title="Rename Channel"
-                >
-                  <FaEdit />
-                </button>
-              )}
-
               {/* Search */}
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"

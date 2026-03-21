@@ -34,16 +34,6 @@ describe("Store", () => {
       toggleChannelListModal(false);
       expect(useStore.getState().ui.isChannelListModalOpen).toBe(false);
     });
-
-    test("should toggle channel rename modal", () => {
-      const { toggleChannelRenameModal } = useStore.getState();
-
-      toggleChannelRenameModal(true);
-      expect(useStore.getState().ui.isChannelRenameModalOpen).toBe(true);
-
-      toggleChannelRenameModal(false);
-      expect(useStore.getState().ui.isChannelRenameModalOpen).toBe(false);
-    });
   });
 
   describe("channel listing", () => {

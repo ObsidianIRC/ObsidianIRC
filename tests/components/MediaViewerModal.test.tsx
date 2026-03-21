@@ -48,6 +48,7 @@ vi.mock("../../src/lib/mediaProbe", () => ({
   probeMediaUrl: vi.fn((_url: string) =>
     Promise.resolve({ type: "image", skipped: false }),
   ),
+  getCachedProbeResult: vi.fn((_url: string) => undefined),
 }));
 
 vi.mock("../../src/lib/ircClient", () => ({

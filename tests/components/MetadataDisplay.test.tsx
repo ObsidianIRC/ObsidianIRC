@@ -143,7 +143,6 @@ describe("Metadata Display Features", () => {
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,

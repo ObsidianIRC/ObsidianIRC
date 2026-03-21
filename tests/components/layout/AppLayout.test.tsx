@@ -114,7 +114,6 @@ describe("AppLayout Swipe Navigation", () => {
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,

@@ -37,7 +37,6 @@ describe("MODE Protocol Handler", () => {
         isMemberListVisible: true,
         isChannelListVisible: true,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,

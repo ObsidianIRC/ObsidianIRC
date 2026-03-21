@@ -25,7 +25,7 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isUrlFromFilehost } from "../../lib/ircUtils";
-import { probeMediaUrl } from "../../lib/mediaProbe";
+import { getCachedProbeResult, probeMediaUrl } from "../../lib/mediaProbe";
 import type { MediaEntry, MediaType } from "../../lib/mediaUtils";
 import {
   canShowMedia,
@@ -400,14 +400,25 @@ export function MediaViewerModal({
       .servers.find((s) => s.id === serverId)?.filehost;
     const entries = messages
       .flatMap((msg) =>
-        extractMediaFromMessage(msg).map((e, urlIdx) => ({
-          url: e.url,
-          type: e.type,
-          msg,
-          // Unique per (message, position-within-message) so duplicate URLs across
-          // or within messages each get their own filmstrip slot.
-          entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
-        })),
+        extractMediaFromMessage(msg).map((e, urlIdx) => {
+          // extractMediaFromMessage returns type:null for all non-embed-domain URLs so
+          // the server's Content-Type is authoritative. On re-open we can use the
+          // module-level probe cache to restore previously resolved types synchronously,
+          // avoiding a flash of music-note icons for already-visited URLs.
+          let type = e.type;
+          if (type === null) {
+            const cached = getCachedProbeResult(e.url);
+            if (cached != null && !cached.skipped) type = cached.type;
+          }
+          return {
+            url: e.url,
+            type,
+            msg,
+            // Unique per (message, position-within-message) so duplicate URLs across
+            // or within messages each get their own filmstrip slot.
+            entryKey: `${msg.msgid ?? msg.id}:${urlIdx}`,
+          };
+        }),
       )
       .filter(
         (e) =>
@@ -437,6 +448,32 @@ export function MediaViewerModal({
       ? entries.findIndex((e) => e.msg.msgid === sourceMsgId && e.url === url)
       : entries.findIndex((e) => e.url === url);
     setCurrentIndex(idx);
+
+    // Probe all filmstrip entries whose type is still unknown so thumbnails
+    // resolve without requiring the user to visit each item individually.
+    // probeMediaUrl is already cached at the module level, so previously-visited
+    // URLs resolve synchronously on the next tick with no network round-trip.
+    let cancelled = false;
+    const urlsToProbe = [
+      ...new Set(entries.filter((e) => e.type === null).map((e) => e.url)),
+    ];
+    for (const probeUrl of urlsToProbe) {
+      probeMediaUrl(probeUrl).then((result) => {
+        if (cancelled) return;
+        if (result && !result.skipped) {
+          setMediaEntries((prev) =>
+            prev.map((e) =>
+              e.url === probeUrl && e.type === null
+                ? { ...e, type: result.type }
+                : e,
+            ),
+          );
+        }
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
   }, [
     isOpen,
     serverId,

@@ -37,7 +37,6 @@ describe("AppLayout - Mobile Initial Load", () => {
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         isServerMenuOpen: false,
         contextMenu: {
           isOpen: false,

@@ -77,6 +77,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelDisplayName, setChannelDisplayName] = useState("");
   const [channelTopic, setChannelTopic] = useState("");
+  const [newChannelName, setNewChannelName] = useState("");
+  const [renameReason, setRenameReason] = useState("");
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
   const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
   const [isUpdatingTopic, setIsUpdatingTopic] = useState(false);
@@ -633,6 +635,16 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           channelDisplayName || undefined,
         );
       }
+
+      // Apply channel rename
+      if (newChannelName.trim() && newChannelName.trim() !== channel?.name) {
+        ircClient.renameChannel(
+          serverId,
+          channelName,
+          newChannelName.trim(),
+          renameReason.trim() || undefined,
+        );
+      }
     } finally {
       setIsApplyingChanges(false);
     }
@@ -981,6 +993,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       setChannelAvatar(channel.metadata?.avatar?.value || "");
       setChannelDisplayName(channel.metadata?.["display-name"]?.value || "");
       setChannelTopic(channel.topic || "");
+      setNewChannelName(channel.name);
+      setRenameReason("");
 
       // Load current channel modes and reset baseline when modal opens
       loadCurrentChannelModes(true);
@@ -1219,6 +1233,39 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   value={channelDisplayName}
                   onChange={(e) => setChannelDisplayName(e.target.value)}
                   placeholder="General Support Channel"
+                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                />
+              </div>
+
+              {/* Channel Rename */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">
+                  Channel Name
+                </label>
+                <p className="text-xs text-discord-text-muted mb-2">
+                  Rename this channel on the server. All users will see the new
+                  name.
+                </p>
+                <input
+                  type="text"
+                  value={newChannelName}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="#new-channel-name"
+                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                />
+                <input
+                  type="text"
+                  value={renameReason}
+                  onChange={(e) => setRenameReason(e.target.value)}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="Reason (optional)"
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
