@@ -44,6 +44,7 @@ import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
 import { TextArea } from "../ui/TextInput";
+import { TopicMediaStrip } from "../ui/TopicMediaStrip";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
 import {
@@ -1658,6 +1659,7 @@ export const ChatArea: React.FC<{
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
 
+      <TopicMediaStrip />
       <MiniMediaPlayer />
 
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}

@@ -8,6 +8,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEllipsisV,
+  FaFilm,
   FaHashtag,
   FaInfoCircle,
   FaList,
@@ -81,6 +82,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     clearTopicModalRequest,
     setProfileViewRequest,
     toggleUserProfileModal,
+    openMediaExplorer,
   } = useStore();
   const ui = useStore((state) => state.ui);
   const topicModalRequest = useStore((state) => state.ui.topicModalRequest);
@@ -245,6 +247,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     );
   }, [selectedChannel, selectedServerId, servers, currentUser]);
 
+  // Quick check: does this channel have any messages or topic with URLs?
+  // Used to show/hide the media explorer button.
+  const hasMediaInMessages = useStore((state) => {
+    if (!selectedServerId || !selectedChannelId) return false;
+    const key = `${selectedServerId}-${selectedChannelId}`;
+    return (state.messages[key] ?? []).some((m) => m.content.includes("http"));
+  });
+  const hasMedia =
+    hasMediaInMessages || Boolean(selectedChannel?.topic?.includes("http"));
+
   // Reset search expanded state and overflow menu when channel or mobile view changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to reset when channel or page changes
   useEffect(() => {
@@ -277,6 +289,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   // Define overflow menu items based on context
   const overflowMenuItems: HeaderOverflowMenuItem[] = [
+    {
+      label: "Media",
+      icon: <FaFilm />,
+      onClick: () => {
+        if (selectedServerId && selectedChannelId) {
+          openMediaExplorer(selectedServerId, selectedChannelId);
+        }
+      },
+      show: !!selectedChannel && hasMedia,
+    },
     {
       label: "Channel Settings",
       icon: <FaPenAlt />,
@@ -427,8 +449,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               )}
             </h2>
 
-            {/* Topic (only if exists) */}
-            {selectedChannel.topic && (
+            {/* Topic text, or placeholder for ops when topic is empty */}
+            {selectedChannel.topic ? (
               <button
                 onClick={() => {
                   if (selectedServerId && selectedChannel.id) {
@@ -440,7 +462,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               >
                 {selectedChannel.topic}
               </button>
-            )}
+            ) : isOperator ? (
+              <button
+                onClick={() => {
+                  if (selectedServerId && selectedChannel.id) {
+                    setTopicModalRequest(selectedServerId, selectedChannel.id);
+                  }
+                }}
+                className="text-discord-channels-default/40 text-xs hover:text-discord-channels-default truncate text-left italic"
+              >
+                Click to set topic
+              </button>
+            ) : null}
           </div>
 
           {/* Right: Action buttons */}
@@ -529,6 +562,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               >
                 <FaList />
               </button>
+              {/* Media explorer — always visible when there's media */}
+              {hasMedia && (
+                <button
+                  className="p-2 md:p-0 hover:text-discord-text-normal"
+                  onClick={() => {
+                    if (selectedServerId && selectedChannelId) {
+                      openMediaExplorer(selectedServerId, selectedChannelId);
+                    }
+                  }}
+                  title="Media"
+                >
+                  <FaFilm />
+                </button>
+              )}
               {/* Search */}
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"

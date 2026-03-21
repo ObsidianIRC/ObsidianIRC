@@ -71,16 +71,13 @@ export function isImageLikeUrl(url: string): boolean {
   return detectMediaType(url) === "image";
 }
 
-/** Returns all media entries found in a message's content, deduplicated by URL.
+/** Returns all media entries found in an arbitrary text string, deduplicated by URL.
  *  Trusted-domain URLs (YouTube, Tenor, etc.) get their type pre-set.
- *  All other URLs — including those with image/video/audio extensions — get
- *  type:null so ProbeablePreview HEAD-probes them. This ensures the server's
- *  actual Content-Type is authoritative: a .png path returning text/html will
- *  produce no preview instead of a broken image widget. */
-export function extractMediaFromMessage(message: Message): MediaEntry[] {
-  const content = stripIrcFormatting(message.content).trim();
+ *  All other URLs get type:null so callers can HEAD-probe them. */
+export function extractMediaFromText(text: string): MediaEntry[] {
+  const content = stripIrcFormatting(text).trim();
 
-  // Single-token message that starts with http — check it directly
+  // Single-token string that starts with http — check it directly
   if (!/\s/.test(content) && content.startsWith("http")) {
     const clean = content.replace(/[.,!?;:)>\]*]+$/, "");
     return [{ url: clean, type: detectTrustedDomainType(clean) }];
@@ -96,6 +93,11 @@ export function extractMediaFromMessage(message: Message): MediaEntry[] {
     entries.push({ url: u, type: detectTrustedDomainType(u) });
   }
   return entries;
+}
+
+/** Returns all media entries found in a message's content. */
+export function extractMediaFromMessage(message: Message): MediaEntry[] {
+  return extractMediaFromText(message.content);
 }
 
 export interface MediaSettings {

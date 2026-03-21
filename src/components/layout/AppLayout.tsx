@@ -385,6 +385,8 @@ export const AppLayout: React.FC = () => {
         onClose={closeMedia}
         serverId={ui.openedMedia?.serverId}
         channelId={ui.openedMedia?.channelId}
+        preferTopicEntry={ui.openedMedia?.preferTopicEntry}
+        preferLastEntry={ui.openedMedia?.preferLastEntry}
       />
     </div>
   );

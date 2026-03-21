@@ -414,6 +414,8 @@ interface UIState {
     sourceMsgId?: string;
     serverId?: string;
     channelId?: string;
+    preferTopicEntry?: boolean;
+    preferLastEntry?: boolean;
   } | null;
   activeMedia: {
     url: string;
@@ -713,6 +715,8 @@ export interface AppState {
     serverId?: string,
     channelId?: string,
   ) => void;
+  openTopicMedia: (url: string, serverId: string, channelId: string) => void;
+  openMediaExplorer: (serverId: string, channelId: string) => void;
   closeMedia: () => void;
   playMedia: (
     url: string,
@@ -2803,6 +2807,26 @@ const useStore = create<AppState>((set, get) => ({
       ui: {
         ...state.ui,
         openedMedia: { url, sourceMsgId, serverId, channelId },
+      },
+    }));
+  },
+
+  openTopicMedia: (url, serverId, channelId) => {
+    get().stopActiveMedia();
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        openedMedia: { url, serverId, channelId, preferTopicEntry: true },
+      },
+    }));
+  },
+
+  openMediaExplorer: (serverId, channelId) => {
+    get().stopActiveMedia();
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        openedMedia: { url: "", serverId, channelId, preferLastEntry: true },
       },
     }));
   },
