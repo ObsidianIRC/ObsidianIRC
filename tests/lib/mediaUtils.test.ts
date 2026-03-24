@@ -4,6 +4,7 @@ import {
   detectMediaType,
   extractMediaFromMessage,
   getEmbedThumbnailUrl,
+  imageCanHaveTransparency,
   mediaLevelToSettings,
   TRUSTED_EMBED_DOMAINS,
 } from "../../src/lib/mediaUtils";
@@ -456,5 +457,42 @@ describe("getEmbedThumbnailUrl", () => {
   });
   test("returns null for invalid URL", () => {
     expect(getEmbedThumbnailUrl("not-a-url")).toBeNull();
+  });
+});
+
+describe("imageCanHaveTransparency", () => {
+  test("returns false for .jpg URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/photo.jpg")).toBe(
+      false,
+    );
+  });
+  test("returns false for .jpeg URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/photo.jpeg")).toBe(
+      false,
+    );
+  });
+  test("returns false for .pdf URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/doc.pdf")).toBe(false);
+  });
+  test("returns false for .pdf URLs with query strings", () => {
+    expect(
+      imageCanHaveTransparency("https://example.com/doc.pdf?token=abc"),
+    ).toBe(false);
+  });
+  test("returns true for .png URLs (can have alpha)", () => {
+    expect(imageCanHaveTransparency("https://example.com/image.png")).toBe(
+      true,
+    );
+  });
+  test("returns true for .gif URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/anim.gif")).toBe(true);
+  });
+  test("returns true for .webp URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/image.webp")).toBe(
+      true,
+    );
+  });
+  test("returns true for unknown extension (safe fallback)", () => {
+    expect(imageCanHaveTransparency("https://example.com/file")).toBe(true);
   });
 });

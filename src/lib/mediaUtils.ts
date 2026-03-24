@@ -52,6 +52,54 @@ export function detectMediaType(url: string): MediaType | null {
   return null;
 }
 
+/**
+ * Codec support table — checked once via HTMLVideoElement.canPlayType() (no network request).
+ * Results are memoized so repeated calls are O(1).
+ *
+ * | Extension | Container  | Video | Audio | WKWebView (macOS) | Chrome/FF |
+ * |-----------|------------|-------|-------|-------------------|-----------|
+ * | .mp4      | MPEG-4     | H.264 | AAC   | ✅ always          | ✅         |
+ * | .mov      | QuickTime  | H.264 | AAC   | ✅ always          | ✅         |
+ * | .m4v      | MPEG-4     | H.264 | AAC   | ✅ always          | ✅         |
+ * | .webm     | WebM       | VP9   | Opus  | ⚠️ macOS 11+ only  | ✅         |
+ * | .webm     | WebM       | VP8   | Vorbis| ❌ WKWebView        | ✅         |
+ * | .ogv      | Ogg        | Theora| Vorbis| ❌ WKWebView        | ✅         |
+ * | .mkv      | Matroska   | any   | any   | ❌ WKWebView        | ✅         |
+ * | .avi      | AVI        | any   | any   | ❌ WKWebView        | partial   |
+ */
+const VIDEO_MIME_BY_EXT: Record<string, string[]> = {
+  mp4: ['video/mp4; codecs="avc1.42E01E, mp4a.40.2"', "video/mp4"],
+  m4v: ['video/mp4; codecs="avc1.42E01E, mp4a.40.2"', "video/mp4"],
+  mov: ['video/mp4; codecs="avc1.42E01E, mp4a.40.2"', "video/mp4"],
+  webm: [
+    'video/webm; codecs="vp9, opus"',
+    'video/webm; codecs="vp8"',
+    "video/webm",
+  ],
+  ogv: ['video/ogg; codecs="theora, vorbis"', "video/ogg"],
+  mkv: ["video/x-matroska"],
+  avi: ["video/x-msvideo"],
+};
+
+const _canPlayCache = new Map<string, boolean>();
+
+function _probeCanPlay(mimes: string[]): boolean {
+  const el = document.createElement("video");
+  // Require "probably" — WKWebView returns "maybe" for VP9/WebM even when it can't reliably decode it.
+  return mimes.some((m) => el.canPlayType(m) === "probably");
+}
+
+/** Returns false when the platform definitely cannot play the video; true when unknown (optimistic). */
+export function canPlayVideoUrl(url: string): boolean {
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
+  const mimes = VIDEO_MIME_BY_EXT[ext];
+  if (!mimes) return true; // unknown extension — optimistic, let it try
+  if (_canPlayCache.has(ext)) return _canPlayCache.get(ext) as boolean;
+  const supported = _probeCanPlay(mimes);
+  _canPlayCache.set(ext, supported);
+  return supported;
+}
+
 /** Like detectMediaType but trusted domains only — no extension guessing.
  *  Extension-based URLs get type:null so they are always HEAD-probed at render
  *  time. This lets the server's actual Content-Type override the URL hint
@@ -151,6 +199,38 @@ export function getEmbedThumbnailUrl(url: string): string | null {
   return null;
 }
 
+const SPOTIFY_CONTENT_TYPES: Record<string, string> = {
+  track: "Track",
+  playlist: "Playlist",
+  album: "Album",
+  episode: "Episode",
+  show: "Show",
+  artist: "Artist",
+};
+
+/**
+ * Returns a human-readable fallback label for the mini player before the oEmbed
+ * title loads. Pass `short=true` when a brand icon is already visible so the
+ * platform name is not repeated ("Playlist" vs "Spotify Playlist").
+ */
+export function getEmbedFallbackLabel(url: string, short = false): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "open.spotify.com") {
+      const type = u.pathname.split("/").filter(Boolean)[0] ?? "";
+      const content = SPOTIFY_CONTENT_TYPES[type] ?? "";
+      return short
+        ? content || "Spotify"
+        : content
+          ? `Spotify ${content}`
+          : "Spotify";
+    }
+  } catch {
+    // ignore invalid URLs
+  }
+  return filenameFromUrl(url) || "embed";
+}
+
 export function filenameFromUrl(url: string): string {
   try {
     return decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "");
@@ -176,4 +256,14 @@ export function canShowMedia(
     }
   }
   return false;
+}
+
+/** Returns false only for formats that definitively cannot have an alpha channel.
+ *  JPEG and PDF are opaque — PDF pages have solid white backgrounds (WKWebView/Safari
+ *  render cross-origin PDFs via <img>, which produces an opaque first-page image).
+ *  PNG, GIF, WebP, SVG, AVIF, and unknown extensions default to true so the
+ *  transparency-grid is preserved as a safe fallback when the format is uncertain. */
+export function imageCanHaveTransparency(url: string): boolean {
+  const path = url.split("?")[0].split("#")[0].toLowerCase();
+  return !/\.(jpg|jpeg|pdf)$/.test(path);
 }

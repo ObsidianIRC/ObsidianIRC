@@ -81,9 +81,10 @@ export const TopicMediaStrip: React.FC = () => {
     };
   }, [candidates]);
 
-  // Exclude entries probed and confirmed as non-media (null in map = not media, undefined = still probing)
+  // Only show entries with a confirmed media type — skip anything still probing (undefined) or
+  // confirmed non-media (null). Tiles appear after probe succeeds, never as a loading skeleton.
   const displayCandidates = candidates.filter(
-    (e) => e.type !== null || resolvedTypes.get(e.url) !== null,
+    (e) => e.type !== null || resolvedTypes.get(e.url) != null,
   );
 
   if (displayCandidates.length === 0 || !selectedServerId || !selectedChannelId)

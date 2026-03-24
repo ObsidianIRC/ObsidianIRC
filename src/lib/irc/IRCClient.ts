@@ -141,6 +141,11 @@ export interface EventMap {
     target: string;
     channel: string;
   };
+  INVITE_SENT: {
+    serverId: string;
+    target: string;
+    channel: string;
+  };
   FAIL: EventWithTags & {
     command: string;
     code: string;

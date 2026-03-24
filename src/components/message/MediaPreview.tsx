@@ -2,6 +2,7 @@ import exifr from "exifr";
 import type * as React from "react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
+  FaFileAlt,
   FaPause,
   FaPlay,
   FaSpinner,
@@ -12,11 +13,14 @@ import { getAudio } from "../../lib/audioManager";
 import ircClient from "../../lib/ircClient";
 import { probeMediaUrl } from "../../lib/mediaProbe";
 import {
+  canPlayVideoUrl,
   filenameFromUrl,
   getEmbedThumbnailUrl,
+  imageCanHaveTransparency,
   type MediaEntry,
   type MediaType,
 } from "../../lib/mediaUtils";
+import { useMediaController } from "../../lib/useMediaController";
 import {
   getVideoPosition,
   setVideoPosition,
@@ -279,7 +283,7 @@ const ImagePreview: React.FC<{
           src={displayUrl}
           alt={isFilehostImage ? "Filehost image" : "GIF"}
           loading="lazy"
-          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity transparency-grid ${
+          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${imageCanHaveTransparency(displayUrl) ? "transparency-grid" : "bg-white"} ${
             imageLoaded ? "block" : "hidden"
           }`}
           onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
@@ -306,13 +310,46 @@ function formatVideoTime(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-const VideoPreview: React.FC<{
+const VideoUnsupported: React.FC<{
   url: string;
   msgid?: string;
   serverId?: string;
   channelId?: string;
 }> = ({ url, msgid, serverId, channelId }) => {
-  const activeMedia = useStore((state) => state.ui.activeMedia);
+  const openMedia = useStore((s) => s.openMedia);
+  return (
+    <div className="max-w-md">
+      <button
+        type="button"
+        className="flex items-center gap-2 py-2 px-3 rounded border border-discord-dark-500/50 bg-discord-dark-400/30 text-discord-text-muted text-xs hover:bg-discord-dark-500/40 hover:text-discord-text-normal transition-colors w-full text-left"
+        onClick={() => openMedia(url, msgid, serverId, channelId)}
+        title="Open in viewer"
+      >
+        <svg
+          className="w-4 h-4 shrink-0"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+        </svg>
+        <span className="truncate flex-1">
+          {url.split("/").pop()?.split("?")[0] || "video"}
+        </span>
+        <span className="text-discord-text-muted/60 shrink-0">
+          — open in viewer
+        </span>
+      </button>
+    </div>
+  );
+};
+
+const VideoPlayer: React.FC<{
+  url: string;
+  msgid?: string;
+  serverId?: string;
+  channelId?: string;
+}> = ({ url, msgid, serverId, channelId }) => {
   const openMedia = useStore((state) => state.openMedia);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -324,28 +361,35 @@ const VideoPreview: React.FC<{
   const [volume, setVolume] = useState(1);
   const [loadError, setLoadError] = useState(false);
   const [thumbnail, setThumbnail] = useState<string | null>(null);
-  const wasActiveRef = useRef(false);
   const thumbnailCapturedRef = useRef(false);
 
-  const isActive = activeMedia?.url === url;
-  const isPlaying = isActive && activeMedia?.isPlaying === true;
+  const { isActive, isPlaying, play, pause } = useMediaController({
+    url,
+    type: "video",
+    msgid,
+    serverId,
+    channelId,
+    inlineVisibility: {
+      getPosition: () => {
+        const t = videoRef.current?.currentTime;
+        if (t !== undefined && t > 0) setVideoPosition(url, t);
+        return t;
+      },
+    },
+    onExternalStop: () => {
+      const video = videoRef.current;
+      if (!video) return;
+      video.pause();
+      video.currentTime = 0;
+      if (seekRef.current) seekRef.current.value = "0";
+      if (timeDisplayRef.current) timeDisplayRef.current.textContent = "0:00";
+    },
+  });
 
-  // Drive the video element from store state — source of truth for play/pause.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (!isActive) {
-      // Only reset on deactivation (X button), not on initial mount.
-      if (wasActiveRef.current) {
-        video.pause();
-        video.currentTime = 0;
-        if (seekRef.current) seekRef.current.value = "0";
-        if (timeDisplayRef.current) timeDisplayRef.current.textContent = "0:00";
-      }
-      wasActiveRef.current = false;
-      return;
-    }
-    wasActiveRef.current = true;
+    if (!isActive) return;
     if (isPlaying) {
       if (video.paused) video.play().catch(() => {});
     } else {
@@ -353,28 +397,18 @@ const VideoPreview: React.FC<{
     }
   }, [isActive, isPlaying]);
 
-  const isThisVideoActive =
-    activeMedia?.url === url && activeMedia?.type === "video";
-
-  // Signal the store on mount/unmount so MiniMediaPlayer knows whether to
-  // drive its own hidden <video>. Inline video is always the audio source while
-  // mounted — display:none (keep-alive channel switch) does not stop playback.
+  // Kill the zombie mini-player: when a runtime error fires while this video is
+  // active (e.g. unsupported VP9 profile at decode time despite canPlayType passing),
+  // clear the store immediately so the mini bar disappears instead of hanging empty.
   useEffect(() => {
-    if (!isThisVideoActive) return;
-    useStore.getState().setMediaInlineVisible(true);
-    return () => {
-      const t = videoRef.current?.currentTime;
-      if (t !== undefined && t > 0) setVideoPosition(url, t);
-      useStore.getState().setMediaInlineVisible(false, t);
-    };
-  }, [isThisVideoActive, url]);
+    if (loadError) useStore.getState().stopActiveMedia();
+  }, [loadError]);
 
   // Native event listeners for timeupdate/loadedmetadata/ended — more reliable in
   // WKWebView than React synthetic events, which can be silently dropped.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    // Initialize the ref-controlled time display so it isn't blank on mount.
     if (timeDisplayRef.current && !timeDisplayRef.current.textContent)
       timeDisplayRef.current.textContent = "0:00";
 
@@ -466,7 +500,7 @@ const VideoPreview: React.FC<{
   function handlePlayPause() {
     if (isPlaying) {
       videoRef.current?.pause();
-      useStore.getState().pauseActiveMedia();
+      pause();
     } else {
       // Call play() synchronously here — WKWebView requires video.play() to be called
       // within the user gesture handler for unmuted audio-containing media.
@@ -506,22 +540,12 @@ const VideoPreview: React.FC<{
 
   if (loadError) {
     return (
-      <div className="max-w-md">
-        <div className="flex items-center gap-2 py-2 px-3 rounded border border-discord-dark-500/50 bg-discord-dark-400/30 text-discord-text-muted text-xs">
-          <svg
-            className="w-4 h-4 shrink-0"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-          </svg>
-          <span className="truncate">
-            {url.split("/").pop()?.split("?")[0] || "video"}
-          </span>
-          <span className="text-discord-text-muted/60">— unavailable</span>
-        </div>
-      </div>
+      <VideoUnsupported
+        url={url}
+        msgid={msgid}
+        serverId={serverId}
+        channelId={channelId}
+      />
     );
   }
 
@@ -627,19 +651,50 @@ const VideoPreview: React.FC<{
   );
 };
 
+// Thin router: check codec support before rendering the player.
+// Keeps VideoPlayer free of conditional hooks.
+const VideoPreview: React.FC<{
+  url: string;
+  msgid?: string;
+  serverId?: string;
+  channelId?: string;
+}> = ({ url, msgid, serverId, channelId }) => {
+  // canPlayVideoUrl() is a synchronous HTMLVideoElement.canPlayType() probe — no
+  // network request. Skipping the player entirely prevents the zombie mini-player
+  // (play → store active → codec error → mini-bar playing nothing).
+  if (!canPlayVideoUrl(url)) {
+    return (
+      <VideoUnsupported
+        url={url}
+        msgid={msgid}
+        serverId={serverId}
+        channelId={channelId}
+      />
+    );
+  }
+  return (
+    <VideoPlayer
+      url={url}
+      msgid={msgid}
+      serverId={serverId}
+      channelId={channelId}
+    />
+  );
+};
+
 const AudioPreview: React.FC<{
   url: string;
   msgid?: string;
   serverId?: string;
   channelId?: string;
 }> = ({ url, msgid, serverId, channelId }) => {
-  const activeMedia = useStore((state) => state.ui.activeMedia);
-  const playMedia = useStore((state) => state.playMedia);
-  const pauseActiveMedia = useStore((state) => state.pauseActiveMedia);
-  const stopActiveMedia = useStore((state) => state.stopActiveMedia);
-
-  const isActive = activeMedia?.url === url;
-  const isPlaying = isActive && activeMedia?.isPlaying;
+  const { isActive, isPlaying, play, pause, stop } = useMediaController({
+    url,
+    type: "audio",
+    msgid,
+    serverId,
+    channelId,
+  });
   const [isLive, setIsLive] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: url resets live state when switching streams
@@ -685,11 +740,7 @@ const AudioPreview: React.FC<{
             type="button"
             aria-label={isPlaying ? "Pause" : "Play"}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal"
-            onClick={() =>
-              isPlaying
-                ? pauseActiveMedia()
-                : playMedia(url, "audio", undefined, msgid, serverId, channelId)
-            }
+            onClick={() => (isPlaying ? pause() : play())}
           >
             {isPlaying ? (
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -705,7 +756,7 @@ const AudioPreview: React.FC<{
             type="button"
             aria-label="Stop"
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-muted"
-            onClick={() => stopActiveMedia()}
+            onClick={stop}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 6h12v12H6z" />
@@ -717,15 +768,98 @@ const AudioPreview: React.FC<{
           type="button"
           aria-label="Play"
           className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal"
-          onClick={() =>
-            playMedia(url, "audio", undefined, msgid, serverId, channelId)
-          }
+          onClick={play}
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z" />
           </svg>
         </button>
       )}
+    </div>
+  );
+};
+
+// react-player v3 dropped SoundCloud; we drive the iframe via the SC Widget postMessage API.
+// The widget auto-sends "ready" on load; we subscribe to play/pause/finish in response.
+const SoundCloudEmbed: React.FC<{
+  url: string;
+  msgid?: string;
+  serverId?: string;
+  channelId?: string;
+}> = ({ url, msgid, serverId, channelId }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const height = /\/sets\//.test(url) ? 350 : 166;
+  const src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=false`;
+
+  const pauseWidget = () => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ method: "pause" }),
+      "https://w.soundcloud.com",
+    );
+  };
+
+  useMediaController({
+    url,
+    type: "embed",
+    msgid,
+    serverId,
+    channelId,
+    onExternalStop: pauseWidget,
+    onExternalPause: pauseWidget,
+    stopOnUnmount: true, // no hidden fallback player — clear store on unmount
+  });
+
+  useEffect(() => {
+    const subscribeToWidget = () => {
+      const win = iframeRef.current?.contentWindow;
+      if (!win) return;
+      for (const event of ["play", "pause", "finish"]) {
+        win.postMessage(
+          JSON.stringify({ method: "addEventListener", value: event }),
+          "https://w.soundcloud.com",
+        );
+      }
+    };
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.origin !== "https://w.soundcloud.com") return;
+      if (iframeRef.current && e.source !== iframeRef.current.contentWindow)
+        return;
+      let data: { method?: string };
+      try {
+        data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+      } catch {
+        return;
+      }
+      if (data.method === "ready") {
+        subscribeToWidget();
+      } else if (data.method === "play") {
+        useStore
+          .getState()
+          .playMedia(url, "embed", undefined, msgid, serverId, channelId);
+      } else if (data.method === "pause" || data.method === "finish") {
+        useStore.getState().pauseActiveMedia();
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [url, msgid, serverId, channelId]);
+
+  return (
+    <div className="max-w-md relative">
+      <iframe
+        ref={iframeRef}
+        src={src}
+        width="100%"
+        height={height}
+        scrolling="no"
+        frameBorder="0"
+        allow="autoplay"
+        title="SoundCloud player"
+        style={{ borderRadius: 4, display: "block" }}
+      />
     </div>
   );
 };
@@ -737,61 +871,48 @@ const EmbedPreview: React.FC<{
   channelId?: string;
 }> = ({ url, msgid, serverId, channelId }) => {
   const mediaViewerOpen = useStore((state) => state.ui.openedMedia !== null);
-  const activeMedia = useStore((state) => state.ui.activeMedia);
-  const playMedia = useStore((state) => state.playMedia);
-  const pauseActiveMedia = useStore((state) => state.pauseActiveMedia);
-  const setMediaInlineVisible = useStore(
-    (state) => state.setMediaInlineVisible,
-  );
   const [playerKey, setPlayerKey] = useState(0);
-  const wasEmbedActiveRef = useRef(false);
 
-  const isThisEmbedActive =
-    activeMedia?.url === url && activeMedia?.type === "embed";
-
-  // Remount the iframe (increment key) when this embed goes from active → inactive.
-  // This is legitimate useEffect use: synchronizing an external system (YouTube iframe)
-  // with a state transition. The during-render pattern was unreliable — any extra render
-  // triggered by setMediaInlineVisible while active could silently reset prevRef to false.
-  useEffect(() => {
-    const isActive = activeMedia?.url === url;
-    if (wasEmbedActiveRef.current && !isActive) {
-      setPlayerKey((k) => k + 1);
-    }
-    wasEmbedActiveRef.current = isActive;
-  }, [activeMedia?.url, url]);
-
-  // Tell the store when this inline embed player is mounted/unmounted so
-  // MiniMediaPlayer's hidden ReactPlayer can take over on non-keep-alive channel
-  // switches (where EmbedPreview unmounts). With keep-alive, EmbedPreview is never
-  // unmounted — the YouTube iframe continues playing audio through display:none on its
-  // parent without interruption, so this cleanup never fires and nothing needs to.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: setMediaInlineVisible is a stable store action
-  useEffect(() => {
-    if (!isThisEmbedActive) return;
-    setMediaInlineVisible(true);
-    return () => {
-      setMediaInlineVisible(false);
-    };
-  }, [isThisEmbedActive]);
+  const { isActive, isPlaying } = useMediaController({
+    url,
+    type: "embed",
+    thumbnailUrl: getEmbedThumbnailUrl(url) ?? undefined,
+    msgid,
+    serverId,
+    channelId,
+    // Remount the iframe when this embed goes from active → inactive so YouTube/Vimeo resets.
+    onExternalStop: () => setPlayerKey((k) => k + 1),
+    inlineVisibility: {},
+  });
 
   // undefined when inactive: leave the iframe uncontrolled so the user can
   // interact with YouTube natively. The playerKey reset above handles the
   // "reset to beginning on stop" without needing to force-pause the iframe.
-  const playing = mediaViewerOpen
-    ? false
-    : activeMedia?.url === url
-      ? activeMedia.isPlaying
-      : undefined;
+  const playing = mediaViewerOpen ? false : isActive ? isPlaying : undefined;
+
+  // Spotify's embed player is a portrait list/player, not 16:9 video.
+  // Tracks have a compact single-row layout; playlists/albums/shows need
+  // more height to show the track list. Everything else gets aspect-video.
+  const spotifyHeight = url.includes("open.spotify.com")
+    ? /\/(track|episode)\//.test(url)
+      ? 152
+      : 380
+    : null;
 
   return (
     <div className="max-w-md relative group">
       <Suspense
         fallback={
-          <div className="w-full aspect-video bg-discord-dark-400/50 rounded animate-pulse" />
+          <div
+            className={`w-full bg-discord-dark-400/50 rounded animate-pulse ${spotifyHeight ? "" : "aspect-video"}`}
+            style={spotifyHeight ? { height: spotifyHeight } : undefined}
+          />
         }
       >
-        <div className="aspect-video">
+        <div
+          className={spotifyHeight ? undefined : "aspect-video"}
+          style={spotifyHeight ? { height: spotifyHeight } : undefined}
+        >
           <ReactPlayer
             key={playerKey}
             src={url}
@@ -805,20 +926,22 @@ const EmbedPreview: React.FC<{
               // If the user explicitly paused (isPlaying=false in store), ignore the event.
               const current = useStore.getState().ui.activeMedia;
               if (current?.url === url && current.isPlaying === false) return;
-              playMedia(
-                url,
-                "embed",
-                getEmbedThumbnailUrl(url) ?? undefined,
-                msgid,
-                serverId,
-                channelId,
-              );
+              useStore
+                .getState()
+                .playMedia(
+                  url,
+                  "embed",
+                  getEmbedThumbnailUrl(url) ?? undefined,
+                  msgid,
+                  serverId,
+                  channelId,
+                );
             }}
-            onPause={() => pauseActiveMedia()}
+            onPause={() => useStore.getState().pauseActiveMedia()}
             onEnded={() => {
               // Reset player to beginning and pause — prevents YouTube recommendations screen
               setPlayerKey((k) => k + 1);
-              pauseActiveMedia();
+              useStore.getState().pauseActiveMedia();
             }}
           />
         </div>
@@ -834,26 +957,70 @@ const PdfPreview: React.FC<{
   channelId?: string;
 }> = ({ url, msgid, serverId, channelId }) => {
   const openMedia = useStore((state) => state.openMedia);
-  return (
+  const [pdfError, setPdfError] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  // w-fit hugs the canvas so no white space bleeds around the document.
+  // A4 at width=120 → ≈170px tall; fallbacks use the same fixed size.
+  const wrapper = (children: React.ReactNode) => (
     <div
-      className="max-w-xs cursor-pointer rounded border border-discord-dark-500/50 overflow-hidden hover:opacity-90 transition-opacity"
+      className="bg-white w-fit cursor-pointer rounded border border-discord-dark-500/50 overflow-hidden hover:opacity-90 transition-opacity shadow-sm"
       onClick={() => openMedia(url, msgid, serverId, channelId)}
     >
-      <Suspense
-        fallback={
-          <div className="w-24 h-32 bg-discord-dark-400/50 animate-pulse" />
-        }
-      >
-        <LazyDocument file={url} loading={null}>
-          <LazyPage
-            pageNumber={1}
-            width={120}
-            renderTextLayer={false}
-            renderAnnotationLayer={false}
-          />
-        </LazyDocument>
-      </Suspense>
+      {children}
     </div>
+  );
+
+  if (pdfError) {
+    // react-pdf failed (CORS). Try <img>: WebKit renders PDFs in <img> natively.
+    if (!imgError) {
+      return wrapper(
+        <img
+          src={url}
+          alt="PDF preview"
+          style={{ width: 120, maxHeight: 170 }}
+          className="object-cover object-top block"
+          onError={() => setImgError(true)}
+        />,
+      );
+    }
+    // Both failed — show a PDF icon with the filename.
+    return wrapper(
+      <div
+        style={{ width: 120, height: 170 }}
+        className="flex flex-col items-center justify-center gap-2 text-discord-text-muted p-2"
+      >
+        <FaFileAlt className="text-3xl opacity-60" />
+        <span className="text-xs text-center break-all line-clamp-2 leading-tight">
+          {filenameFromUrl(url)}
+        </span>
+      </div>,
+    );
+  }
+
+  return wrapper(
+    <Suspense
+      fallback={
+        <div
+          style={{ width: 120, height: 170 }}
+          className="bg-discord-dark-400/50 animate-pulse"
+        />
+      }
+    >
+      <LazyDocument
+        file={url}
+        loading={null}
+        onLoadError={() => setPdfError(true)}
+      >
+        <LazyPage
+          pageNumber={1}
+          width={120}
+          canvasBackground="white"
+          renderTextLayer={false}
+          renderAnnotationLayer={false}
+        />
+      </LazyDocument>
+    </Suspense>,
   );
 };
 
@@ -947,7 +1114,14 @@ const ProbeablePreview: React.FC<{
       />
     );
   } else if (resolvedType === "embed") {
-    preview = (
+    preview = url.includes("soundcloud.com") ? (
+      <SoundCloudEmbed
+        url={url}
+        msgid={msgid}
+        serverId={serverId}
+        channelId={channelId}
+      />
+    ) : (
       <EmbedPreview
         url={url}
         msgid={msgid}
@@ -1038,6 +1212,16 @@ export const MediaPreview: React.FC<{
         />
       );
     case "embed":
+      if (entry.url.includes("soundcloud.com")) {
+        return (
+          <SoundCloudEmbed
+            url={entry.url}
+            msgid={msgid}
+            serverId={serverId}
+            channelId={channelId}
+          />
+        );
+      }
       return (
         <EmbedPreview
           url={entry.url}

@@ -627,6 +627,41 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
     }));
   });
 
+  ircClient.on("INVITE_SENT", ({ serverId, target, channel }) => {
+    const state = store.getState();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return;
+
+    // Show the confirmation in the currently selected channel on this server
+    const selection = state.ui.perServerSelections[serverId];
+    const targetChannelId =
+      selection?.selectedChannelId ?? server.channels[0]?.id ?? null;
+    if (!targetChannelId) return;
+
+    const inviteMessage: Message = {
+      id: uuidv4(),
+      type: "invite",
+      content: `You invited ${target} to join ${channel}`,
+      timestamp: new Date(),
+      userId: "",
+      channelId: targetChannelId,
+      serverId,
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+      inviteChannel: channel,
+      inviteTarget: target,
+    };
+
+    const key = `${serverId}-${targetChannelId}`;
+    store.setState((state) => ({
+      messages: {
+        ...state.messages,
+        [key]: [...(state.messages[key] || []), inviteMessage],
+      },
+    }));
+  });
+
   // Nick error event handler
   ircClient.on("NICK_ERROR", ({ serverId, code, error, nick, message }) => {
     // Handle 433 (nickname already in use) with automatic retry

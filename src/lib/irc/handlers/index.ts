@@ -78,6 +78,7 @@ import {
   handlePart,
   handleQuit,
   handleRplAway,
+  handleRplInviting,
   handleRplNowaway,
   handleRplUnaway,
   handleSetname,
@@ -170,6 +171,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleKick(ctx, serverId, source, parv, mtags),
   INVITE: (ctx, serverId, source, parv, mtags) =>
     handleInvite(ctx, serverId, source, parv, mtags),
+  "341": (ctx, serverId, source, parv, mtags) =>
+    handleRplInviting(ctx, serverId, source, parv, mtags),
   SETNAME: (ctx, serverId, source, parv, mtags) =>
     handleSetname(ctx, serverId, source, parv, mtags),
   "305": (ctx, serverId, source, parv, mtags) =>

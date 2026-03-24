@@ -190,6 +190,44 @@ describe("probeMediaUrl", () => {
     expect(result).toBeNull();
   });
 
+  test("fetch fails + all element probes fail + .pdf URL → type pdf (extension fallback)", async () => {
+    // Simulates Chrome/Firefox: CORS blocks HEAD, <img> rejects PDFs → extension fallback.
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const result = await probeMediaUrl(uniqueUrl(".pdf"));
+    expect(result?.type).toBe("pdf");
+    expect(result?.skipped).toBe(false);
+  });
+
+  test("fetch fails + image probe succeeds + .pdf URL → type pdf (WebKit PDF-in-img)", async () => {
+    // WebKit renders PDFs inside <img>, so probeViaImageElement returns true for PDF URLs.
+    // We must still classify these as "pdf" so the modal uses the PDF viewer.
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    // Override createElement so <img> fires "load" (not "error") for this test.
+    const origCreate = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      if (tag !== "img") return origCreate(tag);
+      const listeners = new Map<string, (e: Event) => void>();
+      return {
+        set src(value: string) {
+          if (value)
+            Promise.resolve().then(() =>
+              listeners.get("load")?.(new Event("load")),
+            );
+        },
+        get src() {
+          return "";
+        },
+        addEventListener(ev: string, cb: (e: Event) => void) {
+          listeners.set(ev, cb);
+        },
+      } as unknown as HTMLElement;
+    });
+
+    const result = await probeMediaUrl(uniqueUrl(".pdf"));
+    expect(result?.type).toBe("pdf");
+  });
+
   test("timeout after 5 s → null", async () => {
     vi.useFakeTimers();
     vi.mocked(fetch).mockImplementationOnce(

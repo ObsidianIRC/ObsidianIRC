@@ -2,6 +2,7 @@ import type React from "react";
 import { FaTimes } from "react-icons/fa";
 import { RiReplyFill } from "react-icons/ri";
 import { canShowImageUrl } from "../../lib/imageUtils";
+import { imageCanHaveTransparency } from "../../lib/mediaUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
 import useStore from "../../store";
 import type { MessageType } from "../../types";
@@ -94,7 +95,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
           <img
             src={firstImageUrl}
             alt=""
-            className="w-10 h-10 rounded object-cover flex-shrink-0 self-center mr-1.5 my-1.5 transparency-grid"
+            className={`w-10 h-10 rounded object-cover flex-shrink-0 self-center mr-1.5 my-1.5 ${imageCanHaveTransparency(firstImageUrl) ? "transparency-grid" : ""}`}
             draggable={false}
           />
         )}

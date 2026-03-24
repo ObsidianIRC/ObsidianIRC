@@ -143,6 +143,34 @@ Do not add any fetch/HEAD/GET call that bypasses this trust check.
 
 ---
 
+## External Link Protection — never open URLs without user confirmation
+
+**Critical invariant:** every user-visible external URL opened by the app must pass through
+`ExternalLinkWarningModal` before `openExternalUrl` is called. This protects users from
+accidentally opening malicious links posted in chat.
+
+The correct pattern in any component that opens external URLs:
+
+```tsx
+const [showWarning, setShowWarning] = useState(false);
+
+// In JSX:
+<button onClick={() => setShowWarning(true)}>Open link</button>
+<ExternalLinkWarningModal
+  isOpen={showWarning}
+  url={url}
+  onConfirm={() => { openExternalUrl(url); setShowWarning(false); }}
+  onCancel={() => setShowWarning(false)}
+/>
+```
+
+If a child component needs to open a URL, pass an `onRequestOpen` callback prop instead of
+calling `openExternalUrl` directly — the parent controls the warning modal.
+
+Do not call `openExternalUrl` directly from any UI element without this protection.
+
+---
+
 ## Zustand + React Gotchas
 
 **Store action refs are unstable.** Functions from `useStore((s) => s.someAction)` change

@@ -162,10 +162,27 @@ export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
     // as a last resort to confirm image URLs when fetch() is blocked.
     // If the server returns HTML (e.g. a .png path that serves a gallery page),
     // the img element fires onerror, keeping the result null.
+    // Special case: WebKit (Safari/WKWebView) renders PDFs inside <img>, so
+    // probeViaImageElement succeeds for PDF URLs. We still classify those as
+    // "pdf" so the modal shows the PDF viewer with page navigation instead of
+    // the plain image viewer.
     const isImage = await probeViaImageElement(url);
     if (isImage) {
+      const isPdf = detectMediaType(url) === "pdf";
       const result: ProbeResult = {
-        type: "image",
+        type: isPdf ? "pdf" : "image",
+        streamable: false,
+        skipped: false,
+      };
+      cacheSet(url, result);
+      return result;
+    }
+
+    // All probes failed. Trust the file extension as a last resort for PDF URLs so
+    // react-pdf can attempt to render them (e.g. Chrome/Firefox where <img> rejects PDFs).
+    if (detectMediaType(url) === "pdf") {
+      const result: ProbeResult = {
+        type: "pdf",
         streamable: false,
         skipped: false,
       };

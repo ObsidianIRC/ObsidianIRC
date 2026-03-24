@@ -35,6 +35,7 @@ import {
   extractMediaFromMessage,
   extractMediaFromText,
   getEmbedThumbnailUrl,
+  imageCanHaveTransparency,
   mediaLevelToSettings,
 } from "../../lib/mediaUtils";
 import { openExternalUrl } from "../../lib/openUrl";
@@ -238,6 +239,125 @@ const AudioViewerPlayer: React.FC<{ url: string }> = ({ url }) => {
           </svg>
         )}
       </button>
+    </div>
+  );
+};
+
+/** react-pdf viewer with page navigation and a fallback for cross-origin failures. */
+const PdfModalViewer: React.FC<{ url: string; onRequestOpen: () => void }> = ({
+  url,
+  onRequestOpen,
+}) => {
+  const [numPages, setNumPages] = useState(0);
+  const [pageNumber, setPageNumber] = useState(1);
+  // react-pdf uses pdfjs fetch() which fails on CORS. When that happens we fall back to
+  // <object type="application/pdf"> which loads cross-origin PDFs natively in every browser
+  // without CORS restrictions and is not blocked by X-Frame-Options (unlike <iframe>).
+  const [useNativeViewer, setUseNativeViewer] = useState(false);
+
+  const pageWidth = Math.min(750, window.innerWidth - 128);
+  // A4 aspect ratio; used to size the native <object> viewer.
+  const nativeHeight = Math.min(
+    Math.round(pageWidth * Math.SQRT2),
+    window.innerHeight - 224,
+  );
+
+  if (useNativeViewer) {
+    return (
+      <div
+        className="pointer-events-auto flex flex-col items-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <object
+          data={url}
+          type="application/pdf"
+          style={{
+            width: pageWidth,
+            height: nativeHeight,
+            border: "none",
+            borderRadius: 4,
+            display: "block",
+          }}
+        >
+          {/* Fallback content shown when the browser has no PDF plugin */}
+          <div className="flex flex-col items-center gap-4 text-discord-text-muted p-8">
+            <p className="text-sm text-center">
+              PDF cannot be displayed in browser.
+            </p>
+            <button
+              type="button"
+              className="flex items-center gap-2 px-4 py-2 bg-discord-brand rounded text-white text-sm hover:opacity-90"
+              onClick={onRequestOpen}
+            >
+              <FaExternalLinkAlt className="w-3 h-3" />
+              Open in browser
+            </button>
+          </div>
+        </object>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="pointer-events-auto flex flex-col items-center gap-2"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Page canvas — scrollable if taller than available space.
+          maxHeight is set on THIS div (not the outer wrapper) so the nav bar
+          below it is always rendered outside the clipped area. */}
+      <div
+        className="overflow-auto rounded shadow-lg"
+        style={{ maxHeight: "calc(100dvh - 13rem)" }}
+      >
+        <Suspense
+          fallback={
+            <div className="w-64 h-96 bg-discord-dark-400/50 animate-pulse rounded" />
+          }
+        >
+          <LazyDocument
+            file={url}
+            onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+            onLoadError={() => setUseNativeViewer(true)}
+            loading={null}
+          >
+            <LazyPage
+              pageNumber={pageNumber}
+              canvasBackground="white"
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              width={pageWidth}
+            />
+          </LazyDocument>
+        </Suspense>
+      </div>
+
+      {/* Nav bar — shown as soon as the document loads */}
+      {numPages > 0 && (
+        <div className="flex items-center gap-3 text-white/70 text-sm bg-black/60 rounded-full px-4 py-1.5 backdrop-blur-sm">
+          <button
+            type="button"
+            disabled={pageNumber <= 1}
+            onClick={() => setPageNumber((p) => p - 1)}
+            className="disabled:opacity-30 hover:text-white transition-opacity"
+            aria-label="Previous page"
+          >
+            <ChevronLeftIcon className="w-4 h-4" />
+          </button>
+          <span>
+            {pageNumber} / {numPages}
+          </span>
+          <button
+            type="button"
+            disabled={pageNumber >= numPages}
+            onClick={() => setPageNumber((p) => p + 1)}
+            className="disabled:opacity-30 hover:text-white transition-opacity"
+            aria-label="Next page"
+          >
+            <ChevronRightIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -574,11 +694,14 @@ export function MediaViewerModal({
   }, []);
 
   useEffect(() => {
-    thumbRefs.current[currentIndex]?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
+    const container = filmstripScrollRef.current;
+    const thumb = thumbRefs.current[currentIndex];
+    if (!container || !thumb) return;
+    // Center the selected thumbnail within the scroll container.
+    // scrollIntoView can scroll the wrong ancestor (the modal overlay) on some browsers.
+    const scrollTarget =
+      thumb.offsetLeft - container.offsetWidth / 2 + thumb.offsetWidth / 2;
+    container.scrollTo({ left: scrollTarget, behavior: "smooth" });
   }, [currentIndex]);
 
   // Probe the URL when it has no typed entry, or the entry's type is null
@@ -1212,7 +1335,7 @@ export function MediaViewerModal({
                   src={currentUrl}
                   alt="Image preview"
                   draggable={false}
-                  className="select-none pointer-events-auto transparency-grid"
+                  className={`select-none pointer-events-auto ${imageCanHaveTransparency(currentUrl) ? "transparency-grid" : "bg-white"}`}
                   style={{
                     maxWidth: "calc(100% - 4rem)",
                     maxHeight: "calc(100vh - 10rem)",
@@ -1242,27 +1365,13 @@ export function MediaViewerModal({
               {effectiveType === "audio" && (
                 <AudioViewerPlayer key={currentUrl} url={currentUrl} />
               )}
-              {/* PDF */}
+              {/* PDF — react-pdf renders into canvas; shows page nav and a fallback for CORS failures */}
               {effectiveType === "pdf" && (
-                <div
-                  className="pointer-events-auto overflow-auto"
-                  style={{ maxHeight: "calc(100vh - 10rem)" }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Suspense
-                    fallback={
-                      <div className="w-48 h-64 bg-discord-dark-400/50 animate-pulse rounded" />
-                    }
-                  >
-                    <LazyDocument file={currentUrl}>
-                      <LazyPage
-                        pageNumber={1}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                      />
-                    </LazyDocument>
-                  </Suspense>
-                </div>
+                <PdfModalViewer
+                  key={currentUrl}
+                  url={currentUrl}
+                  onRequestOpen={() => setShowWarning(true)}
+                />
               )}
               {/* Embed (YouTube, Vimeo, etc.) */}
               {effectiveType === "embed" && (
@@ -1360,7 +1469,7 @@ export function MediaViewerModal({
                               src={thumbUrl}
                               alt=""
                               draggable={false}
-                              className="w-full h-full object-cover transparency-grid"
+                              className={`w-full h-full object-cover ${imageCanHaveTransparency(thumbUrl) ? "transparency-grid" : ""}`}
                               onError={() => addFailedUrl(thumbUrl)}
                             />
                           )}

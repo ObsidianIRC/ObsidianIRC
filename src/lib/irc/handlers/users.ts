@@ -179,6 +179,20 @@ export function handleInvite(
   });
 }
 
+export function handleRplInviting(
+  ctx: IRCClientContext,
+  serverId: string,
+  _source: string,
+  parv: string[],
+  _mtags: Record<string, string> | undefined,
+): void {
+  // parv: [yourNick, invitedNick, #channel]
+  const target = parv[1];
+  const channel = parv[2];
+  if (!target || !channel) return;
+  ctx.triggerEvent("INVITE_SENT", { serverId, target, channel });
+}
+
 export function handleSetname(
   ctx: IRCClientContext,
   serverId: string,
