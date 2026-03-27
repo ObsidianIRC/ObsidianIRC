@@ -247,11 +247,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     );
   }, [selectedChannel, selectedServerId, servers, currentUser]);
 
-  // Quick check: does this channel have any messages or topic with URLs?
+  // Quick check: does this chat have any messages with URLs?
   // Used to show/hide the media explorer button.
+  // DMs use privateChatId as the message key (selectedChannelId is null for DMs).
   const hasMediaInMessages = useStore((state) => {
-    if (!selectedServerId || !selectedChannelId) return false;
-    const key = `${selectedServerId}-${selectedChannelId}`;
+    if (!selectedServerId) return false;
+    const chatId = selectedChannelId ?? selectedPrivateChat?.id ?? null;
+    if (!chatId) return false;
+    const key = `${selectedServerId}-${chatId}`;
     return (state.messages[key] ?? []).some((m) => m.content.includes("http"));
   });
   const hasMedia =
@@ -801,6 +804,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </button>
 
+              {hasMedia && (
+                <button
+                  className="p-2 md:p-0 hover:text-discord-text-normal"
+                  onClick={() => {
+                    const chatId = selectedPrivateChat?.id ?? null;
+                    if (selectedServerId && chatId) {
+                      openMediaExplorer(selectedServerId, chatId);
+                    }
+                  }}
+                  title="Media"
+                >
+                  <FaFilm />
+                </button>
+              )}
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsSearchExpanded(!isSearchExpanded)}

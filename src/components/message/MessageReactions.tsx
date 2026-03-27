@@ -1,5 +1,6 @@
 import type React from "react";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MdAddReaction } from "react-icons/md";
 import type { MessageType } from "../../types";
 
@@ -17,15 +18,70 @@ interface MessageReactionsProps {
   alwaysShowAdd?: boolean;
 }
 
+const MAX_TOOLTIP_NAMES = 20;
+const TOOLTIP_MAX_WIDTH = 240;
+
+const ReactionTooltip: React.FC<{
+  emoji: string;
+  users: string[];
+  anchor: { x: number; y: number };
+}> = ({ emoji, users, anchor }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<React.CSSProperties>({ visibility: "hidden" });
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const gap = 6;
+    const left = Math.max(
+      8,
+      Math.min(anchor.x - width / 2, window.innerWidth - width - 8),
+    );
+    const top = Math.max(8, anchor.y - height - gap);
+    setPos({ left, top, visibility: "visible" });
+  }, [anchor]);
+
+  const shown = users.slice(0, MAX_TOOLTIP_NAMES);
+  const rest = users.length - shown.length;
+  const names =
+    rest > 0 ? `${shown.join(", ")} and ${rest} more` : shown.join(", ");
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "fixed",
+        zIndex: 9999,
+        maxWidth: TOOLTIP_MAX_WIDTH,
+        ...pos,
+      }}
+      className="bg-discord-dark-100 ring-1 ring-white/10 text-white rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.7)] pointer-events-none px-3 py-2.5 text-center"
+    >
+      <div className="text-2xl mb-1">{emoji}</div>
+      <div className="text-xs font-semibold text-white/90 leading-relaxed">
+        {names}
+      </div>
+      <div className="text-[11px] text-white/40 mt-1">
+        reacted to this message
+      </div>
+    </div>
+  );
+};
+
 const ReactionButton: React.FC<{
   emoji: string;
   reactionData: ReactionData;
   onReactionClick: (emoji: string, currentUserReacted: boolean) => void;
 }> = ({ emoji, reactionData, onReactionClick }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   function handleMouseEnter() {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) setAnchor({ x: rect.left + rect.width / 2, y: rect.top });
     timerRef.current = setTimeout(() => setShowTooltip(true), 200);
   }
 
@@ -40,19 +96,18 @@ const ReactionButton: React.FC<{
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {showTooltip && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-discord-dark-100 text-white text-xs rounded shadow-lg z-50 whitespace-nowrap pointer-events-none">
-          {(() => {
-            const limit = 5;
-            const shown = reactionData.users.slice(0, limit);
-            const rest = reactionData.users.length - shown.length;
-            return rest > 0
-              ? `${shown.join(", ")} +${rest} more`
-              : shown.join(", ");
-          })()}
-        </div>
-      )}
+      {showTooltip &&
+        anchor &&
+        createPortal(
+          <ReactionTooltip
+            emoji={emoji}
+            users={reactionData.users}
+            anchor={anchor}
+          />,
+          document.body,
+        )}
       <button
+        ref={buttonRef}
         type="button"
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-all cursor-pointer ${
           reactionData.currentUserReacted

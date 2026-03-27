@@ -446,6 +446,7 @@ export function MediaViewerModal({
   } | null>(null);
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const filmstripScrollRef = useRef<HTMLDivElement>(null);
+  const filmstripScrolledRef = useRef(false);
   // useState + callback ref: effect re-runs when the filmstrip pill mounts/unmounts
   // (useRef + [] never re-ran after AppLayout moved the modal to always-mounted)
   const [filmstripPillEl, setFilmstripPillEl] = useState<HTMLDivElement | null>(
@@ -522,6 +523,7 @@ export function MediaViewerModal({
 
   useEffect(() => {
     if (isOpen) {
+      filmstripScrolledRef.current = false;
       applyTransform(1, 0, 0);
       setZoom(1);
       setFailedUrls(new Set());
@@ -570,6 +572,7 @@ export function MediaViewerModal({
               isTopicEntry: true,
             };
           })
+          .filter((e) => e.type !== null)
       : [];
 
     const messages = getChannelMessages(serverId, channelId);
@@ -608,7 +611,14 @@ export function MediaViewerModal({
           //    and filmstrip positioning (e.g. radio streams on a different subdomain).
           (e.type !== null ||
             detectMediaType(e.url) !== null ||
-            (filehost != null && isUrlFromFilehost(e.url, filehost)) ||
+            // Extensionless filehost URL with no cached probe result: include so the
+            // bulk probe can resolve its type. If cache already returned a non-null
+            // type, condition 1 above handles it. If cache confirmed non-media
+            // (type: null), getCachedProbeResult returns a non-undefined object, so
+            // this condition is false and the URL is excluded immediately — no FaMusic.
+            (filehost != null &&
+              isUrlFromFilehost(e.url, filehost) &&
+              getCachedProbeResult(e.url) === undefined) ||
             (e.url === url && (!sourceMsgId || e.msg.msgid === sourceMsgId))) &&
           canShowMedia(e.url, mediaSettings, filehost),
       );
@@ -649,7 +659,7 @@ export function MediaViewerModal({
     for (const probeUrl of urlsToProbe) {
       probeMediaUrl(probeUrl).then((result) => {
         if (cancelled) return;
-        if (result && !result.skipped) {
+        if (result && !result.skipped && result.type !== null) {
           setMediaEntries((prev) =>
             prev.map((e) =>
               e.url === probeUrl && e.type === null
@@ -657,6 +667,10 @@ export function MediaViewerModal({
                 : e,
             ),
           );
+        } else if (!result || (!result.skipped && result.type === null)) {
+          // Probe failed (null) or confirmed non-media — hide tile and skip in
+          // navigation. Skipped-trust URLs are left as-is (might still be media).
+          setFailedUrls((prev) => new Set([...prev, probeUrl]));
         }
       });
     }
@@ -701,7 +715,10 @@ export function MediaViewerModal({
     // scrollIntoView can scroll the wrong ancestor (the modal overlay) on some browsers.
     const scrollTarget =
       thumb.offsetLeft - container.offsetWidth / 2 + thumb.offsetWidth / 2;
-    container.scrollTo({ left: scrollTarget, behavior: "smooth" });
+    // Use instant positioning on first open to avoid a slide animation from position 0.
+    const behavior = filmstripScrolledRef.current ? "smooth" : "instant";
+    filmstripScrolledRef.current = true;
+    container.scrollTo({ left: scrollTarget, behavior });
   }, [currentIndex]);
 
   // Probe the URL when it has no typed entry, or the entry's type is null
