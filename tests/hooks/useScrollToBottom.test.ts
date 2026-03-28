@@ -274,21 +274,43 @@ describe("useScrollToBottom", () => {
   });
 
   it("should scroll to bottom on resize when at bottom", () => {
+    // At bottom: scrollTop(500) + clientHeight(500) = scrollHeight(1000)
+    mockContainer.scrollTop = 500;
+
     renderHook(() => {
       const containerRef = useRef(mockContainer);
       const endElementRef = useRef(mockEndElement);
       return useScrollToBottom(containerRef, endElementRef);
     });
 
-    // Simulate being at bottom via IntersectionObserver
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+
+    expect(mockContainer.scrollTop).toBe(mockContainer.scrollHeight);
+  });
+
+  it("should scroll to bottom when container shrinks (input grows) even if IntersectionObserver fired first", () => {
+    // At bottom: scrollTop(800) + clientHeight(300) = scrollHeight(1100)
+    mockContainer.scrollTop = 800;
+    (mockContainer as any).clientHeight = 300;
+    (mockContainer as any).scrollHeight = 1100;
+
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // IntersectionObserver fires first and clears the bottom state (WKWebView ordering)
     act(() => {
       observerCallbacks[0](
         [
           {
-            isIntersecting: true,
+            isIntersecting: false,
             target: mockEndElement,
             boundingClientRect: {} as DOMRectReadOnly,
-            intersectionRatio: 1,
+            intersectionRatio: 0,
             intersectionRect: {} as DOMRectReadOnly,
             rootBounds: null,
             time: 0,
@@ -298,13 +320,35 @@ describe("useScrollToBottom", () => {
       );
     });
 
-    mockContainer.scrollTop = 0;
+    // Input bar grows — container clientHeight shrinks, scrollHeight unchanged
+    (mockContainer as any).clientHeight = 250;
 
     act(() => {
       resizeObserverCallbacks[0]([], {} as ResizeObserver);
     });
 
-    expect(mockContainer.scrollTop).toBe(mockContainer.scrollHeight);
+    expect(mockContainer.scrollTop).toBe(1100);
+  });
+
+  it("should not scroll to bottom on container shrink when user was scrolled up", () => {
+    // Not at bottom: scrollTop(300) + clientHeight(300) = 600 < scrollHeight(1100)
+    mockContainer.scrollTop = 300;
+    (mockContainer as any).clientHeight = 300;
+    (mockContainer as any).scrollHeight = 1100;
+
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    (mockContainer as any).clientHeight = 250;
+
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+
+    expect(mockContainer.scrollTop).toBe(300);
   });
 
   it("should not scroll on resize when user is scrolled up", () => {

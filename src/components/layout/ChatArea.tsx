@@ -178,6 +178,10 @@ export const ChatArea: React.FC<{
   const draftMap = useRef<Map<string, string>>(new Map());
   const messageTextRef = useRef("");
   const hasTextRef = useRef(false);
+  // platform() is stable at runtime — ref avoids adding it to useCallback deps.
+  const isNativeMobileRef = useRef(
+    isTauri() && ["android", "ios"].includes(platform()),
+  );
   // Keep-alive: last 3 visited channels are kept in the DOM (display:none) to preserve
   // scroll position and media element state across channel switches.
   const [aliveChannels, setAliveChannels] = useState<AliveChannel[]>([]);
@@ -191,6 +195,7 @@ export const ChatArea: React.FC<{
     paddingTop: number;
     paddingBottom: number;
   } | null>(null);
+  const prevInputLengthRef = useRef(0);
 
   const resizeTextarea = useCallback(() => {
     const textarea = inputRef.current;
@@ -208,6 +213,24 @@ export const ChatArea: React.FC<{
     const { lineHeight, paddingTop, paddingBottom } =
       textareaMetricsRef.current;
     const maxHeight = lineHeight * 5 + paddingTop + paddingBottom;
+
+    const currentLength = messageTextRef.current.length;
+    const prevLength = prevInputLengthRef.current;
+    prevInputLengthRef.current = currentLength;
+
+    if (textarea.scrollHeight > textarea.clientHeight) {
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+      return;
+    }
+
+    if (currentLength >= prevLength) {
+      // height="auto" causes WKWebView to deliver a transient layout state to
+      // ResizeObserver, scrolling the chat on every keystroke. Safe to skip when
+      // text only grew and content still fits — height is unchanged.
+      return;
+    }
+
+    // May have lost a line; remeasure.
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
   }, []);
@@ -222,7 +245,7 @@ export const ChatArea: React.FC<{
       const ht = text.trim().length > 0;
       if (ht !== hasTextRef.current) {
         hasTextRef.current = ht;
-        setHasText(ht);
+        if (isNativeMobileRef.current) setHasText(ht);
       }
     },
     [resizeTextarea],
@@ -698,7 +721,7 @@ export const ChatArea: React.FC<{
   }, [showPlusMenu]);
 
   const handleSendMessage = () => {
-    if (!hasText) return;
+    if (!hasTextRef.current) return;
 
     // Tell the active channel's message list to auto-scroll after the new message lands.
     channelListRefs.current.get(channelKey)?.setAtBottom();
@@ -1102,10 +1125,11 @@ export const ChatArea: React.FC<{
     resizeTextarea();
 
     // Only trigger re-render when send-button state changes (empty ↔ non-empty).
+    // On desktop the send button is never shown, so the re-render has no effect.
     const ht = newText.trim().length > 0;
     if (ht !== hasTextRef.current) {
       hasTextRef.current = ht;
-      setHasText(ht);
+      if (isNativeMobile) setHasText(ht);
     }
 
     cursorPositionRef.current = newCursorPosition;

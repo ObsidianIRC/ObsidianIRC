@@ -152,21 +152,29 @@ export function useScrollToBottom(
     };
   }, [containerRef, endElementRef, tolerance, channelId]);
 
-  // Re-stick to bottom when container resizes (sidebar toggle, window resize)
+  // Re-stick to bottom when container resizes (sidebar toggle, window resize, input bar growing).
+  // Uses prevClientHeight instead of wasAtBottomRef to avoid the race where IntersectionObserver
+  // clears wasAtBottomRef before ResizeObserver fires (observed in WKWebView).
   // biome-ignore lint/correctness/useExhaustiveDependencies: channelId is intentionally included to re-initialize when channel changes
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    let prevClientHeight = container.clientHeight;
+
     const observer = new ResizeObserver(() => {
-      if (wasAtBottomRef.current) {
+      const wasAtBottom =
+        container.scrollTop + prevClientHeight >=
+        container.scrollHeight - tolerance;
+      prevClientHeight = container.clientHeight;
+      if (wasAtBottom) {
         container.scrollTop = container.scrollHeight;
       }
     });
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, [containerRef, channelId]);
+  }, [containerRef, channelId, tolerance]);
 
   return { isScrolledUp, wasAtBottomRef, scrollToBottom };
 }
