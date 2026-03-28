@@ -1,7 +1,5 @@
 import { type RefObject, useEffect, useRef } from "react";
 
-const TYPING_RE = /^[a-zA-Z0-9]$/;
-
 function isEditableActive(): boolean {
   const active = document.activeElement;
   if (!active) return false;
@@ -46,8 +44,8 @@ export function useAutoFocusTyping(
 
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      // Only plain alphanumeric — skip Ctrl/Cmd/Alt shortcuts
-      if (!TYPING_RE.test(e.key)) return;
+      // Single-character key = printable; multi-character = special (Enter, ArrowLeft, F1…)
+      if (e.key.length !== 1) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       // Don't steal focus from an already-focused editable element
