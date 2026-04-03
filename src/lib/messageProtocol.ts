@@ -87,5 +87,5 @@ export const calculateProtocolOverhead = (target: string): number => {
  * @returns A unique batch identifier
  */
 export const createBatchId = (): string => {
-  return `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `ml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
