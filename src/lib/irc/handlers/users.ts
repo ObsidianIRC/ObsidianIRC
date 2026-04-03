@@ -29,6 +29,7 @@ export function handleNick(
   ctx.triggerEvent("NICK", {
     serverId,
     mtags,
+    batchTag: mtags?.batch,
     oldNick,
     newNick,
   });
@@ -48,6 +49,7 @@ export function handleQuit(
     username,
     reason,
     batchTag: mtags?.batch,
+    time: mtags?.time,
   });
 }
 
@@ -110,6 +112,7 @@ export function handleJoin(
     username,
     channelName,
     batchTag: mtags?.batch,
+    time: mtags?.time,
     account,
     realname,
   });
@@ -120,7 +123,7 @@ export function handlePart(
   serverId: string,
   source: string,
   parv: string[],
-  _mtags: Record<string, string> | undefined,
+  mtags: Record<string, string> | undefined,
 ): void {
   const username = getNickFromNuh(source);
   const channelName = parv[0];
@@ -131,6 +134,8 @@ export function handlePart(
     username,
     channelName,
     reason,
+    batchTag: mtags?.batch,
+    time: mtags?.time,
   });
 }
 

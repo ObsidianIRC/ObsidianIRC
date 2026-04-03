@@ -37,17 +37,25 @@ export interface EventMap {
   NICK: EventWithTags & {
     oldNick: string;
     newNick: string;
+    batchTag?: string;
   };
-  QUIT: BaseUserActionEvent & { reason: string; batchTag?: string };
+  QUIT: BaseUserActionEvent & {
+    reason: string;
+    batchTag?: string;
+    time?: string;
+  };
   JOIN: BaseUserActionEvent & {
     channelName: string;
     batchTag?: string;
+    time?: string;
     account?: string; // From extended-join
     realname?: string; // From extended-join
   };
   PART: BaseUserActionEvent & {
     channelName: string;
     reason?: string;
+    batchTag?: string;
+    time?: string;
   };
   KICK: EventWithTags & {
     username: string;
@@ -962,6 +970,27 @@ export class IRCClient implements IRCClientContext {
       return channel;
     }
     throw new Error(`Server with ID ${serverId} not found`);
+  }
+
+  requestChathistoryBefore(
+    serverId: string,
+    channelName: string,
+    beforeTimestamp: string,
+  ): void {
+    const server = this.servers.get(serverId);
+    if (!server?.capabilities?.includes("draft/chathistory")) return;
+    // Fire isLoading:true so the store sets isLoadingHistory=true for the whole batch.
+    // The React component uses isLoadingMore to keep messages in DOM (no full-screen spinner)
+    // and restores scroll position once isLoadingHistory goes false (batch end).
+    this.triggerEvent("CHATHISTORY_LOADING", {
+      serverId,
+      channelName,
+      isLoading: true,
+    });
+    this.sendRaw(
+      serverId,
+      `CHATHISTORY BEFORE ${channelName} timestamp=${beforeTimestamp} 50`,
+    );
   }
 
   leaveChannel(serverId: string, channelName: string): void {

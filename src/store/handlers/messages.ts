@@ -125,6 +125,26 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
         // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
         const isHistoricalMessage = mtags?.batch !== undefined;
 
+        if (isHistoricalMessage && mtags?.batch) {
+          const batchId = mtags.batch;
+          store.setState((state) => {
+            const batch = state.activeBatches[response.serverId]?.[batchId];
+            if (batch?.type !== "chathistory") return state;
+            return {
+              activeBatches: {
+                ...state.activeBatches,
+                [response.serverId]: {
+                  ...state.activeBatches[response.serverId],
+                  [batchId]: {
+                    ...batch,
+                    messageCount: (batch.messageCount ?? 0) + 1,
+                  },
+                },
+              },
+            };
+          });
+        }
+
         if (
           !isActiveChannel &&
           response.sender !== currentServerUser?.username &&

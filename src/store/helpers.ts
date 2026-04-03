@@ -80,6 +80,7 @@ export interface BatchInfo {
   parameters?: string[];
   events: BatchEvent[];
   startTime: Date;
+  messageCount?: number;
 }
 
 // ============================================================================

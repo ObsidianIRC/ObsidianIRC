@@ -1,157 +1,192 @@
 import type { Message } from "../types";
 
+export interface UserEventSummary {
+  username: string;
+  summary: string;
+  timestamp: Date;
+  // Ordered sequence of event types for this user in the group, e.g. ["quit","join","quit","join"]
+  eventSequence: string[];
+}
+
 export interface EventGroup {
   type: "message" | "eventGroup";
   messages: Message[];
   eventType?: string;
   usernames?: string[];
+  userSummaries?: UserEventSummary[];
   timestamp: Date;
 }
 
+const COLLAPSIBLE_EVENT_TYPES = ["join", "part", "quit"];
+
+function formatCount(word: string, count: number, suffix = "times"): string {
+  if (count === 1) return word;
+  if (count > 9) return `${word} multiple times`;
+  return `${word} ${count} ${suffix}`;
+}
+
+function computeUserSummary(types: string[]): string {
+  // Final departure always wins so the summary is never misleading about current presence.
+  const last = types[types.length - 1];
+  if (last === "quit") return "quit";
+  if (last === "part") return "left";
+
+  // Last event is join — check for quit→join reconnect cycles.
+  let reconnectCount = 0;
+  for (let i = 0; i < types.length - 1; i++) {
+    if (types[i] === "quit" && types[i + 1] === "join") reconnectCount++;
+  }
+  if (reconnectCount > 0) return formatCount("reconnected", reconnectCount);
+
+  const joinCount = types.filter((t) => t === "join").length;
+  if (joinCount > 0) return formatCount("joined", joinCount);
+
+  return "quit";
+}
+
 /**
- * Groups consecutive event messages (join, part, quit) into collapsed groups
- * while preserving regular messages and other event types as individual items
+ * Groups consecutive same-user events (join, part, quit) into collapsed rows.
+ *
+ * A run accumulates only while the same user produces back-to-back collapsible
+ * events. Any chat message or a different user's event flushes the current run.
+ * Single-event runs are emitted as individual messages (no collapse).
+ *
+ * Live events (fromHistory !== true) are never collapsed — they are always
+ * emitted as individual messages so the real-time feed stays unambiguous.
  */
 export function groupConsecutiveEvents(messages: Message[]): EventGroup[] {
   const result: EventGroup[] = [];
-  const collapsibleEventTypes = ["join", "part", "quit"];
+  let currentUserId: string | null = null;
+  let currentRun: Message[] = [];
 
-  let i = 0;
-  while (i < messages.length) {
-    const currentMessage = messages[i];
-
-    // If it's not a collapsible event, add as individual message
-    if (!collapsibleEventTypes.includes(currentMessage.type)) {
-      result.push({
-        type: "message",
-        messages: [currentMessage],
-        timestamp: new Date(currentMessage.timestamp),
-      });
-      i++;
-      continue;
-    }
-
-    // Start a new event group
-    const eventGroup: Message[] = [currentMessage];
-    const eventType = currentMessage.type;
-    const startTime = new Date(currentMessage.timestamp);
-
-    // Look ahead for consecutive events of the same type within 5 minutes
-    let j = i + 1;
-    while (j < messages.length) {
-      const nextMessage = messages[j];
-      const timeDiff =
-        new Date(nextMessage.timestamp).getTime() -
-        new Date(eventGroup[eventGroup.length - 1].timestamp).getTime();
-
-      // Stop if it's not the same event type, or if there's more than 5 minutes gap
-      if (nextMessage.type !== eventType || timeDiff > 5 * 60 * 1000) {
-        break;
+  const flushRun = () => {
+    if (currentRun.length === 0) return;
+    // Only aggregate runs where every event came from chathistory replay.
+    // Live events always render as individual rows.
+    const canAggregate = currentRun.every((m) => m.fromHistory === true);
+    if (currentRun.length === 1 || !canAggregate) {
+      for (const msg of currentRun) {
+        result.push({
+          type: "message",
+          messages: [msg],
+          timestamp: new Date(msg.timestamp),
+        });
       }
-
-      eventGroup.push(nextMessage);
-      j++;
-    }
-
-    // If we have multiple events of the same type, create a group
-    if (eventGroup.length > 1) {
-      const usernames = eventGroup.map((msg) => msg.userId);
+    } else {
+      const username = currentRun[0].userId;
+      const types = currentRun.map((m) => m.type);
+      const lastTimestamp = new Date(
+        currentRun[currentRun.length - 1].timestamp,
+      );
       result.push({
         type: "eventGroup",
-        messages: eventGroup,
-        eventType,
-        usernames,
-        timestamp: startTime,
-      });
-    } else {
-      // Single event, add as individual message
-      result.push({
-        type: "message",
-        messages: [currentMessage],
-        timestamp: startTime,
+        messages: currentRun,
+        userSummaries: [
+          {
+            username,
+            summary: computeUserSummary(types),
+            timestamp: lastTimestamp,
+            eventSequence: types,
+          },
+        ],
+        usernames: [username],
+        timestamp: lastTimestamp,
       });
     }
+    currentUserId = null;
+    currentRun = [];
+  };
 
-    i = j;
+  for (const msg of messages) {
+    if (!COLLAPSIBLE_EVENT_TYPES.includes(msg.type)) {
+      flushRun();
+      result.push({
+        type: "message",
+        messages: [msg],
+        timestamp: new Date(msg.timestamp),
+      });
+    } else if (msg.userId === currentUserId) {
+      currentRun.push(msg);
+    } else {
+      flushRun();
+      currentUserId = msg.userId;
+      currentRun = [msg];
+    }
   }
 
+  flushRun();
   return result;
 }
 
 /**
- * Creates a summary text for collapsed event groups
+ * Returns a compact single-line summary for an event group.
+ * Used as fallback text (e.g., in accessibility contexts).
  */
 export function getEventGroupSummary(
   eventGroup: EventGroup,
   currentUsername?: string,
 ): string {
-  if (
-    eventGroup.type !== "eventGroup" ||
-    !eventGroup.usernames ||
-    !eventGroup.eventType
-  ) {
-    return "";
+  if (eventGroup.type !== "eventGroup") return "";
+
+  if (eventGroup.userSummaries) {
+    return eventGroup.userSummaries
+      .map((us) => {
+        const name = us.username === currentUsername ? "You" : us.username;
+        return `${name} ${us.summary}`;
+      })
+      .join(" · ");
   }
 
+  // Legacy fallback
   const { usernames, eventType } = eventGroup;
-  const uniqueUsernames = Array.from(new Set(usernames));
-
-  // Replace current user's username with "You"
-  const displayNames = uniqueUsernames.map((username) =>
-    username === currentUsername ? "You" : username,
-  );
-
-  let action = "";
-  switch (eventType) {
-    case "join":
-      action = "joined";
-      break;
-    case "part":
-      action = "left";
-      break;
-    case "quit":
-      action = "quit";
-      break;
-    default:
-      action = eventType;
-  }
-
+  if (!usernames || !eventType) return "";
+  const unique = Array.from(new Set(usernames));
+  const displayNames = unique.map((u) => (u === currentUsername ? "You" : u));
+  const action =
+    eventType === "join" ? "joined" : eventType === "part" ? "left" : "quit";
   if (displayNames.length === 1) {
-    const count = usernames.filter((u) => u === uniqueUsernames[0]).length;
+    const count = usernames.filter((u) => u === unique[0]).length;
     return count > 1
       ? `${displayNames[0]} ${action} ${count} times`
       : `${displayNames[0]} ${action}`;
   }
-  if (displayNames.length === 2) {
+  if (displayNames.length === 2)
     return `${displayNames[0]} and ${displayNames[1]} ${action}`;
-  }
-  if (displayNames.length === 3) {
+  if (displayNames.length === 3)
     return `${displayNames[0]}, ${displayNames[1]} and ${displayNames[2]} ${action}`;
-  }
-  const others = displayNames.length - 2;
-  return `${displayNames[0]}, ${displayNames[1]} and ${others} others ${action}`;
+  return `${displayNames[0]}, ${displayNames[1]} and ${displayNames.length - 2} others ${action}`;
 }
 
 /**
- * Creates detailed tooltip information for event groups
+ * Returns tooltip text showing the detailed event sequence per user.
  */
 export function getEventGroupTooltip(eventGroup: EventGroup): string {
-  if (eventGroup.type !== "eventGroup" || !eventGroup.usernames) {
-    return "";
+  if (eventGroup.type !== "eventGroup") return "";
+
+  if (eventGroup.userSummaries) {
+    return eventGroup.userSummaries
+      .map((us) => {
+        const seq = us.eventSequence;
+        const formatted =
+          seq.length > 4
+            ? `${seq.slice(0, 2).join(" → ")} → ... → ${seq.slice(-2).join(" → ")}`
+            : seq.join(" → ");
+        return `${us.username}: ${formatted}`;
+      })
+      .join("\n");
   }
 
-  const userCounts = eventGroup.usernames.reduce(
-    (acc, username) => {
-      acc[username] = (acc[username] || 0) + 1;
+  // Legacy fallback
+  const { usernames } = eventGroup;
+  if (!usernames) return "";
+  const counts = usernames.reduce(
+    (acc, u) => {
+      acc[u] = (acc[u] || 0) + 1;
       return acc;
     },
     {} as Record<string, number>,
   );
-
-  return Object.entries(userCounts)
-    .map(
-      ([username, count]) =>
-        `${username}: ${count} time${count > 1 ? "s" : ""}`,
-    )
+  return Object.entries(counts)
+    .map(([u, c]) => `${u}: ${c} time${c > 1 ? "s" : ""}`)
     .join("\n");
 }

@@ -4,12 +4,14 @@ import {
   memo,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { useScrollToBottom } from "../../hooks/useScrollToBottom";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
+import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import type { Message as MessageType } from "../../types";
 import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
@@ -79,6 +81,11 @@ export const ChannelMessageList = forwardRef<
     ref,
   ) => {
     const [visibleMessageCount, setVisibleMessageCount] = useState(100);
+    // Tracks server-side "load older" requests so we can show an inline spinner instead of the
+    // full-screen one and let CSS scroll anchoring hold position instead of jumping to the bottom.
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    // Ref mirror so ResizeObserver closure can read current value without stale capture.
+    const isLoadingMoreRef = useRef(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesInnerRef = useRef<HTMLDivElement>(null);
@@ -154,7 +161,9 @@ export const ChannelMessageList = forwardRef<
       return filteredMessages.slice(-visibleMessageCount);
     }, [filteredMessages, visibleMessageCount, searchQuery, isScrolledUp]);
 
-    const hasMoreMessages = filteredMessages.length > displayedMessages.length;
+    const locallyHidden = filteredMessages.length > displayedMessages.length;
+    const serverHasMore = channel?.hasMoreHistory === true;
+    const hasMoreMessages = locallyHidden || serverHasMore;
 
     const eventGroups = useMemo(
       () => groupConsecutiveEvents(displayedMessages),
@@ -173,15 +182,23 @@ export const ChannelMessageList = forwardRef<
       wasAtBottomRef.current = true;
     }, []);
 
-    // Scroll to bottom after chat history finishes loading.
+    // Scroll to bottom after initial join history loads; trigger spinner teardown at batch end.
+    // useLayoutEffect (not useEffect) fires synchronously after DOM mutations, before paint.
     const wasLoadingHistoryRef = useRef(false);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom is stable via useCallback
-    useEffect(() => {
+    // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom is stable via useCallback; refs and setters are stable
+    useLayoutEffect(() => {
       if (wasLoadingHistoryRef.current && !isLoadingHistory) {
-        requestAnimationFrame(() => {
+        if (isLoadingMoreRef.current) {
+          // load-more batch complete — clear the loading flag so the spinner is removed.
+          // CSS scroll anchoring (overflow-anchor: auto) naturally holds viewport position as
+          // messages are prepended and the spinner is removed, so no JS compensation needed.
+          isLoadingMoreRef.current = false;
+          setIsLoadingMore(false);
+        } else {
+          // Initial join: scroll to bottom synchronously before paint.
           scrollToBottom();
           wasAtBottomRef.current = true;
-        });
+        }
       }
       wasLoadingHistoryRef.current = isLoadingHistory;
     }, [isLoadingHistory]);
@@ -196,6 +213,11 @@ export const ChannelMessageList = forwardRef<
       if (!inner || !container) return;
       let prevScrollHeight = container.scrollHeight;
       const observer = new ResizeObserver(() => {
+        // Skip auto-scroll during load-more — CSS scroll anchoring holds position.
+        if (isLoadingMoreRef.current) {
+          prevScrollHeight = container.scrollHeight;
+          return;
+        }
         const wasAtPrevBottom =
           container.scrollTop + container.clientHeight >= prevScrollHeight - 30;
         prevScrollHeight = container.scrollHeight;
@@ -225,7 +247,7 @@ export const ChannelMessageList = forwardRef<
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto overflow-x-hidden flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
         >
-          {isLoadingHistory ? (
+          {isLoadingHistory && !isLoadingMore ? (
             <div className="flex-grow flex items-center justify-center">
               <LoadingSpinner
                 size="lg"
@@ -235,23 +257,68 @@ export const ChannelMessageList = forwardRef<
             </div>
           ) : (
             <div ref={messagesInnerRef} className="flex flex-col">
-              {hasMoreMessages && !searchQuery && (
-                <div className="flex justify-center py-4">
+              {isLoadingMore && (
+                <div className="flex justify-center py-2">
+                  <LoadingSpinner
+                    size="sm"
+                    text="Loading older messages..."
+                    className="text-discord-text-muted"
+                  />
+                </div>
+              )}
+              {hasMoreMessages && !searchQuery && !isLoadingMore && (
+                <div className="flex justify-center py-2">
                   <button
                     type="button"
                     onClick={() => {
-                      if (scrollUpStartRef.current !== null) {
-                        scrollUpStartRef.current = Math.max(
-                          0,
-                          scrollUpStartRef.current - 100,
-                        );
+                      if (locallyHidden) {
+                        if (scrollUpStartRef.current !== null) {
+                          scrollUpStartRef.current = Math.max(
+                            0,
+                            scrollUpStartRef.current - 100,
+                          );
+                        }
+                        setVisibleMessageCount((prev) => prev + 100);
+                      } else if (serverHasMore && channel && channelId) {
+                        const oldest = channelMessages[0];
+                        if (oldest?.timestamp) {
+                          // scrollTop must be > 0 for CSS scroll anchoring to engage —
+                          // it cannot adjust scrollTop below 0 when content is prepended.
+                          const container = messagesContainerRef.current;
+                          if (container)
+                            container.scrollTop = Math.max(
+                              1,
+                              container.scrollTop,
+                            );
+                          isLoadingMoreRef.current = true;
+                          setIsLoadingMore(true);
+                          const ts = new Date(oldest.timestamp).toISOString();
+                          ircClient.requestChathistoryBefore(
+                            serverId,
+                            channel.name,
+                            ts,
+                          );
+                        }
                       }
-                      setVisibleMessageCount((prev) => prev + 100);
                     }}
-                    className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-link rounded transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full text-discord-text-muted hover:text-discord-text-normal bg-discord-dark-400 hover:bg-discord-dark-300 border border-white/5 transition-all"
                   >
-                    View older messages (
-                    {filteredMessages.length - displayedMessages.length} hidden)
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="w-3 h-3"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 19V5M5 12l7-7 7 7" />
+                    </svg>
+                    {locallyHidden
+                      ? `${filteredMessages.length - displayedMessages.length} older messages`
+                      : "Load older messages"}
                   </button>
                 </div>
               )}

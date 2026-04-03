@@ -166,6 +166,7 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
               parameters: parameters || [],
               events: [],
               startTime: new Date(),
+              messageCount: 0,
             },
           },
         },
@@ -174,6 +175,12 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
   });
 
   ircClient.on("BATCH_END", ({ serverId, batchId }) => {
+    // Capture chathistory channel name so we can fire the loading event AFTER setState.
+    // Calling triggerEvent inside store.setState causes a nested setState race: the inner
+    // call sets isLoadingHistory=false, but the outer callback then returns stale servers
+    // state (isLoadingHistory still true), overwriting the inner change.
+    let chathistoryChannelName: string | null = null;
+
     store.setState((state) => {
       const serverBatches = state.activeBatches[serverId];
       if (!serverBatches || !serverBatches[batchId]) {
@@ -197,22 +204,12 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
         // Metadata batches are handled by the IRC client directly via individual METADATA events
         // Don't process individual events here, metadata updates are already processed
       } else if (batch.type === "chathistory") {
-        // Chathistory batch completed - turn off loading state for the channel
-
-        // Try to determine the channel from batch parameters
-        // Chathistory batch parameters typically include the channel name
         const channelName =
           batch.parameters && batch.parameters.length > 0
             ? batch.parameters[0]
             : null;
-
         if (channelName) {
-          // Trigger event to turn off loading state
-          ircClient.triggerEvent("CHATHISTORY_LOADING", {
-            serverId,
-            channelName,
-            isLoading: false,
-          });
+          chathistoryChannelName = channelName;
         }
       } else {
         // For unknown batch types, process events individually
@@ -234,6 +231,42 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
 
       // Remove the completed batch
       const { [batchId]: removed, ...remainingBatches } = serverBatches;
+
+      if (batch.type === "chathistory" && batch.parameters?.[0]) {
+        const channelName = batch.parameters[0];
+        const server = state.servers.find((s) => s.id === serverId);
+        const channel = server?.channels.find(
+          (c) => c.name.toLowerCase() === channelName.toLowerCase(),
+        );
+        if (channel) {
+          const key = `${serverId}-${channel.id}`;
+          const msgs = state.messages[key] || [];
+          // Sort chronologically — CHATHISTORY BEFORE appends older messages at the end
+          const sorted = [...msgs].sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+          );
+          const hasMoreHistory = (batch.messageCount ?? 0) > 0;
+          return {
+            activeBatches: {
+              ...state.activeBatches,
+              [serverId]: remainingBatches,
+            },
+            messages: { ...state.messages, [key]: sorted },
+            servers: state.servers.map((s) => {
+              if (s.id !== serverId) return s;
+              return {
+                ...s,
+                channels: s.channels.map((ch) => {
+                  if (ch.id !== channel.id) return ch;
+                  return { ...ch, hasMoreHistory, isLoadingHistory: false };
+                }),
+              };
+            }),
+          };
+        }
+      }
+
       return {
         activeBatches: {
           ...state.activeBatches,
@@ -241,5 +274,15 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
         },
       };
     });
+
+    // Fire after setState so the WHO/metadata side effects run on correct state.
+    // isLoadingHistory is already false from the setState above.
+    if (chathistoryChannelName) {
+      ircClient.triggerEvent("CHATHISTORY_LOADING", {
+        serverId,
+        channelName: chathistoryChannelName,
+        isLoading: false,
+      });
+    }
   });
 }
