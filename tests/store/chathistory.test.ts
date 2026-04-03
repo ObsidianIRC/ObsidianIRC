@@ -69,7 +69,7 @@ describe("chathistory batch — PART events", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            messageCount: 0,
+            pendingMessages: [],
           },
         },
       },
@@ -124,7 +124,7 @@ describe("chathistory batch — NICK events", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            messageCount: 0,
+            pendingMessages: [],
           },
         },
       },
@@ -184,7 +184,9 @@ describe("chathistory batch end — hasMoreHistory", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            messageCount: 10,
+            pendingMessages: [
+              makeMessage({ id: "fetched-1", msgid: "fetched-1" }),
+            ],
           },
         },
       },
@@ -209,7 +211,7 @@ describe("chathistory batch end — hasMoreHistory", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            messageCount: 0,
+            pendingMessages: [],
           },
         },
       },
@@ -228,15 +230,17 @@ describe("chathistory batch end — hasMoreHistory", () => {
   it("sorts messages chronologically after batch ends", () => {
     const older = makeMessage({
       id: "old",
+      msgid: "old",
       timestamp: new Date("2026-01-01T10:00:00.000Z"),
     });
     const newer = makeMessage({
       id: "new",
+      msgid: "new",
       timestamp: new Date("2026-01-01T12:00:00.000Z"),
     });
-    // Simulate BEFORE batch appending older messages after newer ones
+    // newer is already in state; older arrives via the batch (out of chronological order)
     useStore.setState({
-      messages: { "srv-1-chan-1": [newer, older] },
+      messages: { "srv-1-chan-1": [newer] },
       activeBatches: {
         "srv-1": {
           batchSort: {
@@ -244,7 +248,7 @@ describe("chathistory batch end — hasMoreHistory", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            messageCount: 1,
+            pendingMessages: [older],
           },
         },
       },

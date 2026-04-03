@@ -166,7 +166,7 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
               parameters: parameters || [],
               events: [],
               startTime: new Date(),
-              messageCount: 0,
+              pendingMessages: [],
             },
           },
         },
@@ -240,26 +240,60 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
         );
         if (channel) {
           const key = `${serverId}-${channel.id}`;
-          const msgs = state.messages[key] || [];
-          // Sort chronologically — CHATHISTORY BEFORE appends older messages at the end
-          const sorted = [...msgs].sort(
-            (a, b) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+          const pending = batch.pendingMessages ?? [];
+          const existing = state.messages[key] || [];
+
+          // Dedup buffered messages against what's already in the store (event messages
+          // like JOIN/PART arrive immediately and will already be in existing).
+          const existingIds = new Set(
+            existing.map((m) => m.msgid).filter(Boolean),
           );
-          const hasMoreHistory = (batch.messageCount ?? 0) > 0;
+          const newMessages = pending.filter(
+            (m) =>
+              !(m.msgid && existingIds.has(m.msgid)) &&
+              !existing.some(
+                (e) =>
+                  e.content === m.content &&
+                  new Date(e.timestamp).getTime() ===
+                    new Date(m.timestamp).getTime() &&
+                  e.userId === m.userId,
+              ),
+          );
+
+          const MAX_MESSAGES_PER_CHANNEL = 1500;
+          const merged = [...existing, ...newMessages]
+            .sort(
+              (a, b) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime(),
+            )
+            .slice(-MAX_MESSAGES_PER_CHANNEL);
+
+          const newMsgIds = newMessages
+            .filter((m) => m.msgid)
+            .map((m) => m.msgid as string);
+
           return {
             activeBatches: {
               ...state.activeBatches,
               [serverId]: remainingBatches,
             },
-            messages: { ...state.messages, [key]: sorted },
+            messages: { ...state.messages, [key]: merged },
+            processedMessageIds:
+              newMsgIds.length > 0
+                ? new Set([...state.processedMessageIds, ...newMsgIds])
+                : state.processedMessageIds,
             servers: state.servers.map((s) => {
               if (s.id !== serverId) return s;
               return {
                 ...s,
                 channels: s.channels.map((ch) => {
                   if (ch.id !== channel.id) return ch;
-                  return { ...ch, hasMoreHistory, isLoadingHistory: false };
+                  return {
+                    ...ch,
+                    hasMoreHistory: pending.length > 0,
+                    isLoadingHistory: false,
+                  };
                 }),
               };
             }),

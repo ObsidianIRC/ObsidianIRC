@@ -81,16 +81,19 @@ export const ChannelMessageList = forwardRef<
     ref,
   ) => {
     const [visibleMessageCount, setVisibleMessageCount] = useState(100);
-    // Tracks server-side "load older" requests so we can show an inline spinner instead of the
-    // full-screen one and let CSS scroll anchoring hold position instead of jumping to the bottom.
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    // Ref mirror so ResizeObserver closure can read current value without stale capture.
-    const isLoadingMoreRef = useRef(false);
+    // Distinguishes initial join (full-screen spinner) from subsequent "load more" (button spinner).
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const isFetchingMoreRef = useRef(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesInnerRef = useRef<HTMLDivElement>(null);
-    // Freeze display-window start when user scrolls up (WKWebView scroll anchoring fix).
-    const scrollUpStartRef = useRef<number | null>(null);
+    // scrollHeight from the previous render — used to compute delta for scroll correction.
+    const prevScrollHeightRef = useRef(0);
+    // Ref mirror of isScrolledUp for useLayoutEffect closures that shouldn't re-run on scroll changes.
+    const isScrolledUpRef = useRef(false);
+    // Track first message identity to detect when older messages are prepended.
+    const prevFilteredLengthRef = useRef(0);
+    const prevFirstMsgIdRef = useRef<string | null>(null);
 
     const messages = useStore((state) => state.messages);
     const servers = useStore((state) => state.servers);
@@ -135,31 +138,24 @@ export const ChannelMessageList = forwardRef<
       );
     }, [channelMessages, searchQuery]);
 
-    // Freeze the display-window start index when the user first scrolls up.
-    // Prevents dumping all hidden messages into the DOM at once, which caused
-    // WKWebView flex scroll anchoring to fail and jump the viewport to the top.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally omit filteredMessages.length and visibleMessageCount — start index captured only once when isScrolledUp first becomes true
+    // biome-ignore lint/correctness/useExhaustiveDependencies: ref mirror, no side effects
     useEffect(() => {
-      if (isScrolledUp) {
-        if (scrollUpStartRef.current === null) {
-          scrollUpStartRef.current = Math.max(
-            0,
-            filteredMessages.length - visibleMessageCount,
-          );
-        }
-      } else {
-        scrollUpStartRef.current = null;
-      }
+      isScrolledUpRef.current = isScrolledUp;
     }, [isScrolledUp]);
+
+    // Reset windowing state when switching channels so stale refs don't affect the new channel.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional full reset on channel change
+    useEffect(() => {
+      setVisibleMessageCount(100);
+      prevFilteredLengthRef.current = 0;
+      prevFirstMsgIdRef.current = null;
+      prevScrollHeightRef.current = 0;
+    }, [channelKey]);
 
     const displayedMessages = useMemo(() => {
       if (searchQuery.trim()) return filteredMessages;
-      const frozenStart = scrollUpStartRef.current;
-      if (isScrolledUp && frozenStart !== null) {
-        return filteredMessages.slice(frozenStart);
-      }
       return filteredMessages.slice(-visibleMessageCount);
-    }, [filteredMessages, visibleMessageCount, searchQuery, isScrolledUp]);
+    }, [filteredMessages, visibleMessageCount, searchQuery]);
 
     const locallyHidden = filteredMessages.length > displayedMessages.length;
     const serverHasMore = channel?.hasMoreHistory === true;
@@ -182,26 +178,58 @@ export const ChannelMessageList = forwardRef<
       wasAtBottomRef.current = true;
     }, []);
 
-    // Scroll to bottom after initial join history loads; trigger spinner teardown at batch end.
-    // useLayoutEffect (not useEffect) fires synchronously after DOM mutations, before paint.
+    // Scroll to bottom after initial join history loads; clear fetch spinner at batch end.
     const wasLoadingHistoryRef = useRef(false);
     // biome-ignore lint/correctness/useExhaustiveDependencies: scrollToBottom is stable via useCallback; refs and setters are stable
     useLayoutEffect(() => {
       if (wasLoadingHistoryRef.current && !isLoadingHistory) {
-        if (isLoadingMoreRef.current) {
-          // load-more batch complete — clear the loading flag so the spinner is removed.
-          // CSS scroll anchoring (overflow-anchor: auto) naturally holds viewport position as
-          // messages are prepended and the spinner is removed, so no JS compensation needed.
-          isLoadingMoreRef.current = false;
-          setIsLoadingMore(false);
+        if (isFetchingMoreRef.current) {
+          // delta correction for scroll position is handled by useLayoutEffect([displayedMessages])
+          isFetchingMoreRef.current = false;
+          setIsFetchingMore(false);
         } else {
-          // Initial join: scroll to bottom synchronously before paint.
           scrollToBottom();
           wasAtBottomRef.current = true;
         }
       }
       wasLoadingHistoryRef.current = isLoadingHistory;
     }, [isLoadingHistory]);
+
+    // When older messages are prepended, grow the window so they enter displayedMessages.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: setter is stable; refs don't need to be deps
+    useLayoutEffect(() => {
+      const newLength = filteredMessages.length;
+      const newFirstId = filteredMessages[0]?.id ?? null;
+
+      if (
+        prevFilteredLengthRef.current > 0 &&
+        newLength > prevFilteredLengthRef.current &&
+        newFirstId !== prevFirstMsgIdRef.current
+      ) {
+        setVisibleMessageCount(
+          (prev) => prev + (newLength - prevFilteredLengthRef.current),
+        );
+      }
+
+      prevFilteredLengthRef.current = newLength;
+      prevFirstMsgIdRef.current = newFirstId;
+    }, [filteredMessages]);
+
+    // Compensate scrollTop when content is prepended above the viewport.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: refs don't need to be deps
+    useLayoutEffect(() => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
+
+      const prevHeight = prevScrollHeightRef.current;
+      const newHeight = container.scrollHeight;
+
+      if (isScrolledUpRef.current && prevHeight > 0 && newHeight > prevHeight) {
+        container.scrollTop += newHeight - prevHeight;
+      }
+
+      prevScrollHeightRef.current = newHeight;
+    }, [displayedMessages]);
 
     // Re-stick to bottom when inner message content grows (media/audio previews loading).
     // Uses prevScrollHeight instead of wasAtBottomRef to avoid stale-flag race where the
@@ -213,11 +241,6 @@ export const ChannelMessageList = forwardRef<
       if (!inner || !container) return;
       let prevScrollHeight = container.scrollHeight;
       const observer = new ResizeObserver(() => {
-        // Skip auto-scroll during load-more — CSS scroll anchoring holds position.
-        if (isLoadingMoreRef.current) {
-          prevScrollHeight = container.scrollHeight;
-          return;
-        }
         const wasAtPrevBottom =
           container.scrollTop + container.clientHeight >= prevScrollHeight - 30;
         prevScrollHeight = container.scrollHeight;
@@ -246,8 +269,10 @@ export const ChannelMessageList = forwardRef<
         <div
           ref={messagesContainerRef}
           className="flex-grow overflow-y-auto overflow-x-hidden flex flex-col bg-discord-dark-200 text-discord-text-normal relative"
+          // Disable CSS scroll anchoring — it compounds with our useLayoutEffect delta correction causing double-jumps in browser.
+          style={{ overflowAnchor: "none" }}
         >
-          {isLoadingHistory && !isLoadingMore ? (
+          {isLoadingHistory && !isFetchingMore ? (
             <div className="flex-grow flex items-center justify-center">
               <LoadingSpinner
                 size="lg"
@@ -257,41 +282,18 @@ export const ChannelMessageList = forwardRef<
             </div>
           ) : (
             <div ref={messagesInnerRef} className="flex flex-col">
-              {isLoadingMore && (
-                <div className="flex justify-center py-2">
-                  <LoadingSpinner
-                    size="sm"
-                    text="Loading older messages..."
-                    className="text-discord-text-muted"
-                  />
-                </div>
-              )}
-              {hasMoreMessages && !searchQuery && !isLoadingMore && (
+              {hasMoreMessages && !searchQuery && (
                 <div className="flex justify-center py-2">
                   <button
                     type="button"
                     onClick={() => {
                       if (locallyHidden) {
-                        if (scrollUpStartRef.current !== null) {
-                          scrollUpStartRef.current = Math.max(
-                            0,
-                            scrollUpStartRef.current - 100,
-                          );
-                        }
                         setVisibleMessageCount((prev) => prev + 100);
                       } else if (serverHasMore && channel && channelId) {
                         const oldest = channelMessages[0];
                         if (oldest?.timestamp) {
-                          // scrollTop must be > 0 for CSS scroll anchoring to engage —
-                          // it cannot adjust scrollTop below 0 when content is prepended.
-                          const container = messagesContainerRef.current;
-                          if (container)
-                            container.scrollTop = Math.max(
-                              1,
-                              container.scrollTop,
-                            );
-                          isLoadingMoreRef.current = true;
-                          setIsLoadingMore(true);
+                          isFetchingMoreRef.current = true;
+                          setIsFetchingMore(true);
                           const ts = new Date(oldest.timestamp).toISOString();
                           ircClient.requestChathistoryBefore(
                             serverId,
@@ -301,21 +303,29 @@ export const ChannelMessageList = forwardRef<
                         }
                       }
                     }}
+                    disabled={isFetchingMore}
                     className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full text-discord-text-muted hover:text-discord-text-normal bg-discord-dark-400 hover:bg-discord-dark-300 border border-white/5 transition-all"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="w-3 h-3"
-                      aria-hidden="true"
-                    >
-                      <path d="M12 19V5M5 12l7-7 7 7" />
-                    </svg>
+                    {isFetchingMore ? (
+                      <LoadingSpinner
+                        size="sm"
+                        className="text-discord-text-muted"
+                      />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="w-3 h-3"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 19V5M5 12l7-7 7 7" />
+                      </svg>
+                    )}
                     {locallyHidden
                       ? `${filteredMessages.length - displayedMessages.length} older messages`
                       : "Load older messages"}

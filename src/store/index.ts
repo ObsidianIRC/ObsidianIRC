@@ -95,7 +95,7 @@ interface BatchInfo {
   parameters?: string[];
   events: BatchEvent[];
   startTime: Date;
-  messageCount?: number;
+  pendingMessages?: Message[];
 }
 
 interface Attachment {

@@ -47,6 +47,11 @@ export function useScrollToBottom(
 
     if (!container || !endElement) return;
 
+    // Reset immediately — stale isScrolledUp from the previous channel would show
+    // the scroll-to-bottom button briefly until the new IntersectionObserver fires.
+    setIsScrolledUp(false);
+    wasAtBottomRef.current = true;
+
     // Tracks whether the user is actively wheeling upward.
     // Suppresses scroll/IO callbacks from resetting wasAtBottomRef to true while the
     // user is mid-gesture — prevents the "within-tolerance bounce" where a slow upward

@@ -952,6 +952,7 @@ export class IRCClient implements IRCClientContext {
         messages: [],
         users: [],
         isLoadingHistory: !!server.capabilities?.includes("draft/chathistory"), // Only loading if we requested history
+        hasMoreHistory: !!server.capabilities?.includes("draft/chathistory"), // Assume there's history until proven otherwise
         needsWhoRequest: true, // Need to request WHO after CHATHISTORY completes (or immediately if no CHATHISTORY)
         chathistoryRequested:
           !!server.capabilities?.includes("draft/chathistory"), // Mark that we've requested CHATHISTORY only if supported

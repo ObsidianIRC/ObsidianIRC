@@ -137,12 +137,16 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                   ...state.activeBatches[response.serverId],
                   [batchId]: {
                     ...batch,
-                    messageCount: (batch.messageCount ?? 0) + 1,
+                    pendingMessages: [
+                      ...(batch.pendingMessages ?? []),
+                      newMessage,
+                    ],
                   },
                 },
               },
             };
           });
+          return;
         }
 
         if (
@@ -191,8 +195,8 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           }
         }
 
-        // If message has bot tag, mark user as bot
-        if (mtags?.bot !== undefined) {
+        // If message has bot tag, mark user as bot (skip for historical — live messages will set this)
+        if (!isHistoricalMessage && mtags?.bot !== undefined) {
           store.setState((state) => {
             let hasChanges = false;
             const updatedServers = state.servers.map((s) => {
