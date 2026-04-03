@@ -138,7 +138,6 @@ export const ChannelMessageList = forwardRef<
       );
     }, [channelMessages, searchQuery]);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: ref mirror, no side effects
     useEffect(() => {
       isScrolledUpRef.current = isScrolledUp;
     }, [isScrolledUp]);
@@ -196,7 +195,6 @@ export const ChannelMessageList = forwardRef<
     }, [isLoadingHistory]);
 
     // When older messages are prepended, grow the window so they enter displayedMessages.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: setter is stable; refs don't need to be deps
     useLayoutEffect(() => {
       const newLength = filteredMessages.length;
       const newFirstId = filteredMessages[0]?.id ?? null;

@@ -781,8 +781,13 @@ export function MediaViewerModal({
         e.preventDefault();
         onClose();
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        // Don't steal arrow keys from the zoom range input
-        if ((e.target as Element).closest?.("input[type='range']")) return;
+        const target = e.target as HTMLElement;
+        if (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable
+        )
+          return;
         if (e.key === "ArrowLeft" && prevValidIndexRef.current !== undefined)
           goTo(prevValidIndexRef.current);
         if (e.key === "ArrowRight" && nextValidIndexRef.current !== undefined)

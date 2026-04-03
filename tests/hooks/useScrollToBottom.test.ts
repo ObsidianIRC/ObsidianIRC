@@ -49,6 +49,14 @@ describe("isScrolledToBottom", () => {
   });
 });
 
+function setDim(
+  el: HTMLElement,
+  key: "clientHeight" | "scrollHeight",
+  value: number,
+) {
+  Object.defineProperty(el, key, { value, configurable: true, writable: true });
+}
+
 describe("useScrollToBottom", () => {
   let mockContainer: HTMLElement;
   let mockEndElement: HTMLElement;
@@ -293,8 +301,8 @@ describe("useScrollToBottom", () => {
   it("should scroll to bottom when container shrinks (input grows) even if IntersectionObserver fired first", () => {
     // At bottom: scrollTop(800) + clientHeight(300) = scrollHeight(1100)
     mockContainer.scrollTop = 800;
-    (mockContainer as any).clientHeight = 300;
-    (mockContainer as any).scrollHeight = 1100;
+    setDim(mockContainer, "clientHeight", 300);
+    setDim(mockContainer, "scrollHeight", 1100);
 
     renderHook(() => {
       const containerRef = useRef(mockContainer);
@@ -321,7 +329,7 @@ describe("useScrollToBottom", () => {
     });
 
     // Input bar grows — container clientHeight shrinks, scrollHeight unchanged
-    (mockContainer as any).clientHeight = 250;
+    setDim(mockContainer, "clientHeight", 250);
 
     act(() => {
       resizeObserverCallbacks[0]([], {} as ResizeObserver);
@@ -333,8 +341,8 @@ describe("useScrollToBottom", () => {
   it("should not scroll to bottom on container shrink when user was scrolled up", () => {
     // Not at bottom: scrollTop(300) + clientHeight(300) = 600 < scrollHeight(1100)
     mockContainer.scrollTop = 300;
-    (mockContainer as any).clientHeight = 300;
-    (mockContainer as any).scrollHeight = 1100;
+    setDim(mockContainer, "clientHeight", 300);
+    setDim(mockContainer, "scrollHeight", 1100);
 
     renderHook(() => {
       const containerRef = useRef(mockContainer);
@@ -342,7 +350,7 @@ describe("useScrollToBottom", () => {
       return useScrollToBottom(containerRef, endElementRef);
     });
 
-    (mockContainer as any).clientHeight = 250;
+    setDim(mockContainer, "clientHeight", 250);
 
     act(() => {
       resizeObserverCallbacks[0]([], {} as ResizeObserver);

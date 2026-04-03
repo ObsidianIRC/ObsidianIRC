@@ -31,6 +31,37 @@ function extractHostname(url: string): string | null {
   }
 }
 
+function isEmbeddablePath(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname;
+
+    if (host === "youtube.com") {
+      return (
+        (path === "/watch" && !!u.searchParams.get("v")) ||
+        /^\/shorts\/[\w-]+/.test(path) ||
+        /^\/live\/[\w-]+/.test(path)
+      );
+    }
+    if (host === "youtu.be") {
+      // all youtu.be paths are video short-links
+      return path.length > 1;
+    }
+    if (host === "vimeo.com") {
+      // video IDs are numeric; channel/group/user pages are not
+      return /^\/\d+/.test(path);
+    }
+    if (host === "soundcloud.com") {
+      // tracks are artist/track (2 segments); artist pages are just /artist
+      return path.split("/").filter(Boolean).length >= 2;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Detect media type from a URL. Returns null if not recognised. */
 export function detectMediaType(url: string): MediaType | null {
   const hostname = extractHostname(url);
@@ -38,7 +69,9 @@ export function detectMediaType(url: string): MediaType | null {
 
   for (const domain of Object.keys(TRUSTED_EMBED_DOMAINS)) {
     if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-      return TRUSTED_EMBED_DOMAINS[domain];
+      const type = TRUSTED_EMBED_DOMAINS[domain];
+      if (type === "embed" && !isEmbeddablePath(url)) return null;
+      return type;
     }
   }
 
@@ -109,7 +142,9 @@ function detectTrustedDomainType(url: string): MediaType | null {
   if (hostname === null) return null;
   for (const domain of Object.keys(TRUSTED_EMBED_DOMAINS)) {
     if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-      return TRUSTED_EMBED_DOMAINS[domain];
+      const type = TRUSTED_EMBED_DOMAINS[domain];
+      if (type === "embed" && !isEmbeddablePath(url)) return null;
+      return type;
     }
   }
   return null;

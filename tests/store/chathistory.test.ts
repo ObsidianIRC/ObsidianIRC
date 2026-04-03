@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import ircClient from "../../src/lib/ircClient";
+import type { AppState } from "../../src/store";
 import useStore from "../../src/store";
 import type { Channel, Message } from "../../src/types";
 
@@ -51,7 +52,7 @@ function setupServer() {
     ],
     messages: {},
     activeBatches: {},
-  } as any);
+  } as unknown as AppState);
 }
 
 describe("chathistory batch — PART events", () => {

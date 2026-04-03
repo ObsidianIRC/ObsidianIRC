@@ -45,21 +45,45 @@ describe("detectMediaType", () => {
   test("returns 'pdf' for .pdf URLs", () => {
     expect(detectMediaType("https://example.com/doc.pdf")).toBe("pdf");
   });
-  test("returns 'embed' for youtube.com", () => {
+  test("returns 'embed' for youtube.com watch URLs", () => {
     expect(detectMediaType("https://www.youtube.com/watch?v=abc")).toBe(
       "embed",
     );
+    expect(detectMediaType("https://www.youtube.com/shorts/abc123")).toBe(
+      "embed",
+    );
+    expect(detectMediaType("https://www.youtube.com/live/abc123")).toBe(
+      "embed",
+    );
+  });
+  test("returns null for youtube.com channel/user pages", () => {
+    expect(
+      detectMediaType("https://www.youtube.com/@programmingchaos8957"),
+    ).toBeNull();
+    expect(
+      detectMediaType("https://www.youtube.com/channel/UCxxxxxx"),
+    ).toBeNull();
+    expect(detectMediaType("https://www.youtube.com/user/username")).toBeNull();
+    expect(detectMediaType("https://www.youtube.com/c/channelname")).toBeNull();
+    expect(detectMediaType("https://www.youtube.com/watch")).toBeNull();
   });
   test("returns 'embed' for youtu.be", () => {
     expect(detectMediaType("https://youtu.be/abc")).toBe("embed");
   });
-  test("returns 'embed' for vimeo.com", () => {
-    expect(detectMediaType("https://vimeo.com/123")).toBe("embed");
+  test("returns 'embed' for vimeo.com video URLs", () => {
+    expect(detectMediaType("https://vimeo.com/123456")).toBe("embed");
   });
-  test("returns 'embed' for soundcloud.com", () => {
+  test("returns null for vimeo.com non-video pages", () => {
+    expect(detectMediaType("https://vimeo.com/channels/mychannel")).toBeNull();
+    expect(detectMediaType("https://vimeo.com/groups/mygroup")).toBeNull();
+  });
+  test("returns 'embed' for soundcloud.com track URLs", () => {
     expect(detectMediaType("https://soundcloud.com/artist/track")).toBe(
       "embed",
     );
+  });
+  test("returns null for soundcloud.com artist pages", () => {
+    expect(detectMediaType("https://soundcloud.com/artist")).toBeNull();
   });
   test("returns 'image' for imgur.com image URLs", () => {
     expect(detectMediaType("https://imgur.com/abc.jpg")).toBe("image");

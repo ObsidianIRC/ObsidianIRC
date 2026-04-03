@@ -788,6 +788,7 @@ const SoundCloudEmbed: React.FC<{
   channelId?: string;
 }> = ({ url, msgid, serverId, channelId }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [embedError, setEmbedError] = useState(false);
 
   const height = /\/sets\//.test(url) ? 350 : 166;
   const src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=false`;
@@ -847,6 +848,8 @@ const SoundCloudEmbed: React.FC<{
     return () => window.removeEventListener("message", handleMessage);
   }, [url, msgid, serverId, channelId]);
 
+  if (embedError) return null;
+
   return (
     <div className="max-w-md relative">
       <iframe
@@ -859,6 +862,7 @@ const SoundCloudEmbed: React.FC<{
         allow="autoplay"
         title="SoundCloud player"
         style={{ borderRadius: 4, display: "block" }}
+        onError={() => setEmbedError(true)}
       />
     </div>
   );
@@ -872,6 +876,7 @@ const EmbedPreview: React.FC<{
 }> = ({ url, msgid, serverId, channelId }) => {
   const mediaViewerOpen = useStore((state) => state.ui.openedMedia !== null);
   const [playerKey, setPlayerKey] = useState(0);
+  const [embedError, setEmbedError] = useState(false);
 
   const { isActive, isPlaying } = useMediaController({
     url,
@@ -898,6 +903,8 @@ const EmbedPreview: React.FC<{
       ? 152
       : 380
     : null;
+
+  if (embedError) return null;
 
   return (
     <div className="max-w-md relative group">
@@ -943,6 +950,7 @@ const EmbedPreview: React.FC<{
               setPlayerKey((k) => k + 1);
               useStore.getState().pauseActiveMedia();
             }}
+            onError={() => setEmbedError(true)}
           />
         </div>
       </Suspense>
