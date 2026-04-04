@@ -38,161 +38,162 @@ export function getCachedProbeResult(
   return cache.get(url) ?? null;
 }
 
-export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
-  if (cache.has(url)) return cache.get(url) ?? null;
-
+async function tryHttpFetch(
+  url: string,
+  method: "HEAD" | "GET",
+): Promise<{ contentType: string; contentLength?: number } | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5_000);
-
   try {
+    const headers: Record<string, string> =
+      // Range: bytes=0-0 avoids downloading the full file body
+      method === "GET" ? { Range: "bytes=0-0" } : {};
     const response = await fetch(url, {
-      method: "HEAD",
+      method,
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timer);
-
-    if (!response.ok) {
-      // Some streaming servers (e.g. Icecast) return 4xx status with a media Content-Type.
-      // Trust the Content-Type for known media MIME types rather than bailing on status code.
-      const ct = (response.headers.get("Content-Type") ?? "")
-        .split(";")[0]
-        .trim();
-      if (ct.startsWith("audio/")) {
-        const result: ProbeResult = {
-          type: "audio",
-          streamable: true,
-          skipped: false,
-        };
-        cacheSet(url, result);
-        return result;
-      }
-      if (ct.startsWith("video/")) {
-        const result: ProbeResult = {
-          type: "video",
-          streamable: false,
-          skipped: false,
-        };
-        cacheSet(url, result);
-        return result;
-      }
-      cacheSet(url, null);
-      return null;
-    }
-
-    const contentType = response.headers.get("Content-Type") ?? "";
-    const rawType = contentType.split(";")[0].trim();
-
-    let type: MediaType;
-    if (rawType.startsWith("video/")) {
-      type = "video";
-    } else if (rawType.startsWith("audio/")) {
-      type = "audio";
-    } else if (rawType.startsWith("image/")) {
-      type = "image";
-    } else if (rawType === "application/pdf") {
-      type = "pdf";
-    } else {
-      cacheSet(url, null);
-      return null;
-    }
-
+    const ct = (response.headers.get("Content-Type") ?? "")
+      .split(";")[0]
+      .trim();
+    if (!ct) return null;
     const lengthHeader = response.headers.get("Content-Length");
     const contentLength =
       lengthHeader !== null ? Number(lengthHeader) : undefined;
+    return { contentType: ct, contentLength };
+  } catch (_err) {
+    clearTimeout(timer);
+    return null;
+  }
+}
 
-    if (
-      type === "video" &&
-      contentLength !== undefined &&
-      contentLength > 52_428_800
-    ) {
-      const result: ProbeResult = {
-        type,
-        size: contentLength,
-        streamable: false,
-        skipped: true,
-      };
-      cacheSet(url, result);
-      return result;
-    }
+/**
+ * Tries HEAD then GET (with Range: bytes=0-0) to read the Content-Type header.
+ * Some streaming servers (e.g. Icecast) reject HEAD but respond correctly to GET.
+ */
+async function fetchContentType(
+  url: string,
+): Promise<{ contentType: string; contentLength?: number } | null> {
+  const head = await tryHttpFetch(url, "HEAD");
+  if (head) return head;
+  return tryHttpFetch(url, "GET");
+}
 
-    const streamable = type === "audio" && contentLength === undefined;
+/** Maps a Content-Type to a ProbeResult. Single source of truth for media classification. */
+function classifyContentType(
+  contentType: string,
+  contentLength?: number,
+): ProbeResult | null {
+  let type: MediaType;
+  if (contentType.startsWith("video/")) {
+    type = "video";
+  } else if (contentType.startsWith("audio/")) {
+    type = "audio";
+  } else if (contentType.startsWith("image/")) {
+    type = "image";
+  } else if (contentType === "application/pdf") {
+    type = "pdf";
+  } else {
+    return null;
+  }
+
+  if (
+    type === "video" &&
+    contentLength !== undefined &&
+    contentLength > 52_428_800
+  ) {
+    return { type, size: contentLength, streamable: false, skipped: true };
+  }
+
+  const streamable = type === "audio" && contentLength === undefined;
+  return { type, size: contentLength, streamable, skipped: false };
+}
+
+export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
+  if (cache.has(url)) return cache.get(url) ?? null;
+
+  // Primary path: HTTP Content-Type is the single source of truth.
+  // HEAD is tried first; GET fallback covers servers that reject HEAD (e.g. Icecast).
+  const fetched = await fetchContentType(url);
+  if (fetched) {
+    const result = classifyContentType(
+      fetched.contentType,
+      fetched.contentLength,
+    );
+    cacheSet(url, result);
+    return result;
+  }
+
+  // HTTP failed (CORS, network error, timeout). Trust the file extension before
+  // media-element probing: <video> elements can load audio-only files (.mp3 fires
+  // loadedmetadata), which would misclassify audio as video when HEAD is blocked.
+  const extType = detectMediaType(url);
+  if (extType === "audio" || extType === "video" || extType === "pdf") {
     const result: ProbeResult = {
-      type,
-      size: contentLength,
-      streamable,
+      type: extType,
+      streamable: extType === "audio",
       skipped: false,
     };
     cacheSet(url, result);
     return result;
-  } catch (err) {
-    clearTimeout(timer);
-
-    // Intentional abort (timeout) — don't try further.
-    if (err instanceof Error && err.name === "AbortError") {
-      cacheSet(url, null);
-      return null;
-    }
-
-    // HEAD failed, most likely CORS (no Access-Control-Allow-Origin header).
-    // <audio>/<video> elements load cross-origin media without CORS restrictions,
-    // so use them to detect audio/video when fetch can't read the response.
-    // Probe video first: <audio> can play mp4 audio tracks, misclassifying video as audio.
-    const isVideo = await probeViaMediaElement(url, "video");
-    if (isVideo) {
-      const result: ProbeResult = {
-        type: "video",
-        streamable: false,
-        skipped: false,
-      };
-      cacheSet(url, result);
-      return result;
-    }
-    const isAudio = await probeViaMediaElement(url, "audio");
-    if (isAudio) {
-      const result: ProbeResult = {
-        type: "audio",
-        streamable: true,
-        skipped: false,
-      };
-      cacheSet(url, result);
-      return result;
-    }
-
-    // Image elements load cross-origin without CORS restrictions — use them
-    // as a last resort to confirm image URLs when fetch() is blocked.
-    // If the server returns HTML (e.g. a .png path that serves a gallery page),
-    // the img element fires onerror, keeping the result null.
-    // Special case: WebKit (Safari/WKWebView) renders PDFs inside <img>, so
-    // probeViaImageElement succeeds for PDF URLs. We still classify those as
-    // "pdf" so the modal shows the PDF viewer with page navigation instead of
-    // the plain image viewer.
-    const isImage = await probeViaImageElement(url);
-    if (isImage) {
-      const isPdf = detectMediaType(url) === "pdf";
-      const result: ProbeResult = {
-        type: isPdf ? "pdf" : "image",
-        streamable: false,
-        skipped: false,
-      };
-      cacheSet(url, result);
-      return result;
-    }
-
-    // All probes failed. Trust the file extension as a last resort for PDF URLs so
-    // react-pdf can attempt to render them (e.g. Chrome/Firefox where <img> rejects PDFs).
-    if (detectMediaType(url) === "pdf") {
-      const result: ProbeResult = {
-        type: "pdf",
-        streamable: false,
-        skipped: false,
-      };
-      cacheSet(url, result);
-      return result;
-    }
-
-    cacheSet(url, null);
-    return null;
   }
+
+  // Last resort: media element probes for extensionless URLs where HTTP is blocked by CORS.
+  // probeViaVideoElement returns true only when videoWidth > 0 (actual video track),
+  // correctly excluding audio-only streams that load in <video> but have videoWidth=0.
+  const isVideo = await probeViaVideoElement(url);
+  if (isVideo) {
+    const result: ProbeResult = {
+      type: "video",
+      streamable: false,
+      skipped: false,
+    };
+    cacheSet(url, result);
+    return result;
+  }
+
+  const isAudio = await probeViaAudioElement(url);
+  if (isAudio) {
+    const result: ProbeResult = {
+      type: "audio",
+      streamable: true,
+      skipped: false,
+    };
+    cacheSet(url, result);
+    return result;
+  }
+
+  // Image elements load cross-origin without CORS restrictions — use as last resort.
+  // Special case: WebKit (Safari/WKWebView) renders PDFs inside <img>, so
+  // probeViaImageElement succeeds for PDF URLs. Check the extension afterward to
+  // correctly classify them as "pdf" so the PDF viewer is shown instead of image viewer.
+  const isImage = await probeViaImageElement(url);
+  if (isImage) {
+    const isPdf = detectMediaType(url) === "pdf";
+    const result: ProbeResult = {
+      type: isPdf ? "pdf" : "image",
+      streamable: false,
+      skipped: false,
+    };
+    cacheSet(url, result);
+    return result;
+  }
+
+  // All probes failed. Trust the file extension as a last resort for PDF URLs so
+  // react-pdf can attempt to render them (e.g. Chrome/Firefox where <img> rejects PDFs).
+  if (detectMediaType(url) === "pdf") {
+    const result: ProbeResult = {
+      type: "pdf",
+      streamable: false,
+      skipped: false,
+    };
+    cacheSet(url, result);
+    return result;
+  }
+
+  cacheSet(url, null);
+  return null;
 }
 
 // Tries to load a URL as an image using a temporary img element.
@@ -216,22 +217,42 @@ function probeViaImageElement(url: string): Promise<boolean> {
   });
 }
 
-// Tries to load a URL as audio or video using a temporary media element.
-// loadedmetadata fires if the browser can decode it; error fires otherwise.
-// This bypasses CORS restrictions that block fetch() for cross-origin servers.
-function probeViaMediaElement(
-  url: string,
-  tag: "audio" | "video",
-): Promise<boolean> {
+// Returns true only when the URL has actual video tracks (videoWidth > 0 after
+// loadedmetadata). Audio-only files and streams load fine in a <video> element
+// but always report videoWidth=0, so they are correctly excluded.
+function probeViaVideoElement(url: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const el = document.createElement(tag);
+    const el = document.createElement("video");
     el.preload = "metadata";
     let settled = false;
     const done = (result: boolean) => {
       if (settled) return;
       settled = true;
       el.src = "";
-      el.load(); // abort pending network activity
+      el.load();
+      resolve(result);
+    };
+    el.addEventListener("loadedmetadata", () => done(el.videoWidth > 0), {
+      once: true,
+    });
+    el.addEventListener("error", () => done(false), { once: true });
+    setTimeout(() => done(false), 5_000);
+    el.src = url;
+  });
+}
+
+// Returns true when the URL can be decoded as audio.
+// This bypasses CORS restrictions that block fetch() for cross-origin servers.
+function probeViaAudioElement(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const el = document.createElement("audio");
+    el.preload = "metadata";
+    let settled = false;
+    const done = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      el.src = "";
+      el.load();
       resolve(result);
     };
     // loadedmetadata fires for regular files; canplay also catches live streams

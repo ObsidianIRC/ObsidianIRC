@@ -41,7 +41,14 @@ export function useMediaController(
   } = options;
 
   const activeMedia = useStore((s) => s.ui.activeMedia);
-  const isActive = activeMedia?.url === url && activeMedia?.type === type;
+  // Include msgid so two players for the same URL (same file shared in two messages)
+  // don't both become active simultaneously and play audio twice.
+  const isActive =
+    activeMedia?.url === url &&
+    activeMedia?.type === type &&
+    (msgid == null ||
+      activeMedia?.msgid == null ||
+      activeMedia?.msgid === msgid);
   const isPlaying = isActive && activeMedia?.isPlaying === true;
 
   const onExternalStopRef = useRef(onExternalStop);
