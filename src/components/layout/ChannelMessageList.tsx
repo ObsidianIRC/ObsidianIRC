@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { useScrollToBottom } from "../../hooks/useScrollToBottom";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
@@ -290,9 +291,14 @@ export const ChannelMessageList = forwardRef<
                       } else if (serverHasMore && channel && channelId) {
                         const oldest = channelMessages[0];
                         if (oldest?.timestamp) {
-                          isFetchingMoreRef.current = true;
-                          setIsFetchingMore(true);
                           const ts = new Date(oldest.timestamp).toISOString();
+                          // flushSync: CHATHISTORY_LOADING sets isLoadingHistory=true via Zustand
+                          // synchronously; on fast connections the batch can finish before React
+                          // flushes setIsFetchingMore(true), so the spinner never appears.
+                          flushSync(() => {
+                            isFetchingMoreRef.current = true;
+                            setIsFetchingMore(true);
+                          });
                           ircClient.requestChathistoryBefore(
                             serverId,
                             channel.name,
@@ -307,6 +313,7 @@ export const ChannelMessageList = forwardRef<
                     {isFetchingMore ? (
                       <LoadingSpinner
                         size="sm"
+                        text=""
                         className="text-discord-text-muted"
                       />
                     ) : (
@@ -324,9 +331,11 @@ export const ChannelMessageList = forwardRef<
                         <path d="M12 19V5M5 12l7-7 7 7" />
                       </svg>
                     )}
-                    {locallyHidden
-                      ? `${filteredMessages.length - displayedMessages.length} older messages`
-                      : "Load older messages"}
+                    {isFetchingMore
+                      ? "Getting more messages..."
+                      : locallyHidden
+                        ? `${filteredMessages.length - displayedMessages.length} older messages`
+                        : "Load older messages"}
                   </button>
                 </div>
               )}

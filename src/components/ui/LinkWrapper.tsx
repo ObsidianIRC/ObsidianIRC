@@ -150,12 +150,14 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
             return child;
           }
           // Skip elements with dangerouslySetInnerHTML to avoid conflicts
-          if ((child as React.ReactElement).props?.dangerouslySetInnerHTML) {
+          const childProps = (child as React.ReactElement).props as {
+            dangerouslySetInnerHTML?: unknown;
+            children?: React.ReactNode;
+          };
+          if (childProps?.dangerouslySetInnerHTML) {
             return child;
           }
-          const processed = processChildren(
-            (child as React.ReactElement).props?.children,
-          );
+          const processed = processChildren(childProps?.children);
           return cloneElement(
             child as React.ReactElement,
             undefined,

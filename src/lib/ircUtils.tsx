@@ -735,11 +735,15 @@ export function mircToHtml(text: string, keyPrefix = ""): React.ReactNode {
   const elementIndexRef = { current: 0 };
   result.forEach((node, index) => {
     if (React.isValidElement(node) && node.type === "span") {
-      const textContent = node.props.children;
+      const props = node.props as {
+        children?: React.ReactNode;
+        style?: React.CSSProperties;
+      };
+      const textContent = props.children;
       if (typeof textContent === "string") {
         const urlProcessed = processUrlsInText(
           textContent,
-          node.props.style,
+          props.style,
           keyPrefix,
           elementIndexRef,
         );

@@ -25,8 +25,8 @@ export interface UseScrollToBottomReturn {
 }
 
 export function useScrollToBottom(
-  containerRef: RefObject<HTMLElement>,
-  endElementRef: RefObject<HTMLElement>,
+  containerRef: RefObject<HTMLElement | null>,
+  endElementRef: RefObject<HTMLElement | null>,
   options: UseScrollToBottomOptions = {},
 ): UseScrollToBottomReturn {
   const { tolerance = SCROLL_TOLERANCE, channelId } = options;
@@ -46,11 +46,6 @@ export function useScrollToBottom(
     const endElement = endElementRef.current;
 
     if (!container || !endElement) return;
-
-    // Reset immediately — stale isScrolledUp from the previous channel would show
-    // the scroll-to-bottom button briefly until the new IntersectionObserver fires.
-    setIsScrolledUp(false);
-    wasAtBottomRef.current = true;
 
     // Tracks whether the user is actively wheeling upward.
     // Suppresses scroll/IO callbacks from resetting wasAtBottomRef to true while the
@@ -88,6 +83,11 @@ export function useScrollToBottom(
     const observer = new IntersectionObserver(
       (entries) => {
         const isVisible = entries[0].isIntersecting;
+        // When the keep-alive channel wrapper goes display:none, IO fires isIntersecting:false.
+        // At that point the container's layout dimensions collapse to 0, so
+        // isScrolledToBottom() returns true — discard the callback to avoid corrupting state.
+        // This also covers stale callbacks that arrive after the channel becomes visible again.
+        if (!isVisible && isScrolledToBottom(container, tolerance)) return;
         setIsScrolledUp(!isVisible);
         if (wheelUpActive) {
           if (!isVisible) {

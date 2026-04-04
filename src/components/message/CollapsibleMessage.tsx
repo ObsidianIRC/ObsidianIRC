@@ -2,6 +2,7 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import type * as React from "react";
 import {
   forwardRef,
+  useCallback,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
@@ -63,7 +64,7 @@ export const CollapsibleMessage = forwardRef<
     return () => resizeObserver.disconnect();
   }, [maxLines, onNeedsCollapsing]);
 
-  const toggleExpanded = () => {
+  const toggleExpanded = useCallback(() => {
     const willExpand = !isExpanded;
 
     if (willExpand && contentRef.current) {
@@ -90,9 +91,11 @@ export const CollapsibleMessage = forwardRef<
     }
 
     setIsExpanded(willExpand);
-  };
+  }, [isExpanded]);
 
-  useImperativeHandle(ref, () => ({ toggle: toggleExpanded }));
+  useImperativeHandle(ref, () => ({ toggle: toggleExpanded }), [
+    toggleExpanded,
+  ]);
 
   return (
     <div className="collapsible-message">
@@ -135,5 +138,4 @@ export const CollapsibleMessage = forwardRef<
     </div>
   );
 });
-
 CollapsibleMessage.displayName = "CollapsibleMessage";

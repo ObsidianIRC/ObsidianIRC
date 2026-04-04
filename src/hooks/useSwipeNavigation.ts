@@ -9,7 +9,7 @@ interface SwipeNavigationConfig {
 }
 
 interface SwipeNavigationReturn {
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   offset: number;
   isTransitioning: boolean;
   handleTouchStart: (e: React.TouchEvent) => void;

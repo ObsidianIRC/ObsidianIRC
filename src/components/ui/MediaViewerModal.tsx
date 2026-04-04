@@ -459,7 +459,7 @@ export function MediaViewerModal({
   const prevValidIndexRef = useRef<number | undefined>(undefined);
   const nextValidIndexRef = useRef<number | undefined>(undefined);
   // Debounce timer: slider state update is deferred during high-frequency gestures
-  const sliderDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const sliderDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     return () => clearTimeout(sliderDebounceRef.current);
