@@ -392,4 +392,40 @@ describe("useScrollToBottom", () => {
 
     expect(mockContainer.scrollTop).toBe(200);
   });
+
+  it("should discard IO callback when display:none collapses dims so wasAtBottomRef stays true", () => {
+    // wasAtBottomRef starts true. When a keep-alive channel goes display:none, IO fires
+    // isIntersecting:false while all dims are 0. isScrolledToBottom(container) returns true
+    // (0-0-0 < tolerance), so without the guard we'd wrongly set wasAtBottomRef=false and
+    // break auto-scroll when the channel becomes visible again.
+    const { result } = renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // Collapse all dims — display:none
+    setDim(mockContainer, "clientHeight", 0);
+    setDim(mockContainer, "scrollHeight", 0);
+    mockContainer.scrollTop = 0;
+
+    act(() => {
+      observerCallbacks[0](
+        [
+          {
+            isIntersecting: false,
+            target: mockEndElement,
+            boundingClientRect: {} as DOMRectReadOnly,
+            intersectionRatio: 0,
+            intersectionRect: {} as DOMRectReadOnly,
+            rootBounds: null,
+            time: 0,
+          } as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver,
+      );
+    });
+
+    expect(result.current.wasAtBottomRef.current).toBe(true);
+  });
 });

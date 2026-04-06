@@ -64,6 +64,9 @@ export function useScrollToBottom(
     };
 
     const checkIfScrolledToBottom = () => {
+      // Skip when container is display:none — all dimensions collapse to 0,
+      // so isScrolledToBottom returns true and corrupts wasAtBottomRef.
+      if (container.clientHeight === 0) return;
       const atBottom = isScrolledToBottom(container, tolerance);
       setIsScrolledUp(!atBottom);
       if (wheelUpActive) {
@@ -87,7 +90,9 @@ export function useScrollToBottom(
         // At that point the container's layout dimensions collapse to 0, so
         // isScrolledToBottom() returns true — discard the callback to avoid corrupting state.
         // This also covers stale callbacks that arrive after the channel becomes visible again.
-        if (!isVisible && isScrolledToBottom(container, tolerance)) return;
+        if (!isVisible && isScrolledToBottom(container, tolerance)) {
+          return;
+        }
         setIsScrolledUp(!isVisible);
         if (wheelUpActive) {
           if (!isVisible) {
@@ -168,6 +173,13 @@ export function useScrollToBottom(
     let prevClientHeight = container.clientHeight;
 
     const observer = new ResizeObserver(() => {
+      if (container.clientHeight === 0) return;
+      // Effect may re-initialize while container is display:none (prevClientHeight=0).
+      // Re-seed with current dimensions and skip — no reliable "was at bottom" data.
+      if (prevClientHeight === 0) {
+        prevClientHeight = container.clientHeight;
+        return;
+      }
       const wasAtBottom =
         container.scrollTop + prevClientHeight >=
         container.scrollHeight - tolerance;

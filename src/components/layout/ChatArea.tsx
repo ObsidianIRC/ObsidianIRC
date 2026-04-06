@@ -176,6 +176,10 @@ export const ChatArea: React.FC<{
   // Per-channel draft storage. messageTextRef is the source of truth for the input value.
   // It is updated imperatively (never from state), so no re-render occurs on each keystroke.
   const draftMap = useRef<Map<string, string>>(new Map());
+  // Per-channel scroll position. null = was at bottom (restore to bottom).
+  const scrollPositionMapRef = useRef<
+    Map<string, { scrollTop: number; visibleCount: number } | null>
+  >(new Map());
   const messageTextRef = useRef("");
   const hasTextRef = useRef(false);
   // platform() is stable at runtime — ref avoids adding it to useCallback deps.
@@ -664,6 +668,24 @@ export const ChatArea: React.FC<{
     const key = channelKey;
     return () => {
       if (key) draftMap.current.set(key, messageTextRef.current);
+    };
+  }, [channelKey]);
+
+  // Save outgoing channel's scroll position on cleanup (same pattern as draftMap).
+  useEffect(() => {
+    const key = channelKey;
+    return () => {
+      if (key) {
+        const handle = channelListRefs.current.get(key);
+        if (handle) {
+          const { scrollTop, isAtBottom, visibleCount } =
+            handle.getScrollState();
+          scrollPositionMapRef.current.set(
+            key,
+            isAtBottom ? null : { scrollTop, visibleCount },
+          );
+        }
+      }
     };
   }, [channelKey]);
 
@@ -1723,6 +1745,7 @@ export const ChatArea: React.FC<{
                 privateChatId: aPrivateChatId,
               }) => {
                 const isKeyActive = key === channelKey;
+                const savedScrollState = scrollPositionMapRef.current.get(key);
                 return (
                   <div
                     key={key}
@@ -1736,6 +1759,7 @@ export const ChatArea: React.FC<{
                         else channelListRefs.current.delete(key);
                       }}
                       channelKey={key}
+                      initialScrollState={savedScrollState}
                       serverId={aServerId}
                       channelId={aChannelId}
                       privateChatId={aPrivateChatId}
