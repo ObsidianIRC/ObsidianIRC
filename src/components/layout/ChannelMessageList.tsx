@@ -10,7 +10,10 @@ import {
   useState,
 } from "react";
 import { flushSync } from "react-dom";
-import { useScrollToBottom } from "../../hooks/useScrollToBottom";
+import {
+  SCROLL_TOLERANCE,
+  useScrollToBottom,
+} from "../../hooks/useScrollToBottom";
 import { groupConsecutiveEvents } from "../../lib/eventGrouping";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
@@ -19,6 +22,8 @@ import { CollapsedEventMessage } from "../message/CollapsedEventMessage";
 import { MessageItem } from "../message/MessageItem";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
+
+export const DEFAULT_VISIBLE_MESSAGE_COUNT = 100;
 
 export interface ChannelMessageListHandle {
   setAtBottom: () => void;
@@ -90,7 +95,7 @@ export const ChannelMessageList = forwardRef<
     ref,
   ) => {
     const [visibleMessageCount, setVisibleMessageCount] = useState(
-      initialScrollState?.visibleCount ?? 100,
+      initialScrollState?.visibleCount ?? DEFAULT_VISIBLE_MESSAGE_COUNT,
     );
     // Ref mirror so getScrollState closure always reads the current value without needing it as a dep.
     const visibleMessageCountRef = useRef(visibleMessageCount);
@@ -101,11 +106,11 @@ export const ChannelMessageList = forwardRef<
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesInnerRef = useRef<HTMLDivElement>(null);
-    // scrollHeight from the previous render — used to compute delta for scroll correction.
+    // prev scrollHeight for prepend delta-correction.
     const prevScrollHeightRef = useRef(0);
-    // Ref mirror of isScrolledUp for useLayoutEffect closures that shouldn't re-run on scroll changes.
+    // Ref mirror of isScrolledUp — lets useLayoutEffect closures read current value
+    // without listing isScrolledUp as a dep (which would re-run effects on every scroll).
     const isScrolledUpRef = useRef(false);
-    // Track first message identity to detect when older messages are prepended.
     const prevFilteredLengthRef = useRef(0);
     const prevFirstMsgIdRef = useRef<string | null>(null);
     // Set by the window-growth layoutEffect (or button handler) when a true prepend is detected.
@@ -199,14 +204,18 @@ export const ChannelMessageList = forwardRef<
       isScrolledUpRef.current = isScrolledUp;
       // When the user returns to the bottom, shrink the window back to the base so
       // slice(-N) resumes trimming old messages from the top (memory optimization).
-      // Only shrink if we grew above the base — preserves a sub-100 saved visibleCount.
+      // Only shrink if we grew above the base — preserves a sub-default saved visibleCount.
       if (!isScrolledUp) {
-        setVisibleMessageCount((prev) => (prev > 100 ? 100 : prev));
+        setVisibleMessageCount((prev) =>
+          prev > DEFAULT_VISIBLE_MESSAGE_COUNT
+            ? DEFAULT_VISIBLE_MESSAGE_COUNT
+            : prev,
+        );
       }
     }, [isScrolledUp]);
 
     // Reset ref-tracked windowing state when switching channels.
-    // visibleMessageCount is NOT reset here — useState(initialScrollState?.visibleCount ?? 100)
+    // visibleMessageCount is NOT reset here — useState(initialScrollState?.visibleCount ?? DEFAULT_VISIBLE_MESSAGE_COUNT)
     // already initializes it correctly on mount, and this effect runs once on mount for the
     // same channelKey (each instance is bound to exactly one channel by the parent key={}).
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional full reset on channel change
@@ -360,7 +369,8 @@ export const ChannelMessageList = forwardRef<
         prevClientWidth = currentClientWidth;
         const prevSH = resizeObserverPrevSHRef.current;
         const wasAtPrevBottom =
-          container.scrollTop + container.clientHeight >= prevSH - 30;
+          container.scrollTop + container.clientHeight >=
+          prevSH - SCROLL_TOLERANCE;
         resizeObserverPrevSHRef.current = container.scrollHeight;
         if (wasAtPrevBottom) {
           scrollToBottom();
@@ -410,7 +420,9 @@ export const ChannelMessageList = forwardRef<
                     onClick={() => {
                       if (locallyHidden) {
                         pendingPrependRef.current = true;
-                        setVisibleMessageCount((prev) => prev + 100);
+                        setVisibleMessageCount(
+                          (prev) => prev + DEFAULT_VISIBLE_MESSAGE_COUNT,
+                        );
                       } else if (serverHasMore && channel && channelId) {
                         const oldest = channelMessages[0];
                         if (oldest?.timestamp) {

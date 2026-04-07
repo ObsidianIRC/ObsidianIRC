@@ -34,6 +34,9 @@ export const CollapsibleMessage = forwardRef<
   // Inner wrapper whose box size changes freely — the outer contentRef is
   // max-height-clamped, so ResizeObserver on it would never fire for growing content
   const measuredContentRef = useRef<HTMLDivElement>(null);
+  // Stays false through the initial measurement render so the first collapse is instant.
+  // Flipped to true via RAF after that render commits; user expand/collapse animates after.
+  const allowTransitionRef = useRef(false);
 
   useLayoutEffect(() => {
     if (!contentRef.current || !measuredContentRef.current) return;
@@ -42,6 +45,13 @@ export const CollapsibleMessage = forwardRef<
     const measuredContent = measuredContentRef.current;
 
     const measure = () => {
+      // Skip when display:none collapses all dimensions — would corrupt state.
+      // Both must be 0: jsdom always has clientHeight=0, so the dual condition
+      // ensures we only bail in genuine display:none (scrollHeight also collapses).
+      if (element.clientHeight === 0 && measuredContent.scrollHeight === 0) {
+        allowTransitionRef.current = false;
+        return;
+      }
       const computedStyle = window.getComputedStyle(element);
       const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 16;
       const maxHeight = lineHeight * maxLines;
@@ -52,6 +62,9 @@ export const CollapsibleMessage = forwardRef<
       const needs = fullHeight > maxHeight;
       setNeedsCollapsing(needs);
       onNeedsCollapsing?.(needs);
+      requestAnimationFrame(() => {
+        allowTransitionRef.current = true;
+      });
     };
 
     measure();
@@ -85,7 +98,6 @@ export const CollapsibleMessage = forwardRef<
           container.scrollTop = container.scrollHeight;
         });
         observer.observe(contentRef.current);
-        // 350ms outlasts the 300ms CSS transition
         setTimeout(() => observer.disconnect(), 350);
       }
     }
@@ -102,13 +114,16 @@ export const CollapsibleMessage = forwardRef<
       <div className="relative">
         <div
           ref={contentRef}
-          className="transition-all duration-300 ease-in-out overflow-hidden"
+          className="overflow-hidden"
           style={{
             maxHeight: isExpanded
               ? `${contentHeight}px`
               : needsCollapsing
                 ? collapsedMaxHeight
                 : "none",
+            transition: allowTransitionRef.current
+              ? "max-height 300ms ease-in-out"
+              : "none",
           }}
         >
           <div ref={measuredContentRef}>{content}</div>

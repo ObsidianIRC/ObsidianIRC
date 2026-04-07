@@ -1,7 +1,7 @@
 import type { MutableRefObject, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const SCROLL_TOLERANCE = 30;
+export const SCROLL_TOLERANCE = 30;
 
 export function isScrolledToBottom(
   container: HTMLElement,

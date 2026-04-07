@@ -745,11 +745,23 @@ export const ChatArea: React.FC<{
   const handleSendMessage = () => {
     if (!hasTextRef.current) return;
 
-    // Tell the active channel's message list to auto-scroll after the new message lands.
+    // Block sending to offline PM targets — isOnline is explicitly false (MONITOR tracked).
+    // undefined means the server doesn't support MONITOR, so we let it through.
+    if (selectedPrivateChat?.isOnline === false && selectedServerId) {
+      useStore.getState().addGlobalNotification({
+        type: "warn",
+        command: "PRIVMSG",
+        code: "ERR_OFFLINE",
+        message: `${selectedPrivateChat.username} is offline. Your message was not sent.`,
+        target: selectedPrivateChat.username,
+        serverId: selectedServerId,
+      });
+      return;
+    }
+
     channelListRefs.current.get(channelKey)?.setAtBottom();
     sendMessage(messageTextRef.current);
 
-    // Cleanup after sending
     applyText("");
     setAutocompleteInputText("");
     draftMap.current.delete(channelKey);

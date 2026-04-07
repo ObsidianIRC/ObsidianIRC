@@ -794,9 +794,6 @@ function processUrlsInText(
     // Ensure URL has protocol
     const fullUrl = url.startsWith("http") ? url : `https://${url}`;
 
-    // Truncate long URLs for display
-    const displayText = url.length > 50 ? `${url.slice(0, 47)}...` : url;
-
     // IRC links: only make clickable on Tauri, otherwise show as plain text
     if (isIrcLink && !isTauriEnv) {
       parts.push(
@@ -819,16 +816,18 @@ function processUrlsInText(
           : "text-blue-500 hover:text-blue-700 underline";
 
       parts.push(
+        // inline-block + max-w + truncate: CSS ellipsis so the full URL text is in the
+        // DOM (copy-paste works) while long URLs don't overflow the message bubble.
         <a
           key={`${keyPrefix}url-${elementIndex++}`}
           href={isIrcLink ? url : fullUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={linkClass}
+          className={`${linkClass} inline-block max-w-[40ch] truncate align-bottom`}
           style={style}
           title={url}
         >
-          {displayText}
+          {url}
         </a>,
       );
     }

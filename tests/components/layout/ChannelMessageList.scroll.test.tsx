@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ChannelMessageList,
   type ChannelMessageListHandle,
+  DEFAULT_VISIBLE_MESSAGE_COUNT,
 } from "../../../src/components/layout/ChannelMessageList";
 import useStore from "../../../src/store";
 
@@ -84,6 +85,6 @@ describe("ChannelMessageList scroll state", () => {
 
     const state = ref.current?.getScrollState();
     expect(state?.isAtBottom).toBe(true);
-    expect(state?.visibleCount).toBe(100);
+    expect(state?.visibleCount).toBe(DEFAULT_VISIBLE_MESSAGE_COUNT);
   });
 });
