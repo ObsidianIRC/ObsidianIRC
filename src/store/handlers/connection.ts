@@ -68,9 +68,6 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
   ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
     // Prevent processing the same server's ready event multiple times
     if (readyProcessedServers.has(serverId)) {
-      console.log(
-        `[Ready] Already processed ready for ${serverId}, skipping duplicate`,
-      );
       return;
     }
     readyProcessedServers.add(serverId);

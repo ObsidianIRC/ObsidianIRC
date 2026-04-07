@@ -25,9 +25,6 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
                 } else {
                   delete metadata[key];
                 }
-                console.log(
-                  `[METADATA] Updated user ${resolvedTarget} in channel ${channel.name} with ${key}=${value}`,
-                );
                 return { ...user, metadata };
               }
               return user;
@@ -338,9 +335,6 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
               const metadata = { ...(state.currentUser.metadata || {}) };
               metadata[key] = { value, visibility };
               updatedCurrentUser = { ...state.currentUser, metadata };
-              console.log(
-                `[METADATA_KEYVALUE] Updated current user ${resolvedTarget} with ${key}=${value}`,
-              );
             }
           } else {
             if (
@@ -351,9 +345,6 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
               const metadata = { ...(state.currentUser.metadata || {}) };
               delete metadata[key];
               updatedCurrentUser = { ...state.currentUser, metadata };
-              console.log(
-                `[METADATA_KEYVALUE] Removed key ${key} from current user ${resolvedTarget}`,
-              );
             }
           }
         }
@@ -515,10 +506,6 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
   });
 
   ircClient.on("METADATA_SUBOK", ({ serverId, keys }) => {
-    console.log(
-      `[METADATA_SUBOK] Successfully subscribed to keys for server ${serverId}:`,
-      keys,
-    );
     // Update subscriptions
     store.setState((state) => {
       const currentSubs = state.metadataSubscriptions[serverId] || [];

@@ -113,28 +113,14 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
   ircClient.on(
     "RPL_BANLIST",
     ({ serverId, channel, mask, setter, timestamp }) => {
-      console.log(
-        `RPL_BANLIST received: serverId=${serverId}, channel=${channel}, mask=${mask}, setter=${setter}, timestamp=${timestamp}`,
-      );
       store.setState((state) => {
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
             const updatedChannels = server.channels.map((ch) => {
               if (ch.name === channel) {
                 const bans = ch.bans || [];
-                // Add the ban if it doesn't already exist
                 if (!bans.some((ban) => ban.mask === mask)) {
                   bans.push({ mask, setter, timestamp });
-                  console.log(`Added ban to channel ${channel}:`, {
-                    mask,
-                    setter,
-                    timestamp,
-                  });
-                } else {
-                  console.log(
-                    `Ban already exists for channel ${channel}:`,
-                    mask,
-                  );
                 }
                 return { ...ch, bans };
               }
@@ -152,28 +138,14 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
   ircClient.on(
     "RPL_INVITELIST",
     ({ serverId, channel, mask, setter, timestamp }) => {
-      console.log(
-        `RPL_INVITELIST received: serverId=${serverId}, channel=${channel}, mask=${mask}, setter=${setter}, timestamp=${timestamp}`,
-      );
       store.setState((state) => {
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
             const updatedChannels = server.channels.map((ch) => {
               if (ch.name === channel) {
                 const invites = ch.invites || [];
-                // Add the invite if it doesn't already exist
                 if (!invites.some((invite) => invite.mask === mask)) {
                   invites.push({ mask, setter, timestamp });
-                  console.log(`Added invite to channel ${channel}:`, {
-                    mask,
-                    setter,
-                    timestamp,
-                  });
-                } else {
-                  console.log(
-                    `Invite already exists for channel ${channel}:`,
-                    mask,
-                  );
                 }
                 return { ...ch, invites };
               }
@@ -191,28 +163,14 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
   ircClient.on(
     "RPL_EXCEPTLIST",
     ({ serverId, channel, mask, setter, timestamp }) => {
-      console.log(
-        `RPL_EXCEPTLIST received: serverId=${serverId}, channel=${channel}, mask=${mask}, setter=${setter}, timestamp=${timestamp}`,
-      );
       store.setState((state) => {
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
             const updatedChannels = server.channels.map((ch) => {
               if (ch.name === channel) {
                 const exceptions = ch.exceptions || [];
-                // Add the exception if it doesn't already exist
                 if (!exceptions.some((exception) => exception.mask === mask)) {
                   exceptions.push({ mask, setter, timestamp });
-                  console.log(`Added exception to channel ${channel}:`, {
-                    mask,
-                    setter,
-                    timestamp,
-                  });
-                } else {
-                  console.log(
-                    `Exception already exists for channel ${channel}:`,
-                    mask,
-                  );
                 }
                 return { ...ch, exceptions };
               }
@@ -227,15 +185,9 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
     },
   );
 
-  ircClient.on("RPL_ENDOFBANLIST", ({ serverId, channel }) => {
-    // Ban list loading is complete - could trigger UI updates if needed
-    console.log(`Ban list loaded for ${channel} on server ${serverId}`);
-  });
+  ircClient.on("RPL_ENDOFBANLIST", () => {});
 
-  ircClient.on("RPL_ENDOFINVITELIST", ({ serverId, channel }) => {
-    // Invite list loading is complete - could trigger UI updates if needed
-    console.log(`Invite list loaded for ${channel} on server ${serverId}`);
-  });
+  ircClient.on("RPL_ENDOFINVITELIST", () => {});
 
   ircClient.on("RPL_YOUREOPER", ({ serverId, message }) => {
     // Show notification that user is now an IRC operator
@@ -335,15 +287,7 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
 
   ircClient.on(
     "RPL_TOPICWHOTIME",
-    ({ serverId, channelName, setter, timestamp }) => {
-      // This provides metadata about who set the topic and when
-      // We could store this if we extend the Channel interface
-      console.log(
-        `Topic for ${channelName} was set by ${setter} at ${new Date(
-          timestamp * 1000,
-        ).toISOString()}`,
-      );
-    },
+    ({ serverId, channelName, setter, timestamp }) => {},
   );
 
   ircClient.on("RPL_NOTOPIC", ({ serverId, channelName }) => {

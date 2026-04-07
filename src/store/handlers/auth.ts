@@ -8,19 +8,10 @@ import * as storage from "../localStorage";
 
 export function registerAuthHandlers(store: StoreApi<AppState>): void {
   ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
-    console.log(
-      `[CAP_ACKNOWLEDGED] Server ${serverId} acknowledged capability: ${key} (${capabilities})`,
-    );
     if (capabilities?.startsWith("draft/metadata")) {
-      // Check if already subscribed to avoid duplicate subscriptions
       const currentSubs =
         store.getState().metadataSubscriptions[serverId] || [];
-      console.log(
-        `[CAP_ACKNOWLEDGED] Current metadata subscriptions for server ${serverId}:`,
-        currentSubs,
-      );
       if (currentSubs.length === 0) {
-        // Subscribe to common metadata keys
         const defaultKeys = [
           "url",
           "website",
@@ -29,12 +20,8 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
           "avatar",
           "color",
           "display-name",
-          "bot", // Subscribe to bot metadata for tooltip information
+          "bot",
         ];
-        console.log(
-          "[CAP_ACKNOWLEDGED] Attempting to subscribe to default metadata keys:",
-          defaultKeys,
-        );
         store.getState().metadataSub(serverId, defaultKeys);
       }
 

@@ -604,8 +604,6 @@ export class IRCClient implements IRCClientContext {
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
 
-        // Start CAP negotiation
-        console.log("🔗 Starting CAP negotiation...");
         socket.send("CAP LS 302");
 
         // Send password if provided (before CAP negotiation completes)

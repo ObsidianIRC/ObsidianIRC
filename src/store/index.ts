@@ -153,6 +153,10 @@ const savePinnedPrivateChats = storage.pinnedChats.save;
 const loadUISelections = storage.uiSelections.load;
 const saveUISelections = storage.uiSelections.save;
 
+// Preserves lastSelection (written only by selectServer/Channel/PrivateChat) when
+// sidebar-only operations (toggle, resize) call saveUISelections.
+const getStoredLastSelection = () => loadUISelections().lastSelection;
+
 function serverSupportsMetadata(serverId: string): boolean;
 function serverSupportsMetadata(serverId: string): boolean {
   const state = useStore.getState();
@@ -2677,6 +2681,7 @@ const useStore = create<AppState>((set, get) => ({
     saveUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
+      lastSelection: getStoredLastSelection(),
       sidebarPreferences: {
         ...currentPrefs,
         memberList: {
@@ -2708,6 +2713,7 @@ const useStore = create<AppState>((set, get) => ({
     saveUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
+      lastSelection: getStoredLastSelection(),
       sidebarPreferences: {
         ...currentPrefs,
         channelList: {
@@ -2733,6 +2739,7 @@ const useStore = create<AppState>((set, get) => ({
       saveUISelections({
         selectedServerId: state.ui.selectedServerId,
         perServerSelections: state.ui.perServerSelections,
+        lastSelection: getStoredLastSelection(),
         sidebarPreferences: newPrefs,
       });
 
@@ -3009,19 +3016,10 @@ const useStore = create<AppState>((set, get) => ({
 
   // Single source of truth for mobile navigation - syncs all related states
   setMobileView: (view: layoutColumn) => {
-    console.log(
-      "[SET_MOBILE_VIEW] called with:",
-      view,
-      "stack:",
-      new Error().stack,
-    );
     set((state) => {
-      // Only execute in narrow view
       const isNarrowView = state.ui.isNarrowView;
-      console.log("[SET_MOBILE_VIEW] isNarrowView:", isNarrowView);
       if (!isNarrowView) return state;
 
-      // Sync all related states based on the active column
       const updates = {
         serverList: {
           isChannelListVisible: true,
@@ -3036,8 +3034,6 @@ const useStore = create<AppState>((set, get) => ({
           isMemberListVisible: true,
         },
       }[view];
-
-      console.log("[SET_MOBILE_VIEW] setting mobileViewActiveColumn to:", view);
 
       return {
         ui: {
@@ -3282,10 +3278,6 @@ const useStore = create<AppState>((set, get) => ({
 
   metadataSub: (serverId, keys) => {
     if (serverSupportsMetadata(serverId)) {
-      console.log(
-        `[METADATA_SUB] Subscribing to keys for server ${serverId}:`,
-        keys,
-      );
       ircClient.metadataSub(serverId, keys);
     } else {
     }

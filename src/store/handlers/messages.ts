@@ -603,13 +603,6 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
   ircClient.on("USERMSG", (response) => {
     const { mtags, sender, target, message, timestamp } = response;
 
-    console.log("[USERMSG] Received:", {
-      sender,
-      target,
-      message,
-      channelContext: mtags?.["+draft/channel-context"],
-    });
-
     // Check for duplicate messages based on msgid
     if (mtags?.msgid) {
       const currentState = store.getState();
@@ -674,21 +667,8 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       const channelContext = mtags?.["+draft/channel-context"];
 
       if (channelContext) {
-        console.log("[WHISPER] Detected channel-context tag:", channelContext);
-        console.log(
-          "[WHISPER] Available channels:",
-          server.channels.map((c) => c.name),
-        );
-
-        // This is a whisper - route it to the channel specified in the tag
-        // Use case-insensitive matching
         const channel = server.channels.find(
           (c) => c.name.toLowerCase() === channelContext.toLowerCase(),
-        );
-
-        console.log(
-          "[WHISPER] Found channel:",
-          channel ? channel.name : "NOT FOUND",
         );
 
         if (channel) {
@@ -1295,10 +1275,6 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
     }
 
     // This is a user notice - treat it like a PM
-    console.log(
-      "[USERNOTICE] User notice detected, creating PM tab:",
-      response.sender,
-    );
 
     // Don't create private chats with ourselves
     const currentUser = ircClient.getCurrentUser(response.serverId);
