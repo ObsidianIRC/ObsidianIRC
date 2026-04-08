@@ -1,5 +1,5 @@
 import { v5 as uuidv5 } from "uuid";
-import type { Message } from "../types";
+import type { Channel, Message, User } from "../types";
 import type { AppState } from "./index";
 
 // Namespace UUID for generating deterministic channel/chat IDs
@@ -38,6 +38,8 @@ export function ensureUrlFormat(host: string, port: number): string {
   // Convert old hostname-only format to URL — always wss://
   return `wss://${host}:${port}`;
 }
+
+export const MAX_MESSAGES_PER_CHANNEL = 1500;
 
 // ============================================================================
 // Batch Event Types
@@ -80,7 +82,6 @@ export interface BatchInfo {
   parameters?: string[];
   events: BatchEvent[];
   startTime: Date;
-  pendingMessages?: Message[];
 }
 
 // ============================================================================
@@ -160,6 +161,37 @@ export function serverSupportsMultiline(
   const server = state.servers.find((s) => s.id === serverId);
   const supports = server?.capabilities?.includes("draft/multiline") ?? false;
   return supports;
+}
+
+// ============================================================================
+// User Metadata Resolution
+// ============================================================================
+
+type UserMetadata = NonNullable<User["metadata"]>;
+
+/**
+ * Resolve cached metadata for a user: localStorage wins, cross-channel is fallback.
+ * Both the NAMES and live-JOIN paths use this so avatar data is available immediately.
+ */
+export function resolveUserMetadata(
+  username: string,
+  serverMetadata: Record<string, UserMetadata> | undefined,
+  channels: Channel[],
+  excludeChannelName?: string,
+): UserMetadata {
+  if (serverMetadata?.[username]) {
+    return { ...serverMetadata[username] };
+  }
+  const lc = username.toLowerCase();
+  const exclude = excludeChannelName?.toLowerCase();
+  for (const ch of channels) {
+    if (exclude && ch.name.toLowerCase() === exclude) continue;
+    const existing = ch.users.find((u) => u.username.toLowerCase() === lc);
+    if (existing?.metadata && Object.keys(existing.metadata).length > 0) {
+      return { ...existing.metadata };
+    }
+  }
+  return {};
 }
 
 // ============================================================================

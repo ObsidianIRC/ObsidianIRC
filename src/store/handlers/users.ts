@@ -2,8 +2,13 @@ import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import type { Message, User } from "../../types";
-import { generateDeterministicId, getCurrentSelection } from "../helpers";
+import {
+  generateDeterministicId,
+  getCurrentSelection,
+  resolveUserMetadata,
+} from "../helpers";
 import type { AppState } from "../index";
+import * as storage from "../localStorage";
 
 function appendMessage(
   store: StoreApi<AppState>,
@@ -105,7 +110,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
 
       if (isOurJoin) {
         // Ensure the channel exists in the store; joinChannel action usually handles this,
-        // but this catches cases where the server JOIN confirmation arrives without a prior joinChannel call
+        // but this catches cases where the server JOIN confirmation arrives without a prior joinChannel call.
+        // Don't add ourselves to the member list — NAMES populates it with proper modes.
         store.setState((state) => {
           const server = state.servers.find((s) => s.id === serverId);
           if (!server) return {};
@@ -138,38 +144,48 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
             }),
           };
         });
-        return;
-      }
+        // Fall through to shared message creation below — same JOIN event, same path.
+      } else {
+        store.setState((state) => {
+          const updatedServers = state.servers.map((server) => {
+            if (server.id !== serverId) return server;
 
-      store.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id !== serverId) return server;
-
-          const updatedChannels = server.channels.map((channel) => {
-            if (channel.name.toLowerCase() !== channelName.toLowerCase())
-              return channel;
-
-            const alreadyIn = channel.users.some(
-              (u) => u.username.toLowerCase() === username.toLowerCase(),
-            );
-            if (alreadyIn) return channel;
-
-            const newUser: User = {
-              id: uuidv4(),
+            // Restore metadata so live joins show avatars immediately.
+            const savedMetadata = storage.metadata.load();
+            const serverMetadata = savedMetadata[serverId];
+            const joinedUserMetadata = resolveUserMetadata(
               username,
-              isOnline: true,
-              account: account || undefined,
-              realname: realname || undefined,
-            };
+              serverMetadata,
+              server.channels,
+            );
 
-            return { ...channel, users: [...channel.users, newUser] };
+            const updatedChannels = server.channels.map((channel) => {
+              if (channel.name.toLowerCase() !== channelName.toLowerCase())
+                return channel;
+
+              const alreadyIn = channel.users.some(
+                (u) => u.username.toLowerCase() === username.toLowerCase(),
+              );
+              if (alreadyIn) return channel;
+
+              const newUser: User = {
+                id: uuidv4(),
+                username,
+                isOnline: true,
+                account: account || undefined,
+                realname: realname || undefined,
+                metadata: joinedUserMetadata,
+              };
+
+              return { ...channel, users: [...channel.users, newUser] };
+            });
+
+            return { ...server, channels: updatedChannels };
           });
 
-          return { ...server, channels: updatedChannels };
+          return { servers: updatedServers };
         });
-
-        return { servers: updatedServers };
-      });
+      }
 
       const state = store.getState();
       if (
@@ -191,7 +207,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
               username,
               channel.id,
               serverId,
-              new Date(),
+              time ? new Date(time) : new Date(),
             ),
           );
         }

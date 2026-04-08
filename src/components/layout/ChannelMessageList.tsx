@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { flushSync } from "react-dom";
 import {
   SCROLL_TOLERANCE,
   useScrollToBottom,
@@ -427,13 +426,10 @@ export const ChannelMessageList = forwardRef<
                         const oldest = channelMessages[0];
                         if (oldest?.timestamp) {
                           const ts = new Date(oldest.timestamp).toISOString();
-                          // flushSync: CHATHISTORY_LOADING sets isLoadingHistory=true via Zustand
-                          // synchronously; on fast connections the batch can finish before React
-                          // flushes setIsFetchingMore(true), so the spinner never appears.
-                          flushSync(() => {
-                            isFetchingMoreRef.current = true;
-                            setIsFetchingMore(true);
-                          });
+                          // WebSocket responses are macrotasks; the click handler's React batch
+                          // always commits before the response arrives, so flushSync is unnecessary.
+                          isFetchingMoreRef.current = true;
+                          setIsFetchingMore(true);
                           ircClient.requestChathistoryBefore(
                             serverId,
                             channel.name,

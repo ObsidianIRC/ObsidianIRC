@@ -54,7 +54,6 @@ export const AppLayout: React.FC = () => {
   // Hide member list for private chats
   const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: imperative store access avoids unstable action refs in deps
   const handleChannelListWidthChange = useCallback((width: number) => {
     setChannelListWidth(width);
     useStore.getState().updateSidebarPreferences({
@@ -65,7 +64,6 @@ export const AppLayout: React.FC = () => {
     });
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: imperative store access avoids unstable action refs in deps
   const handleMemberListWidthChange = useCallback((width: number) => {
     setMemberListWidth(width);
     useStore.getState().updateSidebarPreferences({

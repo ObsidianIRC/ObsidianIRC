@@ -15,6 +15,7 @@ import type {
 } from "../types";
 import { registerAllHandlers } from "./handlers";
 import { readyProcessedServers } from "./handlers/connection";
+import { MAX_MESSAGES_PER_CHANNEL } from "./helpers";
 import * as storage from "./localStorage";
 import { runPendingMigrations } from "./migrations";
 import type {
@@ -23,6 +24,7 @@ import type {
   GlobalSettings,
   layoutColumn,
   MediaVisibilityLevel,
+  UISelections,
 } from "./types";
 
 const NARROW_VIEW_QUERY = "(max-width: 768px)";
@@ -95,7 +97,6 @@ interface BatchInfo {
   parameters?: string[];
   events: BatchEvent[];
   startTime: Date;
-  pendingMessages?: Message[];
 }
 
 interface Attachment {
@@ -152,10 +153,11 @@ const loadPinnedPrivateChats = storage.pinnedChats.load;
 const savePinnedPrivateChats = storage.pinnedChats.save;
 const loadUISelections = storage.uiSelections.load;
 const saveUISelections = storage.uiSelections.save;
-
-// Preserves lastSelection (written only by selectServer/Channel/PrivateChat) when
-// sidebar-only operations (toggle, resize) call saveUISelections.
-const getStoredLastSelection = () => loadUISelections().lastSelection;
+// Merges a partial update into the stored UISelections so callers only pass
+// the fields they actually change — adding new persisted fields won't silently
+// break unrelated call sites.
+const patchUISelections = (patch: Partial<UISelections>) =>
+  saveUISelections({ ...loadUISelections(), ...patch });
 
 function serverSupportsMetadata(serverId: string): boolean;
 function serverSupportsMetadata(serverId: string): boolean {
@@ -1329,7 +1331,7 @@ const useStore = create<AppState>((set, get) => ({
       };
     });
 
-    saveUISelections({
+    patchUISelections({
       selectedServerId: get().ui.selectedServerId,
       perServerSelections: get().ui.perServerSelections,
     });
@@ -1494,7 +1496,6 @@ const useStore = create<AppState>((set, get) => ({
       });
 
       // Cap per-channel history to prevent unbounded memory growth in long sessions.
-      const MAX_MESSAGES_PER_CHANNEL = 1500;
       const cappedMessages =
         updatedMessages.length > MAX_MESSAGES_PER_CHANNEL
           ? updatedMessages.slice(-MAX_MESSAGES_PER_CHANNEL)
@@ -1554,7 +1555,7 @@ const useStore = create<AppState>((set, get) => ({
       // If selecting null (no server), just update the selectedServerId
       if (serverId === null) {
         // Save cleared selection to localStorage
-        saveUISelections({
+        patchUISelections({
           selectedServerId: null,
           perServerSelections: state.ui.perServerSelections,
         });
@@ -1624,7 +1625,7 @@ const useStore = create<AppState>((set, get) => ({
     );
     const selection =
       newState.ui.perServerSelections[newState.ui.selectedServerId || ""];
-    saveUISelections({
+    patchUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
       lastSelection: {
@@ -1759,7 +1760,7 @@ const useStore = create<AppState>((set, get) => ({
     const channelObj = selectedServer?.channels.find(
       (c) => c.id === selection?.selectedChannelId,
     );
-    saveUISelections({
+    patchUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
       lastSelection: {
@@ -1954,7 +1955,7 @@ const useStore = create<AppState>((set, get) => ({
     const pcObj = selectedServer?.privateChats?.find(
       (pc) => pc.id === selection?.selectedPrivateChatId,
     );
-    saveUISelections({
+    patchUISelections({
       selectedServerId: newState.ui.selectedServerId,
       perServerSelections: newState.ui.perServerSelections,
       lastSelection: {
@@ -2678,10 +2679,7 @@ const useStore = create<AppState>((set, get) => ({
       channelList: { isVisible: true, width: 264 },
       memberList: { isVisible: true, width: 280 },
     };
-    saveUISelections({
-      selectedServerId: newState.ui.selectedServerId,
-      perServerSelections: newState.ui.perServerSelections,
-      lastSelection: getStoredLastSelection(),
+    patchUISelections({
       sidebarPreferences: {
         ...currentPrefs,
         memberList: {
@@ -2710,10 +2708,7 @@ const useStore = create<AppState>((set, get) => ({
       channelList: { isVisible: true, width: 264 },
       memberList: { isVisible: true, width: 280 },
     };
-    saveUISelections({
-      selectedServerId: newState.ui.selectedServerId,
-      perServerSelections: newState.ui.perServerSelections,
-      lastSelection: getStoredLastSelection(),
+    patchUISelections({
       sidebarPreferences: {
         ...currentPrefs,
         channelList: {
@@ -2736,12 +2731,7 @@ const useStore = create<AppState>((set, get) => ({
         memberList: preferences.memberList || currentPrefs.memberList,
       };
 
-      saveUISelections({
-        selectedServerId: state.ui.selectedServerId,
-        perServerSelections: state.ui.perServerSelections,
-        lastSelection: getStoredLastSelection(),
-        sidebarPreferences: newPrefs,
-      });
+      patchUISelections({ sidebarPreferences: newPrefs });
 
       return {
         ui: { ...state.ui, sidebarPreferences: newPrefs },

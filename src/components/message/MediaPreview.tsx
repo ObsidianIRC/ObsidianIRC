@@ -271,26 +271,23 @@ const ImagePreview: React.FC<{
   return (
     <div className="max-w-md">
       <div className="relative inline-block rounded border border-discord-dark-500/50 overflow-hidden">
-        {!imageLoaded && !imageError && (
-          <div
-            className="flex items-center justify-center bg-discord-dark-400/50"
-            style={{ width: "200px", height: "150px" }}
-          >
-            <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
-          </div>
-        )}
-        <img
-          src={displayUrl}
-          alt={isFilehostImage ? "Filehost image" : "GIF"}
-          loading="lazy"
-          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${imageCanHaveTransparency(displayUrl) ? "transparency-grid" : "bg-white"} ${
-            imageLoaded ? "block" : "hidden"
-          }`}
-          onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
-          style={{ maxHeight: "150px" }}
-        />
+        {/* Fixed container prevents CLS: dimensions stay 200×150 before and after image load */}
+        <div style={{ width: "200px", height: "150px", position: "relative" }}>
+          {!imageLoaded && !imageError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-discord-dark-400/50">
+              <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
+            </div>
+          )}
+          <img
+            src={displayUrl}
+            alt={isFilehostImage ? "Filehost image" : "GIF"}
+            className={`cursor-pointer hover:opacity-90 transition-opacity ${imageCanHaveTransparency(displayUrl) ? "transparency-grid" : "bg-white"}`}
+            onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+            style={{ width: "200px", height: "150px", objectFit: "contain" }}
+          />
+        </div>
         {isFilehostImage && exifData && imageLoaded && (
           <FilehostImageBanner
             exifData={exifData}
@@ -861,6 +858,7 @@ const SoundCloudEmbed: React.FC<{
         frameBorder="0"
         allow="autoplay"
         title="SoundCloud player"
+        tabIndex={-1}
         style={{ borderRadius: 4, display: "block" }}
         onError={() => setEmbedError(true)}
       />
@@ -927,6 +925,10 @@ const EmbedPreview: React.FC<{
             height="100%"
             controls
             playing={playing}
+            config={{
+              youtube: { disablekb: 1 },
+              vimeo: { keyboard: false },
+            }}
             style={{ borderRadius: "4px", overflow: "hidden" }}
             onPlay={() => {
               // Guard against spurious onPlay events fired by YouTube.

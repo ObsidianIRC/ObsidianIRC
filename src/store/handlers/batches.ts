@@ -1,7 +1,21 @@
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
-import type { BatchInfo } from "../helpers";
+import type { Message } from "../../types";
+import { type BatchInfo, MAX_MESSAGES_PER_CHANNEL } from "../helpers";
 import type { AppState } from "../index";
+
+// Chathistory messages are buffered here (outside the store) to avoid one
+// store.setState per incoming PRIVMSG.  Only flushed at BATCH_END.
+export const chathistoryBuffers = new Map<string, Message[]>();
+
+export function bufferChathistoryMessage(batchId: string, msg: Message): void {
+  let buf = chathistoryBuffers.get(batchId);
+  if (!buf) {
+    buf = [];
+    chathistoryBuffers.set(batchId, buf);
+  }
+  buf.push(msg);
+}
 
 function processBatchedNetsplit(
   store: StoreApi<AppState>,
@@ -166,7 +180,6 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
               parameters: parameters || [],
               events: [],
               startTime: new Date(),
-              pendingMessages: [],
             },
           },
         },
@@ -240,7 +253,8 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
         );
         if (channel) {
           const key = `${serverId}-${channel.id}`;
-          const pending = batch.pendingMessages ?? [];
+          const pending = chathistoryBuffers.get(batchId) ?? [];
+          chathistoryBuffers.delete(batchId);
           const existing = state.messages[key] || [];
 
           // Dedup buffered messages against what's already in the store (event messages
@@ -260,7 +274,6 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
               ),
           );
 
-          const MAX_MESSAGES_PER_CHANNEL = 1500;
           const merged = [...existing, ...newMessages]
             .sort(
               (a, b) =>

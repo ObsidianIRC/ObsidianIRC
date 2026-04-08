@@ -15,6 +15,11 @@ export const readyProcessedServers = new Set<string>();
 
 export function registerConnectionHandlers(store: StoreApi<AppState>): void {
   ircClient.on("connectionStateChange", ({ serverId, connectionState }) => {
+    // Allow the ready handler to re-run metadata restoration after reconnect
+    if (connectionState === "disconnected") {
+      readyProcessedServers.delete(serverId);
+    }
+
     store.setState((state) => {
       const updatedServers = state.servers.map((server) => {
         if (server.id !== serverId) return server;
@@ -65,7 +70,7 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
     });
   });
 
-  ircClient.on("ready", async ({ serverId, serverName, nickname }) => {
+  ircClient.on("ready", ({ serverId, serverName, nickname }) => {
     // Prevent processing the same server's ready event multiple times
     if (readyProcessedServers.has(serverId)) {
       return;
@@ -137,10 +142,9 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
       });
     }
 
-    // Send saved metadata to the server (after 001 ready)
-    // Only if server supports metadata
+    // Subscribe and sync own metadata in the background — don't await so channel joins
+    // happen immediately. The metadata send runs 1 s later inside fetchAndMergeOwnMetadata.
     if (serverSupportsMetadata(store.getState(), serverId)) {
-      // First, subscribe to metadata updates
       const currentSubs =
         store.getState().metadataSubscriptions[serverId] || [];
       if (currentSubs.length === 0) {
@@ -155,34 +159,27 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
           "bot",
         ];
         store.getState().metadataSub(serverId, defaultKeys);
-      } else {
       }
 
-      // Fetch our own metadata from the server first
-      // This will update saved values with what the server has
-      await fetchAndMergeOwnMetadata(store, serverId);
-
-      // Now send any metadata we have saved (updated values after merge)
-      const savedMetadataAfterMerge = storage.metadata.load();
-      const serverMetadataAfterMerge = savedMetadataAfterMerge[serverId];
-      const ourNick = ircClient.getNick(serverId);
-
-      if (serverMetadataAfterMerge && ourNick) {
-        const ourMetadata = serverMetadataAfterMerge[ourNick];
-        if (ourMetadata) {
-          // Send our own metadata to the server
-          Object.entries(ourMetadata).forEach(
-            ([key, { value, visibility }]) => {
-              if (value !== undefined) {
-                store
-                  .getState()
-                  .metadataSet(serverId, "*", key, value, visibility);
-              }
-            },
-          );
+      fetchAndMergeOwnMetadata(store, serverId).then(() => {
+        const savedMetadataAfterMerge = storage.metadata.load();
+        const serverMetadataAfterMerge = savedMetadataAfterMerge[serverId];
+        const ourNick = ircClient.getNick(serverId);
+        if (serverMetadataAfterMerge && ourNick) {
+          const ourMetadata = serverMetadataAfterMerge[ourNick];
+          if (ourMetadata) {
+            Object.entries(ourMetadata).forEach(
+              ([key, { value, visibility }]) => {
+                if (value !== undefined) {
+                  store
+                    .getState()
+                    .metadataSet(serverId, "*", key, value, visibility);
+                }
+              },
+            );
+          }
         }
-      }
-    } else {
+      });
     }
 
     store.setState((state) => {

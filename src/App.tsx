@@ -271,26 +271,15 @@ const App: React.FC = () => {
     };
   }, [toggleQuickActions]);
 
-  // Suppress CSS :hover toolbar popups when the window loses focus — they can
-  // stick in WKWebView / browsers after alt-tab or clicking another app.
+  // Suppress :hover popups on blur; reclaim focus from iframes immediately.
   useEffect(() => {
-    const onBlur = () =>
+    const onBlur = () => {
       document.documentElement.classList.add("window-blurred");
-    const onFocus = () =>
-      document.documentElement.classList.remove("window-blurred");
-    window.addEventListener("blur", onBlur);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.removeEventListener("blur", onBlur);
-      window.removeEventListener("focus", onFocus);
+      // Cross-origin iframes swallow all keystrokes — blur immediately so the parent document regains them.
+      if (document.activeElement?.tagName === "IFRAME") {
+        (document.activeElement as HTMLElement).blur();
+      }
     };
-  }, []);
-
-  // Suppress CSS :hover toolbar popups when the window loses focus — they can
-  // stick in WKWebView / browsers after alt-tab or clicking another app.
-  useEffect(() => {
-    const onBlur = () =>
-      document.documentElement.classList.add("window-blurred");
     const onFocus = () =>
       document.documentElement.classList.remove("window-blurred");
     window.addEventListener("blur", onBlur);

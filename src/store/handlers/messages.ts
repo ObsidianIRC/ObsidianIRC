@@ -19,6 +19,7 @@ import {
   serverSupportsMetadata,
 } from "../helpers";
 import type { AppState } from "../index";
+import { bufferChathistoryMessage } from "./batches";
 
 export function registerMessageHandlers(store: StoreApi<AppState>): void {
   ircClient.on("CHANMSG", (response) => {
@@ -127,26 +128,12 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
         if (isHistoricalMessage && mtags?.batch) {
           const batchId = mtags.batch;
-          store.setState((state) => {
-            const batch = state.activeBatches[response.serverId]?.[batchId];
-            if (batch?.type !== "chathistory") return state;
-            return {
-              activeBatches: {
-                ...state.activeBatches,
-                [response.serverId]: {
-                  ...state.activeBatches[response.serverId],
-                  [batchId]: {
-                    ...batch,
-                    pendingMessages: [
-                      ...(batch.pendingMessages ?? []),
-                      newMessage,
-                    ],
-                  },
-                },
-              },
-            };
-          });
-          return;
+          const batch =
+            store.getState().activeBatches[response.serverId]?.[batchId];
+          if (batch?.type === "chathistory") {
+            bufferChathistoryMessage(batchId, newMessage);
+            return;
+          }
         }
 
         if (

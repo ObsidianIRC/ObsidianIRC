@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import type { Message } from "../../types";
-import { serverSupportsMetadata } from "../helpers";
+import { resolveUserMetadata, serverSupportsMetadata } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
@@ -354,51 +354,25 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
                 channel.users.map((u) => u.username.toLowerCase()),
               );
 
+              // Load once for the whole NAMES batch — not per user
+              const savedMetadata = storage.metadata.load();
+              const serverMetadata = savedMetadata[serverId];
+
               const newUsers = users
                 .filter(
                   (user) => !existingUsernames.has(user.username.toLowerCase()),
                 )
-                .map((user) => {
-                  // Check if we already have metadata for this user from localStorage or other channels
-                  let existingMetadata = {};
-
-                  // First check localStorage
-                  const savedMetadata = storage.metadata.load();
-                  const serverMetadata = savedMetadata[serverId];
-                  if (serverMetadata?.[user.username]) {
-                    existingMetadata = { ...serverMetadata[user.username] };
-                  }
-
-                  // Then check if user exists in other channels and has metadata
-                  if (Object.keys(existingMetadata).length === 0) {
-                    for (const otherChannel of server.channels) {
-                      if (
-                        otherChannel.name.toLowerCase() !==
-                        channelName.toLowerCase()
-                      ) {
-                        const existingUser = otherChannel.users.find(
-                          (u) =>
-                            u.username.toLowerCase() ===
-                            user.username.toLowerCase(),
-                        );
-                        if (
-                          existingUser?.metadata &&
-                          Object.keys(existingUser.metadata).length > 0
-                        ) {
-                          existingMetadata = { ...existingUser.metadata };
-                          break;
-                        }
-                      }
-                    }
-                  }
-
-                  return {
-                    ...user,
-                    id: uuidv4(),
-                    isOnline: true,
-                    metadata: existingMetadata,
-                  };
-                });
+                .map((user) => ({
+                  ...user,
+                  id: uuidv4(),
+                  isOnline: true,
+                  metadata: resolveUserMetadata(
+                    user.username,
+                    serverMetadata,
+                    server.channels,
+                    channelName,
+                  ),
+                }));
 
               return {
                 ...channel,

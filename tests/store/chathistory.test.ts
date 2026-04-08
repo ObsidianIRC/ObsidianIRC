@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import ircClient from "../../src/lib/ircClient";
 import type { AppState } from "../../src/store";
 import useStore from "../../src/store";
+import { chathistoryBuffers } from "../../src/store/handlers/batches";
 import type { Channel, Message } from "../../src/types";
 
 function makeChannel(overrides: Partial<Channel> = {}): Channel {
@@ -58,6 +59,7 @@ function setupServer() {
 describe("chathistory batch — PART events", () => {
   beforeEach(() => {
     setupServer();
+    chathistoryBuffers.clear();
   });
 
   it("historical PART inside chathistory batch: member list unchanged, historical message created", () => {
@@ -70,7 +72,6 @@ describe("chathistory batch — PART events", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            pendingMessages: [],
           },
         },
       },
@@ -114,6 +115,7 @@ describe("chathistory batch — PART events", () => {
 describe("chathistory batch — NICK events", () => {
   beforeEach(() => {
     setupServer();
+    chathistoryBuffers.clear();
   });
 
   it("historical NICK inside chathistory batch: member list unchanged, historical message created", () => {
@@ -125,7 +127,6 @@ describe("chathistory batch — NICK events", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            pendingMessages: [],
           },
         },
       },
@@ -169,6 +170,7 @@ describe("chathistory batch — NICK events", () => {
 describe("chathistory batch end — hasMoreHistory", () => {
   beforeEach(() => {
     setupServer();
+    chathistoryBuffers.clear();
     useStore.setState({
       messages: {
         "srv-1-chan-1": [makeMessage()],
@@ -185,13 +187,13 @@ describe("chathistory batch end — hasMoreHistory", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            pendingMessages: [
-              makeMessage({ id: "fetched-1", msgid: "fetched-1" }),
-            ],
           },
         },
       },
     });
+    chathistoryBuffers.set("batchH", [
+      makeMessage({ id: "fetched-1", msgid: "fetched-1" }),
+    ]);
 
     ircClient.triggerEvent("BATCH_END", {
       serverId: "srv-1",
@@ -212,7 +214,6 @@ describe("chathistory batch end — hasMoreHistory", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            pendingMessages: [],
           },
         },
       },
@@ -249,11 +250,11 @@ describe("chathistory batch end — hasMoreHistory", () => {
             parameters: ["#test"],
             events: [],
             startTime: new Date(),
-            pendingMessages: [older],
           },
         },
       },
     });
+    chathistoryBuffers.set("batchSort", [older]);
 
     ircClient.triggerEvent("BATCH_END", {
       serverId: "srv-1",
@@ -263,5 +264,179 @@ describe("chathistory batch end — hasMoreHistory", () => {
     const msgs = useStore.getState().messages["srv-1-chan-1"];
     expect(msgs?.[0].id).toBe("old");
     expect(msgs?.[1].id).toBe("new");
+  });
+});
+
+describe("chathistory batch — CHANMSG buffering", () => {
+  beforeEach(() => {
+    setupServer();
+    chathistoryBuffers.clear();
+    useStore.setState({
+      processedMessageIds: new Set(),
+    } as unknown as AppState);
+  });
+
+  it("CHANMSG with batch tag goes to buffer, not the store", () => {
+    useStore.setState({
+      activeBatches: {
+        "srv-1": {
+          batchCH: {
+            type: "chathistory",
+            parameters: ["#test"],
+            events: [],
+            startTime: new Date(),
+          },
+        },
+      },
+    });
+
+    ircClient.triggerEvent("CHANMSG", {
+      serverId: "srv-1",
+      sender: "alice",
+      channelName: "#test",
+      message: "historical message",
+      timestamp: new Date("2026-01-01T10:00:00.000Z"),
+      mtags: { batch: "batchCH" },
+    });
+
+    // Message must NOT appear in the store during the batch
+    const msgs = useStore.getState().messages["srv-1-chan-1"];
+    expect(msgs ?? []).toHaveLength(0);
+    // Message IS in the buffer
+    expect(chathistoryBuffers.get("batchCH")).toHaveLength(1);
+    expect(chathistoryBuffers.get("batchCH")?.[0].content).toBe(
+      "historical message",
+    );
+  });
+
+  it("buffer is flushed to the store at BATCH_END", () => {
+    useStore.setState({
+      activeBatches: {
+        "srv-1": {
+          batchFlush: {
+            type: "chathistory",
+            parameters: ["#test"],
+            events: [],
+            startTime: new Date(),
+          },
+        },
+      },
+    });
+
+    ircClient.triggerEvent("CHANMSG", {
+      serverId: "srv-1",
+      sender: "alice",
+      channelName: "#test",
+      message: "buffered message",
+      timestamp: new Date("2026-01-01T10:00:00.000Z"),
+      mtags: { batch: "batchFlush" },
+    });
+
+    ircClient.triggerEvent("BATCH_END", {
+      serverId: "srv-1",
+      batchId: "batchFlush",
+    });
+
+    const msgs = useStore.getState().messages["srv-1-chan-1"];
+    expect(msgs?.some((m) => m.content === "buffered message")).toBe(true);
+  });
+
+  it("buffer is cleared after BATCH_END", () => {
+    useStore.setState({
+      activeBatches: {
+        "srv-1": {
+          batchClean: {
+            type: "chathistory",
+            parameters: ["#test"],
+            events: [],
+            startTime: new Date(),
+          },
+        },
+      },
+    });
+    chathistoryBuffers.set("batchClean", [
+      makeMessage({ id: "m1", msgid: "m1" }),
+    ]);
+
+    ircClient.triggerEvent("BATCH_END", {
+      serverId: "srv-1",
+      batchId: "batchClean",
+    });
+
+    expect(chathistoryBuffers.has("batchClean")).toBe(false);
+  });
+
+  it("msgid dedup: message already in store is not added again at BATCH_END", () => {
+    const existing = makeMessage({
+      id: "live-1",
+      msgid: "live-msgid-1",
+      content: "live",
+    });
+    useStore.setState({
+      messages: { "srv-1-chan-1": [existing] },
+      activeBatches: {
+        "srv-1": {
+          batchDedup: {
+            type: "chathistory",
+            parameters: ["#test"],
+            events: [],
+            startTime: new Date(),
+          },
+        },
+      },
+    });
+    // Same message arrives via history
+    chathistoryBuffers.set("batchDedup", [
+      makeMessage({ id: "hist-1", msgid: "live-msgid-1", content: "live" }),
+    ]);
+
+    ircClient.triggerEvent("BATCH_END", {
+      serverId: "srv-1",
+      batchId: "batchDedup",
+    });
+
+    const msgs = useStore.getState().messages["srv-1-chan-1"];
+    const dupes = msgs?.filter((m) => m.msgid === "live-msgid-1");
+    expect(dupes).toHaveLength(1);
+  });
+
+  it("isLoadingHistory is cleared at BATCH_END", () => {
+    useStore.setState({
+      servers: [
+        {
+          id: "srv-1",
+          name: "TestServer",
+          host: "irc.example.com",
+          port: 6667,
+          ssl: false,
+          channels: [
+            makeChannel({ isLoadingHistory: true } as Partial<Channel>),
+          ],
+          privateChats: [],
+          isConnected: true,
+          isConnecting: false,
+          capabilities: ["draft/chathistory"],
+        },
+      ],
+      activeBatches: {
+        "srv-1": {
+          batchLoad: {
+            type: "chathistory",
+            parameters: ["#test"],
+            events: [],
+            startTime: new Date(),
+          },
+        },
+      },
+    } as unknown as AppState);
+
+    ircClient.triggerEvent("BATCH_END", {
+      serverId: "srv-1",
+      batchId: "batchLoad",
+    });
+
+    const server = useStore.getState().servers.find((s) => s.id === "srv-1");
+    const channel = server?.channels.find((c) => c.name === "#test");
+    expect(channel?.isLoadingHistory).toBe(false);
   });
 });

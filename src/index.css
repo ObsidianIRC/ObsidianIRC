@@ -483,9 +483,6 @@ html.window-blurred .group:hover .message-actions-container {
   max-width: 100%;
 }
 
-.inline-code-container:hover .inline-code {
-  padding-right: 1.75rem;
-}
 
 .inline-copy-button {
   position: absolute;

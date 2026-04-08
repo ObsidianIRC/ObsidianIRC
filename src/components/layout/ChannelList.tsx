@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaUser,
 } from "react-icons/fa";
+import { useShallow } from "zustand/react/shallow";
 import { useChannelMru } from "../../hooks/useChannelTabSwitching";
 import { useDragReorder } from "../../hooks/useDragReorder";
 import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
@@ -70,51 +71,55 @@ export const ChannelList: React.FC<{
     useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
-  // Get the current user for the selected server from the store data (includes metadata)
-  // Use a selector to ensure reactivity when metadata changes
-  const currentUser = useStore((state) => {
-    if (!selectedServerId) return null;
+  // useShallow: selector returns a merged object literal on every call; shallow comparison
+  // prevents the useSyncExternalStore "getSnapshot should be cached" infinite-loop.
+  const currentUser = useStore(
+    useShallow((state) => {
+      if (!selectedServerId) return null;
 
-    // Get the current user's username from IRCClient
-    const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
-    if (!ircCurrentUser) return null;
+      // Get the current user's username from IRCClient
+      const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
+      if (!ircCurrentUser) return null;
 
-    // If we have a currentUser in the store that matches this server's current user, use it (it has modes)
-    if (
-      state.currentUser &&
-      state.currentUser.username === ircCurrentUser.username
-    ) {
-      return state.currentUser;
-    }
-
-    // Otherwise, try to find user in channels for metadata and merge with store currentUser if available
-    const selectedServer = state.servers.find((s) => s.id === selectedServerId);
-    if (!selectedServer) return state.currentUser || ircCurrentUser;
-
-    // Look for the user in any channel
-    for (const channel of selectedServer.channels) {
-      const userWithMetadata = channel.users.find(
-        (u) => u.username === ircCurrentUser.username,
-      );
-      if (userWithMetadata) {
-        // If we have currentUser in store, merge its modes and IRC op status with the channel user's metadata
-        if (
-          state.currentUser &&
-          state.currentUser.username === userWithMetadata.username
-        ) {
-          return {
-            ...userWithMetadata,
-            modes: state.currentUser.modes,
-            isIrcOp: state.currentUser.isIrcOp,
-          };
-        }
-        return userWithMetadata;
+      // If we have a currentUser in the store that matches this server's current user, use it (it has modes)
+      if (
+        state.currentUser &&
+        state.currentUser.username === ircCurrentUser.username
+      ) {
+        return state.currentUser;
       }
-    }
 
-    // If not found in channels, return store currentUser or IRC user
-    return state.currentUser || ircCurrentUser;
-  });
+      // Otherwise, try to find user in channels for metadata and merge with store currentUser if available
+      const selectedServer = state.servers.find(
+        (s) => s.id === selectedServerId,
+      );
+      if (!selectedServer) return state.currentUser || ircCurrentUser;
+
+      // Look for the user in any channel
+      for (const channel of selectedServer.channels) {
+        const userWithMetadata = channel.users.find(
+          (u) => u.username === ircCurrentUser.username,
+        );
+        if (userWithMetadata) {
+          // If we have currentUser in store, merge its modes and IRC op status with the channel user's metadata
+          if (
+            state.currentUser &&
+            state.currentUser.username === userWithMetadata.username
+          ) {
+            return {
+              ...userWithMetadata,
+              modes: state.currentUser.modes,
+              isIrcOp: state.currentUser.isIrcOp,
+            };
+          }
+          return userWithMetadata;
+        }
+      }
+
+      // If not found in channels, return store currentUser or IRC user
+      return state.currentUser || ircCurrentUser;
+    }),
+  );
 
   const servers = useStore((state) => state.servers);
 
