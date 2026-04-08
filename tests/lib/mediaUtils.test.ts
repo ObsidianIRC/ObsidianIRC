@@ -516,7 +516,7 @@ describe("imageCanHaveTransparency", () => {
       true,
     );
   });
-  test("returns true for unknown extension (safe fallback)", () => {
-    expect(imageCanHaveTransparency("https://example.com/file")).toBe(true);
+  test("returns false for unknown extension (no checkerboard on filehost images)", () => {
+    expect(imageCanHaveTransparency("https://example.com/file")).toBe(false);
   });
 });

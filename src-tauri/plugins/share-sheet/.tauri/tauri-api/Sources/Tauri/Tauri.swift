@@ -19,7 +19,7 @@ class PluginHandle {
 
 public class PluginManager {
   static let shared: PluginManager = PluginManager()
-  public weak var viewController: UIViewController?
+  public var viewController: UIViewController?
   var plugins: [String: PluginHandle] = [:]
   var ipcDispatchQueue = DispatchQueue(label: "ipc")
   public var isSimEnvironment: Bool {
@@ -42,7 +42,6 @@ public class PluginManager {
     for (_, handle) in plugins {
       if !handle.loaded {
         handle.instance.load(webview: webview)
-        handle.loaded = true
       }
     }
   }
@@ -78,17 +77,16 @@ public class PluginManager {
           fn(plugin.instance, selectorWithCompletionHandler, invoke, blockObj)
         } else if plugin.instance.responds(to: selectorWithThrows) {
           var error: NSError? = nil
-          withUnsafeMutablePointer(to: &error) { errorPtr in
+          withUnsafeMutablePointer(to: &error) {
             let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
-            // NSError ** is __autoreleasing — use AutoreleasingUnsafeMutablePointer so ARC
-            // handles the autoreleased object correctly and no manual retain is needed.
             unsafeBitCast(
-              methodIMP,
-              to: (@convention(c) (Any?, Selector, Invoke, AutoreleasingUnsafeMutablePointer<NSError?>) -> Void).self
-            )(plugin.instance, selectorWithThrows, invoke, AutoreleasingUnsafeMutablePointer(errorPtr))
+              methodIMP, to: (@convention(c) (Any?, Selector, Invoke, OpaquePointer) -> Void).self)(
+                plugin.instance, selectorWithThrows, invoke, OpaquePointer($0))
           }
           if let error = error {
             invoke.reject("\(error)")
+            // TODO: app crashes without this leak
+            let _ = Unmanaged.passRetained(error)
           }
         } else {
           let selector = Selector(("\(invoke.command):"))

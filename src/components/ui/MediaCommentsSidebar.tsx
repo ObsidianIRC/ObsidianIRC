@@ -1,5 +1,4 @@
 import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/solid";
-import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
 import {
   useCallback,
@@ -27,7 +26,7 @@ import {
   getPreviewStyles,
   stripIrcFormatting,
 } from "../../lib/messageFormatter";
-import { isTauri } from "../../lib/platformUtils";
+import { isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -102,7 +101,7 @@ export function MediaCommentsSidebar({
 
   useAutoFocusTyping(textareaRef, () => !isHoveredRef.current);
 
-  const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
+  const isNativeMobile = isTauriMobile();
   // Cache line-height + padding after first read — same pattern as ChatArea
   const textareaMetricsRef = useRef<{
     lineHeight: number;

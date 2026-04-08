@@ -35,6 +35,9 @@ const LazyPage = lazy(() =>
   import("react-pdf").then((m) => ({ default: m.Page })),
 );
 
+const PDF_THUMB_W = 240;
+const PDF_THUMB_H = Math.round(PDF_THUMB_W * Math.SQRT2); // A4 ratio
+
 function extractJpegComment(uint8Array: Uint8Array): string | null {
   if (
     uint8Array.length < 4 ||
@@ -271,23 +274,23 @@ const ImagePreview: React.FC<{
   return (
     <div className="max-w-md">
       <div className="relative inline-block rounded border border-discord-dark-500/50 overflow-hidden">
-        {/* Fixed container prevents CLS: dimensions stay 200×150 before and after image load */}
-        <div style={{ width: "200px", height: "150px", position: "relative" }}>
-          {!imageLoaded && !imageError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-discord-dark-400/50">
-              <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
-            </div>
-          )}
-          <img
-            src={displayUrl}
-            alt={isFilehostImage ? "Filehost image" : "GIF"}
-            className={`cursor-pointer hover:opacity-90 transition-opacity ${imageCanHaveTransparency(displayUrl) ? "transparency-grid" : "bg-white"}`}
-            onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-            style={{ width: "200px", height: "150px", objectFit: "contain" }}
-          />
-        </div>
+        {!imageLoaded && !imageError && (
+          <div
+            className="flex items-center justify-center bg-discord-dark-400/50"
+            style={{ width: "200px", height: "150px" }}
+          >
+            <FaSpinner className="text-discord-text-muted animate-spin text-lg" />
+          </div>
+        )}
+        <img
+          src={displayUrl}
+          alt={isFilehostImage ? "Filehost image" : "GIF"}
+          className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${imageCanHaveTransparency(displayUrl) ? "transparency-grid" : "bg-white"} ${imageLoaded ? "block" : "hidden"}`}
+          onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+          style={{ maxHeight: "150px" }}
+        />
         {isFilehostImage && exifData && imageLoaded && (
           <FilehostImageBanner
             exifData={exifData}
@@ -971,7 +974,6 @@ const PdfPreview: React.FC<{
   const [imgError, setImgError] = useState(false);
 
   // w-fit hugs the canvas so no white space bleeds around the document.
-  // A4 at width=120 → ≈170px tall; fallbacks use the same fixed size.
   const wrapper = (children: React.ReactNode) => (
     <div
       className="bg-white w-fit cursor-pointer rounded border border-discord-dark-500/50 overflow-hidden hover:opacity-90 transition-opacity shadow-sm"
@@ -988,7 +990,7 @@ const PdfPreview: React.FC<{
         <img
           src={url}
           alt="PDF preview"
-          style={{ width: 120, maxHeight: 170 }}
+          style={{ width: PDF_THUMB_W, maxHeight: PDF_THUMB_H }}
           className="object-cover object-top block"
           onError={() => setImgError(true)}
         />,
@@ -997,7 +999,7 @@ const PdfPreview: React.FC<{
     // Both failed — show a PDF icon with the filename.
     return wrapper(
       <div
-        style={{ width: 120, height: 170 }}
+        style={{ width: PDF_THUMB_W, height: PDF_THUMB_H }}
         className="flex flex-col items-center justify-center gap-2 text-discord-text-muted p-2"
       >
         <FaFileAlt className="text-3xl opacity-60" />
@@ -1012,7 +1014,7 @@ const PdfPreview: React.FC<{
     <Suspense
       fallback={
         <div
-          style={{ width: 120, height: 170 }}
+          style={{ width: PDF_THUMB_W, height: PDF_THUMB_H }}
           className="bg-discord-dark-400/50 animate-pulse"
         />
       }
@@ -1024,7 +1026,7 @@ const PdfPreview: React.FC<{
       >
         <LazyPage
           pageNumber={1}
-          width={120}
+          width={PDF_THUMB_W}
           canvasBackground="white"
           renderTextLayer={false}
           renderAnnotationLayer={false}

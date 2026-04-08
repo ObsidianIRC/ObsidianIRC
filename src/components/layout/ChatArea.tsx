@@ -1,4 +1,3 @@
-import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,7 +21,7 @@ import {
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
-import { isTauri } from "../../lib/platformUtils";
+import { isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -183,9 +182,7 @@ export const ChatArea: React.FC<{
   const messageTextRef = useRef("");
   const hasTextRef = useRef(false);
   // platform() is stable at runtime — ref avoids adding it to useCallback deps.
-  const isNativeMobileRef = useRef(
-    isTauri() && ["android", "ios"].includes(platform()),
-  );
+  const isNativeMobileRef = useRef(isTauriMobile());
   // Keep-alive: last 3 visited channels are kept in the DOM (display:none) to preserve
   // scroll position and media element state across channel switches.
   const [aliveChannels, setAliveChannels] = useState<AliveChannel[]>([]);
@@ -426,7 +423,7 @@ export const ChatArea: React.FC<{
   // Media query hooks
   const isNarrowView = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
-  const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
+  const isNativeMobile = isTauriMobile();
 
   const handleIrcLinkClick = useCallback(
     (rawUrl: string) => {
@@ -1676,7 +1673,7 @@ export const ChatArea: React.FC<{
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Only focus when channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Only focus when private chat changes
   useEffect(() => {
-    if (isTauri() && ["android", "ios"].includes(platform())) return;
+    if (isTauriMobile()) return;
     // Don't steal focus if any modal is open
     if (
       isSettingsModalOpen ||

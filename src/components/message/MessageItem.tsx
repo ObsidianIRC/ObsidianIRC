@@ -1,5 +1,6 @@
 import type * as React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
@@ -17,6 +18,7 @@ import {
 import { stripIrcFormatting } from "../../lib/messageFormatter";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
+import MessageBottomSheet from "../mobile/MessageBottomSheet";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
 import { InviteMessage } from "./InviteMessage";
@@ -36,7 +38,6 @@ import {
   WhisperMessage,
 } from "./index";
 import { MediaPreview } from "./MediaPreview";
-import { SwipeableMessage } from "./SwipeableMessage";
 
 interface MessageItemProps {
   message: MessageType;
@@ -153,6 +154,10 @@ export const MessageItem = (props: MessageItemProps) => {
   const collapsibleRef = useRef<CollapsibleMessageHandle>(null);
   const [messageNeedsCollapsing, setMessageNeedsCollapsing] = useState(false);
   const messageRowRef = useRef<HTMLDivElement>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const longPress = useLongPress({
+    onLongPress: () => setSheetOpen(true),
+  });
 
   const handleMessageMouseEnter = () => {
     const el = messageRowRef.current;
@@ -331,6 +336,7 @@ export const MessageItem = (props: MessageItemProps) => {
     !!message.msgid &&
     !!server?.capabilities?.includes("draft/message-redaction") &&
     !!onRedactMessage;
+  const canReply = !hideReply && message.type === "message";
 
   // message.content is already combined for multiline messages by the IRC client
   const messageContent = message.content;
@@ -521,8 +527,6 @@ export const MessageItem = (props: MessageItemProps) => {
           onReactClick={onReactClick}
           onReactionUnreact={onReactionUnreact}
           onDirectReaction={onDirectReaction}
-          isTouchDevice={isTouchDevice}
-          isNarrowView={isNarrowView}
         />
       </>
     );
@@ -629,230 +633,255 @@ export const MessageItem = (props: MessageItemProps) => {
       }`}
       onMouseEnter={handleMessageMouseEnter}
       onMouseLeave={handleMessageMouseLeave}
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
     >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
       )}
 
-      <SwipeableMessage
-        onReply={() => setReplyTo(message)}
-        onReact={(el) => onReactClick(message, el)}
-        onDelete={canRedact ? () => onRedactMessage?.(message) : undefined}
-        onOpenMedia={handleOpenMedia}
-        onTap={
-          messageNeedsCollapsing && isTouchDevice
-            ? () => collapsibleRef.current?.toggle()
-            : undefined
-        }
-        canReply={!hideReply && message.type === "message"}
-        canDelete={canRedact}
-        canOpenMedia={canOpenMedia}
-        isNarrowView={isTouchDevice}
-      >
-        <div className="flex">
-          <MessageAvatar
-            userId={message.userId}
-            avatarUrl={avatarUrl}
-            userStatus={userStatus}
-            isAway={messageUser?.isAway}
-            theme={theme}
-            showHeader={showHeader}
-            onClick={handleAvatarClick}
-            isClickable={isClickable}
-            serverId={message.serverId}
-          />
+      <div className="flex">
+        <MessageAvatar
+          userId={message.userId}
+          avatarUrl={avatarUrl}
+          userStatus={userStatus}
+          isAway={messageUser?.isAway}
+          theme={theme}
+          showHeader={showHeader}
+          onClick={handleAvatarClick}
+          isClickable={isClickable}
+          serverId={message.serverId}
+        />
 
-          <div
-            className={`flex-1 min-w-0 relative ${isCurrentUser ? "text-white" : "text-discord-text-normal"}`}
-          >
-            {showHeader && (
-              <MessageHeader
-                userId={message.userId}
-                displayName={displayName}
-                userColor={userColor}
-                timestamp={new Date(message.timestamp)}
+        <div
+          className={`flex-1 min-w-0 relative ${isCurrentUser ? "text-white" : "text-discord-text-normal"}`}
+        >
+          {showHeader && (
+            <MessageHeader
+              userId={message.userId}
+              displayName={displayName}
+              userColor={userColor}
+              timestamp={new Date(message.timestamp)}
+              theme={theme}
+              isClickable={isClickable}
+              onClick={handleUsernameClick}
+              isBot={isBot}
+              isVerified={isVerified}
+              isIrcOp={isIrcOp}
+            />
+          )}
+
+          <div className="relative min-w-0">
+            {message.replyMessage && (
+              <MessageReply
+                replyMessage={message.replyMessage}
                 theme={theme}
-                isClickable={isClickable}
-                onClick={handleUsernameClick}
-                isBot={isBot}
-                isVerified={isVerified}
-                isIrcOp={isIrcOp}
+                onUsernameClick={handleReplyUsernameClick}
+                onIrcLinkClick={onIrcLinkClick}
+                onReplyClick={handleScrollToReply}
               />
             )}
 
-            <div className="relative min-w-0">
-              {message.replyMessage && (
-                <MessageReply
-                  replyMessage={message.replyMessage}
-                  theme={theme}
-                  onUsernameClick={handleReplyUsernameClick}
-                  onIrcLinkClick={onIrcLinkClick}
-                  onReplyClick={handleScrollToReply}
+            <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+              {isSingleToken &&
+              mediaEntries.length === 1 &&
+              mediaEntries[0].type !== null ? (
+                // Known type: hide URL, show only the preview
+                <MediaPreview
+                  entry={mediaEntries[0]}
+                  msgid={message.msgid}
+                  isFilehostImage={
+                    !!server?.filehost &&
+                    isUrlFromFilehost(mediaEntries[0].url, server.filehost)
+                  }
+                  serverId={message.serverId}
+                  channelId={mediaChannelId}
+                  onOpenProfile={onOpenProfile}
                 />
+              ) : (
+                // Unknown type (needs probe) or multi-URL: show text body
+                <div
+                  className="overflow-hidden"
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "break-word",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {collapsibleContent}
+                </div>
               )}
+            </EnhancedLinkWrapper>
 
-              <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-                {isSingleToken &&
-                mediaEntries.length === 1 &&
-                mediaEntries[0].type !== null ? (
-                  // Known type: hide URL, show only the preview
-                  <MediaPreview
-                    entry={mediaEntries[0]}
-                    msgid={message.msgid}
-                    isFilehostImage={
-                      !!server?.filehost &&
-                      isUrlFromFilehost(mediaEntries[0].url, server.filehost)
-                    }
-                    serverId={message.serverId}
-                    channelId={mediaChannelId}
-                    onOpenProfile={onOpenProfile}
-                  />
-                ) : (
-                  // Unknown type (needs probe) or multi-URL: show text body
-                  <div
-                    className="overflow-hidden"
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      overflowWrap: "break-word",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {collapsibleContent}
-                  </div>
-                )}
-              </EnhancedLinkWrapper>
-
-              {/* Embedded media below text — first always visible,
+            {/* Embedded media below text — first always visible,
                   known-type extras collapsed behind a "show more" toggle to prevent floods.
                   Null-type extras render inline since they show nothing if the probe fails. */}
-              {!(
-                isSingleToken &&
-                mediaEntries.length === 1 &&
-                mediaEntries[0].type !== null
-              ) &&
-                mediaEntries.length > 0 &&
-                (() => {
-                  const {
-                    extraNullEntries,
-                    firstKnownNotAtZero,
-                    extraKnownEntries,
-                  } = partitionMediaEntries(mediaEntries);
-                  return (
-                    <div>
+            {!(
+              isSingleToken &&
+              mediaEntries.length === 1 &&
+              mediaEntries[0].type !== null
+            ) &&
+              mediaEntries.length > 0 &&
+              (() => {
+                const {
+                  extraNullEntries,
+                  firstKnownNotAtZero,
+                  extraKnownEntries,
+                } = partitionMediaEntries(mediaEntries);
+                return (
+                  <div>
+                    <MediaPreview
+                      entry={mediaEntries[0]}
+                      msgid={message.msgid}
+                      isFilehostImage={
+                        !!server?.filehost &&
+                        isUrlFromFilehost(mediaEntries[0].url, server.filehost)
+                      }
+                      serverId={message.serverId}
+                      channelId={mediaChannelId}
+                      onOpenProfile={onOpenProfile}
+                      onTypeResolved={handleTypeResolved}
+                    />
+                    {extraNullEntries.map((entry) => (
                       <MediaPreview
-                        entry={mediaEntries[0]}
+                        key={entry.url}
+                        entry={entry}
+                        msgid={message.msgid}
+                        isFilehostImage={false}
+                        serverId={message.serverId}
+                        channelId={mediaChannelId}
+                        onOpenProfile={onOpenProfile}
+                        onTypeResolved={handleTypeResolved}
+                      />
+                    ))}
+                    {firstKnownNotAtZero && (
+                      <MediaPreview
+                        key={firstKnownNotAtZero.url}
+                        entry={firstKnownNotAtZero}
                         msgid={message.msgid}
                         isFilehostImage={
                           !!server?.filehost &&
                           isUrlFromFilehost(
-                            mediaEntries[0].url,
+                            firstKnownNotAtZero.url,
                             server.filehost,
                           )
                         }
                         serverId={message.serverId}
                         channelId={mediaChannelId}
                         onOpenProfile={onOpenProfile}
-                        onTypeResolved={handleTypeResolved}
                       />
-                      {extraNullEntries.map((entry) => (
-                        <MediaPreview
-                          key={entry.url}
-                          entry={entry}
-                          msgid={message.msgid}
-                          isFilehostImage={false}
-                          serverId={message.serverId}
-                          channelId={mediaChannelId}
-                          onOpenProfile={onOpenProfile}
-                          onTypeResolved={handleTypeResolved}
-                        />
-                      ))}
-                      {firstKnownNotAtZero && (
-                        <MediaPreview
-                          key={firstKnownNotAtZero.url}
-                          entry={firstKnownNotAtZero}
-                          msgid={message.msgid}
-                          isFilehostImage={
-                            !!server?.filehost &&
-                            isUrlFromFilehost(
-                              firstKnownNotAtZero.url,
-                              server.filehost,
-                            )
-                          }
-                          serverId={message.serverId}
-                          channelId={mediaChannelId}
-                          onOpenProfile={onOpenProfile}
-                        />
-                      )}
-                      {extraKnownEntries.length > 0 &&
-                        (showAllImages ? (
-                          <>
-                            {extraKnownEntries.map((entry) => (
-                              <MediaPreview
-                                key={entry.url}
-                                entry={entry}
-                                msgid={message.msgid}
-                                isFilehostImage={
-                                  !!server?.filehost &&
-                                  isUrlFromFilehost(entry.url, server.filehost)
-                                }
-                                serverId={message.serverId}
-                                channelId={mediaChannelId}
-                                onOpenProfile={onOpenProfile}
-                              />
-                            ))}
-                            <button
-                              type="button"
-                              className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
-                              onClick={() => setShowAllImages(false)}
-                            >
-                              Show less
-                            </button>
-                          </>
-                        ) : (
+                    )}
+                    {extraKnownEntries.length > 0 &&
+                      (showAllImages ? (
+                        <>
+                          {extraKnownEntries.map((entry) => (
+                            <MediaPreview
+                              key={entry.url}
+                              entry={entry}
+                              msgid={message.msgid}
+                              isFilehostImage={
+                                !!server?.filehost &&
+                                isUrlFromFilehost(entry.url, server.filehost)
+                              }
+                              serverId={message.serverId}
+                              channelId={mediaChannelId}
+                              onOpenProfile={onOpenProfile}
+                            />
+                          ))}
                           <button
                             type="button"
                             className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
-                            onClick={() => setShowAllImages(true)}
+                            onClick={() => setShowAllImages(false)}
                           >
-                            Show {extraKnownEntries.length} more item
-                            {extraKnownEntries.length > 1 ? "s" : ""}
+                            Show less
                           </button>
-                        ))}
-                    </div>
-                  );
-                })()}
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
+                          onClick={() => setShowAllImages(true)}
+                        >
+                          Show {extraKnownEntries.length} more item
+                          {extraKnownEntries.length > 1 ? "s" : ""}
+                        </button>
+                      ))}
+                  </div>
+                );
+              })()}
 
-              {/* Render link preview if available */}
-              {(message.linkPreviewTitle ||
-                message.linkPreviewSnippet ||
-                message.linkPreviewMeta) && (
-                <LinkPreview
-                  title={message.linkPreviewTitle}
-                  snippet={message.linkPreviewSnippet}
-                  imageUrl={message.linkPreviewMeta}
-                  theme={theme}
-                  messageContent={message.content}
-                />
-              )}
-            </div>
-
-            <ReactionsWithActions
-              message={message}
-              currentUserUsername={ircCurrentUser?.username}
-              onReactionClick={handleReactionClick}
-              onReactClick={(el) => onReactClick(message, el)}
-              onReplyClick={() => setReplyTo(message)}
-              onRedactClick={
-                canRedact ? () => onRedactMessage?.(message) : undefined
-              }
-              canRedact={canRedact}
-              canReply={!hideReply && message.type === "message"}
-              onOpenMedia={handleOpenMedia}
-              canOpenMedia={canOpenMedia}
-            />
+            {/* Render link preview if available */}
+            {(message.linkPreviewTitle ||
+              message.linkPreviewSnippet ||
+              message.linkPreviewMeta) && (
+              <LinkPreview
+                title={message.linkPreviewTitle}
+                snippet={message.linkPreviewSnippet}
+                imageUrl={message.linkPreviewMeta}
+                theme={theme}
+                messageContent={message.content}
+              />
+            )}
           </div>
+
+          <ReactionsWithActions
+            message={message}
+            currentUserUsername={ircCurrentUser?.username}
+            onReactionClick={handleReactionClick}
+            onReactClick={(el) => onReactClick(message, el)}
+            onReplyClick={() => setReplyTo(message)}
+            onRedactClick={
+              canRedact ? () => onRedactMessage?.(message) : undefined
+            }
+            canRedact={canRedact}
+            canReply={canReply}
+            onOpenMedia={handleOpenMedia}
+            canOpenMedia={canOpenMedia}
+          />
         </div>
-      </SwipeableMessage>
+      </div>
+
+      {isTouchDevice && (
+        <MessageBottomSheet
+          isOpen={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          onReply={
+            canReply
+              ? () => {
+                  setReplyTo(message);
+                  setSheetOpen(false);
+                }
+              : undefined
+          }
+          onReact={
+            message.msgid
+              ? (el: Element) => onReactClick(message, el)
+              : undefined
+          }
+          onDelete={
+            canRedact
+              ? () => {
+                  onRedactMessage?.(message);
+                  setSheetOpen(false);
+                }
+              : undefined
+          }
+          onOpenMedia={
+            handleOpenMedia
+              ? () => {
+                  handleOpenMedia();
+                  setSheetOpen(false);
+                }
+              : undefined
+          }
+          canReply={canReply}
+          canReact={!!message.msgid}
+          canDelete={canRedact}
+          canOpenMedia={canOpenMedia}
+        />
+      )}
     </div>
   );
 };

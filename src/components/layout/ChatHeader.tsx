@@ -25,6 +25,7 @@ import {
   isUrlFromFilehost,
 } from "../../lib/ircUtils";
 import { mediaLevelToSettings } from "../../lib/mediaUtils";
+import { isTauriMobile } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
 import HeaderOverflowMenu, {
@@ -87,6 +88,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const ui = useStore((state) => state.ui);
   const topicModalRequest = useStore((state) => state.ui.topicModalRequest);
   const profileViewRequest = useStore((state) => state.ui.profileViewRequest);
+  const nativeMobile = isTauriMobile();
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
@@ -300,7 +302,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           openMediaExplorer(selectedServerId, selectedChannelId);
         }
       },
-      show: !!selectedChannel && hasMedia,
+      show: hasMedia,
     },
     {
       label: "Channel Settings",
@@ -504,44 +506,43 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </button>
 
-              {/* Users */}
-              <button
-                className="p-2 md:p-0 hover:text-discord-text-normal"
-                onClick={() => {
-                  if (isNarrowView) {
-                    // Mobile: navigate between pages
-                    const currentColumn =
-                      useStore.getState().ui.mobileViewActiveColumn;
-                    const isOnMemberPage = currentColumn === "memberList";
+              {/* Users — hidden on iOS/Android native since member list is a swipe-right gesture */}
+              {!nativeMobile && (
+                <button
+                  className="p-2 md:p-0 hover:text-discord-text-normal"
+                  onClick={() => {
+                    if (isNarrowView) {
+                      const currentColumn =
+                        useStore.getState().ui.mobileViewActiveColumn;
+                      const isOnMemberPage = currentColumn === "memberList";
 
-                    if (isOnMemberPage) {
-                      setMobileViewActiveColumn("chatView");
+                      if (isOnMemberPage) {
+                        setMobileViewActiveColumn("chatView");
+                      } else {
+                        setMobileViewActiveColumn("memberList");
+                      }
                     } else {
-                      setMobileViewActiveColumn("memberList");
+                      toggleMemberList(!isMemberListVisible);
                     }
-                  } else {
-                    // Desktop: toggle member list (sidebar or overlay depending on width)
-                    toggleMemberList(!isMemberListVisible);
+                  }}
+                  aria-label={
+                    isMemberListVisible
+                      ? "Collapse member list"
+                      : "Expand member list"
                   }
-                }}
-                aria-label={
-                  isMemberListVisible
-                    ? "Collapse member list"
-                    : "Expand member list"
-                }
-                data-testid="toggle-member-list"
-                data-no-swipe
-              >
-                {(
-                  isNarrowView
-                    ? mobileViewActiveColumn === "memberList"
-                    : isMemberListVisible
-                ) ? (
-                  <UsersIcon className="w-4 h-4 text-white" />
-                ) : (
-                  <UsersIcon className="w-4 h-4 text-gray" />
-                )}
-              </button>
+                  data-testid="toggle-member-list"
+                >
+                  {(
+                    isNarrowView
+                      ? mobileViewActiveColumn === "memberList"
+                      : isMemberListVisible
+                  ) ? (
+                    <UsersIcon className="w-4 h-4 text-white" />
+                  ) : (
+                    <UsersIcon className="w-4 h-4 text-gray" />
+                  )}
+                </button>
+              )}
 
               {/* Desktop action buttons */}
               <button
@@ -565,8 +566,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               >
                 <FaList />
               </button>
-              {/* Media explorer — always visible when there's media */}
-              {hasMedia && (
+              {/* Media explorer — in overflow menu on native mobile, inline button elsewhere */}
+              {hasMedia && !nativeMobile && (
                 <button
                   className="p-2 md:p-0 hover:text-discord-text-normal"
                   onClick={() => {
@@ -804,7 +805,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </button>
 
-              {hasMedia && (
+              {hasMedia && !nativeMobile && (
                 <button
                   className="p-2 md:p-0 hover:text-discord-text-normal"
                   onClick={() => {

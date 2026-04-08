@@ -26,7 +26,7 @@ import {
   processMarkdownInText,
 } from "../../lib/ircUtils";
 import { mediaLevelToSettings } from "../../lib/mediaUtils";
-import { isTauriDesktop } from "../../lib/platformUtils";
+import { isTauriDesktop, isTauriMobile } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
@@ -379,6 +379,14 @@ export const ChannelList: React.FC<{
   const isNarrowView = useMediaQuery();
   // Only show on Tauri desktop (macOS/Windows/Linux) — not on browser, iOS, or Android
   const prevItemId = isTauriDesktop() ? prevChannelIdRaw : null;
+  // Touch :hover fires on tap and shows a misleading blue flash on native mobile
+  const nativeMobile = isTauriMobile();
+  const hoverPrimary = nativeMobile
+    ? ""
+    : "hover:bg-discord-primary/70 hover:text-white";
+  const hoverSubtle = nativeMobile
+    ? ""
+    : "hover:bg-discord-dark-100 hover:text-discord-channels-active";
 
   const cancelLongPress = () => {
     if (longPressTimer.current) {
@@ -431,7 +439,7 @@ export const ChannelList: React.FC<{
             <div
               className={`
                 px-2 py-1 mb-1 rounded flex items-center gap-2 cursor-pointer
-                ${selectedChannelId === null ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                ${selectedChannelId === null ? "bg-discord-dark-400 text-white" : hoverSubtle}
               `}
               onClick={() => selectChannel(null, { navigate: true })}
             >
@@ -544,7 +552,7 @@ export const ChannelList: React.FC<{
                           ${
                             selectedChannelId === channel.id
                               ? "bg-black text-white"
-                              : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
+                              : `bg-discord-dark-400/50 ${hoverPrimary}`
                           }
                           ${
                             prevItemId === channel.id &&
@@ -888,7 +896,7 @@ export const ChannelList: React.FC<{
                           ${
                             selectedPrivateChatId === privateChat.id
                               ? "bg-black text-white"
-                              : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
+                              : `bg-discord-dark-400/50 ${hoverPrimary}`
                           }
                           ${
                             prevItemId === privateChat.id &&
@@ -1305,7 +1313,7 @@ export const ChannelList: React.FC<{
                   className={`
                     px-2 py-1 mb-1 rounded-md flex items-center cursor-pointer
                     transition-all duration-200 ease-in-out
-                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : hoverSubtle}
                   `}
                   onClick={() =>
                     selectChannel("server-notices", { navigate: true })
@@ -1327,7 +1335,7 @@ export const ChannelList: React.FC<{
       </div>
       <div className="mt-auto mb-2 px-2">
         <div
-          className="py-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full transition-all duration-200 ease-in-out shadow-sm bg-discord-dark-400/50 hover:bg-discord-primary/70"
+          className={`py-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full transition-all duration-200 ease-in-out shadow-sm bg-discord-dark-400/50 ${hoverPrimary}`}
           onClick={() => toggleSettingsModal(true)}
         >
           <div className="flex items-center gap-2 ml-2 flex-1 min-w-0">

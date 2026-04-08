@@ -1,7 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
-import { platform } from "@tauri-apps/plugin-os";
 import { useEffect } from "react";
-import { isTauri } from "../lib/platformUtils";
+import { isTauri, isTauriIOS, isTauriMobile } from "../lib/platformUtils";
 
 interface IosKeyboardPayload {
   eventType: "will-show" | "did-show" | "will-hide" | "did-hide";
@@ -21,16 +20,9 @@ export const useKeyboardResize = () => {
       return;
     }
 
-    let currentPlatform: string | undefined;
-    if (isTauri()) {
-      try {
-        currentPlatform = platform();
-        if (!["android", "ios"].includes(currentPlatform)) {
-          return;
-        }
-      } catch {
-        // If platform() fails, continue anyway on mobile devices
-      }
+    // On Tauri desktop, bail out — keyboard handling is only needed on mobile.
+    if (isTauri() && !isTauriMobile()) {
+      return;
     }
 
     const root = document.getElementById("root");
@@ -81,7 +73,7 @@ export const useKeyboardResize = () => {
 
     // iOS: visualViewport.resize never fires with viewport-fit=cover in WKWebView.
     // Use UIKeyboardWillShow/Hide notifications via tauri-plugin-ios-keyboard instead.
-    if (isTauri() && currentPlatform === "ios") {
+    if (isTauriIOS()) {
       let cleanupIos: (() => void) | undefined;
 
       (async () => {

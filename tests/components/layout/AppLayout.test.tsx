@@ -373,13 +373,15 @@ describe("AppLayout Swipe Navigation", () => {
         })),
       });
 
-      vi.mock("@tauri-apps/plugin-os", () => ({
-        platform: vi.fn(() => "android"),
-      }));
-
       Object.defineProperty(window, "__TAURI__", {
         value: true,
         writable: true,
+      });
+
+      Object.defineProperty(navigator, "userAgent", {
+        value: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36",
+        writable: true,
+        configurable: true,
       });
     });
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SwipeNavigationConfig {
   currentPage: number;
@@ -87,20 +87,6 @@ export function useSwipeNavigation({
       }
 
       if (touchState.current.isHorizontal === true) {
-        // A SwipeableMessage may have claimed this gesture mid-swipe
-        if (touchState.current.target?.closest("[data-no-swipe]")) {
-          touchState.current.isDragging = false;
-          touchState.current.isHorizontal = null;
-          setOffset(0);
-          offsetRef.current = 0;
-          return;
-        }
-
-        try {
-          e.preventDefault();
-        } catch {
-          // Passive event listener warning - can be safely ignored
-        }
         touchState.current.isDragging = true;
 
         let newOffset = deltaX;
@@ -180,6 +166,23 @@ export function useSwipeNavigation({
       setIsTransitioning(false);
     }, 300);
   }, [currentPage, totalPages, threshold, onPageChange]);
+
+  // React synthetic touchmove is passive and can't call preventDefault.
+  // A native non-passive listener blocks inner scroll while a horizontal page swipe is active.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: containerRef is stable
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    function onNativeTouchMove(e: TouchEvent) {
+      if (touchState.current.isHorizontal === true) {
+        e.preventDefault();
+      }
+    }
+    container.addEventListener("touchmove", onNativeTouchMove, {
+      passive: false,
+    });
+    return () => container.removeEventListener("touchmove", onNativeTouchMove);
+  }, []);
 
   return {
     containerRef,

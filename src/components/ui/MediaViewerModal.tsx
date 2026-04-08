@@ -255,11 +255,13 @@ const PdfModalViewer: React.FC<{ url: string; onRequestOpen: () => void }> = ({
   // without CORS restrictions and is not blocked by X-Frame-Options (unlike <iframe>).
   const [useNativeViewer, setUseNativeViewer] = useState(false);
 
-  const pageWidth = Math.min(750, window.innerWidth - 128);
+  // 32px total horizontal margin so the page nearly fills the screen on mobile.
+  // 900px cap gives comfortable reading width on desktop without overflowing.
+  const pageWidth = Math.min(900, window.innerWidth - 32);
   // A4 aspect ratio; used to size the native <object> viewer.
   const nativeHeight = Math.min(
     Math.round(pageWidth * Math.SQRT2),
-    window.innerHeight - 224,
+    window.innerHeight - 180,
   );
 
   if (useNativeViewer) {

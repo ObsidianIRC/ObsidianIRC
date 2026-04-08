@@ -782,10 +782,28 @@ textarea.resize-none::-webkit-scrollbar-thumb {
   -webkit-touch-callout: none;
 }
 
+/* Uses individual transform properties (scale, rotate) so the keyframe animation
+   composes with the inline translateY rather than overriding it. */
+@keyframes drag-shake {
+  0%,
+  100% {
+    scale: 1.04;
+    rotate: 0deg;
+  }
+  25% {
+    scale: 1.04;
+    rotate: -1.5deg;
+  }
+  75% {
+    scale: 1.04;
+    rotate: 1.5deg;
+  }
+}
+
 .draggable-item {
   cursor: grab;
   user-select: none;
-  touch-action: none;
+  /* touch-action intentionally unset — drag activation adds it to the active item only */
   transition:
     transform 150ms ease,
     box-shadow 150ms ease,
@@ -806,12 +824,14 @@ textarea.resize-none::-webkit-scrollbar-thumb {
 }
 
 .draggable-item.is-dragging {
-  opacity: 0.9 !important;
-  /* transform moved to inline style for dynamic translateY */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 1 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
   z-index: 50;
   position: relative;
+  touch-action: none;
+  /* transition: none so the translateY in inline style tracks the pointer without lag */
   transition: none !important;
+  animation: drag-shake 0.35s ease forwards;
 }
 
 .draggable-item.is-dragging * {

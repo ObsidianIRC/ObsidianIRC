@@ -300,5 +300,5 @@ export function canShowMedia(
  *  transparency-grid is preserved as a safe fallback when the format is uncertain. */
 export function imageCanHaveTransparency(url: string): boolean {
   const path = url.split("?")[0].split("#")[0].toLowerCase();
-  return !/\.(jpg|jpeg|pdf)$/.test(path);
+  return /\.(png|gif|webp|avif|svg)$/.test(path);
 }

@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { haptic } from "../lib/haptic";
 
 interface UseLongPressOptions {
   delay?: number;
@@ -38,6 +39,7 @@ export function useLongPress({
       document.body.style.webkitUserSelect = "none";
       timerRef.current = window.setTimeout(() => {
         firedRef.current = true;
+        haptic("light");
         onLongPress();
         timerRef.current = null;
       }, delay);
