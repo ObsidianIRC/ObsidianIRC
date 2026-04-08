@@ -169,7 +169,6 @@ export function useSwipeNavigation({
 
   // React synthetic touchmove is passive and can't call preventDefault.
   // A native non-passive listener blocks inner scroll while a horizontal page swipe is active.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: containerRef is stable
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;

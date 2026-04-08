@@ -2,6 +2,7 @@ import type * as React from "react";
 import {
   forwardRef,
   memo,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -23,6 +24,10 @@ import LoadingSpinner from "../ui/LoadingSpinner";
 import { ScrollToBottomButton } from "../ui/ScrollToBottomButton";
 
 export const DEFAULT_VISIBLE_MESSAGE_COUNT = 100;
+
+// Stable empty array — prevents selector from returning a new [] on every render
+// when the channel has no messages yet (undefined ?? [] would create a new ref each time).
+const EMPTY_MESSAGES: import("../../types").Message[] = [];
 
 export interface ChannelMessageListHandle {
   setAtBottom: () => void;
@@ -122,7 +127,12 @@ export const ChannelMessageList = forwardRef<
     // "was at bottom" check is not fooled by the adjusted scrollTop vs its stale prevSH.
     const resizeObserverPrevSHRef = useRef(0);
 
-    const messages = useStore((state) => state.messages);
+    const channelMessages = useStore(
+      useCallback(
+        (state) => state.messages[channelKey] ?? EMPTY_MESSAGES,
+        [channelKey],
+      ),
+    );
     const servers = useStore((state) => state.servers);
     const mobileViewActiveColumn = useStore(
       (state) => state.ui.mobileViewActiveColumn,
@@ -183,11 +193,6 @@ export const ChannelMessageList = forwardRef<
         visibleCount: visibleMessageCountRef.current,
       }),
     }));
-
-    const channelMessages = useMemo(
-      () => (channelKey ? messages[channelKey] || [] : []),
-      [messages, channelKey],
-    );
 
     const filteredMessages = useMemo(() => {
       if (!searchQuery.trim()) return channelMessages;

@@ -1,8 +1,8 @@
 import type React from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MdAddReaction } from "react-icons/md";
 import type { MessageType } from "../../types";
+import { MdAddReaction } from "./icons";
 
 interface ReactionData {
   count: number;

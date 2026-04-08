@@ -17,6 +17,29 @@ export function bufferChathistoryMessage(batchId: string, msg: Message): void {
   buf.push(msg);
 }
 
+interface BufferedReaction {
+  emoji: string;
+  userId: string;
+  targetMsgId: string;
+  isUnreact: boolean;
+}
+
+// Reactions that arrive via TAGMSG during a chathistory batch are buffered here.
+// The target message is still in chathistoryBuffers at that point, not in the store.
+export const reactionBuffers = new Map<string, BufferedReaction[]>();
+
+export function bufferChathistoryReaction(
+  batchId: string,
+  r: BufferedReaction,
+): void {
+  let buf = reactionBuffers.get(batchId);
+  if (!buf) {
+    buf = [];
+    reactionBuffers.set(batchId, buf);
+  }
+  buf.push(r);
+}
+
 function processBatchedNetsplit(
   store: StoreApi<AppState>,
   serverId: string,
@@ -282,6 +305,49 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
             )
             .slice(-MAX_MESSAGES_PER_CHANNEL);
 
+          // Apply buffered reactions and re-resolve reply references now that
+          // all messages from the batch are in `merged` and visible to each other.
+          const pendingReactions = reactionBuffers.get(batchId) ?? [];
+          reactionBuffers.delete(batchId);
+
+          const finalMessages = merged.map((m) => {
+            let updated = m;
+
+            // Re-resolve reply if it was null when the message was buffered
+            // (the reply target may have been later in the same batch).
+            if (!updated.replyMessage && updated.tags?.["+draft/reply"]) {
+              const replyId = updated.tags["+draft/reply"];
+              const found = merged.find(
+                (r) =>
+                  r.msgid === replyId ||
+                  r.multilineMessageIds?.includes(replyId),
+              );
+              if (found) updated = { ...updated, replyMessage: found };
+            }
+
+            // Apply any reactions/unreactions buffered for this message.
+            const relevant = pendingReactions.filter(
+              (r) => r.targetMsgId === m.msgid,
+            );
+            if (relevant.length === 0) return updated;
+
+            let reactions = [...updated.reactions];
+            for (const r of relevant) {
+              if (r.isUnreact) {
+                reactions = reactions.filter(
+                  (e) => !(e.emoji === r.emoji && e.userId === r.userId),
+                );
+              } else if (
+                !reactions.some(
+                  (e) => e.emoji === r.emoji && e.userId === r.userId,
+                )
+              ) {
+                reactions.push({ emoji: r.emoji, userId: r.userId });
+              }
+            }
+            return { ...updated, reactions };
+          });
+
           const newMsgIds = newMessages
             .filter((m) => m.msgid)
             .map((m) => m.msgid as string);
@@ -291,7 +357,7 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
               ...state.activeBatches,
               [serverId]: remainingBatches,
             },
-            messages: { ...state.messages, [key]: merged },
+            messages: { ...state.messages, [key]: finalMessages },
             processedMessageIds:
               newMsgIds.length > 0
                 ? new Set([...state.processedMessageIds, ...newMsgIds])

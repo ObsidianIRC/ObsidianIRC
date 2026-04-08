@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import ircClient from "../../src/lib/ircClient";
 import type { AppState } from "../../src/store";
 import useStore from "../../src/store";
-import { chathistoryBuffers } from "../../src/store/handlers/batches";
+import {
+  chathistoryBuffers,
+  reactionBuffers,
+} from "../../src/store/handlers/batches";
 import type { Channel, Message } from "../../src/types";
 
 function makeChannel(overrides: Partial<Channel> = {}): Channel {
@@ -438,5 +441,134 @@ describe("chathistory batch — CHANMSG buffering", () => {
     const server = useStore.getState().servers.find((s) => s.id === "srv-1");
     const channel = server?.channels.find((c) => c.name === "#test");
     expect(channel?.isLoadingHistory).toBe(false);
+  });
+});
+
+describe("chathistory batch — reactions and replies", () => {
+  beforeEach(() => {
+    setupServer();
+    chathistoryBuffers.clear();
+    reactionBuffers.clear();
+    useStore.setState({
+      processedMessageIds: new Set(),
+      activeBatches: {
+        "srv-1": {
+          batchRR: {
+            type: "chathistory",
+            parameters: ["#test"],
+            events: [],
+            startTime: new Date(),
+          },
+        },
+      },
+    } as unknown as AppState);
+  });
+
+  it("reaction TAGMSG during batch is applied to message after BATCH_END", () => {
+    ircClient.triggerEvent("CHANMSG", {
+      serverId: "srv-1",
+      sender: "alice",
+      channelName: "#test",
+      message: "react to me",
+      timestamp: new Date("2026-01-01T10:00:00.000Z"),
+      mtags: { batch: "batchRR", msgid: "msg-react-1" },
+    });
+
+    ircClient.triggerEvent("TAGMSG", {
+      serverId: "srv-1",
+      sender: "bob",
+      channelName: "#test",
+      timestamp: new Date("2026-01-01T10:00:01.000Z"),
+      mtags: {
+        batch: "batchRR",
+        "+draft/react": "👍",
+        "+draft/reply": "msg-react-1",
+      },
+    });
+
+    ircClient.triggerEvent("BATCH_END", {
+      serverId: "srv-1",
+      batchId: "batchRR",
+    });
+
+    const msgs = useStore.getState().messages["srv-1-chan-1"];
+    const target = msgs?.find((m) => m.msgid === "msg-react-1");
+    expect(target).toBeDefined();
+    expect(target?.reactions).toEqual([{ emoji: "👍", userId: "bob" }]);
+  });
+
+  it("unreaction TAGMSG during batch removes reaction after BATCH_END", () => {
+    // Buffer a message that already has a reaction pre-applied
+    ircClient.triggerEvent("CHANMSG", {
+      serverId: "srv-1",
+      sender: "alice",
+      channelName: "#test",
+      message: "unreact from me",
+      timestamp: new Date("2026-01-01T10:01:00.000Z"),
+      mtags: { batch: "batchRR", msgid: "msg-unreact-1" },
+    });
+
+    // Manually set the buffered message to have an existing reaction
+    const buf = chathistoryBuffers.get("batchRR");
+    if (buf) {
+      const m = buf.find((m) => m.msgid === "msg-unreact-1");
+      if (m) m.reactions = [{ emoji: "👍", userId: "bob" }];
+    }
+
+    ircClient.triggerEvent("TAGMSG", {
+      serverId: "srv-1",
+      sender: "bob",
+      channelName: "#test",
+      timestamp: new Date("2026-01-01T10:01:01.000Z"),
+      mtags: {
+        batch: "batchRR",
+        "+draft/unreact": "👍",
+        "+draft/reply": "msg-unreact-1",
+      },
+    });
+
+    ircClient.triggerEvent("BATCH_END", {
+      serverId: "srv-1",
+      batchId: "batchRR",
+    });
+
+    const msgs = useStore.getState().messages["srv-1-chan-1"];
+    const target = msgs?.find((m) => m.msgid === "msg-unreact-1");
+    expect(target).toBeDefined();
+    expect(target?.reactions).toEqual([]);
+  });
+
+  it("reply within the same batch resolves after BATCH_END", () => {
+    ircClient.triggerEvent("CHANMSG", {
+      serverId: "srv-1",
+      sender: "alice",
+      channelName: "#test",
+      message: "original message",
+      timestamp: new Date("2026-01-01T10:00:00.000Z"),
+      mtags: { batch: "batchRR", msgid: "msg-orig" },
+    });
+
+    ircClient.triggerEvent("CHANMSG", {
+      serverId: "srv-1",
+      sender: "bob",
+      channelName: "#test",
+      message: "reply to alice",
+      timestamp: new Date("2026-01-01T10:01:00.000Z"),
+      mtags: {
+        batch: "batchRR",
+        msgid: "msg-reply",
+        "+draft/reply": "msg-orig",
+      },
+    });
+
+    ircClient.triggerEvent("BATCH_END", {
+      serverId: "srv-1",
+      batchId: "batchRR",
+    });
+
+    const msgs = useStore.getState().messages["srv-1-chan-1"];
+    const reply = msgs?.find((m) => m.msgid === "msg-reply");
+    expect(reply).toBeDefined();
+    expect(reply?.replyMessage?.msgid).toBe("msg-orig");
   });
 });

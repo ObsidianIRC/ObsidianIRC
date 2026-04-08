@@ -19,7 +19,7 @@ import {
   serverSupportsMetadata,
 } from "../helpers";
 import type { AppState } from "../index";
-import { bufferChathistoryMessage } from "./batches";
+import { bufferChathistoryMessage, bufferChathistoryReaction } from "./batches";
 
 export function registerMessageHandlers(store: StoreApi<AppState>): void {
   ircClient.on("CHANMSG", (response) => {
@@ -1510,6 +1510,22 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
     // Handle reactions
     if (mtags?.["+draft/react"] && mtags["+draft/reply"]) {
+      // Chathistory batch: target message is in chathistoryBuffers, not the store yet.
+      if (mtags.batch) {
+        const batchId = mtags.batch;
+        const batch =
+          store.getState().activeBatches[response.serverId]?.[batchId];
+        if (batch?.type === "chathistory") {
+          bufferChathistoryReaction(batchId, {
+            emoji: mtags["+draft/react"],
+            userId: sender,
+            targetMsgId: mtags["+draft/reply"],
+            isUnreact: false,
+          });
+          return;
+        }
+      }
+
       const emoji = mtags["+draft/react"];
       const replyMessageId = mtags["+draft/reply"];
 
@@ -1578,6 +1594,21 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
     // Handle unreacts
     if (mtags?.["+draft/unreact"] && mtags["+draft/reply"]) {
+      if (mtags.batch) {
+        const batchId = mtags.batch;
+        const batch =
+          store.getState().activeBatches[response.serverId]?.[batchId];
+        if (batch?.type === "chathistory") {
+          bufferChathistoryReaction(batchId, {
+            emoji: mtags["+draft/unreact"],
+            userId: sender,
+            targetMsgId: mtags["+draft/reply"],
+            isUnreact: true,
+          });
+          return;
+        }
+      }
+
       const emoji = mtags["+draft/unreact"];
       const replyMessageId = mtags["+draft/reply"];
       // No self-skip needed: if the reaction was already removed optimistically,

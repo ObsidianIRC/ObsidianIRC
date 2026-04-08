@@ -197,7 +197,6 @@ export const ChatArea: React.FC<{
     paddingBottom: number;
   } | null>(null);
   const prevInputLengthRef = useRef(0);
-
   const resizeTextarea = useCallback(() => {
     const textarea = inputRef.current;
     if (!textarea) return;

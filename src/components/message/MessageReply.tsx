@@ -1,6 +1,21 @@
 import type React from "react";
 import { FaTimes } from "react-icons/fa";
-import { RiReplyFill } from "react-icons/ri";
+
+// Inlined from react-icons/ri — avoids loading the entire RI icon sub-package (~2.1MB).
+const RiReplyFill = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width="1em"
+    height="1em"
+    fill="currentColor"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M11 20L1 12L11 4V9C16.5228 9 21 13.4772 21 19C21 19.2729 20.9891 19.5433 20.9676 19.8107C19.4605 16.9502 16.458 15 13 15H11V20Z" />
+  </svg>
+);
+
 import { canShowImageUrl } from "../../lib/imageUtils";
 import { imageCanHaveTransparency } from "../../lib/mediaUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";

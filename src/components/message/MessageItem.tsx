@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
@@ -126,7 +126,11 @@ export function partitionMediaEntries(entries: MediaEntry[]) {
   return { extraNullEntries, firstKnownNotAtZero, extraKnownEntries };
 }
 
-export const MessageItem = (props: MessageItemProps) => {
+// Theme is set once at startup and does not change while the app is running.
+// Reading it per-render via localStorage.getItem is unnecessary synchronous I/O.
+const CURRENT_THEME = localStorage.getItem("theme") || "discord";
+
+export const MessageItem = memo((props: MessageItemProps) => {
   const {
     message,
     showDate,
@@ -341,12 +345,21 @@ export const MessageItem = (props: MessageItemProps) => {
   // message.content is already combined for multiline messages by the IRC client
   const messageContent = message.content;
 
-  // Convert message content to React elements
-  const htmlContent = processMarkdownInText(
-    messageContent,
-    showExternalContent,
-    enableMarkdownRendering,
-    message.id || message.msgid || "msg",
+  const htmlContent = useMemo(
+    () =>
+      processMarkdownInText(
+        messageContent,
+        showExternalContent,
+        enableMarkdownRendering,
+        message.id || message.msgid || "msg",
+      ),
+    [
+      messageContent,
+      showExternalContent,
+      enableMarkdownRendering,
+      message.id,
+      message.msgid,
+    ],
   );
 
   // Create collapsible content wrapper
@@ -358,7 +371,7 @@ export const MessageItem = (props: MessageItemProps) => {
     />
   );
 
-  const theme = localStorage.getItem("theme") || "discord";
+  const theme = CURRENT_THEME;
   const username = message.userId;
 
   // Strip IRC formatting codes so URL/image detection works even when the URL
@@ -884,4 +897,5 @@ export const MessageItem = (props: MessageItemProps) => {
       )}
     </div>
   );
-};
+});
+MessageItem.displayName = "MessageItem";

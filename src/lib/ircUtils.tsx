@@ -1,10 +1,18 @@
 import DOMPurify from "dompurify";
-import hljs from "highlight.js";
 import { marked } from "marked";
 import React from "react";
 /* eslint-disable no-control-regex */
 import type { Server, User } from "../types";
 import { isTauri } from "./platformUtils";
+
+// highlight.js is ~1.6MB — lazy-load it so it doesn't block the initial bundle.
+// Start the import immediately (parallel with app startup) but don't wait for it.
+// The first code block render falls back to plain text; subsequent ones are highlighted.
+type HljsType = typeof import("highlight.js").default;
+let hljsModule: HljsType | null = null;
+import("highlight.js").then((m) => {
+  hljsModule = m.default;
+});
 
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
@@ -436,34 +444,29 @@ export function renderMarkdown(
     let highlightedCode = decodedText;
     let language = lang;
 
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        const result = hljs.highlight(decodedText, { language: lang });
-        highlightedCode = result.value;
-        language = result.language;
-      } catch (err) {
-        // Fallback to auto-detection if specific language fails
+    if (hljsModule) {
+      if (lang && hljsModule.getLanguage(lang)) {
         try {
-          const result = hljs.highlightAuto(decodedText);
+          const result = hljsModule.highlight(decodedText, { language: lang });
+          highlightedCode = result.value;
+          language = result.language;
+        } catch (err) {
+          try {
+            const result = hljsModule.highlightAuto(decodedText);
+            highlightedCode = result.value;
+            language = result.language;
+          } catch (autoErr) {
+            highlightedCode = decodedText;
+          }
+        }
+      } else if (!lang) {
+        try {
+          const result = hljsModule.highlightAuto(decodedText);
           highlightedCode = result.value;
           language = result.language;
         } catch (autoErr) {
-          // If highlighting fails, use the decoded text
           highlightedCode = decodedText;
         }
-      }
-    } else if (lang) {
-      // Language specified but not supported, still use decoded text
-      highlightedCode = decodedText;
-    } else {
-      // No language specified, try auto-detection
-      try {
-        const result = hljs.highlightAuto(decodedText);
-        highlightedCode = result.value;
-        language = result.language;
-      } catch (autoErr) {
-        // If auto-detection fails, use decoded text
-        highlightedCode = decodedText;
       }
     }
 
