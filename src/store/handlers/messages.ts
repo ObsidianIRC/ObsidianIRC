@@ -651,6 +651,19 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
         return; // Don't process as a regular PM
       }
 
+      // Ignore check — must happen before whisper routing so ignored whispers are dropped too
+      const globalSettingsForUsermsg = store.getState().globalSettings;
+      if (
+        isUserIgnored(
+          sender,
+          undefined,
+          undefined,
+          globalSettingsForUsermsg.ignoreList,
+        )
+      ) {
+        return;
+      }
+
       // Check if this is a whisper (has draft/channel-context tag)
       // Note: Client tags use + prefix, so check both with and without
       const channelContext = mtags?.["+draft/channel-context"];
@@ -753,15 +766,6 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           store.getState().addMessage(newMessage);
         }
       }
-      return;
-    }
-
-    // Check if sender is ignored
-    const globalSettings = store.getState().globalSettings;
-    if (
-      isUserIgnored(sender, undefined, undefined, globalSettings.ignoreList)
-    ) {
-      // User is ignored, skip processing this message
       return;
     }
 
@@ -1387,6 +1391,18 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
   // TAGMSG typing
   ircClient.on("TAGMSG", (response) => {
     const { sender, mtags, channelName } = response;
+
+    const globalSettingsForTagmsg = store.getState().globalSettings;
+    if (
+      isUserIgnored(
+        sender,
+        undefined,
+        undefined,
+        globalSettingsForTagmsg.ignoreList,
+      )
+    ) {
+      return;
+    }
 
     // Check if the sender is not the current user for this specific server
     // we don't care about showing our own typing status
