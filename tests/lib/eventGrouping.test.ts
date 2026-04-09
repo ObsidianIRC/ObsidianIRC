@@ -120,9 +120,28 @@ describe("computeUserSummary — via groupConsecutiveEvents", () => {
     expect(groups[0].userSummaries?.[0].summary).toBe("joined");
   });
 
-  it("join → quit = 'quit' (last event wins, user is gone)", () => {
+  it("join → quit = 'joined and quit' (single join immediately followed by quit)", () => {
     const msgs = [
       makeEvent("join", "berry", "2026-01-01T08:34:00Z"),
+      makeEvent("quit", "berry", "2026-01-01T08:35:00Z"),
+    ];
+    const groups = groupConsecutiveEvents(msgs);
+    expect(groups[0].userSummaries?.[0].summary).toBe("joined and quit");
+  });
+
+  it("quit → quit = 'quit' (was already in channel, not a fresh join)", () => {
+    const msgs = [
+      makeEvent("quit", "berry", "2026-01-01T08:34:00Z"),
+      makeEvent("quit", "berry", "2026-01-01T08:35:00Z"),
+    ];
+    const groups = groupConsecutiveEvents(msgs);
+    expect(groups[0].userSummaries?.[0].summary).toBe("quit");
+  });
+
+  it("join → quit → quit = 'quit' (more than 2 events, falls back to last-wins)", () => {
+    const msgs = [
+      makeEvent("join", "berry", "2026-01-01T08:33:00Z"),
+      makeEvent("quit", "berry", "2026-01-01T08:34:00Z"),
       makeEvent("quit", "berry", "2026-01-01T08:35:00Z"),
     ];
     const groups = groupConsecutiveEvents(msgs);

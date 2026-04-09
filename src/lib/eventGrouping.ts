@@ -28,7 +28,10 @@ function formatCount(word: string, count: number, suffix = "times"): string {
 function computeUserSummary(types: string[]): string {
   // Final departure always wins so the summary is never misleading about current presence.
   const last = types[types.length - 1];
-  if (last === "quit") return "quit";
+  if (last === "quit")
+    return types.length === 2 && types[0] === "join"
+      ? "joined and quit"
+      : "quit";
   if (last === "part") return "left";
 
   // Last event is join — check for quit→join reconnect cycles.
