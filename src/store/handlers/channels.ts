@@ -118,11 +118,13 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
           if (server.id === serverId) {
             const updatedChannels = server.channels.map((ch) => {
               if (ch.name === channel) {
-                const bans = ch.bans || [];
-                if (!bans.some((ban) => ban.mask === mask)) {
-                  bans.push({ mask, setter, timestamp });
-                }
-                return { ...ch, bans };
+                const bans = ch.bans ?? [];
+                return {
+                  ...ch,
+                  bans: bans.some((ban) => ban.mask === mask)
+                    ? bans
+                    : [...bans, { mask, setter, timestamp }],
+                };
               }
               return ch;
             });
@@ -143,11 +145,13 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
           if (server.id === serverId) {
             const updatedChannels = server.channels.map((ch) => {
               if (ch.name === channel) {
-                const invites = ch.invites || [];
-                if (!invites.some((invite) => invite.mask === mask)) {
-                  invites.push({ mask, setter, timestamp });
-                }
-                return { ...ch, invites };
+                const invites = ch.invites ?? [];
+                return {
+                  ...ch,
+                  invites: invites.some((invite) => invite.mask === mask)
+                    ? invites
+                    : [...invites, { mask, setter, timestamp }],
+                };
               }
               return ch;
             });
@@ -168,11 +172,15 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
           if (server.id === serverId) {
             const updatedChannels = server.channels.map((ch) => {
               if (ch.name === channel) {
-                const exceptions = ch.exceptions || [];
-                if (!exceptions.some((exception) => exception.mask === mask)) {
-                  exceptions.push({ mask, setter, timestamp });
-                }
-                return { ...ch, exceptions };
+                const exceptions = ch.exceptions ?? [];
+                return {
+                  ...ch,
+                  exceptions: exceptions.some(
+                    (exception) => exception.mask === mask,
+                  )
+                    ? exceptions
+                    : [...exceptions, { mask, setter, timestamp }],
+                };
               }
               return ch;
             });
@@ -392,7 +400,7 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
 
       // Request metadata for users who don't have it yet
       if (serverSupportsMetadata(state, serverId)) {
-        const serverData = state.servers.find((s) => s.id === serverId);
+        const serverData = updatedServers.find((s) => s.id === serverId);
         const channelData = serverData?.channels.find(
           (c) => c.name.toLowerCase() === channelName.toLowerCase(),
         );

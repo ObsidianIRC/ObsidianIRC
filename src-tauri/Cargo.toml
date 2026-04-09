@@ -47,7 +47,7 @@ ndk-context = "0.1"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
 tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
-rfd = "0.16"
+rfd = { version = "0.16", features = ["tokio"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 tauri-plugin-ios-keyboard = "0.1"

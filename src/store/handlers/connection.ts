@@ -105,10 +105,10 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
 
               // Restore channel metadata
               const channelMetadata = serverMetadata[channel.name];
-              const updatedChannelMetadata = channel.metadata || {};
-              if (channelMetadata) {
-                Object.assign(updatedChannelMetadata, channelMetadata);
-              }
+              const updatedChannelMetadata = {
+                ...(channel.metadata ?? {}),
+                ...(channelMetadata ?? {}),
+              };
 
               return {
                 ...channel,

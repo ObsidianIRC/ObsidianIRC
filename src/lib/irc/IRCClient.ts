@@ -511,6 +511,7 @@ export class IRCClient implements IRCClientContext {
       let protocol: "wss" | "ircs" | "irc" = "wss";
       let actualHost = host;
       let actualPort = port;
+      let actualPath = "";
 
       if (host.startsWith("irc://") || host.startsWith("ircs://")) {
         // Parse the IRC URL using centralized parser (Android-compatible)
@@ -520,22 +521,34 @@ export class IRCClient implements IRCClientContext {
         actualHost = parsed.host;
         actualPort = parsed.port;
       } else if (host.startsWith("wss://")) {
-        // Parse wss:// URLs
-        const urlMatch = host.match(/^wss:\/\/([^:]+)(?::(\d+))?/);
-        if (urlMatch) {
-          actualHost = urlMatch[1];
-          actualPort = urlMatch[2] ? Number.parseInt(urlMatch[2], 10) : port;
+        // Use URL constructor to preserve path/query (e.g. wss://host/websocket?token=...)
+        try {
+          const parsed = new URL(host);
+          actualHost = parsed.hostname;
+          actualPort = parsed.port ? Number.parseInt(parsed.port, 10) : port;
+          actualPath =
+            parsed.pathname !== "/"
+              ? parsed.pathname + parsed.search
+              : parsed.search;
+        } catch {
+          // malformed URL — leave actualHost/Port from the default
         }
       } else if (host.startsWith("ws://")) {
         // Upgrade legacy ws:// to wss:// — unencrypted WebSockets are no longer supported
-        const urlMatch = host.match(/^ws:\/\/([^:]+)(?::(\d+))?/);
-        if (urlMatch) {
-          actualHost = urlMatch[1];
-          actualPort = urlMatch[2] ? Number.parseInt(urlMatch[2], 10) : port;
+        try {
+          const parsed = new URL(host);
+          actualHost = parsed.hostname;
+          actualPort = parsed.port ? Number.parseInt(parsed.port, 10) : port;
+          actualPath =
+            parsed.pathname !== "/"
+              ? parsed.pathname + parsed.search
+              : parsed.search;
+        } catch {
+          // malformed URL — leave actualHost/Port from the default
         }
       }
 
-      const url = `${protocol}://${actualHost}:${actualPort}`;
+      const url = `${protocol}://${actualHost}:${actualPort}${actualPath}`;
       const socket = createSocket(url);
 
       // Create server object immediately and add to servers map
@@ -882,7 +895,11 @@ export class IRCClient implements IRCClientContext {
           const timestamp = Date.now().toString();
           this.sendRaw(serverId, `PING :${timestamp}`);
 
-          // Set a timeout for pong response (10 seconds)
+          // Clear any previous pong timeout before starting a new one — otherwise
+          // a missed PONG from the prior cycle would close the socket mid-interval.
+          const oldPongTimeout = this.pongTimeouts.get(serverId);
+          if (oldPongTimeout) clearTimeout(oldPongTimeout);
+
           const pongTimeout = setTimeout(() => {
             console.warn(
               `WebSocket ping timeout for server ${serverId}, closing connection`,
@@ -1010,12 +1027,14 @@ export class IRCClient implements IRCClientContext {
     // Note: We'll check server capabilities from the store later via helper function
     const lines = content.split("\n");
 
-    if (lines.length > 1) {
-      // For now, send multiline if there are multiple lines
-      // Server capability check will be done by the calling code
+    if (lines.length > 1 && this.hasCapability(serverId, "draft/multiline")) {
       this.sendMultilineMessage(serverId, channel.name, lines);
+    } else if (lines.length > 1) {
+      // Server didn't negotiate draft/multiline — degrade to separate PRIVMSGs
+      for (const line of lines) {
+        this.sendRaw(serverId, `PRIVMSG ${channel.name} :${line}`);
+      }
     } else {
-      // Send as regular single message
       this.sendRaw(serverId, `PRIVMSG ${channel.name} :${content}`);
     }
   }

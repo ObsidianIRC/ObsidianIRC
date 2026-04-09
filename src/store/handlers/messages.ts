@@ -87,7 +87,9 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
         const currentState = store.getState();
         const currentServerUser = ircClient.getCurrentUser(response.serverId);
         // Don't trigger mentions for our own messages
-        const isOwnMessage = response.sender === currentServerUser?.username;
+        const isOwnMessage =
+          response.sender.toLowerCase() ===
+          currentServerUser?.username?.toLowerCase();
         const hasMention =
           !isOwnMessage &&
           checkForMention(

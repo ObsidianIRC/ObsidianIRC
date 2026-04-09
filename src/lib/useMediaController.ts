@@ -95,11 +95,16 @@ export function useMediaController(
   useEffect(() => {
     if (!stopOnUnmount) return;
     return () => {
-      if (useStore.getState().ui.activeMedia?.url === url) {
+      const active = useStore.getState().ui.activeMedia;
+      const matchesActiveInstance =
+        active?.url === url &&
+        active?.type === type &&
+        (msgid == null || active?.msgid == null || active?.msgid === msgid);
+      if (matchesActiveInstance) {
         useStore.getState().stopActiveMedia();
       }
     };
-  }, [url, stopOnUnmount]);
+  }, [url, type, msgid, stopOnUnmount]);
 
   const play = () =>
     useStore

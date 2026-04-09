@@ -378,6 +378,94 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
             }),
           };
         }
+
+        // Chathistory target is a username (private chat / DM)
+        const privateChat = server?.privateChats?.find(
+          (pc) => pc.username.toLowerCase() === channelName.toLowerCase(),
+        );
+        if (privateChat) {
+          const key = `${serverId}-${privateChat.id}`;
+          const pending = chathistoryBuffers.get(batchId) ?? [];
+          chathistoryBuffers.delete(batchId);
+          const pendingReactions = reactionBuffers.get(batchId) ?? [];
+          reactionBuffers.delete(batchId);
+          const existing = state.messages[key] || [];
+
+          const existingIds = new Set(
+            existing.map((m) => m.msgid).filter(Boolean),
+          );
+          const newMessages = pending.filter(
+            (m) =>
+              !(m.msgid && existingIds.has(m.msgid)) &&
+              !existing.some(
+                (e) =>
+                  e.content === m.content &&
+                  new Date(e.timestamp).getTime() ===
+                    new Date(m.timestamp).getTime() &&
+                  e.userId === m.userId,
+              ),
+          );
+
+          const merged = [...existing, ...newMessages]
+            .sort(
+              (a, b) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime(),
+            )
+            .slice(-MAX_MESSAGES_PER_CHANNEL);
+
+          const finalMessages = merged.map((m) => {
+            let updated = m;
+            if (!updated.replyMessage && updated.tags?.["+draft/reply"]) {
+              const replyId = updated.tags["+draft/reply"];
+              const found = merged.find(
+                (r) =>
+                  r.msgid === replyId ||
+                  r.multilineMessageIds?.includes(replyId),
+              );
+              if (found) updated = { ...updated, replyMessage: found };
+            }
+            const relevant = pendingReactions.filter(
+              (r) => r.targetMsgId === m.msgid,
+            );
+            if (relevant.length === 0) return updated;
+            let reactions = [...updated.reactions];
+            for (const r of relevant) {
+              if (r.isUnreact) {
+                reactions = reactions.filter(
+                  (e) => !(e.emoji === r.emoji && e.userId === r.userId),
+                );
+              } else if (
+                !reactions.some(
+                  (e) => e.emoji === r.emoji && e.userId === r.userId,
+                )
+              ) {
+                reactions.push({ emoji: r.emoji, userId: r.userId });
+              }
+            }
+            return { ...updated, reactions };
+          });
+
+          const newMsgIds = newMessages
+            .filter((m) => m.msgid)
+            .map((m) => m.msgid as string);
+
+          return {
+            activeBatches: {
+              ...state.activeBatches,
+              [serverId]: remainingBatches,
+            },
+            messages: { ...state.messages, [key]: finalMessages },
+            processedMessageIds:
+              newMsgIds.length > 0
+                ? new Set([...state.processedMessageIds, ...newMsgIds])
+                : state.processedMessageIds,
+          };
+        }
+
+        // Unknown target — still clean up buffers to prevent dangling data
+        chathistoryBuffers.delete(batchId);
+        reactionBuffers.delete(batchId);
       }
 
       return {

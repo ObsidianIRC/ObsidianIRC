@@ -182,11 +182,7 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       // Only prevent CAP END if we actually have SASL credentials
       const servers = storage.servers.load();
       const savedServer = servers.find((s) => s.id === serverId);
-      if (
-        savedServer?.saslEnabled &&
-        savedServer?.saslAccountName &&
-        savedServer?.saslPassword
-      ) {
+      if (savedServer?.saslEnabled && savedServer?.saslPassword) {
         preventCapEnd = true;
       }
     }

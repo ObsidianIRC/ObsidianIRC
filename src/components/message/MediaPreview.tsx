@@ -401,8 +401,8 @@ const VideoPlayer: React.FC<{
   // active (e.g. unsupported VP9 profile at decode time despite canPlayType passing),
   // clear the store immediately so the mini bar disappears instead of hanging empty.
   useEffect(() => {
-    if (loadError) useStore.getState().stopActiveMedia();
-  }, [loadError]);
+    if (loadError && isActive) useStore.getState().stopActiveMedia();
+  }, [loadError, isActive]);
 
   // Native event listeners for timeupdate/loadedmetadata/ended — more reliable in
   // WKWebView than React synthetic events, which can be silently dropped.
