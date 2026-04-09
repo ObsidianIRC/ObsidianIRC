@@ -264,6 +264,21 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
         }
       }
 
+      // chathistoryRequested is reset to false on disconnect — re-fetch missed history
+      // for channels that were already joined (ircClient.joinChannel early-returns for them,
+      // so CHATHISTORY never gets sent through the normal join path)
+      setTimeout(() => {
+        const reconnectedServer = store
+          .getState()
+          .servers.find((s) => s.id === serverId);
+        if (!reconnectedServer) return;
+        for (const ch of reconnectedServer.channels) {
+          if (!ch.chathistoryRequested) {
+            ircClient.sendRaw(serverId, `CHATHISTORY LATEST ${ch.name} * 50`);
+          }
+        }
+      }, 50);
+
       // Only auto-select welcome page for NEW servers (no saved channels)
       // Existing servers with channels should not auto-select (preserves user's view)
       const isNewServer = savedServer.channels.length === 0;
