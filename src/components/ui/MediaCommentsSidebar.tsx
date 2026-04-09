@@ -200,7 +200,9 @@ export function MediaCommentsSidebar({
       if (!sourceMsgId) return [];
       const key = `${serverId}-${channelId}`;
       return (state.messages[key] ?? []).filter(
-        (m) => m.tags?.["+draft/reply"]?.trim() === sourceMsgId,
+        (m) =>
+          (m.tags?.["+reply"] ?? m.tags?.["+draft/reply"])?.trim() ===
+          sourceMsgId,
       );
     }),
   );

@@ -498,7 +498,9 @@ export function MediaViewerModal({
       const key = `${serverId}-${channelId}`;
       const counts: Record<string, number> = {};
       for (const m of state.messages[key] ?? []) {
-        const replyTo = m.tags?.["+draft/reply"]?.trim();
+        const replyTo = (
+          m.tags?.["+reply"] ?? m.tags?.["+draft/reply"]
+        )?.trim();
         if (replyTo) counts[replyTo] = (counts[replyTo] ?? 0) + 1;
       }
       return counts;

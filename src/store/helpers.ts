@@ -212,7 +212,8 @@ export function resolveReplyMessage(
   channelId: string,
   messages: Message[],
 ): Message | null {
-  const replyId = mtags?.["+draft/reply"]?.trim() || null;
+  const replyId =
+    (mtags?.["+reply"] ?? mtags?.["+draft/reply"])?.trim() || null;
   if (!replyId) {
     return null;
   }

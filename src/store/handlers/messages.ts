@@ -664,9 +664,10 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
         return;
       }
 
-      // Check if this is a whisper (has draft/channel-context tag)
-      // Note: Client tags use + prefix, so check both with and without
-      const channelContext = mtags?.["+draft/channel-context"];
+      // Check if this is a whisper (has channel-context tag).
+      // Prefer the ratified +channel-context; fall back to +draft/channel-context.
+      const channelContext =
+        mtags?.["+channel-context"] ?? mtags?.["+draft/channel-context"];
 
       if (channelContext) {
         const channel = server.channels.find(
@@ -1527,7 +1528,8 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
     }
 
     // Handle reactions
-    if (mtags?.["+draft/react"] && mtags["+draft/reply"]) {
+    const reactTargetId = mtags?.["+reply"] ?? mtags?.["+draft/reply"];
+    if (mtags?.["+draft/react"] && reactTargetId) {
       // Chathistory batch: target message is in chathistoryBuffers, not the store yet.
       if (mtags.batch) {
         const batchId = mtags.batch;
@@ -1537,7 +1539,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           bufferChathistoryReaction(batchId, {
             emoji: mtags["+draft/react"],
             userId: sender,
-            targetMsgId: mtags["+draft/reply"],
+            targetMsgId: reactTargetId,
             isUnreact: false,
           });
           return;
@@ -1545,7 +1547,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       }
 
       const emoji = mtags["+draft/react"];
-      const replyMessageId = mtags["+draft/reply"];
+      const replyMessageId = reactTargetId;
 
       const server = store
         .getState()
@@ -1611,7 +1613,8 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
     }
 
     // Handle unreacts
-    if (mtags?.["+draft/unreact"] && mtags["+draft/reply"]) {
+    const unreactTargetId = mtags?.["+reply"] ?? mtags?.["+draft/reply"];
+    if (mtags?.["+draft/unreact"] && unreactTargetId) {
       if (mtags.batch) {
         const batchId = mtags.batch;
         const batch =
@@ -1620,7 +1623,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           bufferChathistoryReaction(batchId, {
             emoji: mtags["+draft/unreact"],
             userId: sender,
-            targetMsgId: mtags["+draft/reply"],
+            targetMsgId: unreactTargetId,
             isUnreact: true,
           });
           return;
@@ -1628,7 +1631,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       }
 
       const emoji = mtags["+draft/unreact"];
-      const replyMessageId = mtags["+draft/reply"];
+      const replyMessageId = unreactTargetId;
       // No self-skip needed: if the reaction was already removed optimistically,
       // existingReactionIndex will be -1 and the guard below is a no-op.
 

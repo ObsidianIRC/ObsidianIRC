@@ -432,11 +432,12 @@ export const MessageItem = memo((props: MessageItemProps) => {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
   }
 
-  // Handle whisper messages (messages with draft/channel-context tag)
-  // Note: Client tags use + prefix
+  // Handle whisper messages (channel-context tag, ratified or draft variant)
   if (
-    message.tags?.["draft/channel-context"] ||
-    message.tags?.["+draft/channel-context"]
+    message.tags?.["+channel-context"] ||
+    message.tags?.["channel-context"] ||
+    message.tags?.["+draft/channel-context"] ||
+    message.tags?.["draft/channel-context"]
   ) {
     return (
       <>

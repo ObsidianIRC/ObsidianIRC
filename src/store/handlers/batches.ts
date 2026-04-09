@@ -315,8 +315,12 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
 
             // Re-resolve reply if it was null when the message was buffered
             // (the reply target may have been later in the same batch).
-            if (!updated.replyMessage && updated.tags?.["+draft/reply"]) {
-              const replyId = updated.tags["+draft/reply"];
+            if (
+              !updated.replyMessage &&
+              (updated.tags?.["+reply"] || updated.tags?.["+draft/reply"])
+            ) {
+              const replyId = (updated.tags["+reply"] ??
+                updated.tags["+draft/reply"]) as string;
               const found = merged.find(
                 (r) =>
                   r.msgid === replyId ||
@@ -416,8 +420,12 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
 
           const finalMessages = merged.map((m) => {
             let updated = m;
-            if (!updated.replyMessage && updated.tags?.["+draft/reply"]) {
-              const replyId = updated.tags["+draft/reply"];
+            if (
+              !updated.replyMessage &&
+              (updated.tags?.["+reply"] || updated.tags?.["+draft/reply"])
+            ) {
+              const replyId = (updated.tags["+reply"] ??
+                updated.tags["+draft/reply"]) as string;
               const found = merged.find(
                 (r) =>
                   r.msgid === replyId ||

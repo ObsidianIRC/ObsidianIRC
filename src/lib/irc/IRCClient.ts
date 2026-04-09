@@ -463,6 +463,7 @@ export class IRCClient implements IRCClientContext {
     "batch",
     "draft/multiline",
     "draft/typing",
+    "channel-context",
     "draft/channel-context",
     "znc.in/playback",
     "unrealircd.org/json-log",
@@ -1045,11 +1046,10 @@ export class IRCClient implements IRCClientContext {
     channelName: string,
     content: string,
   ): void {
-    // Send a whisper with the draft/channel-context tag
-    // Format: @+draft/channel-context=#channel PRIVMSG targetUser :message
+    // Send a whisper with both the ratified and draft channel-context tags for backwards compat
     this.sendRaw(
       serverId,
-      `@+draft/channel-context=${channelName} PRIVMSG ${targetUser} :${content}`,
+      `@+channel-context=${channelName};+draft/channel-context=${channelName} PRIVMSG ${targetUser} :${content}`,
     );
   }
 

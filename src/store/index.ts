@@ -130,7 +130,8 @@ const resolveReplyMessage = (
   serverId: string,
   channelId: string,
 ): Message | null => {
-  const replyId = mtags?.["+draft/reply"]?.trim() || null;
+  const replyId =
+    (mtags?.["+reply"] ?? mtags?.["+draft/reply"])?.trim() || null;
   return replyId
     ? (findChannelMessageById(serverId, channelId, replyId) ?? null)
     : null;
