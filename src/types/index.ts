@@ -106,6 +106,7 @@ export interface PrivateChat {
   account?: string; // Account name from WHOX
   isBot?: boolean; // Bot status from WHO/WHOX or message tags
   isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
+  metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
 export interface Reaction {

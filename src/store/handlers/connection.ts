@@ -30,6 +30,7 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
             ? server.channels.map((c) => ({
                 ...c,
                 chathistoryRequested: false,
+                needsWhoRequest: true,
               }))
             : server.channels;
 
@@ -145,21 +146,18 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
     // Subscribe and sync own metadata in the background — don't await so channel joins
     // happen immediately. The metadata send runs 1 s later inside fetchAndMergeOwnMetadata.
     if (serverSupportsMetadata(store.getState(), serverId)) {
-      const currentSubs =
-        store.getState().metadataSubscriptions[serverId] || [];
-      if (currentSubs.length === 0) {
-        const defaultKeys = [
-          "url",
-          "website",
-          "status",
-          "location",
-          "avatar",
-          "color",
-          "display-name",
-          "bot",
-        ];
-        store.getState().metadataSub(serverId, defaultKeys);
-      }
+      // Always re-send SUB on every connect — some servers don't persist subscriptions across sessions.
+      const defaultKeys = [
+        "url",
+        "website",
+        "status",
+        "location",
+        "avatar",
+        "color",
+        "display-name",
+        "bot",
+      ];
+      store.getState().metadataSub(serverId, defaultKeys);
 
       fetchAndMergeOwnMetadata(store, serverId).then(() => {
         const savedMetadataAfterMerge = storage.metadata.load();

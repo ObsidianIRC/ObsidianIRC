@@ -60,7 +60,13 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
           // Update metadata for private chat users
           const updatedPrivateChats = server.privateChats?.map((pm) => {
             if (pm.username.toLowerCase() === resolvedTarget.toLowerCase()) {
-              return { ...pm };
+              const pmMetadata = { ...(pm.metadata || {}) };
+              if (value) {
+                pmMetadata[key] = { value, visibility };
+              } else {
+                delete pmMetadata[key];
+              }
+              return { ...pm, metadata: pmMetadata };
             }
             return pm;
           });
@@ -233,12 +239,6 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
           if (server.id === serverId) {
             // Update metadata for users in channels
             const updatedChannels = server.channels.map((channel) => {
-              const userInChannel = channel.users.find(
-                (u) => u.username === resolvedTarget,
-              );
-              if (userInChannel) {
-              }
-
               const updatedUsers = channel.users.map((user) => {
                 if (user.username === resolvedTarget) {
                   const existingValue = user.metadata?.[key]?.value;
@@ -352,8 +352,8 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
         // Save valid metadata for any user, not just channel members.
         // Also marks hasChanges so metadataChangeCounter increments for DM re-renders.
         if (!isFetchingOwn || target !== "*") {
+          const savedMetadata = storage.metadata.load();
           if (value !== null && value !== undefined && value !== "") {
-            const savedMetadata = storage.metadata.load();
             if (!savedMetadata[serverId]) {
               savedMetadata[serverId] = {};
             }
@@ -368,6 +368,10 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
               storage.metadata.save(savedMetadata);
               hasChanges = true;
             }
+          } else if (savedMetadata[serverId]?.[resolvedTarget]?.[key]) {
+            // Key was deleted on server — remove from localStorage too
+            delete savedMetadata[serverId][resolvedTarget][key];
+            storage.metadata.save(savedMetadata);
           }
         }
 
@@ -454,8 +458,9 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
         ? ircClient.getNick(serverId) || state.currentUser?.username || target
         : target.split("!")[0]; // Extract nickname from mask
 
-    // If we're fetching our own metadata and the key is not set, delete it from saved values
-    if (isFetchingOwn && target === "*") {
+    // Skip on reconnect GET responses — server lacking the key doesn't mean we should erase it;
+    // the sync that follows will push our local copy back up.
+    if (!isFetchingOwn) {
       const savedMetadata = storage.metadata.load();
       if (savedMetadata[serverId]?.[resolvedTarget]?.[key]) {
         delete savedMetadata[serverId][resolvedTarget][key];
@@ -479,8 +484,7 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
             return { ...user, metadata: rest };
           });
 
-          const isChannelTarget =
-            resolvedTarget === channel.name || resolvedTarget.startsWith("#");
+          const isChannelTarget = resolvedTarget === channel.name;
           const channelHasKey =
             isChannelTarget && channel.metadata && key in channel.metadata;
 
@@ -500,8 +504,41 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
         return { ...server, channels: updatedChannels };
       });
 
+      // currentUser is a denormalized copy — update it separately from the servers loop
+      let updatedCurrentUser = state.currentUser;
+      if (
+        state.currentUser?.metadata &&
+        key in state.currentUser.metadata &&
+        state.currentUser.username?.toLowerCase() ===
+          resolvedTarget.toLowerCase()
+      ) {
+        const { [key]: _, ...rest } = state.currentUser.metadata;
+        updatedCurrentUser = { ...state.currentUser, metadata: rest };
+        anyChange = true;
+      }
+
+      let updatedChannelMetadataCache = state.channelMetadataCache;
+      if (resolvedTarget.startsWith("#")) {
+        const serverCache = state.channelMetadataCache[serverId];
+        if (serverCache?.[resolvedTarget]) {
+          const channelCache = { ...serverCache[resolvedTarget] };
+          if (key === "avatar") channelCache.avatar = undefined;
+          else if (key === "display-name") channelCache.displayName = undefined;
+          updatedChannelMetadataCache = {
+            ...state.channelMetadataCache,
+            [serverId]: { ...serverCache, [resolvedTarget]: channelCache },
+          };
+          anyChange = true;
+        }
+      }
+
       if (!anyChange) return {};
-      return { servers: updatedServers };
+      return {
+        servers: updatedServers,
+        currentUser: updatedCurrentUser,
+        channelMetadataCache: updatedChannelMetadataCache,
+        metadataChangeCounter: state.metadataChangeCounter + 1,
+      };
     });
   });
 

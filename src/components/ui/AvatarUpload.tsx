@@ -159,12 +159,13 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     fileInputRef.current?.click();
   };
 
-  const clearPreview = () => {
+  const clearAvatar = () => {
     setPreviewUrl(null);
     setUploadError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    onAvatarUrlChange("");
   };
 
   if (!filehostUrl) {
@@ -196,7 +197,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         {(previewUrl || currentAvatarUrl) && (
           <button
             type="button"
-            onClick={clearPreview}
+            onClick={clearAvatar}
             className="flex items-center gap-2 px-3 py-2 bg-discord-dark-300 hover:bg-discord-dark-200 text-white rounded"
           >
             <FaTimes />

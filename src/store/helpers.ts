@@ -179,10 +179,15 @@ export function resolveUserMetadata(
   channels: Channel[],
   excludeChannelName?: string,
 ): UserMetadata {
-  if (serverMetadata?.[username]) {
-    return { ...serverMetadata[username] };
-  }
   const lc = username.toLowerCase();
+  if (serverMetadata) {
+    const matchingKey = Object.keys(serverMetadata).find(
+      (k) => k.toLowerCase() === lc,
+    );
+    if (matchingKey && Object.keys(serverMetadata[matchingKey]).length > 0) {
+      return { ...serverMetadata[matchingKey] };
+    }
+  }
   const exclude = excludeChannelName?.toLowerCase();
   for (const ch of channels) {
     if (exclude && ch.name.toLowerCase() === exclude) continue;

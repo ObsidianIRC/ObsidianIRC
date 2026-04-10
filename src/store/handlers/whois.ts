@@ -590,6 +590,7 @@ export function registerWhoisHandlers(store: StoreApi<AppState>): void {
                   }
                 } else {
                   // Add new user to channel
+                  const savedMeta = storage.metadata.load();
                   const newUser: User = {
                     id: `${nick}-${serverId}`,
                     username: nick,
@@ -601,7 +602,7 @@ export function registerWhoisHandlers(store: StoreApi<AppState>): void {
                     isBot: isBotFromFlags,
                     isIrcOp: isIrcOpFromFlags,
                     status: opLevel,
-                    metadata: {},
+                    metadata: { ...(savedMeta[serverId]?.[nick] ?? {}) },
                   };
                   return { ...ch, users: [...ch.users, newUser] };
                 }

@@ -640,16 +640,27 @@ export const UserSettings: React.FC = React.memo(() => {
     }
 
     if (supportsMetadata) {
-      const metadata: Record<string, string> = {};
-      if (avatar) metadata.avatar = avatar;
-      if (displayName) metadata["display-name"] = displayName;
-      if (homepage) metadata.homepage = homepage;
-      if (status) metadata.status = status;
-      if (color) metadata.color = color;
-      if (bot) metadata.bot = bot;
+      const fields: Array<[string, string, string]> = [
+        ["avatar", avatar, (originalValues?.avatar as string) ?? ""],
+        [
+          "display-name",
+          displayName,
+          (originalValues?.displayName as string) ?? "",
+        ],
+        ["homepage", homepage, (originalValues?.homepage as string) ?? ""],
+        ["status", status, (originalValues?.status as string) ?? ""],
+        ["color", color, (originalValues?.color as string) ?? ""],
+        ["bot", bot, (originalValues?.bot as string) ?? ""],
+      ];
 
-      for (const [key, value] of Object.entries(metadata)) {
-        sendRaw(currentServer.id, `METADATA * SET ${key} :${value}`);
+      for (const [key, value, original] of fields) {
+        if (value !== original) {
+          // Bare SET (no trailing value) is the IRCv3 metadata delete command
+          sendRaw(
+            currentServer.id,
+            value ? `METADATA * SET ${key} :${value}` : `METADATA * SET ${key}`,
+          );
+        }
       }
     }
 
@@ -706,6 +717,12 @@ export const UserSettings: React.FC = React.memo(() => {
     updateGlobalSettings,
     updateServer,
     toggleSettingsModal,
+    originalValues?.avatar,
+    originalValues?.bot,
+    originalValues?.color,
+    originalValues?.displayName,
+    originalValues?.homepage,
+    originalValues?.status,
   ]);
 
   // Handle close

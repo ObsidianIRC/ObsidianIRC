@@ -3198,13 +3198,14 @@ const useStore = create<AppState>((set, get) => ({
       return; // Already requested
     }
 
-    // Check if we already have metadata for this user
+    // Check if we already have metadata for this user (case-insensitive)
     const savedMetadata = loadSavedMetadata();
     const serverMetadata = savedMetadata[serverId];
-    if (
-      serverMetadata?.[target] &&
-      Object.keys(serverMetadata[target]).length > 0
-    ) {
+    const targetLc = target.toLowerCase();
+    const savedKey = serverMetadata
+      ? Object.keys(serverMetadata).find((k) => k.toLowerCase() === targetLc)
+      : undefined;
+    if (savedKey && Object.keys(serverMetadata[savedKey]).length > 0) {
       // We already have metadata, mark as requested to avoid future requests
       set((state) => ({
         userMetadataRequested: {

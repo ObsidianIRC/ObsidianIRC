@@ -9,9 +9,9 @@ export function handleMetadata(
 ): void {
   const target = parv[0];
   const key = parv[1];
-  const value = parv[parv.length - 1] || "";
-  const optionalParams = parv.length > 2 ? parv.slice(2, -1) : [];
-  const visibility = optionalParams.length > 0 ? optionalParams[0] : "";
+  const visibility = parv[2] || "";
+  // draft/metadata-2: SET = 4 params [target, key, "*", value]; DEL = 3 params [target, key, "*"] (no value)
+  const value = parv.length >= 4 ? parv[parv.length - 1] : "";
 
   ctx.triggerEvent("METADATA", {
     serverId,
@@ -80,8 +80,11 @@ export function handleMetadataKeyNotSet(
   parv: string[],
   _mtags: Record<string, string> | undefined,
 ): void {
-  const target = parv[0];
-  const key = parv[1];
+  // parv[0] = recipient (own nick), parv[1] = target, parv[2] = key
+  // Same layout as 761 RPL_KEYVALUE
+  const _recipient = parv[0];
+  const target = parv[1];
+  const key = parv[2];
   ctx.triggerEvent("METADATA_KEYNOTSET", { serverId, target, key });
 }
 
