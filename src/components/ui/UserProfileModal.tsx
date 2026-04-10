@@ -14,6 +14,8 @@ import {
   FaUserCheck,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
+import { isUrlFromFilehost } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import { openExternalUrl } from "../../lib/openUrl";
 import useStore from "../../store";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
@@ -96,6 +98,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const setAway = useStore((state) => state.setAway);
   const clearAway = useStore((state) => state.clearAway);
   const server = servers.find((s) => s.id === serverId);
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
+  );
 
   // Get user metadata from channels
   const user = server?.channels
@@ -192,6 +197,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const homepage = user?.metadata?.homepage?.value;
   const status = user?.metadata?.status?.value;
   const color = user?.metadata?.color?.value;
+
+  const isFilehostAvatar =
+    !!avatar && isUrlFromFilehost(avatar, server?.filehost ?? "");
+  const canShowAvatar =
+    !!avatar && ((isFilehostAvatar && showSafeMedia) || showExternalContent);
 
   // Check if user is a bot (from metadata or isBot flag)
   const isBot = user?.isBot || bot === "true" || !!bot;
@@ -308,7 +318,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {/* Avatar positioned over banner */}
             <div className="absolute -bottom-12 left-6">
               <div className="w-24 h-24 rounded-full bg-discord-dark-100 flex items-center justify-center overflow-hidden border-4 border-discord-dark-200 shadow-xl transition-transform duration-300 ease-in-out hover:scale-[2] hover:z-50 cursor-pointer">
-                {avatar ? (
+                {canShowAvatar ? (
                   <img
                     src={getAvatarUrl(avatar, 96)}
                     alt={displayName}
@@ -325,7 +335,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 ) : null}
                 <div
                   className="w-full h-full flex items-center justify-center text-3xl font-bold text-white bg-gradient-to-br from-discord-blurple to-purple-600"
-                  style={{ display: avatar ? "none" : "flex" }}
+                  style={{ display: canShowAvatar ? "none" : "flex" }}
                 >
                   {displayName[0].toUpperCase()}
                 </div>

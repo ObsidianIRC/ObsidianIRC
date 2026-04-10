@@ -4,6 +4,8 @@ import { FaPencilAlt, FaPlus, FaRedo, FaTrash } from "react-icons/fa";
 import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
+import { isUrlFromFilehost } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import useStore from "../../store";
 import type { Server } from "../../types";
 import ServerBottomSheet from "../mobile/ServerBottomSheet";
@@ -31,9 +33,19 @@ const ServerIcon: React.FC<ServerIconProps> = ({
 }) => {
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
 
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
+  );
+
   const hasMentions =
     server.channels.some((ch) => ch.isMentioned) ||
     server.privateChats?.some((pc) => pc.isMentioned);
+
+  const iconUrl = server.icon;
+  const isFilehostIcon =
+    !!iconUrl && isUrlFromFilehost(iconUrl, server.filehost ?? "");
+  const showIcon =
+    !!iconUrl && ((isFilehostIcon && showSafeMedia) || showExternalContent);
 
   const getServerInitial = (s: Server): string => {
     const displayName = s.networkName || s.name;
@@ -98,9 +110,9 @@ const ServerIcon: React.FC<ServerIconProps> = ({
             ${isSelected ? "h-10" : "h-0 group-hover:h-5"}
           `}
         />
-        {server.icon ? (
+        {showIcon ? (
           <img
-            src={server.icon}
+            src={iconUrl}
             alt={server.name}
             className="w-9 h-9 rounded-full pointer-events-none"
             draggable={false}
