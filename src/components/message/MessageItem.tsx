@@ -310,6 +310,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
   const displayName = messageUser?.metadata?.["display-name"]?.value;
   const userColor = messageUser?.metadata?.color?.value;
   const userStatus = messageUser?.metadata?.status?.value;
+  const userPronouns = messageUser?.metadata?.pronouns?.value;
   const isSystem = message.type === "system";
   const isBot =
     messageUser?.isBot ||
@@ -661,6 +662,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
           userId={message.userId}
           avatarUrl={avatarUrl}
           userStatus={userStatus}
+          pronouns={userPronouns}
           isAway={messageUser?.isAway}
           theme={theme}
           showHeader={showHeader}

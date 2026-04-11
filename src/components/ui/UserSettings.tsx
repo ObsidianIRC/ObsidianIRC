@@ -283,6 +283,7 @@ export const UserSettings: React.FC = React.memo(() => {
   const [status, setStatus] = useState("");
   const [color, setColor] = useState("");
   const [bot, setBot] = useState("");
+  const [pronouns, setPronouns] = useState("");
 
   // Settings state - consolidated
   const [settings, setSettings] = useState<Record<string, SettingValue>>({});
@@ -316,6 +317,7 @@ export const UserSettings: React.FC = React.memo(() => {
   const statusInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
   const botInputRef = useRef<HTMLInputElement>(null);
+  const pronounsInputRef = useRef<HTMLInputElement>(null);
   const realnameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const awayMessageInputRef = useRef<HTMLInputElement>(null);
@@ -354,6 +356,7 @@ export const UserSettings: React.FC = React.memo(() => {
     let initialStatus = "";
     let initialColor = "";
     let initialBot = "";
+    let initialPronouns = "";
 
     if (currentUser && supportsMetadata) {
       const meta = currentUser.metadata || {};
@@ -379,6 +382,10 @@ export const UserSettings: React.FC = React.memo(() => {
           : meta.color || "";
       initialBot =
         typeof meta.bot === "object" ? meta.bot.value || "" : meta.bot || "";
+      initialPronouns =
+        typeof meta.pronouns === "object"
+          ? meta.pronouns.value || ""
+          : meta.pronouns || "";
 
       setAvatar(initialAvatar);
       setDisplayName(initialDisplayName);
@@ -386,6 +393,7 @@ export const UserSettings: React.FC = React.memo(() => {
       setStatus(initialStatus);
       setColor(initialColor);
       setBot(initialBot);
+      setPronouns(initialPronouns);
     }
 
     const initialOperName = serverConfig?.operUsername || "";
@@ -410,6 +418,7 @@ export const UserSettings: React.FC = React.memo(() => {
       status: initialStatus,
       color: initialColor,
       bot: initialBot,
+      pronouns: initialPronouns,
       newNickname: initialNickname,
       operName: initialOperName,
       operPassword: initialOperPassword,
@@ -438,6 +447,7 @@ export const UserSettings: React.FC = React.memo(() => {
       status !== originalValues.status ||
       color !== originalValues.color ||
       bot !== originalValues.bot ||
+      pronouns !== originalValues.pronouns ||
       newNickname !== originalValues.newNickname ||
       operName !== originalValues.operName ||
       operPassword !== originalValues.operPassword ||
@@ -466,6 +476,7 @@ export const UserSettings: React.FC = React.memo(() => {
     status,
     color,
     bot,
+    pronouns,
     newNickname,
     operName,
     operPassword,
@@ -568,6 +579,13 @@ export const UserSettings: React.FC = React.memo(() => {
     [],
   );
 
+  const handlePronounsChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPronouns(e.target.value);
+    },
+    [],
+  );
+
   const handleNewNicknameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setNewNickname(e.target.value);
@@ -651,6 +669,7 @@ export const UserSettings: React.FC = React.memo(() => {
         ["status", status, (originalValues?.status as string) ?? ""],
         ["color", color, (originalValues?.color as string) ?? ""],
         ["bot", bot, (originalValues?.bot as string) ?? ""],
+        ["pronouns", pronouns, (originalValues?.pronouns as string) ?? ""],
       ];
 
       for (const [key, value, original] of fields) {
@@ -702,6 +721,7 @@ export const UserSettings: React.FC = React.memo(() => {
     status,
     color,
     bot,
+    pronouns,
     newNickname,
     currentUser,
     settings,
@@ -722,6 +742,7 @@ export const UserSettings: React.FC = React.memo(() => {
     originalValues?.color,
     originalValues?.displayName,
     originalValues?.homepage,
+    originalValues?.pronouns,
     originalValues?.status,
   ]);
 
@@ -963,6 +984,7 @@ export const UserSettings: React.FC = React.memo(() => {
     const statusSetting = getProfileSetting("profile.status");
     const colorSetting = getProfileSetting("profile.color");
     const botSetting = getProfileSetting("profile.bot");
+    const pronounsSetting = getProfileSetting("profile.pronouns");
     const awayMessageSetting = getProfileSetting("profile.awayMessage");
     const quitMessageSetting = getProfileSetting("profile.quitMessage");
 
@@ -1173,6 +1195,35 @@ export const UserSettings: React.FC = React.memo(() => {
                   placeholder={botSetting?.placeholder || "on"}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
+              </div>
+
+              <div
+                id="setting-profile.pronouns"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.pronouns"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {pronounsSetting?.title || "Pronouns"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {pronounsSetting?.description}
+                </p>
+                <TextInput
+                  ref={pronounsInputRef}
+                  list="pronouns-suggestions"
+                  value={pronouns}
+                  onChange={handlePronounsChange}
+                  placeholder={pronounsSetting?.placeholder || "she/her"}
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+                <datalist id="pronouns-suggestions">
+                  <option value="she/her" />
+                  <option value="he/him" />
+                  <option value="they/them" />
+                </datalist>
               </div>
             </>
           )}

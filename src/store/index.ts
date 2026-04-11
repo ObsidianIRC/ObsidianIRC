@@ -273,6 +273,7 @@ async function fetchAndMergeOwnMetadata(serverId: string): Promise<void> {
       "avatar",
       "color",
       "display-name",
+      "pronouns",
     ];
 
     // Get our metadata from the server

@@ -92,9 +92,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const selectChannel = useStore((state) => state.selectChannel);
   const openPrivateChat = useStore((state) => state.openPrivateChat);
   const selectPrivateChat = useStore((state) => state.selectPrivateChat);
-  const toggleUserProfileModal = useStore(
-    (state) => state.toggleUserProfileModal,
-  );
+  const toggleSettingsModal = useStore((state) => state.toggleSettingsModal);
   const setAway = useStore((state) => state.setAway);
   const clearAway = useStore((state) => state.clearAway);
   const server = servers.find((s) => s.id === serverId);
@@ -157,6 +155,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           "homepage",
           "status",
           "color",
+          "pronouns",
         ]);
       setTimeout(() => setIsLoadingMetadata(false), 2000);
     }
@@ -197,6 +196,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const homepage = user?.metadata?.homepage?.value;
   const status = user?.metadata?.status?.value;
   const color = user?.metadata?.color?.value;
+  const pronouns = user?.metadata?.pronouns?.value;
 
   const isFilehostAvatar =
     !!avatar && isUrlFromFilehost(avatar, server?.filehost ?? "");
@@ -477,6 +477,15 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     </div>
                   )}
 
+                  {pronouns && (
+                    <div className="bg-discord-dark-300 rounded-lg p-4 hover:bg-discord-dark-400 transition-colors">
+                      <div className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide mb-2">
+                        Pronouns
+                      </div>
+                      <div className="text-white">{pronouns}</div>
+                    </div>
+                  )}
+
                   {/* Server */}
                   {whoisData.server && (
                     <div className="bg-discord-dark-300 rounded-lg p-4 hover:bg-discord-dark-400 transition-colors">
@@ -654,7 +663,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <button
                       onClick={() => {
                         onClose();
-                        toggleUserProfileModal(true);
+                        toggleSettingsModal(true);
                       }}
                       className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
                     >
