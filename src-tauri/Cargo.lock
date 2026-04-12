@@ -4606,9 +4606,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ios-keyboard"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4efdcf9b5fa18d5683b4ba7354854c065350e3fc7de7bebee9a2752994abf561"
+version = "0.2.0"
 dependencies = [
  "serde",
  "tauri",

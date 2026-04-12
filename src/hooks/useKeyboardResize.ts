@@ -81,11 +81,6 @@ export const useKeyboardResize = () => {
           "plugin:keyboard::ios-keyboard-event",
           ({ payload }) => {
             if (payload.eventType === "will-show") {
-              // Use position:fixed anchored to the viewport bottom instead of
-              // computing window.innerHeight - keyboardHeight. This bypasses
-              // any window.innerHeight inaccuracies in WKWebView and is immune
-              // to the content-scroll that WKWebView sometimes applies when an
-              // input is focused (scroll can't move a fixed element).
               root.style.position = "fixed";
               root.style.top = "0";
               root.style.left = "0";
@@ -157,7 +152,6 @@ export const useKeyboardResize = () => {
       root.style.right = "0";
       root.style.bottom = "0";
       root.style.overflow = "hidden";
-      document.documentElement.style.overscrollBehavior = "none";
     };
 
     const applyKeyboardClosed = () => {
@@ -167,7 +161,6 @@ export const useKeyboardResize = () => {
       root.style.right = "";
       root.style.bottom = "";
       root.style.overflow = "";
-      document.documentElement.style.overscrollBehavior = "";
       window.scrollTo(0, 0);
     };
 

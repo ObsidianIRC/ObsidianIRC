@@ -109,6 +109,12 @@ html, body, #root {
   background-color: #202225;
 }
 
+/* SPA — document never scrolls; constrains WKWebView's UIScrollView to viewport */
+html {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 @supports (height: 100dvh) {
   #root {
     height: 100dvh;
