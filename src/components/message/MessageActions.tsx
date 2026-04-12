@@ -29,7 +29,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   return (
     <div
       className={`message-actions-container flex items-center bg-discord-dark-300 border border-white/10 rounded-lg shadow-xl divide-x divide-white/10 select-none z-10 ${
-        inline ? "flex-shrink-0 self-end" : "absolute bottom-1 right-4"
+        inline ? "flex-shrink-0 self-end" : "absolute -top-4 right-2"
       }`}
     >
       {canOpenMedia && onOpenMedia && (
