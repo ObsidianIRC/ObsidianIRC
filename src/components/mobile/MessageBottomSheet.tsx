@@ -1,5 +1,5 @@
 import type React from "react";
-import { FaGrinAlt, FaReply, FaTimes } from "react-icons/fa";
+import { FaExpand, FaGrinAlt, FaReply, FaTimes } from "react-icons/fa";
 import BottomSheet from "./BottomSheet";
 
 interface MessageBottomSheetProps {
@@ -8,9 +8,11 @@ interface MessageBottomSheetProps {
   onReply?: () => void;
   onReact?: (buttonElement: Element) => void;
   onDelete?: () => void;
+  onOpenMedia?: () => void;
   canReply: boolean;
   canReact: boolean;
   canDelete: boolean;
+  canOpenMedia?: boolean;
 }
 
 const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
@@ -19,9 +21,11 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
   onReply,
   onReact,
   onDelete,
+  onOpenMedia,
   canReply,
   canReact,
   canDelete,
+  canOpenMedia = false,
 }) => {
   const actions: {
     label: string;
@@ -47,6 +51,17 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
       icon: <FaGrinAlt />,
       onClick: (e) => {
         onReact(e.currentTarget);
+        onClose();
+      },
+    });
+  }
+
+  if (canOpenMedia && onOpenMedia) {
+    actions.push({
+      label: "Open in viewer",
+      icon: <FaExpand />,
+      onClick: () => {
+        onOpenMedia();
         onClose();
       },
     });

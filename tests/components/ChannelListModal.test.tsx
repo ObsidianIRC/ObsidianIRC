@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import ChannelListModal from "../../src/components/ui/ChannelListModal";
 
 // Mock the store
-vi.mock("../../src/store", () => ({
-  default: vi.fn(() => ({
+vi.mock("../../src/store", () => {
+  const state = {
     servers: [
       {
         id: "server1",
@@ -25,25 +25,26 @@ vi.mock("../../src/store", () => ({
         { channel: "#channel3", userCount: 5, topic: "Topic 3" },
       ],
     },
-    channelListBuffer: {
-      server1: [],
-    },
-    channelListFilters: {
-      server1: {},
-    },
-    channelMetadataCache: {
-      server1: {},
-    },
-    listingInProgress: {
-      server1: false,
-    },
+    channelListBuffer: { server1: [] },
+    channelListFilters: { server1: {} },
+    channelMetadataCache: { server1: {} },
+    listingInProgress: { server1: false },
     selectedServerId: "server1",
     joinChannel: vi.fn(),
+    selectChannel: vi.fn(),
     listChannels: vi.fn(),
     updateChannelListFilters: vi.fn(),
     toggleChannelListModal: vi.fn(),
-  })),
-}));
+  };
+  const useStore = Object.assign(
+    vi.fn(() => state),
+    {
+      getState: vi.fn(() => state),
+      setState: vi.fn(),
+    },
+  );
+  return { default: useStore };
+});
 
 describe("ChannelListModal", () => {
   beforeEach(() => {

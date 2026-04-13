@@ -62,7 +62,7 @@ export const SearchableModal: React.FC<SearchableModalProps> = (props) => {
   const [filteredItems, setFilteredItems] = useState<SearchableItem[]>(items);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchTimeoutRef = useRef<NodeJS.Timeout>(undefined);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   // Default filter function

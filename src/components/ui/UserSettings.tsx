@@ -274,8 +274,6 @@ export const UserSettings: React.FC = React.memo(() => {
 
   // User Profile Modal state
   const [viewProfileModalOpen, setViewProfileModalOpen] = useState(false);
-  const [showExternalContentWarning, setShowExternalContentWarning] =
-    useState(false);
 
   // Profile metadata state
   const [avatar, setAvatar] = useState("");
@@ -285,6 +283,7 @@ export const UserSettings: React.FC = React.memo(() => {
   const [status, setStatus] = useState("");
   const [color, setColor] = useState("");
   const [bot, setBot] = useState("");
+  const [pronouns, setPronouns] = useState("");
 
   // Settings state - consolidated
   const [settings, setSettings] = useState<Record<string, SettingValue>>({});
@@ -318,6 +317,7 @@ export const UserSettings: React.FC = React.memo(() => {
   const statusInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
   const botInputRef = useRef<HTMLInputElement>(null);
+  const pronounsInputRef = useRef<HTMLInputElement>(null);
   const realnameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const awayMessageInputRef = useRef<HTMLInputElement>(null);
@@ -356,6 +356,7 @@ export const UserSettings: React.FC = React.memo(() => {
     let initialStatus = "";
     let initialColor = "";
     let initialBot = "";
+    let initialPronouns = "";
 
     if (currentUser && supportsMetadata) {
       const meta = currentUser.metadata || {};
@@ -381,6 +382,10 @@ export const UserSettings: React.FC = React.memo(() => {
           : meta.color || "";
       initialBot =
         typeof meta.bot === "object" ? meta.bot.value || "" : meta.bot || "";
+      initialPronouns =
+        typeof meta.pronouns === "object"
+          ? meta.pronouns.value || ""
+          : meta.pronouns || "";
 
       setAvatar(initialAvatar);
       setDisplayName(initialDisplayName);
@@ -388,6 +393,7 @@ export const UserSettings: React.FC = React.memo(() => {
       setStatus(initialStatus);
       setColor(initialColor);
       setBot(initialBot);
+      setPronouns(initialPronouns);
     }
 
     const initialOperName = serverConfig?.operUsername || "";
@@ -412,6 +418,7 @@ export const UserSettings: React.FC = React.memo(() => {
       status: initialStatus,
       color: initialColor,
       bot: initialBot,
+      pronouns: initialPronouns,
       newNickname: initialNickname,
       operName: initialOperName,
       operPassword: initialOperPassword,
@@ -440,6 +447,7 @@ export const UserSettings: React.FC = React.memo(() => {
       status !== originalValues.status ||
       color !== originalValues.color ||
       bot !== originalValues.bot ||
+      pronouns !== originalValues.pronouns ||
       newNickname !== originalValues.newNickname ||
       operName !== originalValues.operName ||
       operPassword !== originalValues.operPassword ||
@@ -468,6 +476,7 @@ export const UserSettings: React.FC = React.memo(() => {
     status,
     color,
     bot,
+    pronouns,
     newNickname,
     operName,
     operPassword,
@@ -570,6 +579,13 @@ export const UserSettings: React.FC = React.memo(() => {
     [],
   );
 
+  const handlePronounsChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPronouns(e.target.value);
+    },
+    [],
+  );
+
   const handleNewNicknameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setNewNickname(e.target.value);
@@ -642,16 +658,28 @@ export const UserSettings: React.FC = React.memo(() => {
     }
 
     if (supportsMetadata) {
-      const metadata: Record<string, string> = {};
-      if (avatar) metadata.avatar = avatar;
-      if (displayName) metadata["display-name"] = displayName;
-      if (homepage) metadata.homepage = homepage;
-      if (status) metadata.status = status;
-      if (color) metadata.color = color;
-      if (bot) metadata.bot = bot;
+      const fields: Array<[string, string, string]> = [
+        ["avatar", avatar, (originalValues?.avatar as string) ?? ""],
+        [
+          "display-name",
+          displayName,
+          (originalValues?.displayName as string) ?? "",
+        ],
+        ["homepage", homepage, (originalValues?.homepage as string) ?? ""],
+        ["status", status, (originalValues?.status as string) ?? ""],
+        ["color", color, (originalValues?.color as string) ?? ""],
+        ["bot", bot, (originalValues?.bot as string) ?? ""],
+        ["pronouns", pronouns, (originalValues?.pronouns as string) ?? ""],
+      ];
 
-      for (const [key, value] of Object.entries(metadata)) {
-        sendRaw(currentServer.id, `METADATA * SET ${key} :${value}`);
+      for (const [key, value, original] of fields) {
+        if (value !== original) {
+          // Bare SET (no trailing value) is the IRCv3 metadata delete command
+          sendRaw(
+            currentServer.id,
+            value ? `METADATA * SET ${key} :${value}` : `METADATA * SET ${key}`,
+          );
+        }
       }
     }
 
@@ -693,6 +721,7 @@ export const UserSettings: React.FC = React.memo(() => {
     status,
     color,
     bot,
+    pronouns,
     newNickname,
     currentUser,
     settings,
@@ -708,6 +737,13 @@ export const UserSettings: React.FC = React.memo(() => {
     updateGlobalSettings,
     updateServer,
     toggleSettingsModal,
+    originalValues?.avatar,
+    originalValues?.bot,
+    originalValues?.color,
+    originalValues?.displayName,
+    originalValues?.homepage,
+    originalValues?.pronouns,
+    originalValues?.status,
   ]);
 
   // Handle close
@@ -723,6 +759,109 @@ export const UserSettings: React.FC = React.memo(() => {
     setOriginalValues(null);
     toggleSettingsModal(false);
   }, [hasUnsavedChanges, toggleSettingsModal]);
+
+  // Render media settings with progressive slider
+  const renderMediaFields = () => {
+    type LevelInfo = { label: string; description: string; warning?: true };
+    const LEVELS: LevelInfo[] = [
+      { label: "Off", description: "No media previews are loaded." },
+      {
+        label: "Safe",
+        description:
+          "Shows media from your server's trusted file host. No requests are made to external services.",
+      },
+      {
+        label: "Trusted Sources",
+        description:
+          "Also shows previews from YouTube, Vimeo, SoundCloud, and similar known services.",
+      },
+      {
+        label: "All Content",
+        description:
+          "Shows all external media. Any URL may cause a request to an unknown server.",
+        warning: true,
+      },
+    ];
+
+    const level = (settings.mediaVisibilityLevel as number | undefined) ?? 1;
+    const current = LEVELS[level as 0 | 1 | 2 | 3];
+    const fillPct = (level / 3) * 100;
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-discord-text-muted">
+            Display
+          </p>
+
+          {/* Title row */}
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-discord-text-normal">
+              Media Previews
+            </span>
+            <span
+              className={`text-xs font-semibold ${current.warning ? "text-yellow-400" : "text-discord-primary"}`}
+            >
+              {current.label}
+            </span>
+          </div>
+          <p className="mb-5 text-xs text-discord-text-muted">
+            Control how much external media is loaded in chat.
+          </p>
+
+          {/* Slider track */}
+          <input
+            type="range"
+            min={0}
+            max={3}
+            step={1}
+            value={level}
+            onChange={(e) =>
+              handleSettingChange(
+                "mediaVisibilityLevel",
+                Number(e.target.value),
+              )
+            }
+            className="media-level-slider w-full h-2 cursor-pointer appearance-none rounded-full outline-none"
+            style={{
+              background: `linear-gradient(to right, #5865f2 ${fillPct}%, #3f4147 ${fillPct}%)`,
+            }}
+          />
+
+          {/* Tick labels */}
+          <div className="mt-2 flex justify-between">
+            {LEVELS.map((l, i) => (
+              <button
+                key={l.label}
+                type="button"
+                onClick={() => handleSettingChange("mediaVisibilityLevel", i)}
+                className={`text-xs leading-tight transition-colors ${
+                  i === level
+                    ? "font-medium text-discord-text-normal"
+                    : "text-discord-text-muted hover:text-discord-text-normal"
+                }`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-white/[0.06]" />
+
+        {/* Description — updates as slider moves */}
+        <div
+          className={`text-sm leading-relaxed ${current.warning ? "text-yellow-400" : "text-discord-text-muted"}`}
+        >
+          {current.warning && (
+            <span className="mr-1 font-semibold">⚠ Privacy Warning —</span>
+          )}
+          {current.description}
+        </div>
+      </div>
+    );
+  };
 
   // Render privacy settings
   const renderPrivacyFields = () => {
@@ -845,6 +984,7 @@ export const UserSettings: React.FC = React.memo(() => {
     const statusSetting = getProfileSetting("profile.status");
     const colorSetting = getProfileSetting("profile.color");
     const botSetting = getProfileSetting("profile.bot");
+    const pronounsSetting = getProfileSetting("profile.pronouns");
     const awayMessageSetting = getProfileSetting("profile.awayMessage");
     const quitMessageSetting = getProfileSetting("profile.quitMessage");
 
@@ -1055,6 +1195,35 @@ export const UserSettings: React.FC = React.memo(() => {
                   placeholder={botSetting?.placeholder || "on"}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
+              </div>
+
+              <div
+                id="setting-profile.pronouns"
+                className={`space-y-2 p-4 rounded-lg transition-all duration-300 ${
+                  highlightedSetting === "profile.pronouns"
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400"
+                    : ""
+                }`}
+              >
+                <label className="block text-discord-text-normal text-sm font-medium">
+                  {pronounsSetting?.title || "Pronouns"}
+                </label>
+                <p className="text-discord-text-muted text-xs">
+                  {pronounsSetting?.description}
+                </p>
+                <TextInput
+                  ref={pronounsInputRef}
+                  list="pronouns-suggestions"
+                  value={pronouns}
+                  onChange={handlePronounsChange}
+                  placeholder={pronounsSetting?.placeholder || "she/her"}
+                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+                />
+                <datalist id="pronouns-suggestions">
+                  <option value="she/her" />
+                  <option value="he/him" />
+                  <option value="they/them" />
+                </datalist>
               </div>
             </>
           )}
@@ -1278,9 +1447,11 @@ export const UserSettings: React.FC = React.memo(() => {
             <div className="flex-1 overflow-y-auto p-4">
               {activeCategory === "profile" && renderProfileFields()}
               {activeCategory === "account" && renderAccountFields()}
+              {activeCategory === "media" && renderMediaFields()}
               {activeCategory === "privacy" && renderPrivacyFields()}
               {activeCategory !== "profile" &&
                 activeCategory !== "account" &&
+                activeCategory !== "media" &&
                 activeCategory !== "privacy" && (
                   <div className="space-y-4">
                     {categorySettings.map((setting) => (
@@ -1407,12 +1578,16 @@ export const UserSettings: React.FC = React.memo(() => {
             {/* Account category - custom rendering */}
             {activeCategory === "account" && renderAccountFields()}
 
+            {/* Media category - custom slider rendering */}
+            {activeCategory === "media" && renderMediaFields()}
+
             {/* Privacy category - custom rendering */}
             {activeCategory === "privacy" && renderPrivacyFields()}
 
             {/* Other categories - use SettingRenderer */}
             {activeCategory !== "profile" &&
               activeCategory !== "account" &&
+              activeCategory !== "media" &&
               activeCategory !== "privacy" && (
                 <div className="space-y-4">
                   {categorySettings.map((setting) => (

@@ -109,11 +109,11 @@ export function useReactions({
 
         if (existingReaction) {
           // Send unreact message
-          const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
+          const tagMsg = `@+draft/unreact=${emoji};+reply=${reactionModal.message.msgid};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
           ircClient.sendRaw(server.id, tagMsg);
         } else {
           // Send react message
-          const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
+          const tagMsg = `@+draft/react=${emoji};+reply=${reactionModal.message.msgid};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
           ircClient.sendRaw(server.id, tagMsg);
         }
 
@@ -177,7 +177,7 @@ export function useReactions({
       const { server, target } = findServerAndTarget(message);
 
       if (server && target) {
-        const tagMsg = `@+draft/react=${emoji};+draft/reply=${message.msgid} TAGMSG ${target}`;
+        const tagMsg = `@+draft/react=${emoji};+reply=${message.msgid};+draft/reply=${message.msgid} TAGMSG ${target}`;
         ircClient.sendRaw(server.id, tagMsg);
 
         // Optimistically update the message
@@ -227,7 +227,7 @@ export function useReactions({
       const { server, target } = findServerAndTarget(message);
 
       if (server && target) {
-        const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${message.msgid} TAGMSG ${target}`;
+        const tagMsg = `@+draft/unreact=${emoji};+reply=${message.msgid};+draft/reply=${message.msgid} TAGMSG ${target}`;
         ircClient.sendRaw(server.id, tagMsg);
 
         // Optimistically update the message

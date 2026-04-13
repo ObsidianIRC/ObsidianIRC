@@ -23,93 +23,52 @@ export const TopicModal: React.FC<TopicModalProps> = ({
   currentUser,
 }) => {
   const [editedTopic, setEditedTopic] = useState(channel.topic || "");
-  const [isEditing, setIsEditing] = useState(false);
 
   const currentUserInChannel = channel.users.find(
     (u) => u.username === currentUser?.username,
   );
   const canEdit = hasOpPermission(currentUserInChannel?.status);
+  const isDirty = editedTopic !== (channel.topic || "");
 
   const handleSave = () => {
-    if (serverId && channel) {
-      ircClient.setTopic(serverId, channel.name, editedTopic);
-      setIsEditing(false);
-      onClose();
-    }
-  };
-
-  const handleCancel = () => {
-    setEditedTopic(channel.topic || "");
-    setIsEditing(false);
+    ircClient.setTopic(serverId, channel.name, editedTopic);
+    onClose();
   };
 
   return (
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Channel Topic"
+      title={channel.name}
       maxWidth="md"
     >
       <ModalBody>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-white mb-2">{channel.name}</label>
-            {isEditing ? (
-              <TextArea
-                value={editedTopic}
-                onChange={(e) => setEditedTopic(e.target.value)}
-                className="w-full p-2 bg-discord-dark-400 text-white rounded min-h-[100px] resize-y focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                placeholder="Enter channel topic..."
-                autoFocus
-              />
-            ) : (
-              <div className="w-full p-2 bg-discord-dark-400 text-white rounded min-h-[100px] whitespace-pre-wrap break-words">
-                {channel.topic || (
-                  <span className="text-discord-text-muted">No topic set</span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <TextArea
+          value={editedTopic}
+          onChange={(e) => setEditedTopic(e.target.value)}
+          readOnly={!canEdit}
+          className={`w-full p-3 rounded min-h-[120px] resize-y text-sm leading-relaxed focus:outline-none transition-colors ${
+            canEdit
+              ? "bg-discord-dark-400 text-white focus:ring-1 focus:ring-discord-primary"
+              : "bg-discord-dark-400/60 text-discord-text-muted cursor-default select-all"
+          }`}
+          placeholder={canEdit ? "Set a topic…" : "No topic set"}
+          autoFocus={canEdit}
+        />
       </ModalBody>
 
-      <ModalFooter>
-        {canEdit && !isEditing && (
+      {canEdit && (
+        <ModalFooter>
           <Button
             variant="primary"
-            onClick={() => {
-              setEditedTopic(channel.topic || "");
-              setIsEditing(true);
-            }}
-            className="flex-1"
+            onClick={handleSave}
+            disabled={!isDirty}
+            className="ml-auto"
           >
-            Edit Topic
+            Save
           </Button>
-        )}
-        {isEditing && (
-          <>
-            <Button variant="primary" onClick={handleSave} className="flex-1">
-              Save
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleCancel}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-          </>
-        )}
-        {!isEditing && (
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            className={canEdit ? "flex-1" : "w-full"}
-          >
-            Close
-          </Button>
-        )}
-      </ModalFooter>
+        </ModalFooter>
+      )}
     </BaseModal>
   );
 };

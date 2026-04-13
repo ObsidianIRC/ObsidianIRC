@@ -49,6 +49,14 @@ describe("isScrolledToBottom", () => {
   });
 });
 
+function setDim(
+  el: HTMLElement,
+  key: "clientHeight" | "scrollHeight",
+  value: number,
+) {
+  Object.defineProperty(el, key, { value, configurable: true, writable: true });
+}
+
 describe("useScrollToBottom", () => {
   let mockContainer: HTMLElement;
   let mockEndElement: HTMLElement;
@@ -274,21 +282,43 @@ describe("useScrollToBottom", () => {
   });
 
   it("should scroll to bottom on resize when at bottom", () => {
+    // At bottom: scrollTop(500) + clientHeight(500) = scrollHeight(1000)
+    mockContainer.scrollTop = 500;
+
     renderHook(() => {
       const containerRef = useRef(mockContainer);
       const endElementRef = useRef(mockEndElement);
       return useScrollToBottom(containerRef, endElementRef);
     });
 
-    // Simulate being at bottom via IntersectionObserver
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+
+    expect(mockContainer.scrollTop).toBe(mockContainer.scrollHeight);
+  });
+
+  it("should scroll to bottom when container shrinks (input grows) even if IntersectionObserver fired first", () => {
+    // At bottom: scrollTop(800) + clientHeight(300) = scrollHeight(1100)
+    mockContainer.scrollTop = 800;
+    setDim(mockContainer, "clientHeight", 300);
+    setDim(mockContainer, "scrollHeight", 1100);
+
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // IntersectionObserver fires first and clears the bottom state (WKWebView ordering)
     act(() => {
       observerCallbacks[0](
         [
           {
-            isIntersecting: true,
+            isIntersecting: false,
             target: mockEndElement,
             boundingClientRect: {} as DOMRectReadOnly,
-            intersectionRatio: 1,
+            intersectionRatio: 0,
             intersectionRect: {} as DOMRectReadOnly,
             rootBounds: null,
             time: 0,
@@ -298,13 +328,35 @@ describe("useScrollToBottom", () => {
       );
     });
 
-    mockContainer.scrollTop = 0;
+    // Input bar grows — container clientHeight shrinks, scrollHeight unchanged
+    setDim(mockContainer, "clientHeight", 250);
 
     act(() => {
       resizeObserverCallbacks[0]([], {} as ResizeObserver);
     });
 
-    expect(mockContainer.scrollTop).toBe(mockContainer.scrollHeight);
+    expect(mockContainer.scrollTop).toBe(1100);
+  });
+
+  it("should not scroll to bottom on container shrink when user was scrolled up", () => {
+    // Not at bottom: scrollTop(300) + clientHeight(300) = 600 < scrollHeight(1100)
+    mockContainer.scrollTop = 300;
+    setDim(mockContainer, "clientHeight", 300);
+    setDim(mockContainer, "scrollHeight", 1100);
+
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    setDim(mockContainer, "clientHeight", 250);
+
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+
+    expect(mockContainer.scrollTop).toBe(300);
   });
 
   it("should not scroll on resize when user is scrolled up", () => {
@@ -339,5 +391,41 @@ describe("useScrollToBottom", () => {
     });
 
     expect(mockContainer.scrollTop).toBe(200);
+  });
+
+  it("should discard IO callback when display:none collapses dims so wasAtBottomRef stays true", () => {
+    // wasAtBottomRef starts true. When a keep-alive channel goes display:none, IO fires
+    // isIntersecting:false while all dims are 0. isScrolledToBottom(container) returns true
+    // (0-0-0 < tolerance), so without the guard we'd wrongly set wasAtBottomRef=false and
+    // break auto-scroll when the channel becomes visible again.
+    const { result } = renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // Collapse all dims — display:none
+    setDim(mockContainer, "clientHeight", 0);
+    setDim(mockContainer, "scrollHeight", 0);
+    mockContainer.scrollTop = 0;
+
+    act(() => {
+      observerCallbacks[0](
+        [
+          {
+            isIntersecting: false,
+            target: mockEndElement,
+            boundingClientRect: {} as DOMRectReadOnly,
+            intersectionRatio: 0,
+            intersectionRect: {} as DOMRectReadOnly,
+            rootBounds: null,
+            time: 0,
+          } as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver,
+      );
+    });
+
+    expect(result.current.wasAtBottomRef.current).toBe(true);
   });
 });

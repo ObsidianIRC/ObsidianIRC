@@ -4,13 +4,23 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 interface AppEmojiPickerProps {
   onEmojiClick: (emojiData: EmojiClickData) => void;
+  reactedEmojis?: string[];
 }
+
+const toUnified = (emoji: string) =>
+  [...emoji]
+    .map((c) => c.codePointAt(0)?.toString(16))
+    .filter(Boolean)
+    .join("-");
 
 /**
  * Shared emoji picker with app-wide defaults.
  * On mobile the search input is not auto-focused (prevents keyboard popup).
  */
-export function AppEmojiPicker({ onEmojiClick }: AppEmojiPickerProps) {
+export function AppEmojiPicker({
+  onEmojiClick,
+  reactedEmojis,
+}: AppEmojiPickerProps) {
   const isMobile = useMediaQuery();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -28,7 +38,17 @@ export function AppEmojiPicker({ onEmojiClick }: AppEmojiPickerProps) {
   }, [isMobile]);
 
   return (
-    <div ref={wrapperRef}>
+    <div ref={wrapperRef} data-reaction-picker="">
+      {reactedEmojis && reactedEmojis.length > 0 && (
+        <style>
+          {reactedEmojis
+            .map(
+              (e) =>
+                `[data-reaction-picker] button.epr-emoji[data-unified="${toUnified(e)}"] { background: rgba(59,130,246,0.25) !important; border-radius: 6px !important; }`,
+            )
+            .join("\n")}
+        </style>
+      )}
       <EmojiPicker
         onEmojiClick={onEmojiClick}
         theme={Theme.DARK}

@@ -1,7 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
-import { platform } from "@tauri-apps/plugin-os";
 import { useEffect } from "react";
-import { isTauri } from "../lib/platformUtils";
+import { isTauri, isTauriIOS, isTauriMobile } from "../lib/platformUtils";
 
 interface IosKeyboardPayload {
   eventType: "will-show" | "did-show" | "will-hide" | "did-hide";
@@ -21,16 +20,9 @@ export const useKeyboardResize = () => {
       return;
     }
 
-    let currentPlatform: string | undefined;
-    if (isTauri()) {
-      try {
-        currentPlatform = platform();
-        if (!["android", "ios"].includes(currentPlatform)) {
-          return;
-        }
-      } catch {
-        // If platform() fails, continue anyway on mobile devices
-      }
+    // On Tauri desktop, bail out — keyboard handling is only needed on mobile.
+    if (isTauri() && !isTauriMobile()) {
+      return;
     }
 
     const root = document.getElementById("root");
@@ -81,7 +73,7 @@ export const useKeyboardResize = () => {
 
     // iOS: visualViewport.resize never fires with viewport-fit=cover in WKWebView.
     // Use UIKeyboardWillShow/Hide notifications via tauri-plugin-ios-keyboard instead.
-    if (isTauri() && currentPlatform === "ios") {
+    if (isTauriIOS()) {
       let cleanupIos: (() => void) | undefined;
 
       (async () => {
@@ -89,11 +81,6 @@ export const useKeyboardResize = () => {
           "plugin:keyboard::ios-keyboard-event",
           ({ payload }) => {
             if (payload.eventType === "will-show") {
-              // Use position:fixed anchored to the viewport bottom instead of
-              // computing window.innerHeight - keyboardHeight. This bypasses
-              // any window.innerHeight inaccuracies in WKWebView and is immune
-              // to the content-scroll that WKWebView sometimes applies when an
-              // input is focused (scroll can't move a fixed element).
               root.style.position = "fixed";
               root.style.top = "0";
               root.style.left = "0";
@@ -165,7 +152,6 @@ export const useKeyboardResize = () => {
       root.style.right = "0";
       root.style.bottom = "0";
       root.style.overflow = "hidden";
-      document.documentElement.style.overscrollBehavior = "none";
     };
 
     const applyKeyboardClosed = () => {
@@ -175,7 +161,6 @@ export const useKeyboardResize = () => {
       root.style.right = "";
       root.style.bottom = "";
       root.style.overflow = "";
-      document.documentElement.style.overscrollBehavior = "";
       window.scrollTo(0, 0);
     };
 

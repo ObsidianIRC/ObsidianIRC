@@ -31,6 +31,7 @@ export function InputToolbar({
     <div className="flex items-center flex-shrink-0">
       {!hideEmoji && (
         <button
+          aria-label="Insert emoji"
           className="px-1.5 sm:px-2 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
           onClick={onEmojiClick}
         >

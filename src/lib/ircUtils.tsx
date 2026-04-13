@@ -1,10 +1,18 @@
 import DOMPurify from "dompurify";
-import hljs from "highlight.js";
 import { marked } from "marked";
 import React from "react";
 /* eslint-disable no-control-regex */
 import type { Server, User } from "../types";
 import { isTauri } from "./platformUtils";
+
+// highlight.js is ~1.6MB — lazy-load it so it doesn't block the initial bundle.
+// Start the import immediately (parallel with app startup) but don't wait for it.
+// The first code block render falls back to plain text; subsequent ones are highlighted.
+type HljsType = typeof import("highlight.js").default;
+let hljsModule: HljsType | null = null;
+import("highlight.js").then((m) => {
+  hljsModule = m.default;
+});
 
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
@@ -436,34 +444,29 @@ export function renderMarkdown(
     let highlightedCode = decodedText;
     let language = lang;
 
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        const result = hljs.highlight(decodedText, { language: lang });
-        highlightedCode = result.value;
-        language = result.language;
-      } catch (err) {
-        // Fallback to auto-detection if specific language fails
+    if (hljsModule) {
+      if (lang && hljsModule.getLanguage(lang)) {
         try {
-          const result = hljs.highlightAuto(decodedText);
+          const result = hljsModule.highlight(decodedText, { language: lang });
+          highlightedCode = result.value;
+          language = result.language;
+        } catch (err) {
+          try {
+            const result = hljsModule.highlightAuto(decodedText);
+            highlightedCode = result.value;
+            language = result.language;
+          } catch (autoErr) {
+            highlightedCode = decodedText;
+          }
+        }
+      } else if (!lang) {
+        try {
+          const result = hljsModule.highlightAuto(decodedText);
           highlightedCode = result.value;
           language = result.language;
         } catch (autoErr) {
-          // If highlighting fails, use the decoded text
           highlightedCode = decodedText;
         }
-      }
-    } else if (lang) {
-      // Language specified but not supported, still use decoded text
-      highlightedCode = decodedText;
-    } else {
-      // No language specified, try auto-detection
-      try {
-        const result = hljs.highlightAuto(decodedText);
-        highlightedCode = result.value;
-        language = result.language;
-      } catch (autoErr) {
-        // If auto-detection fails, use decoded text
-        highlightedCode = decodedText;
       }
     }
 
@@ -735,11 +738,15 @@ export function mircToHtml(text: string, keyPrefix = ""): React.ReactNode {
   const elementIndexRef = { current: 0 };
   result.forEach((node, index) => {
     if (React.isValidElement(node) && node.type === "span") {
-      const textContent = node.props.children;
+      const props = node.props as {
+        children?: React.ReactNode;
+        style?: React.CSSProperties;
+      };
+      const textContent = props.children;
       if (typeof textContent === "string") {
         const urlProcessed = processUrlsInText(
           textContent,
-          node.props.style,
+          props.style,
           keyPrefix,
           elementIndexRef,
         );
@@ -790,9 +797,6 @@ function processUrlsInText(
     // Ensure URL has protocol
     const fullUrl = url.startsWith("http") ? url : `https://${url}`;
 
-    // Truncate long URLs for display
-    const displayText = url.length > 50 ? `${url.slice(0, 47)}...` : url;
-
     // IRC links: only make clickable on Tauri, otherwise show as plain text
     if (isIrcLink && !isTauriEnv) {
       parts.push(
@@ -815,16 +819,18 @@ function processUrlsInText(
           : "text-blue-500 hover:text-blue-700 underline";
 
       parts.push(
+        // inline-block + max-w + truncate: CSS ellipsis so the full URL text is in the
+        // DOM (copy-paste works) while long URLs don't overflow the message bubble.
         <a
           key={`${keyPrefix}url-${elementIndex++}`}
           href={isIrcLink ? url : fullUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={linkClass}
+          className={`${linkClass} inline-block max-w-[40ch] truncate align-bottom`}
           style={style}
           title={url}
         >
-          {displayText}
+          {url}
         </a>,
       );
     }

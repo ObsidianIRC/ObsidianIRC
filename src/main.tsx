@@ -1,8 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { pdfjs } from "react-pdf";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
+
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

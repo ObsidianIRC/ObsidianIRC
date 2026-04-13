@@ -44,8 +44,10 @@ function getWhisperContext(
   }
 
   const channelContext =
-    replyTo.tags?.["draft/channel-context"] ||
-    replyTo.tags?.["+draft/channel-context"];
+    replyTo.tags?.["+channel-context"] ||
+    replyTo.tags?.["channel-context"] ||
+    replyTo.tags?.["+draft/channel-context"] ||
+    replyTo.tags?.["draft/channel-context"];
 
   if (!channelContext) {
     return null;
@@ -168,7 +170,7 @@ export function useMessageSending({
           if (!target) return;
           ircClient.sendRaw(
             selectedServerId,
-            `${localReplyTo?.msgid ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
+            `${localReplyTo?.msgid ? `@+reply=${localReplyTo.msgid};+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :\u0001ACTION ${actionMessage}\u0001`,
           );
         }
         // Non-echo fallback: servers without echo-message won't reflect our
@@ -246,7 +248,7 @@ export function useMessageSending({
 
       const batchId = createBatchId();
       const replyPrefix = localReplyTo?.msgid
-        ? `@+draft/reply=${localReplyTo.msgid} `
+        ? `@+reply=${localReplyTo.msgid};+draft/reply=${localReplyTo.msgid} `
         : "";
 
       ircClient.sendRaw(
@@ -349,7 +351,7 @@ export function useMessageSending({
       }
 
       const messagePrefix = localReplyTo?.msgid
-        ? `@+draft/reply=${localReplyTo.msgid} `
+        ? `@+reply=${localReplyTo.msgid};+draft/reply=${localReplyTo.msgid} `
         : "";
 
       if (globalSettings.autoFallbackToSingleLine) {
@@ -416,7 +418,7 @@ export function useMessageSending({
           splitLines.forEach((line: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo?.msgid ? `@+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :${line}`,
+              `${localReplyTo?.msgid ? `@+reply=${localReplyTo.msgid};+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :${line}`,
             );
           });
         },

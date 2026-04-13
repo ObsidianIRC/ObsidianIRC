@@ -11,7 +11,6 @@ import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
-import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
@@ -84,7 +83,6 @@ const App: React.FC = () => {
     ui: {
       isAddServerModalOpen,
       isChannelListModalOpen,
-      isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
       isSettingsModalOpen,
@@ -213,14 +211,16 @@ const App: React.FC = () => {
 
   // Handle deeplinks
   useEffect(() => {
+    let unlisten: (() => void) | null = null;
+
     const setupDeepLinkHandler = async () => {
       if (!isTauri()) {
         return;
       }
 
       try {
-        // Register handler for when app is already running
-        await onOpenUrl((urls) => {
+        // Register handler for when app is already running; store unlisten for cleanup
+        unlisten = await onOpenUrl((urls) => {
           console.log("Deep link received:", urls);
 
           for (const url of urls) {
@@ -249,6 +249,11 @@ const App: React.FC = () => {
     };
 
     setupDeepLinkHandler();
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
   }, [toggleAddServerModal]);
 
   // Global keyboard shortcut for Quick Actions (Cmd+K / Ctrl+K)
@@ -265,6 +270,25 @@ const App: React.FC = () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [toggleQuickActions]);
+
+  // Suppress :hover popups on blur; reclaim focus from iframes immediately.
+  useEffect(() => {
+    const onBlur = () => {
+      document.documentElement.classList.add("window-blurred");
+      // Cross-origin iframes swallow all keystrokes — blur immediately so the parent document regains them.
+      if (document.activeElement?.tagName === "IFRAME") {
+        (document.activeElement as HTMLElement).blur();
+      }
+    };
+    const onFocus = () =>
+      document.documentElement.classList.remove("window-blurred");
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   return (
     <div className="h-screen overflow-hidden">
@@ -285,7 +309,6 @@ const App: React.FC = () => {
               {isSettingsModalOpen && <UserSettings />}
               {isQuickActionsOpen && <QuickActions />}
               {isChannelListModalOpen && <ChannelListModal />}
-              {isChannelRenameModalOpen && <ChannelRenameModal />}
               <LinkSecurityWarningModal />
               {userProfileModalState?.isOpen && (
                 <UserProfileModal

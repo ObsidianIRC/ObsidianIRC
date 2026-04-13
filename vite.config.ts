@@ -4,7 +4,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from "@vitejs/plugin-react";
 
-
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
@@ -37,12 +36,23 @@ export default defineConfig(({ mode }) => {
     // to access the Tauri environment variables set by the CLI with information about the current target
     envPrefix: ['VITE_', 'TAURI_PLATFORM', 'TAURI_ARCH', 'TAURI_FAMILY', 'TAURI_PLATFORM_VERSION', 'TAURI_PLATFORM_TYPE', 'TAURI_DEBUG'],
     build: {
+      // Main chunk includes the full app + react-icons/fa (~35 files); gzip is ~570KB which is fine.
+      chunkSizeWarningLimit: 3000,
       // Tauri uses Chromium on Windows and WebKit on macOS and Linux
       target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
       // don't minify for debug builds
       minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
       // produce sourcemaps for debug builds
       sourcemap: !!process.env.TAURI_DEBUG,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-markdown': ['marked', 'dompurify'],
+            'vendor-zustand': ['zustand'],
+          },
+        },
+      },
     }
   };
 });
