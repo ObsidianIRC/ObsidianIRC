@@ -3,7 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FaUsers } from "react-icons/fa";
 import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import ircClient from "../../lib/ircClient";
-import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
+import {
+  getChannelAvatarUrl,
+  getChannelDisplayName,
+  isUrlFromFilehost,
+} from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import { BaseModal } from "../../lib/modal/BaseModal";
 import useStore from "../../store";
 import { TextInput } from "./TextInput";
@@ -24,6 +29,10 @@ const ChannelListModal: React.FC = () => {
   const joinAndSelectChannel = useJoinAndSelectChannel();
 
   const selectedServer = servers.find((s) => s.id === selectedServerId);
+  const filehost = selectedServer?.filehost ?? "";
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
+  );
   const elist = (selectedServer?.elist || "").toUpperCase();
   const rawChannels = selectedServerId
     ? channelList[selectedServerId] || []
@@ -508,25 +517,40 @@ const ChannelListModal: React.FC = () => {
                     onClick={() => handleJoinChannel(channel.channel)}
                   >
                     <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center mt-0.5">
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt={channel.channel}
-                          className="w-8 h-8 rounded-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            const fallback = e.currentTarget
-                              .nextElementSibling as HTMLElement;
-                            if (fallback) fallback.style.display = "block";
-                          }}
-                        />
-                      ) : null}
-                      <span
-                        className="text-gray-400 text-xl font-bold"
-                        style={{ display: avatarUrl ? "none" : "block" }}
-                      >
-                        #
-                      </span>
+                      {(() => {
+                        const isFilehostAvatar =
+                          !!avatarUrl && isUrlFromFilehost(avatarUrl, filehost);
+                        const canShowAvatar =
+                          !!avatarUrl &&
+                          ((isFilehostAvatar && showSafeMedia) ||
+                            showExternalContent);
+                        return (
+                          <>
+                            {canShowAvatar ? (
+                              <img
+                                src={avatarUrl}
+                                alt={channel.channel}
+                                className="w-8 h-8 rounded-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                  const fallback = e.currentTarget
+                                    .nextElementSibling as HTMLElement;
+                                  if (fallback)
+                                    fallback.style.display = "block";
+                                }}
+                              />
+                            ) : null}
+                            <span
+                              className="text-gray-400 text-xl font-bold"
+                              style={{
+                                display: canShowAvatar ? "none" : "block",
+                              }}
+                            >
+                              #
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex-1 min-w-0">

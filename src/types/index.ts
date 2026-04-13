@@ -81,6 +81,7 @@ export interface Channel {
   isLoadingHistory?: boolean;
   needsWhoRequest?: boolean;
   chathistoryRequested?: boolean;
+  hasMoreHistory?: boolean;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
   modes?: string;
   modeArgs?: string[];
@@ -105,6 +106,7 @@ export interface PrivateChat {
   account?: string; // Account name from WHOX
   isBot?: boolean; // Bot status from WHO/WHOX or message tags
   isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
+  metadata?: Record<string, { value: string | undefined; visibility: string }>;
 }
 
 export interface Reaction {
@@ -164,6 +166,8 @@ export interface Message {
   linkPreviewMeta?: string; // URL to preview image/thumbnail
   // JSON log data for server notices
   jsonLogData?: JsonValue;
+  // True when the message was replayed from chathistory (not a live event)
+  fromHistory?: boolean;
 }
 
 // Alias for backwards compatibility

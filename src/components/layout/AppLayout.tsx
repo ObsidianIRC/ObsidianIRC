@@ -1,9 +1,8 @@
-import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
-import { isTauri } from "../../lib/platformUtils";
+import { isTauriAndroid } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
@@ -27,7 +26,6 @@ export const AppLayout: React.FC = () => {
     toggleChannelList,
     setMobileViewActiveColumn,
     setIsNarrowView,
-    updateSidebarPreferences,
     closeMedia,
   } = useStore();
 
@@ -55,31 +53,27 @@ export const AppLayout: React.FC = () => {
   // Hide member list for private chats
   const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
 
-  const handleChannelListWidthChange = useCallback(
-    (width: number) => {
-      setChannelListWidth(width);
-      updateSidebarPreferences({
-        channelList: {
-          isVisible: isChannelListVisible,
-          width,
-        },
-      });
-    },
-    [isChannelListVisible, updateSidebarPreferences],
-  );
+  const handleChannelListWidthChange = useCallback((width: number) => {
+    setChannelListWidth(width);
+    useStore.getState().updateSidebarPreferences({
+      channelList: {
+        isVisible: useStore.getState().ui.isChannelListVisible,
+        width,
+      },
+    });
+  }, []);
 
-  const handleMemberListWidthChange = useCallback(
-    (width: number) => {
-      setMemberListWidth(width);
-      updateSidebarPreferences({
-        memberList: {
-          isVisible: shouldShowMemberList,
-          width,
-        },
-      });
-    },
-    [shouldShowMemberList, updateSidebarPreferences],
-  );
+  const handleMemberListWidthChange = useCallback((width: number) => {
+    setMemberListWidth(width);
+    useStore.getState().updateSidebarPreferences({
+      memberList: {
+        // isMemberListVisible (user's actual preference) not shouldShowMemberList
+        // (which is false for PMs, causing isVisible:false to be incorrectly saved)
+        isVisible: useStore.getState().ui.isMemberListVisible,
+        width,
+      },
+    });
+  }, []);
 
   // Set theme class on body
   useEffect(() => {
@@ -248,40 +242,6 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  // Persist channel list visibility changes (desktop only)
-  useEffect(() => {
-    if (!isNarrowView) {
-      updateSidebarPreferences({
-        channelList: {
-          isVisible: isChannelListVisible,
-          width: channelListWidth,
-        },
-      });
-    }
-  }, [
-    isChannelListVisible,
-    channelListWidth,
-    isNarrowView,
-    updateSidebarPreferences,
-  ]);
-
-  // Persist member list visibility changes (desktop only)
-  useEffect(() => {
-    if (!isNarrowView) {
-      updateSidebarPreferences({
-        memberList: {
-          isVisible: shouldShowMemberList,
-          width: memberListWidth,
-        },
-      });
-    }
-  }, [
-    shouldShowMemberList,
-    memberListWidth,
-    isNarrowView,
-    updateSidebarPreferences,
-  ]);
-
   // Sync media query hook to store
   useEffect(() => {
     setIsNarrowView(isNarrowViewFromHook);
@@ -305,7 +265,7 @@ export const AppLayout: React.FC = () => {
 
   // Handle mobile back button
   // TODO: ios
-  if (isTauri() && platform() === "android") {
+  if (isTauriAndroid()) {
     window.androidBackCallback = () => {
       switch (mobileViewActiveColumn) {
         case "chatView":
@@ -385,6 +345,8 @@ export const AppLayout: React.FC = () => {
         onClose={closeMedia}
         serverId={ui.openedMedia?.serverId}
         channelId={ui.openedMedia?.channelId}
+        preferTopicEntry={ui.openedMedia?.preferTopicEntry}
+        preferLastEntry={ui.openedMedia?.preferLastEntry}
       />
     </div>
   );

@@ -1,5 +1,4 @@
 import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/solid";
-import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
 import {
   useCallback,
@@ -17,13 +16,17 @@ import { useScrollToBottom } from "../../hooks/useScrollToBottom";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { canShowImageUrl } from "../../lib/imageUtils";
 import ircClient from "../../lib/ircClient";
-import { detectMediaType, getEmbedThumbnailUrl } from "../../lib/mediaUtils";
+import {
+  detectMediaType,
+  getEmbedThumbnailUrl,
+  imageCanHaveTransparency,
+} from "../../lib/mediaUtils";
 import {
   type FormattingType,
   getPreviewStyles,
   stripIrcFormatting,
 } from "../../lib/messageFormatter";
-import { isTauri } from "../../lib/platformUtils";
+import { isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -98,7 +101,7 @@ export function MediaCommentsSidebar({
 
   useAutoFocusTyping(textareaRef, () => !isHoveredRef.current);
 
-  const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
+  const isNativeMobile = isTauriMobile();
   // Cache line-height + padding after first read — same pattern as ChatArea
   const textareaMetricsRef = useRef<{
     lineHeight: number;
@@ -106,8 +109,9 @@ export function MediaCommentsSidebar({
     paddingBottom: number;
   } | null>(null);
 
-  const { showSafeMedia, showExternalContent, sendTypingNotifications } =
-    useStore((state) => state.globalSettings);
+  const { mediaVisibilityLevel, sendTypingNotifications } = useStore(
+    (state) => state.globalSettings,
+  );
   const filehost = useStore
     .getState()
     .servers.find((s) => s.id === serverId)?.filehost;
@@ -196,7 +200,9 @@ export function MediaCommentsSidebar({
       if (!sourceMsgId) return [];
       const key = `${serverId}-${channelId}`;
       return (state.messages[key] ?? []).filter(
-        (m) => m.tags?.["+draft/reply"]?.trim() === sourceMsgId,
+        (m) =>
+          (m.tags?.["+reply"] ?? m.tags?.["+draft/reply"])?.trim() ===
+          sourceMsgId,
       );
     }),
   );
@@ -383,18 +389,13 @@ export function MediaCommentsSidebar({
               : null;
           if (
             mediaType === "image" &&
-            canShowImageUrl(
-              currentImageUrl,
-              showSafeMedia,
-              showExternalContent,
-              filehost,
-            )
+            canShowImageUrl(currentImageUrl, mediaVisibilityLevel, filehost)
           ) {
             return (
               <img
                 src={currentImageUrl}
                 alt=""
-                className="w-10 h-10 rounded object-cover flex-shrink-0 transparency-grid"
+                className={`w-10 h-10 rounded object-cover flex-shrink-0 ${imageCanHaveTransparency(currentImageUrl) ? "transparency-grid" : ""}`}
                 draggable={false}
               />
             );

@@ -1,4 +1,7 @@
+import type { MediaVisibilityLevel } from "../lib/mediaUtils";
+
 export type layoutColumn = "serverList" | "chatView" | "memberList";
+export type { MediaVisibilityLevel };
 
 export interface ConnectionDetails {
   name: string;
@@ -47,9 +50,7 @@ export interface GlobalSettings {
   enableMultilineInput: boolean;
   multilineOnShiftEnter: boolean;
   autoFallbackToSingleLine: boolean;
-  showSafeMedia: boolean;
-  showTrustedSourcesMedia: boolean;
-  showExternalContent: boolean;
+  mediaVisibilityLevel: MediaVisibilityLevel;
   enableMarkdownRendering: boolean;
   awayMessage: string;
   quitMessage: string;

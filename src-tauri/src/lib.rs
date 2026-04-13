@@ -210,6 +210,11 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_ios_keyboard::init());
     }
 
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    {
+        builder = builder.plugin(tauri_plugin_haptics::init());
+    }
+
     #[cfg(target_os = "android")]
     {
         builder = builder.plugin(tauri_plugin_dialog::init());

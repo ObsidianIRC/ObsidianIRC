@@ -1,7 +1,12 @@
 import type * as React from "react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { FaSoundcloud, FaSpotify, FaVimeoV, FaYoutube } from "react-icons/fa";
 import { getAudio } from "../../lib/audioManager";
-import { filenameFromUrl, getEmbedThumbnailUrl } from "../../lib/mediaUtils";
+import {
+  filenameFromUrl,
+  getEmbedFallbackLabel,
+  getEmbedThumbnailUrl,
+} from "../../lib/mediaUtils";
 import {
   getVideoPosition,
   setVideoPosition,
@@ -45,7 +50,6 @@ export const MiniMediaPlayer: React.FC = () => {
   const [embedTitle, setEmbedTitle] = useState<string | undefined>(undefined);
   const [audioDuration, setAudioDuration] = useState<number>(Number.NaN);
   const [audioCurrentTime, setAudioCurrentTime] = useState<number>(0);
-  // Tracks whether the audio element has buffered enough to start playing
   const [audioState, setAudioState] = useState<"loading" | "ready" | "error">(
     "ready",
   );
@@ -64,6 +68,8 @@ export const MiniMediaPlayer: React.FC = () => {
         oEmbedEndpoint = `https://www.youtube.com/oembed?url=${encodeURIComponent(embedUrl)}&format=json`;
       } else if (host === "vimeo.com") {
         oEmbedEndpoint = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(embedUrl)}`;
+      } else if (host === "open.spotify.com") {
+        oEmbedEndpoint = `https://open.spotify.com/oembed?url=${encodeURIComponent(embedUrl)}`;
       }
     } catch {
       // ignore invalid URLs
@@ -80,7 +86,6 @@ export const MiniMediaPlayer: React.FC = () => {
     return () => controller.abort();
   }, [activeMedia?.url, activeMedia?.type]);
 
-  // Drive the singleton Audio element from store state.
   // No cleanup pause — audio must survive MiniMediaPlayer remounts on resize.
   useEffect(() => {
     const audio = getAudio();
@@ -217,6 +222,26 @@ export const MiniMediaPlayer: React.FC = () => {
   const filename = filenameFromUrl(url);
 
   const embedThumb = type === "embed" ? getEmbedThumbnailUrl(url) : null;
+
+  // Brand icon shown in the icon slot when there's no thumbnail.
+  // Communicates the platform at a glance without text prefix.
+  const embedPlatformIcon = (() => {
+    if (type !== "embed") return null;
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, "");
+      if (host === "open.spotify.com")
+        return <FaSpotify className="w-4 h-4 text-[#1DB954]" />;
+      if (host === "youtube.com" || host === "youtu.be")
+        return <FaYoutube className="w-4 h-4 text-[#FF0000]" />;
+      if (host === "vimeo.com")
+        return <FaVimeoV className="w-4 h-4 text-[#1AB7EA]" />;
+      if (host === "soundcloud.com")
+        return <FaSoundcloud className="w-4 h-4 text-[#FF5500]" />;
+    } catch {
+      // ignore invalid URLs
+    }
+    return null;
+  })();
   const isAudioLoading =
     type === "audio" && isPlaying && audioState === "loading";
   const isAudioError = type === "audio" && audioState === "error";
@@ -525,18 +550,20 @@ export const MiniMediaPlayer: React.FC = () => {
                 )
               }
             >
-              <svg
-                className="w-4 h-4"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
-              </svg>
+              {embedPlatformIcon ?? (
+                <svg
+                  className="w-4 h-4"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+                </svg>
+              )}
             </button>
           )}
           <span className="text-xs text-discord-text-normal truncate flex-1">
-            {embedTitle || filename || "embed"}
+            {embedTitle || getEmbedFallbackLabel(url, !!embedPlatformIcon)}
           </span>
           <button
             type="button"

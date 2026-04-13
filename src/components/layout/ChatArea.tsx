@@ -1,4 +1,3 @@
-import { platform } from "@tauri-apps/plugin-os";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,7 +21,7 @@ import {
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
-import { isTauri } from "../../lib/platformUtils";
+import { isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -44,6 +43,7 @@ import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
 import { TextArea } from "../ui/TextInput";
+import { TopicMediaStrip } from "../ui/TopicMediaStrip";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
 import {
@@ -175,8 +175,14 @@ export const ChatArea: React.FC<{
   // Per-channel draft storage. messageTextRef is the source of truth for the input value.
   // It is updated imperatively (never from state), so no re-render occurs on each keystroke.
   const draftMap = useRef<Map<string, string>>(new Map());
+  // Per-channel scroll position. null = was at bottom (restore to bottom).
+  const scrollPositionMapRef = useRef<
+    Map<string, { scrollTop: number; visibleCount: number } | null>
+  >(new Map());
   const messageTextRef = useRef("");
   const hasTextRef = useRef(false);
+  // platform() is stable at runtime — ref avoids adding it to useCallback deps.
+  const isNativeMobileRef = useRef(isTauriMobile());
   // Keep-alive: last 3 visited channels are kept in the DOM (display:none) to preserve
   // scroll position and media element state across channel switches.
   const [aliveChannels, setAliveChannels] = useState<AliveChannel[]>([]);
@@ -190,7 +196,7 @@ export const ChatArea: React.FC<{
     paddingTop: number;
     paddingBottom: number;
   } | null>(null);
-
+  const prevInputLengthRef = useRef(0);
   const resizeTextarea = useCallback(() => {
     const textarea = inputRef.current;
     if (!textarea) return;
@@ -207,6 +213,24 @@ export const ChatArea: React.FC<{
     const { lineHeight, paddingTop, paddingBottom } =
       textareaMetricsRef.current;
     const maxHeight = lineHeight * 5 + paddingTop + paddingBottom;
+
+    const currentLength = messageTextRef.current.length;
+    const prevLength = prevInputLengthRef.current;
+    prevInputLengthRef.current = currentLength;
+
+    if (textarea.scrollHeight > textarea.clientHeight) {
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+      return;
+    }
+
+    if (currentLength >= prevLength) {
+      // height="auto" causes WKWebView to deliver a transient layout state to
+      // ResizeObserver, scrolling the chat on every keystroke. Safe to skip when
+      // text only grew and content still fits — height is unchanged.
+      return;
+    }
+
+    // May have lost a line; remeasure.
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
   }, []);
@@ -221,7 +245,7 @@ export const ChatArea: React.FC<{
       const ht = text.trim().length > 0;
       if (ht !== hasTextRef.current) {
         hasTextRef.current = ht;
-        setHasText(ht);
+        if (isNativeMobileRef.current) setHasText(ht);
       }
     },
     [resizeTextarea],
@@ -264,7 +288,6 @@ export const ChatArea: React.FC<{
       ui.isSettingsModalOpen ||
       ui.isQuickActionsOpen ||
       ui.isChannelListModalOpen ||
-      ui.isChannelRenameModalOpen ||
       ui.contextMenu?.isOpen ||
       ui.isServerNoticesPopupOpen ||
       ui.profileViewRequest ||
@@ -312,7 +335,6 @@ export const ChatArea: React.FC<{
     isSettingsModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
-    isChannelRenameModalOpen,
     isServerNoticesPopupOpen,
   } = ui;
 
@@ -400,7 +422,7 @@ export const ChatArea: React.FC<{
   // Media query hooks
   const isNarrowView = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
-  const isNativeMobile = isTauri() && ["android", "ios"].includes(platform());
+  const isNativeMobile = isTauriMobile();
 
   const handleIrcLinkClick = useCallback(
     (rawUrl: string) => {
@@ -645,6 +667,24 @@ export const ChatArea: React.FC<{
     };
   }, [channelKey]);
 
+  // Save outgoing channel's scroll position on cleanup (same pattern as draftMap).
+  useEffect(() => {
+    const key = channelKey;
+    return () => {
+      if (key) {
+        const handle = channelListRefs.current.get(key);
+        if (handle) {
+          const { scrollTop, isAtBottom, visibleCount } =
+            handle.getScrollState();
+          scrollPositionMapRef.current.set(
+            key,
+            isAtBottom ? null : { scrollTop, visibleCount },
+          );
+        }
+      }
+    };
+  }, [channelKey]);
+
   // Restore the new channel's draft (empty string if none saved yet).
   useEffect(() => {
     if (channelKey) {
@@ -699,13 +739,25 @@ export const ChatArea: React.FC<{
   }, [showPlusMenu]);
 
   const handleSendMessage = () => {
-    if (!hasText) return;
+    if (!hasTextRef.current) return;
 
-    // Tell the active channel's message list to auto-scroll after the new message lands.
+    // Block sending to offline PM targets — isOnline is explicitly false (MONITOR tracked).
+    // undefined means the server doesn't support MONITOR, so we let it through.
+    if (selectedPrivateChat?.isOnline === false && selectedServerId) {
+      useStore.getState().addGlobalNotification({
+        type: "warn",
+        command: "PRIVMSG",
+        code: "ERR_OFFLINE",
+        message: `${selectedPrivateChat.username} is offline. Your message was not sent.`,
+        target: selectedPrivateChat.username,
+        serverId: selectedServerId,
+      });
+      return;
+    }
+
     channelListRefs.current.get(channelKey)?.setAtBottom();
     sendMessage(messageTextRef.current);
 
-    // Cleanup after sending
     applyText("");
     setAutocompleteInputText("");
     draftMap.current.delete(channelKey);
@@ -1103,10 +1155,11 @@ export const ChatArea: React.FC<{
     resizeTextarea();
 
     // Only trigger re-render when send-button state changes (empty ↔ non-empty).
+    // On desktop the send button is never shown, so the re-render has no effect.
     const ht = newText.trim().length > 0;
     if (ht !== hasTextRef.current) {
       hasTextRef.current = ht;
-      setHasText(ht);
+      if (isNativeMobile) setHasText(ht);
     }
 
     cursorPositionRef.current = newCursorPosition;
@@ -1619,14 +1672,13 @@ export const ChatArea: React.FC<{
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedChannelId): Only focus when channel changes
   // biome-ignore lint/correctness/useExhaustiveDependencies(selectedPrivateChatId): Only focus when private chat changes
   useEffect(() => {
-    if (isTauri() && ["android", "ios"].includes(platform())) return;
+    if (isTauriMobile()) return;
     // Don't steal focus if any modal is open
     if (
       isSettingsModalOpen ||
       userProfileModalOpen ||
       isAddServerModalOpen ||
-      isChannelListModalOpen ||
-      isChannelRenameModalOpen
+      isChannelListModalOpen
     )
       return;
     inputRef.current?.focus();
@@ -1637,7 +1689,6 @@ export const ChatArea: React.FC<{
     userProfileModalOpen,
     isAddServerModalOpen,
     isChannelListModalOpen,
-    isChannelRenameModalOpen,
   ]);
 
   return (
@@ -1662,6 +1713,7 @@ export const ChatArea: React.FC<{
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
 
+      <TopicMediaStrip />
       <MiniMediaPlayer />
 
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}
@@ -1701,6 +1753,7 @@ export const ChatArea: React.FC<{
                 privateChatId: aPrivateChatId,
               }) => {
                 const isKeyActive = key === channelKey;
+                const savedScrollState = scrollPositionMapRef.current.get(key);
                 return (
                   <div
                     key={key}
@@ -1714,6 +1767,7 @@ export const ChatArea: React.FC<{
                         else channelListRefs.current.delete(key);
                       }}
                       channelKey={key}
+                      initialScrollState={savedScrollState}
                       serverId={aServerId}
                       channelId={aChannelId}
                       privateChatId={aPrivateChatId}

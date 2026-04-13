@@ -1,7 +1,23 @@
 import type React from "react";
 import { FaTimes } from "react-icons/fa";
-import { RiReplyFill } from "react-icons/ri";
+
+// Inlined from react-icons/ri — avoids loading the entire RI icon sub-package (~2.1MB).
+const RiReplyFill = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width="1em"
+    height="1em"
+    fill="currentColor"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M11 20L1 12L11 4V9C16.5228 9 21 13.4772 21 19C21 19.2729 20.9891 19.5433 20.9676 19.8107C19.4605 16.9502 16.458 15 13 15H11V20Z" />
+  </svg>
+);
+
 import { canShowImageUrl } from "../../lib/imageUtils";
+import { imageCanHaveTransparency } from "../../lib/mediaUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
 import useStore from "../../store";
 import type { MessageType } from "../../types";
@@ -36,8 +52,8 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
 }) => {
   const replyUsername = replyMessage.userId;
 
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const mediaVisibilityLevel = useStore(
+    (state) => state.globalSettings.mediaVisibilityLevel,
   );
   const server = replyMessage.serverId
     ? useStore.getState().servers.find((s) => s.id === replyMessage.serverId)
@@ -88,14 +104,13 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
       {firstImageUrl &&
         canShowImageUrl(
           firstImageUrl,
-          showSafeMedia,
-          showExternalContent,
+          mediaVisibilityLevel,
           server?.filehost,
         ) && (
           <img
             src={firstImageUrl}
             alt=""
-            className="w-10 h-10 rounded object-cover flex-shrink-0 self-center mr-1.5 my-1.5 transparency-grid"
+            className={`w-10 h-10 rounded object-cover flex-shrink-0 self-center mr-1.5 my-1.5 ${imageCanHaveTransparency(firstImageUrl) ? "transparency-grid" : ""}`}
             draggable={false}
           />
         )}

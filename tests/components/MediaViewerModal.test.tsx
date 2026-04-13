@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import React from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   clampZoom,
@@ -6,11 +7,46 @@ import {
   ZOOM_MAX,
   ZOOM_MIN,
 } from "../../src/components/ui/MediaViewerModal";
+import * as mediaProbe from "../../src/lib/mediaProbe";
 import * as platformUtils from "../../src/lib/platformUtils";
 import * as store from "../../src/store";
 
 vi.mock("../../src/lib/openUrl", () => ({
   openExternalUrl: vi.fn(),
+}));
+
+// react-pdf uses dynamic import() via React.lazy in MediaViewerModal.
+// Mock the module so Document immediately calls onLoadSuccess and Page renders a placeholder.
+vi.mock("react-pdf", () => ({
+  Document: ({
+    onLoadSuccess,
+    onLoadError: _onLoadError,
+    children,
+    loading: _loading,
+    file: _file,
+  }: {
+    onLoadSuccess?: (pdf: { numPages: number }) => void;
+    onLoadError?: () => void;
+    children?: React.ReactNode;
+    loading?: React.ReactNode;
+    file?: string;
+  }) => {
+    // Simulate async PDF load: call onLoadSuccess after mount.
+    React.useEffect(() => {
+      onLoadSuccess?.({ numPages: 3 });
+    }, [onLoadSuccess]);
+    return React.createElement(
+      "div",
+      { "data-testid": "pdf-document" },
+      children,
+    );
+  },
+  Page: ({ pageNumber }: { pageNumber: number }) =>
+    React.createElement(
+      "div",
+      { "data-testid": "pdf-page" },
+      `Page ${pageNumber}`,
+    ),
 }));
 
 vi.mock("../../src/lib/platformUtils", () => ({
@@ -36,7 +72,7 @@ vi.mock("../../src/store", () => ({
       typeof selector === "function"
         ? selector({
             messages: {},
-            globalSettings: { showSafeMedia: true, showExternalContent: true },
+            globalSettings: { mediaVisibilityLevel: 3 },
           })
         : null,
     ),
@@ -48,6 +84,7 @@ vi.mock("../../src/lib/mediaProbe", () => ({
   probeMediaUrl: vi.fn((_url: string) =>
     Promise.resolve({ type: "image", skipped: false }),
   ),
+  getCachedProbeResult: vi.fn((_url: string) => undefined),
 }));
 
 vi.mock("../../src/lib/ircClient", () => ({
@@ -470,6 +507,76 @@ describe("MediaViewerModal", () => {
       expect(thumbs[1]).toHaveAttribute("aria-current", "true");
     });
 
+    test("PDF viewer shows page navigation after document loads", async () => {
+      vi.mocked(store.getChannelMessages).mockReturnValue([
+        {
+          id: "pdf-msg",
+          msgid: "pdf-msgid",
+          content: "https://example.com/doc.pdf",
+          serverId: "s1",
+          channelId: "c1",
+          type: "message",
+          timestamp: new Date(),
+          userId: "user1",
+          reactions: [],
+        },
+      ] as unknown as ReturnType<typeof store.getChannelMessages>);
+
+      const { probeMediaUrl, getCachedProbeResult } = await import(
+        "../../src/lib/mediaProbe"
+      );
+      vi.mocked(getCachedProbeResult).mockReturnValue({
+        type: "pdf",
+        streamable: false,
+        skipped: false,
+      });
+      vi.mocked(probeMediaUrl).mockResolvedValue({
+        type: "pdf",
+        streamable: false,
+        skipped: false,
+      });
+
+      render(
+        <MediaViewerModal
+          isOpen={true}
+          url="https://example.com/doc.pdf"
+          sourceMsgId="pdf-msgid"
+          onClose={vi.fn()}
+          serverId="s1"
+          channelId="c1"
+        />,
+      );
+
+      // Page navigation must appear once the PDF document loads.
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Previous page" }),
+        ).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "Next page" }),
+        ).toBeInTheDocument();
+        expect(screen.getByText("1 / 3")).toBeInTheDocument();
+      });
+
+      // Previous is disabled on first page; Next is enabled.
+      expect(
+        screen.getByRole("button", { name: "Previous page" }),
+      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
+
+      // Clicking Next advances to page 2.
+      fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+      expect(screen.getByText("2 / 3")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Previous page" }),
+      ).toBeEnabled();
+
+      // Clicking Next again advances to page 3 (last page).
+      fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+      expect(screen.getByText("3 / 3")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+    });
+
     test("same URL in multi-image message and another message are distinct entries", () => {
       vi.mocked(store.getChannelMessages).mockReturnValue([
         {
@@ -515,6 +622,168 @@ describe("MediaViewerModal", () => {
       // sourceMsgId="msgid-2" means the third entry (index 2) is active.
       expect(thumbs[2]).toHaveAttribute("aria-current", "true");
       expect(thumbs[0]).not.toHaveAttribute("aria-current", "true");
+    });
+  });
+});
+
+describe("filehost URL filtering", () => {
+  test("filehost HTML/paste URLs cached as non-media are excluded from the filmstrip", async () => {
+    // Three messages: two real images (.jpg extension) plus one message containing
+    // a paste page URL and an HTML page URL from the same filehost.
+    // getCachedProbeResult returns { type: null, skipped: false } for the non-media
+    // URLs, simulating a previous probe that confirmed they are not media.
+    // After the map e.type stays null for those; getCachedProbeResult returns a
+    // non-undefined object → condition 3 (isUrlFromFilehost) must be false → excluded.
+    // Result: only the two .jpg images appear (2 of 2, not 2+2 of 4).
+    // getCachedProbeResult returns null (not undefined) to signal confirmed non-media.
+    vi.mocked(mediaProbe.getCachedProbeResult).mockImplementation((url) => {
+      if (url.includes("/p") || url.endsWith(".html")) {
+        return null;
+      }
+      return undefined;
+    });
+
+    vi.mocked(store.getChannelMessages).mockReturnValueOnce([
+      {
+        id: "1",
+        content: "https://files.example.com/GDv.jpg",
+        serverId: "s1",
+        channelId: "c1",
+        type: "message",
+        timestamp: new Date(),
+        userId: "user1",
+        reactions: [],
+        msgid: "msg1",
+      },
+      {
+        id: "2",
+        content:
+          "https://files.example.com/GDq/p - Try online: https://files.example.com/GDq.html",
+        serverId: "s1",
+        channelId: "c1",
+        type: "message",
+        timestamp: new Date(),
+        userId: "user1",
+        reactions: [],
+        msgid: "msg2",
+      },
+      {
+        id: "3",
+        content: "https://files.example.com/GDw.jpg",
+        serverId: "s1",
+        channelId: "c1",
+        type: "message",
+        timestamp: new Date(),
+        userId: "user1",
+        reactions: [],
+        msgid: "msg3",
+      },
+    ] as unknown as ReturnType<typeof store.getChannelMessages>);
+
+    const getStateFn = (
+      store.default as unknown as { getState: ReturnType<typeof vi.fn> }
+    ).getState;
+    getStateFn.mockReturnValueOnce({
+      messages: {},
+      servers: [
+        {
+          id: "s1",
+          filehost: "files.example.com",
+          channels: [{ id: "c1", topic: null }],
+        },
+      ],
+    });
+
+    render(
+      <MediaViewerModal
+        isOpen={true}
+        url="https://files.example.com/GDv.jpg"
+        sourceMsgId="msg1"
+        onClose={vi.fn()}
+        serverId="s1"
+        channelId="c1"
+      />,
+    );
+
+    await waitFor(() => {
+      // Only the two .jpg images appear; the paste and HTML URLs are excluded.
+      const thumbs = screen.getAllByRole("button", { name: /image \d+ of 2/i });
+      expect(thumbs).toHaveLength(2);
+    });
+
+    vi.mocked(mediaProbe.getCachedProbeResult).mockReturnValue(undefined);
+  });
+});
+
+describe("topic entry filtering", () => {
+  test("topic URL with no known media type is excluded from the filmstrip", async () => {
+    // Two message images so the filmstrip renders (requires imageList.length > 1).
+    // The channel topic adds a non-media Google Play URL with no cached type.
+    // getCachedProbeResult returns undefined → type stays null → filter must exclude it.
+    // Correct: 2 filmstrip entries (images 1–2 of 2). Regression: 3 entries (of 3).
+    vi.mocked(store.getChannelMessages).mockReturnValueOnce([
+      {
+        id: "1",
+        content: "https://example.com/image.jpg",
+        serverId: "s1",
+        channelId: "c1",
+        type: "message",
+        timestamp: new Date(),
+        userId: "user1",
+        reactions: [],
+        msgid: "msg1",
+      },
+      {
+        id: "2",
+        content: "https://example.com/image2.png",
+        serverId: "s1",
+        channelId: "c1",
+        type: "message",
+        timestamp: new Date(),
+        userId: "user1",
+        reactions: [],
+        msgid: "msg2",
+      },
+    ] as unknown as ReturnType<typeof store.getChannelMessages>);
+
+    const getStateFn = (
+      store.default as unknown as { getState: ReturnType<typeof vi.fn> }
+    ).getState;
+    getStateFn.mockReturnValueOnce({
+      messages: {},
+      servers: [
+        {
+          id: "s1",
+          filehost: null,
+          channels: [
+            {
+              id: "c1",
+              topic:
+                "app: https://play.google.com/store/apps/details?id=com.example",
+            },
+          ],
+        },
+      ],
+    });
+
+    render(
+      <MediaViewerModal
+        isOpen={true}
+        url="https://example.com/image.jpg"
+        sourceMsgId="msg1"
+        onClose={vi.fn()}
+        serverId="s1"
+        channelId="c1"
+      />,
+    );
+
+    await waitFor(() => {
+      // The Google Play topic URL must NOT generate a filmstrip entry.
+      // Only the two message images should appear (2 of 2, not 3 of 3).
+      const thumbs = screen.getAllByRole("button", {
+        name: /image \d+ of 2/i,
+      });
+      expect(thumbs).toHaveLength(2);
     });
   });
 });

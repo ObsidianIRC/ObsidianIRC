@@ -31,6 +31,37 @@ function extractHostname(url: string): string | null {
   }
 }
 
+function isEmbeddablePath(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname;
+
+    if (host === "youtube.com") {
+      return (
+        (path === "/watch" && !!u.searchParams.get("v")) ||
+        /^\/shorts\/[\w-]+/.test(path) ||
+        /^\/live\/[\w-]+/.test(path)
+      );
+    }
+    if (host === "youtu.be") {
+      // all youtu.be paths are video short-links
+      return path.length > 1;
+    }
+    if (host === "vimeo.com") {
+      // video IDs are numeric; channel/group/user pages are not
+      return /^\/\d+/.test(path);
+    }
+    if (host === "soundcloud.com") {
+      // tracks are artist/track (2 segments); artist pages are just /artist
+      return path.split("/").filter(Boolean).length >= 2;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Detect media type from a URL. Returns null if not recognised. */
 export function detectMediaType(url: string): MediaType | null {
   const hostname = extractHostname(url);
@@ -38,7 +69,9 @@ export function detectMediaType(url: string): MediaType | null {
 
   for (const domain of Object.keys(TRUSTED_EMBED_DOMAINS)) {
     if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-      return TRUSTED_EMBED_DOMAINS[domain];
+      const type = TRUSTED_EMBED_DOMAINS[domain];
+      if (type === "embed" && !isEmbeddablePath(url)) return null;
+      return type;
     }
   }
 
@@ -52,6 +85,54 @@ export function detectMediaType(url: string): MediaType | null {
   return null;
 }
 
+/**
+ * Codec support table — checked once via HTMLVideoElement.canPlayType() (no network request).
+ * Results are memoized so repeated calls are O(1).
+ *
+ * | Extension | Container  | Video | Audio | WKWebView (macOS) | Chrome/FF |
+ * |-----------|------------|-------|-------|-------------------|-----------|
+ * | .mp4      | MPEG-4     | H.264 | AAC   | ✅ always          | ✅         |
+ * | .mov      | QuickTime  | H.264 | AAC   | ✅ always          | ✅         |
+ * | .m4v      | MPEG-4     | H.264 | AAC   | ✅ always          | ✅         |
+ * | .webm     | WebM       | VP9   | Opus  | ⚠️ macOS 11+ only  | ✅         |
+ * | .webm     | WebM       | VP8   | Vorbis| ❌ WKWebView        | ✅         |
+ * | .ogv      | Ogg        | Theora| Vorbis| ❌ WKWebView        | ✅         |
+ * | .mkv      | Matroska   | any   | any   | ❌ WKWebView        | ✅         |
+ * | .avi      | AVI        | any   | any   | ❌ WKWebView        | partial   |
+ */
+const VIDEO_MIME_BY_EXT: Record<string, string[]> = {
+  mp4: ['video/mp4; codecs="avc1.42E01E, mp4a.40.2"', "video/mp4"],
+  m4v: ['video/mp4; codecs="avc1.42E01E, mp4a.40.2"', "video/mp4"],
+  mov: ['video/mp4; codecs="avc1.42E01E, mp4a.40.2"', "video/mp4"],
+  webm: [
+    'video/webm; codecs="vp9, opus"',
+    'video/webm; codecs="vp8"',
+    "video/webm",
+  ],
+  ogv: ['video/ogg; codecs="theora, vorbis"', "video/ogg"],
+  mkv: ["video/x-matroska"],
+  avi: ["video/x-msvideo"],
+};
+
+const _canPlayCache = new Map<string, boolean>();
+
+function _probeCanPlay(mimes: string[]): boolean {
+  const el = document.createElement("video");
+  // Require "probably" — WKWebView returns "maybe" for VP9/WebM even when it can't reliably decode it.
+  return mimes.some((m) => el.canPlayType(m) === "probably");
+}
+
+/** Returns false when the platform definitely cannot play the video; true when unknown (optimistic). */
+export function canPlayVideoUrl(url: string): boolean {
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
+  const mimes = VIDEO_MIME_BY_EXT[ext];
+  if (!mimes) return true; // unknown extension — optimistic, let it try
+  if (_canPlayCache.has(ext)) return _canPlayCache.get(ext) as boolean;
+  const supported = _probeCanPlay(mimes);
+  _canPlayCache.set(ext, supported);
+  return supported;
+}
+
 /** Like detectMediaType but trusted domains only — no extension guessing.
  *  Extension-based URLs get type:null so they are always HEAD-probed at render
  *  time. This lets the server's actual Content-Type override the URL hint
@@ -61,7 +142,9 @@ function detectTrustedDomainType(url: string): MediaType | null {
   if (hostname === null) return null;
   for (const domain of Object.keys(TRUSTED_EMBED_DOMAINS)) {
     if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-      return TRUSTED_EMBED_DOMAINS[domain];
+      const type = TRUSTED_EMBED_DOMAINS[domain];
+      if (type === "embed" && !isEmbeddablePath(url)) return null;
+      return type;
     }
   }
   return null;
@@ -71,16 +154,13 @@ export function isImageLikeUrl(url: string): boolean {
   return detectMediaType(url) === "image";
 }
 
-/** Returns all media entries found in a message's content, deduplicated by URL.
+/** Returns all media entries found in an arbitrary text string, deduplicated by URL.
  *  Trusted-domain URLs (YouTube, Tenor, etc.) get their type pre-set.
- *  All other URLs — including those with image/video/audio extensions — get
- *  type:null so ProbeablePreview HEAD-probes them. This ensures the server's
- *  actual Content-Type is authoritative: a .png path returning text/html will
- *  produce no preview instead of a broken image widget. */
-export function extractMediaFromMessage(message: Message): MediaEntry[] {
-  const content = stripIrcFormatting(message.content).trim();
+ *  All other URLs get type:null so callers can HEAD-probe them. */
+export function extractMediaFromText(text: string): MediaEntry[] {
+  const content = stripIrcFormatting(text).trim();
 
-  // Single-token message that starts with http — check it directly
+  // Single-token string that starts with http — check it directly
   if (!/\s/.test(content) && content.startsWith("http")) {
     const clean = content.replace(/[.,!?;:)>\]*]+$/, "");
     return [{ url: clean, type: detectTrustedDomainType(clean) }];
@@ -98,10 +178,32 @@ export function extractMediaFromMessage(message: Message): MediaEntry[] {
   return entries;
 }
 
+/** Returns all media entries found in a message's content. */
+export function extractMediaFromMessage(message: Message): MediaEntry[] {
+  return extractMediaFromText(message.content);
+}
+
 export interface MediaSettings {
   showSafeMedia: boolean;
   showTrustedSourcesMedia: boolean;
   showExternalContent: boolean;
+}
+
+export type MediaVisibilityLevel = 0 | 1 | 2 | 3;
+// 0 — Off:      no previews
+// 1 — Safe:     server's trusted filehost only
+// 2 — Trusted:  filehost + known embed services (YouTube, Vimeo, etc.)
+// 3 — External: all URLs are candidates
+
+/** Single source of truth for the enum → MediaSettings conversion. */
+export function mediaLevelToSettings(
+  level: MediaVisibilityLevel,
+): MediaSettings {
+  return {
+    showSafeMedia: level >= 1,
+    showTrustedSourcesMedia: level >= 2,
+    showExternalContent: level >= 3,
+  };
 }
 
 /**
@@ -132,6 +234,38 @@ export function getEmbedThumbnailUrl(url: string): string | null {
   return null;
 }
 
+const SPOTIFY_CONTENT_TYPES: Record<string, string> = {
+  track: "Track",
+  playlist: "Playlist",
+  album: "Album",
+  episode: "Episode",
+  show: "Show",
+  artist: "Artist",
+};
+
+/**
+ * Returns a human-readable fallback label for the mini player before the oEmbed
+ * title loads. Pass `short=true` when a brand icon is already visible so the
+ * platform name is not repeated ("Playlist" vs "Spotify Playlist").
+ */
+export function getEmbedFallbackLabel(url: string, short = false): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "open.spotify.com") {
+      const type = u.pathname.split("/").filter(Boolean)[0] ?? "";
+      const content = SPOTIFY_CONTENT_TYPES[type] ?? "";
+      return short
+        ? content || "Spotify"
+        : content
+          ? `Spotify ${content}`
+          : "Spotify";
+    }
+  } catch {
+    // ignore invalid URLs
+  }
+  return filenameFromUrl(url) || "embed";
+}
+
 export function filenameFromUrl(url: string): string {
   try {
     return decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "");
@@ -157,4 +291,14 @@ export function canShowMedia(
     }
   }
   return false;
+}
+
+/** Returns false only for formats that definitively cannot have an alpha channel.
+ *  JPEG and PDF are opaque — PDF pages have solid white backgrounds (WKWebView/Safari
+ *  render cross-origin PDFs via <img>, which produces an opaque first-page image).
+ *  PNG, GIF, WebP, SVG, AVIF, and unknown extensions default to true so the
+ *  transparency-grid is preserved as a safe fallback when the format is uncertain. */
+export function imageCanHaveTransparency(url: string): boolean {
+  const path = url.split("?")[0].split("#")[0].toLowerCase();
+  return /\.(png|gif|webp|avif|svg)$/.test(path);
 }

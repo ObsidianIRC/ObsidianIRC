@@ -37,7 +37,6 @@ describe("AppLayout - Resize Behavior", () => {
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         isServerMenuOpen: false,
         contextMenu: {
           isOpen: false,

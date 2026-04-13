@@ -50,7 +50,6 @@ const QuickActions: React.FC = () => {
     pinPrivateChat,
     unpinPrivateChat,
     toggleChannelListModal,
-    toggleChannelRenameModal,
     setTopicModalRequest,
     setProfileViewRequest,
     toggleUserProfileModal,
@@ -459,7 +458,9 @@ const QuickActions: React.FC = () => {
           toggleChannelListModal(true);
           break;
         case "open-rename-channel":
-          toggleChannelRenameModal(true);
+          if (data.serverId && data.channelId) {
+            setChannelSettingsRequest(data.serverId, data.channelId);
+          }
           break;
         case "open-topic-modal":
           if (data.serverId && data.channelId) {
@@ -478,7 +479,6 @@ const QuickActions: React.FC = () => {
       setChannelSettingsRequest,
       setInviteUserRequest,
       toggleChannelListModal,
-      toggleChannelRenameModal,
       setTopicModalRequest,
       setProfileViewRequest,
       toggleUserProfileModal,

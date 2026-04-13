@@ -1,7 +1,7 @@
 import type React from "react";
 import { FaExpand, FaReply, FaTrash } from "react-icons/fa";
-import { MdAddReaction } from "react-icons/md";
 import type { MessageType } from "../../types";
+import { MdAddReaction } from "./icons";
 
 interface MessageActionsProps {
   message: MessageType;
@@ -28,8 +28,8 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
 }) => {
   return (
     <div
-      className={`opacity-0 message-actions-container flex items-center bg-discord-dark-300 border border-white/10 rounded-lg shadow-xl divide-x divide-white/10 select-none z-10 ${
-        inline ? "flex-shrink-0 self-end" : "absolute bottom-1 right-4"
+      className={`message-actions-container flex items-center bg-discord-dark-300 border border-white/10 rounded-lg shadow-xl divide-x divide-white/10 select-none z-10 ${
+        inline ? "flex-shrink-0 self-end" : "absolute -top-4 right-2"
       }`}
     >
       {canOpenMedia && onOpenMedia && (

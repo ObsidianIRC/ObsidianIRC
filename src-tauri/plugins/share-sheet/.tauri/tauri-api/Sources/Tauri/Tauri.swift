@@ -42,7 +42,6 @@ public class PluginManager {
     for (_, handle) in plugins {
       if !handle.loaded {
         handle.instance.load(webview: webview)
-        handle.loaded = true
       }
     }
   }
@@ -80,8 +79,8 @@ public class PluginManager {
           var error: NSError? = nil
           withUnsafeMutablePointer(to: &error) { errorPtr in
             let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
-            // NSError ** is __autoreleasing — use AutoreleasingUnsafeMutablePointer so ARC
-            // handles the autoreleased object correctly and no manual retain is needed.
+            // NSError** is __autoreleasing — AutoreleasingUnsafeMutablePointer preserves
+            // ARC autorelease semantics so the error object is managed correctly.
             unsafeBitCast(
               methodIMP,
               to: (@convention(c) (Any?, Selector, Invoke, AutoreleasingUnsafeMutablePointer<NSError?>) -> Void).self

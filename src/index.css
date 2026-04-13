@@ -139,6 +139,30 @@ html, body, #root {
   animation: message-flash 2s ease-in-out;
 }
 
+/* Media visibility level slider */
+.media-level-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+.media-level-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+.media-level-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
 /* Bottom sheet slide-up animation for mobile message actions */
 @keyframes bottom-sheet-slide-up {
   from {
@@ -165,15 +189,25 @@ html, body, #root {
   }
 }
 
+/* visibility:hidden skips compositing entirely (unlike opacity:0 which still paints).
+   This prevents the browser from compositing ~47 hidden action bars per message list. */
+.message-actions-container {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .group:hover .message-actions-container {
+  visibility: visible;
+  pointer-events: auto;
   animation: message-actions-appear 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* When the window is not focused, cancel any in-progress hover animations
    and keep toolbars hidden even if the mouse is still over an element. */
 html.window-blurred .group:hover .message-actions-container {
+  visibility: hidden;
+  pointer-events: none;
   animation: none;
-  opacity: 0;
 }
 
 @keyframes scroll-btn-appear {
@@ -452,9 +486,6 @@ html.window-blurred .group:hover .message-actions-container {
   max-width: 100%;
 }
 
-.inline-code-container:hover .inline-code {
-  padding-right: 1.75rem;
-}
 
 .inline-copy-button {
   position: absolute;
@@ -754,10 +785,28 @@ textarea.resize-none::-webkit-scrollbar-thumb {
   -webkit-touch-callout: none;
 }
 
+/* Uses individual transform properties (scale, rotate) so the keyframe animation
+   composes with the inline translateY rather than overriding it. */
+@keyframes drag-shake {
+  0%,
+  100% {
+    scale: 1.04;
+    rotate: 0deg;
+  }
+  25% {
+    scale: 1.04;
+    rotate: -1.5deg;
+  }
+  75% {
+    scale: 1.04;
+    rotate: 1.5deg;
+  }
+}
+
 .draggable-item {
   cursor: grab;
   user-select: none;
-  touch-action: none;
+  /* touch-action intentionally unset — drag activation adds it to the active item only */
   transition:
     transform 150ms ease,
     box-shadow 150ms ease,
@@ -778,12 +827,14 @@ textarea.resize-none::-webkit-scrollbar-thumb {
 }
 
 .draggable-item.is-dragging {
-  opacity: 0.9 !important;
-  /* transform moved to inline style for dynamic translateY */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 1 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
   z-index: 50;
   position: relative;
+  touch-action: none;
+  /* transition: none so the translateY in inline style tracks the pointer without lag */
   transition: none !important;
+  animation: drag-shake 0.35s ease forwards;
 }
 
 .draggable-item.is-dragging * {

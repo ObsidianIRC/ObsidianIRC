@@ -1,7 +1,7 @@
 import type { MutableRefObject, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const SCROLL_TOLERANCE = 30;
+export const SCROLL_TOLERANCE = 30;
 
 export function isScrolledToBottom(
   container: HTMLElement,
@@ -25,8 +25,8 @@ export interface UseScrollToBottomReturn {
 }
 
 export function useScrollToBottom(
-  containerRef: RefObject<HTMLElement>,
-  endElementRef: RefObject<HTMLElement>,
+  containerRef: RefObject<HTMLElement | null>,
+  endElementRef: RefObject<HTMLElement | null>,
   options: UseScrollToBottomOptions = {},
 ): UseScrollToBottomReturn {
   const { tolerance = SCROLL_TOLERANCE, channelId } = options;
@@ -64,6 +64,9 @@ export function useScrollToBottom(
     };
 
     const checkIfScrolledToBottom = () => {
+      // Skip when container is display:none — all dimensions collapse to 0,
+      // so isScrolledToBottom returns true and corrupts wasAtBottomRef.
+      if (container.clientHeight === 0) return;
       const atBottom = isScrolledToBottom(container, tolerance);
       setIsScrolledUp(!atBottom);
       if (wheelUpActive) {
@@ -83,6 +86,13 @@ export function useScrollToBottom(
     const observer = new IntersectionObserver(
       (entries) => {
         const isVisible = entries[0].isIntersecting;
+        // When the keep-alive channel wrapper goes display:none, IO fires isIntersecting:false.
+        // At that point the container's layout dimensions collapse to 0, so
+        // isScrolledToBottom() returns true — discard the callback to avoid corrupting state.
+        // This also covers stale callbacks that arrive after the channel becomes visible again.
+        if (!isVisible && isScrolledToBottom(container, tolerance)) {
+          return;
+        }
         setIsScrolledUp(!isVisible);
         if (wheelUpActive) {
           if (!isVisible) {
@@ -102,9 +112,11 @@ export function useScrollToBottom(
 
     observer.observe(endElement);
 
+    let rafId1: number;
+    let rafId2: number;
     const checkInitial = () => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(checkIfScrolledToBottom);
+      rafId1 = requestAnimationFrame(() => {
+        rafId2 = requestAnimationFrame(checkIfScrolledToBottom);
       });
     };
     checkInitial();
@@ -145,24 +157,41 @@ export function useScrollToBottom(
       container.removeEventListener("touchend", checkIfScrolledToBottom);
       container.removeEventListener("wheel", handleWheel);
       if (wheelUpCooldown !== null) clearTimeout(wheelUpCooldown);
+      cancelAnimationFrame(rafId1);
+      cancelAnimationFrame(rafId2);
     };
   }, [containerRef, endElementRef, tolerance, channelId]);
 
-  // Re-stick to bottom when container resizes (sidebar toggle, window resize)
+  // Re-stick to bottom when container resizes (sidebar toggle, window resize, input bar growing).
+  // Uses prevClientHeight instead of wasAtBottomRef to avoid the race where IntersectionObserver
+  // clears wasAtBottomRef before ResizeObserver fires (observed in WKWebView).
   // biome-ignore lint/correctness/useExhaustiveDependencies: channelId is intentionally included to re-initialize when channel changes
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    let prevClientHeight = container.clientHeight;
+
     const observer = new ResizeObserver(() => {
-      if (wasAtBottomRef.current) {
+      if (container.clientHeight === 0) return;
+      // Effect may re-initialize while container is display:none (prevClientHeight=0).
+      // Re-seed with current dimensions and skip — no reliable "was at bottom" data.
+      if (prevClientHeight === 0) {
+        prevClientHeight = container.clientHeight;
+        return;
+      }
+      const wasAtBottom =
+        container.scrollTop + prevClientHeight >=
+        container.scrollHeight - tolerance;
+      prevClientHeight = container.clientHeight;
+      if (wasAtBottom) {
         container.scrollTop = container.scrollHeight;
       }
     });
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, [containerRef, channelId]);
+  }, [containerRef, channelId, tolerance]);
 
   return { isScrolledUp, wasAtBottomRef, scrollToBottom };
 }

@@ -32,6 +32,13 @@ vi.mock("../../src/store", () => ({
 
 vi.mock("../../src/lib/mediaUtils", () => ({
   getEmbedThumbnailUrl: vi.fn(() => null),
+  getEmbedFallbackLabel: vi.fn((url: string) => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return "embed";
+    }
+  }),
   filenameFromUrl: vi.fn((url: string) => {
     try {
       return decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "");

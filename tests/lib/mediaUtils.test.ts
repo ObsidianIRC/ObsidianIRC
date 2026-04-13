@@ -4,6 +4,8 @@ import {
   detectMediaType,
   extractMediaFromMessage,
   getEmbedThumbnailUrl,
+  imageCanHaveTransparency,
+  mediaLevelToSettings,
   TRUSTED_EMBED_DOMAINS,
 } from "../../src/lib/mediaUtils";
 import type { Message } from "../../src/types/index";
@@ -43,21 +45,45 @@ describe("detectMediaType", () => {
   test("returns 'pdf' for .pdf URLs", () => {
     expect(detectMediaType("https://example.com/doc.pdf")).toBe("pdf");
   });
-  test("returns 'embed' for youtube.com", () => {
+  test("returns 'embed' for youtube.com watch URLs", () => {
     expect(detectMediaType("https://www.youtube.com/watch?v=abc")).toBe(
       "embed",
     );
+    expect(detectMediaType("https://www.youtube.com/shorts/abc123")).toBe(
+      "embed",
+    );
+    expect(detectMediaType("https://www.youtube.com/live/abc123")).toBe(
+      "embed",
+    );
+  });
+  test("returns null for youtube.com channel/user pages", () => {
+    expect(
+      detectMediaType("https://www.youtube.com/@programmingchaos8957"),
+    ).toBeNull();
+    expect(
+      detectMediaType("https://www.youtube.com/channel/UCxxxxxx"),
+    ).toBeNull();
+    expect(detectMediaType("https://www.youtube.com/user/username")).toBeNull();
+    expect(detectMediaType("https://www.youtube.com/c/channelname")).toBeNull();
+    expect(detectMediaType("https://www.youtube.com/watch")).toBeNull();
   });
   test("returns 'embed' for youtu.be", () => {
     expect(detectMediaType("https://youtu.be/abc")).toBe("embed");
   });
-  test("returns 'embed' for vimeo.com", () => {
-    expect(detectMediaType("https://vimeo.com/123")).toBe("embed");
+  test("returns 'embed' for vimeo.com video URLs", () => {
+    expect(detectMediaType("https://vimeo.com/123456")).toBe("embed");
   });
-  test("returns 'embed' for soundcloud.com", () => {
+  test("returns null for vimeo.com non-video pages", () => {
+    expect(detectMediaType("https://vimeo.com/channels/mychannel")).toBeNull();
+    expect(detectMediaType("https://vimeo.com/groups/mygroup")).toBeNull();
+  });
+  test("returns 'embed' for soundcloud.com track URLs", () => {
     expect(detectMediaType("https://soundcloud.com/artist/track")).toBe(
       "embed",
     );
+  });
+  test("returns null for soundcloud.com artist pages", () => {
+    expect(detectMediaType("https://soundcloud.com/artist")).toBeNull();
   });
   test("returns 'image' for imgur.com image URLs", () => {
     expect(detectMediaType("https://imgur.com/abc.jpg")).toBe("image");
@@ -333,6 +359,87 @@ describe("canShowMedia", () => {
   });
 });
 
+describe("mediaLevelToSettings", () => {
+  test("level 0 disables all media", () => {
+    expect(mediaLevelToSettings(0)).toEqual({
+      showSafeMedia: false,
+      showTrustedSourcesMedia: false,
+      showExternalContent: false,
+    });
+  });
+
+  test("level 1 enables only safe media", () => {
+    expect(mediaLevelToSettings(1)).toEqual({
+      showSafeMedia: true,
+      showTrustedSourcesMedia: false,
+      showExternalContent: false,
+    });
+  });
+
+  test("level 2 enables safe and trusted sources", () => {
+    expect(mediaLevelToSettings(2)).toEqual({
+      showSafeMedia: true,
+      showTrustedSourcesMedia: true,
+      showExternalContent: false,
+    });
+  });
+
+  test("level 3 enables all media", () => {
+    expect(mediaLevelToSettings(3)).toEqual({
+      showSafeMedia: true,
+      showTrustedSourcesMedia: true,
+      showExternalContent: true,
+    });
+  });
+
+  test("level 1 allows filehost URL via canShowMedia", () => {
+    const filehost = "https://files.example.com";
+    expect(
+      canShowMedia(`${filehost}/img.jpg`, mediaLevelToSettings(1), filehost),
+    ).toBe(true);
+  });
+
+  test("level 1 blocks external URL via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://external.example.com/img.jpg",
+        mediaLevelToSettings(1),
+        null,
+      ),
+    ).toBe(false);
+  });
+
+  test("level 2 allows YouTube URL via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://youtube.com/watch?v=abc",
+        mediaLevelToSettings(2),
+        null,
+      ),
+    ).toBe(true);
+  });
+
+  test("level 2 blocks arbitrary external URL via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://external.example.com/img.jpg",
+        mediaLevelToSettings(2),
+        null,
+      ),
+    ).toBe(false);
+  });
+
+  test("level 3 allows all URLs via canShowMedia", () => {
+    expect(
+      canShowMedia(
+        "https://unknown.example.com/img.jpg",
+        mediaLevelToSettings(3),
+        null,
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("TRUSTED_EMBED_DOMAINS", () => {
   test("contains youtube.com as embed", () => {
     expect(TRUSTED_EMBED_DOMAINS["youtube.com"]).toBe("embed");
@@ -374,5 +481,42 @@ describe("getEmbedThumbnailUrl", () => {
   });
   test("returns null for invalid URL", () => {
     expect(getEmbedThumbnailUrl("not-a-url")).toBeNull();
+  });
+});
+
+describe("imageCanHaveTransparency", () => {
+  test("returns false for .jpg URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/photo.jpg")).toBe(
+      false,
+    );
+  });
+  test("returns false for .jpeg URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/photo.jpeg")).toBe(
+      false,
+    );
+  });
+  test("returns false for .pdf URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/doc.pdf")).toBe(false);
+  });
+  test("returns false for .pdf URLs with query strings", () => {
+    expect(
+      imageCanHaveTransparency("https://example.com/doc.pdf?token=abc"),
+    ).toBe(false);
+  });
+  test("returns true for .png URLs (can have alpha)", () => {
+    expect(imageCanHaveTransparency("https://example.com/image.png")).toBe(
+      true,
+    );
+  });
+  test("returns true for .gif URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/anim.gif")).toBe(true);
+  });
+  test("returns true for .webp URLs", () => {
+    expect(imageCanHaveTransparency("https://example.com/image.webp")).toBe(
+      true,
+    );
+  });
+  test("returns false for unknown extension (no checkerboard on filehost images)", () => {
+    expect(imageCanHaveTransparency("https://example.com/file")).toBe(false);
   });
 });

@@ -7,8 +7,8 @@ import {
   FaCheckCircle,
   FaChevronLeft,
   FaChevronRight,
-  FaEdit,
   FaEllipsisV,
+  FaFilm,
   FaHashtag,
   FaInfoCircle,
   FaList,
@@ -24,6 +24,8 @@ import {
   getChannelDisplayName,
   isUrlFromFilehost,
 } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
+import { isTauriMobile } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
 import HeaderOverflowMenu, {
@@ -73,7 +75,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const {
     toggleChannelListModal,
-    toggleChannelRenameModal,
     toggleMemberList,
     setMobileViewActiveColumn,
     pinPrivateChat,
@@ -82,10 +83,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     clearTopicModalRequest,
     setProfileViewRequest,
     toggleUserProfileModal,
+    openMediaExplorer,
   } = useStore();
   const ui = useStore((state) => state.ui);
   const topicModalRequest = useStore((state) => state.ui.topicModalRequest);
   const profileViewRequest = useStore((state) => state.ui.profileViewRequest);
+  const nativeMobile = isTauriMobile();
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
@@ -96,9 +99,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     (state) => state.ui.mobileViewActiveColumn,
   );
 
-  // Get global settings for media controls
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
   // Get private chat user metadata - first check localStorage, then check shared channels
@@ -247,6 +249,19 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     );
   }, [selectedChannel, selectedServerId, servers, currentUser]);
 
+  // Quick check: does this chat have any messages with URLs?
+  // Used to show/hide the media explorer button.
+  // DMs use privateChatId as the message key (selectedChannelId is null for DMs).
+  const hasMediaInMessages = useStore((state) => {
+    if (!selectedServerId) return false;
+    const chatId = selectedChannelId ?? selectedPrivateChat?.id ?? null;
+    if (!chatId) return false;
+    const key = `${selectedServerId}-${chatId}`;
+    return (state.messages[key] ?? []).some((m) => m.content.includes("http"));
+  });
+  const hasMedia =
+    hasMediaInMessages || Boolean(selectedChannel?.topic?.includes("http"));
+
   // Reset search expanded state and overflow menu when channel or mobile view changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: Need to reset when channel or page changes
   useEffect(() => {
@@ -280,6 +295,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   // Define overflow menu items based on context
   const overflowMenuItems: HeaderOverflowMenuItem[] = [
     {
+      label: "Media",
+      icon: <FaFilm />,
+      onClick: () => {
+        if (selectedServerId && selectedChannelId) {
+          openMediaExplorer(selectedServerId, selectedChannelId);
+        }
+      },
+      show: hasMedia,
+    },
+    {
       label: "Channel Settings",
       icon: <FaPenAlt />,
       onClick: onOpenChannelSettings,
@@ -296,12 +321,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       icon: <FaList />,
       onClick: () => toggleChannelListModal(true),
       show: true,
-    },
-    {
-      label: "Rename Channel",
-      icon: <FaEdit />,
-      onClick: () => toggleChannelRenameModal(true),
-      show: !!(selectedChannel && isOperator),
     },
   ].filter((item) => item.show);
 
@@ -435,8 +454,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               )}
             </h2>
 
-            {/* Topic (only if exists) */}
-            {selectedChannel.topic && (
+            {/* Topic text, or placeholder for ops when topic is empty */}
+            {selectedChannel.topic ? (
               <button
                 onClick={() => {
                   if (selectedServerId && selectedChannel.id) {
@@ -448,7 +467,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               >
                 {selectedChannel.topic}
               </button>
-            )}
+            ) : isOperator ? (
+              <button
+                onClick={() => {
+                  if (selectedServerId && selectedChannel.id) {
+                    setTopicModalRequest(selectedServerId, selectedChannel.id);
+                  }
+                }}
+                className="text-discord-channels-default/40 text-xs hover:text-discord-channels-default truncate text-left italic"
+              >
+                Click to set topic
+              </button>
+            ) : null}
           </div>
 
           {/* Right: Action buttons */}
@@ -476,44 +506,43 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </button>
 
-              {/* Users */}
-              <button
-                className="p-2 md:p-0 hover:text-discord-text-normal"
-                onClick={() => {
-                  if (isNarrowView) {
-                    // Mobile: navigate between pages
-                    const currentColumn =
-                      useStore.getState().ui.mobileViewActiveColumn;
-                    const isOnMemberPage = currentColumn === "memberList";
+              {/* Users — hidden on iOS/Android native since member list is a swipe-right gesture */}
+              {!nativeMobile && (
+                <button
+                  className="p-2 md:p-0 hover:text-discord-text-normal"
+                  onClick={() => {
+                    if (isNarrowView) {
+                      const currentColumn =
+                        useStore.getState().ui.mobileViewActiveColumn;
+                      const isOnMemberPage = currentColumn === "memberList";
 
-                    if (isOnMemberPage) {
-                      setMobileViewActiveColumn("chatView");
+                      if (isOnMemberPage) {
+                        setMobileViewActiveColumn("chatView");
+                      } else {
+                        setMobileViewActiveColumn("memberList");
+                      }
                     } else {
-                      setMobileViewActiveColumn("memberList");
+                      toggleMemberList(!isMemberListVisible);
                     }
-                  } else {
-                    // Desktop: toggle member list (sidebar or overlay depending on width)
-                    toggleMemberList(!isMemberListVisible);
+                  }}
+                  aria-label={
+                    isMemberListVisible
+                      ? "Collapse member list"
+                      : "Expand member list"
                   }
-                }}
-                aria-label={
-                  isMemberListVisible
-                    ? "Collapse member list"
-                    : "Expand member list"
-                }
-                data-testid="toggle-member-list"
-                data-no-swipe
-              >
-                {(
-                  isNarrowView
-                    ? mobileViewActiveColumn === "memberList"
-                    : isMemberListVisible
-                ) ? (
-                  <UsersIcon className="w-4 h-4 text-white" />
-                ) : (
-                  <UsersIcon className="w-4 h-4 text-gray" />
-                )}
-              </button>
+                  data-testid="toggle-member-list"
+                >
+                  {(
+                    isNarrowView
+                      ? mobileViewActiveColumn === "memberList"
+                      : isMemberListVisible
+                  ) ? (
+                    <UsersIcon className="w-4 h-4 text-white" />
+                  ) : (
+                    <UsersIcon className="w-4 h-4 text-gray" />
+                  )}
+                </button>
+              )}
 
               {/* Desktop action buttons */}
               <button
@@ -537,16 +566,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               >
                 <FaList />
               </button>
-              {isOperator && (
+              {/* Media explorer — in overflow menu on native mobile, inline button elsewhere */}
+              {hasMedia && !nativeMobile && (
                 <button
-                  className="hidden md:block hover:text-discord-text-normal"
-                  onClick={() => toggleChannelRenameModal(true)}
-                  title="Rename Channel"
+                  className="p-2 md:p-0 hover:text-discord-text-normal"
+                  onClick={() => {
+                    if (selectedServerId && selectedChannelId) {
+                      openMediaExplorer(selectedServerId, selectedChannelId);
+                    }
+                  }}
+                  title="Media"
                 >
-                  <FaEdit />
+                  <FaFilm />
                 </button>
               )}
-
               {/* Search */}
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
@@ -772,6 +805,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </button>
 
+              {hasMedia && !nativeMobile && (
+                <button
+                  className="p-2 md:p-0 hover:text-discord-text-normal"
+                  onClick={() => {
+                    const chatId = selectedPrivateChat?.id ?? null;
+                    if (selectedServerId && chatId) {
+                      openMediaExplorer(selectedServerId, chatId);
+                    }
+                  }}
+                  title="Media"
+                >
+                  <FaFilm />
+                </button>
+              )}
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsSearchExpanded(!isSearchExpanded)}

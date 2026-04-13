@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaUser,
 } from "react-icons/fa";
+import { useShallow } from "zustand/react/shallow";
 import { useChannelMru } from "../../hooks/useChannelTabSwitching";
 import { useDragReorder } from "../../hooks/useDragReorder";
 import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
@@ -24,7 +25,8 @@ import {
   isUrlFromFilehost,
   processMarkdownInText,
 } from "../../lib/ircUtils";
-import { isTauriDesktop } from "../../lib/platformUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
+import { isTauriDesktop, isTauriMobile } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
 import TouchableContextMenu from "../mobile/TouchableContextMenu";
@@ -65,56 +67,59 @@ export const ChannelList: React.FC<{
     );
   });
 
-  // Get global settings for media controls
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
-  // Get the current user for the selected server from the store data (includes metadata)
-  // Use a selector to ensure reactivity when metadata changes
-  const currentUser = useStore((state) => {
-    if (!selectedServerId) return null;
+  // useShallow: selector returns a merged object literal on every call; shallow comparison
+  // prevents the useSyncExternalStore "getSnapshot should be cached" infinite-loop.
+  const currentUser = useStore(
+    useShallow((state) => {
+      if (!selectedServerId) return null;
 
-    // Get the current user's username from IRCClient
-    const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
-    if (!ircCurrentUser) return null;
+      // Get the current user's username from IRCClient
+      const ircCurrentUser = ircClient.getCurrentUser(selectedServerId);
+      if (!ircCurrentUser) return null;
 
-    // If we have a currentUser in the store that matches this server's current user, use it (it has modes)
-    if (
-      state.currentUser &&
-      state.currentUser.username === ircCurrentUser.username
-    ) {
-      return state.currentUser;
-    }
-
-    // Otherwise, try to find user in channels for metadata and merge with store currentUser if available
-    const selectedServer = state.servers.find((s) => s.id === selectedServerId);
-    if (!selectedServer) return state.currentUser || ircCurrentUser;
-
-    // Look for the user in any channel
-    for (const channel of selectedServer.channels) {
-      const userWithMetadata = channel.users.find(
-        (u) => u.username === ircCurrentUser.username,
-      );
-      if (userWithMetadata) {
-        // If we have currentUser in store, merge its modes and IRC op status with the channel user's metadata
-        if (
-          state.currentUser &&
-          state.currentUser.username === userWithMetadata.username
-        ) {
-          return {
-            ...userWithMetadata,
-            modes: state.currentUser.modes,
-            isIrcOp: state.currentUser.isIrcOp,
-          };
-        }
-        return userWithMetadata;
+      // If we have a currentUser in the store that matches this server's current user, use it (it has modes)
+      if (
+        state.currentUser &&
+        state.currentUser.username === ircCurrentUser.username
+      ) {
+        return state.currentUser;
       }
-    }
 
-    // If not found in channels, return store currentUser or IRC user
-    return state.currentUser || ircCurrentUser;
-  });
+      // Otherwise, try to find user in channels for metadata and merge with store currentUser if available
+      const selectedServer = state.servers.find(
+        (s) => s.id === selectedServerId,
+      );
+      if (!selectedServer) return state.currentUser || ircCurrentUser;
+
+      // Look for the user in any channel
+      for (const channel of selectedServer.channels) {
+        const userWithMetadata = channel.users.find(
+          (u) => u.username === ircCurrentUser.username,
+        );
+        if (userWithMetadata) {
+          // If we have currentUser in store, merge its modes and IRC op status with the channel user's metadata
+          if (
+            state.currentUser &&
+            state.currentUser.username === userWithMetadata.username
+          ) {
+            return {
+              ...userWithMetadata,
+              modes: state.currentUser.modes,
+              isIrcOp: state.currentUser.isIrcOp,
+            };
+          }
+          return userWithMetadata;
+        }
+      }
+
+      // If not found in channels, return store currentUser or IRC user
+      return state.currentUser || ircCurrentUser;
+    }),
+  );
 
   const servers = useStore((state) => state.servers);
 
@@ -199,10 +204,11 @@ export const ChannelList: React.FC<{
     return sorted;
   }, [selectedServer, selectedServerId, channelOrder]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset PM click tracking when selection changes
   useEffect(() => {
     setClickedPM(null);
     lastSelectedPM.current = null;
-  });
+  }, [selectedPrivateChatId]);
 
   // Helper function to get user metadata for a private chat
   const getUserMetadata = (username: string) => {
@@ -373,6 +379,14 @@ export const ChannelList: React.FC<{
   const isNarrowView = useMediaQuery();
   // Only show on Tauri desktop (macOS/Windows/Linux) — not on browser, iOS, or Android
   const prevItemId = isTauriDesktop() ? prevChannelIdRaw : null;
+  // Touch :hover fires on tap and shows a misleading blue flash on native mobile
+  const nativeMobile = isTauriMobile();
+  const hoverPrimary = nativeMobile
+    ? ""
+    : "hover:bg-discord-primary/70 hover:text-white";
+  const hoverSubtle = nativeMobile
+    ? ""
+    : "hover:bg-discord-dark-100 hover:text-discord-channels-active";
 
   const cancelLongPress = () => {
     if (longPressTimer.current) {
@@ -425,7 +439,7 @@ export const ChannelList: React.FC<{
             <div
               className={`
                 px-2 py-1 mb-1 rounded flex items-center gap-2 cursor-pointer
-                ${selectedChannelId === null ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                ${selectedChannelId === null ? "bg-discord-dark-400 text-white" : hoverSubtle}
               `}
               onClick={() => selectChannel(null, { navigate: true })}
             >
@@ -538,7 +552,7 @@ export const ChannelList: React.FC<{
                           ${
                             selectedChannelId === channel.id
                               ? "bg-black text-white"
-                              : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
+                              : `bg-discord-dark-400/50 ${hoverPrimary}`
                           }
                           ${
                             prevItemId === channel.id &&
@@ -882,7 +896,7 @@ export const ChannelList: React.FC<{
                           ${
                             selectedPrivateChatId === privateChat.id
                               ? "bg-black text-white"
-                              : "bg-discord-dark-400/50 hover:bg-discord-primary/70 hover:text-white"
+                              : `bg-discord-dark-400/50 ${hoverPrimary}`
                           }
                           ${
                             prevItemId === privateChat.id &&
@@ -1299,7 +1313,7 @@ export const ChannelList: React.FC<{
                   className={`
                     px-2 py-1 mb-1 rounded-md flex items-center cursor-pointer
                     transition-all duration-200 ease-in-out
-                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : "hover:bg-discord-dark-100 hover:text-discord-channels-active"}
+                    ${selectedChannelId === "server-notices" ? "bg-discord-dark-400 text-white" : hoverSubtle}
                   `}
                   onClick={() =>
                     selectChannel("server-notices", { navigate: true })
@@ -1321,7 +1335,7 @@ export const ChannelList: React.FC<{
       </div>
       <div className="mt-auto mb-2 px-2">
         <div
-          className="py-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full transition-all duration-200 ease-in-out shadow-sm bg-discord-dark-400/50 hover:bg-discord-primary/70"
+          className={`py-1 rounded-md flex items-center justify-between group cursor-pointer max-w-full transition-all duration-200 ease-in-out shadow-sm bg-discord-dark-400/50 ${hoverPrimary}`}
           onClick={() => toggleSettingsModal(true)}
         >
           <div className="flex items-center gap-2 ml-2 flex-1 min-w-0">
