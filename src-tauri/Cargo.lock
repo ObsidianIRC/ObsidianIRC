@@ -4605,10 +4605,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-plugin-ios-keyboard"
-version = "0.1.1"
+name = "tauri-plugin-haptics"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4efdcf9b5fa18d5683b4ba7354854c065350e3fc7de7bebee9a2752994abf561"
+checksum = "01b167d598ada05c599f4460595108c8d1aa636030a97d19796c1bcda97d881d"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "tauri-plugin-ios-keyboard"
+version = "0.2.0"
 dependencies = [
  "serde",
  "tauri",
