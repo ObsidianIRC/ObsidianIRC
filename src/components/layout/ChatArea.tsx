@@ -49,6 +49,7 @@ import UserProfileModal from "../ui/UserProfileModal";
 import {
   MemoChannelMessageList as ChannelMessageList,
   type ChannelMessageListHandle,
+  DEFAULT_VISIBLE_MESSAGE_COUNT,
 } from "./ChannelMessageList";
 import { ChatHeader } from "./ChatHeader";
 import { MemberList } from "./MemberList";
@@ -86,11 +87,22 @@ export const TypingIndicator: React.FC<{
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
 };
 
+const isMac =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toUpperCase().includes("MAC");
+
 export const ChatArea: React.FC<{
   onToggleChanList: () => void;
   isChanListVisible: boolean;
 }> = ({ onToggleChanList, isChanListVisible }) => {
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
+  const [navHighlightedMsgId, setNavHighlightedMsgId] = useState<string | null>(
+    null,
+  );
+  // Tracks whether keyboard nav was active and whether we were at the bottom before it started.
+  // Used to restore auto-scroll after nav ends without corrupting wasAtBottomRef.
+  const navWasActiveRef = useRef(false);
+  const wasAtBottomBeforeNavRef = useRef(false);
   // messageText is NOT React state — stored in a ref to avoid re-renders on every keystroke.
   // hasText tracks the empty↔non-empty boundary for send-button rendering (rare transitions).
   // autocompleteInputText is updated only when autocomplete dropdowns are visible.
@@ -344,6 +356,9 @@ export const ChatArea: React.FC<{
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — clear reply state whenever the active channel/server changes
   useEffect(() => {
     setLocalReplyTo(null);
+    setNavHighlightedMsgId(null);
+    navWasActiveRef.current = false;
+    wasAtBottomBeforeNavRef.current = false;
   }, [selectedServerId, selectedChannelId, selectedPrivateChatId]);
 
   // Get the current user for the selected server with metadata from store
@@ -650,6 +665,59 @@ export const ChatArea: React.FC<{
     [messages, channelKey],
   );
 
+  // Messages the user can navigate to with Cmd/Ctrl+↑↓ to set as reply target.
+  // Capped to the visible window so navigation stays within what's on screen.
+  const repliableMessages = useMemo(
+    () =>
+      channelMessages
+        .filter((m) => m.type === "message" && !!m.msgid)
+        .slice(-DEFAULT_VISIBLE_MESSAGE_COUNT),
+    [channelMessages],
+  );
+
+  // scrollIntoView fires scroll events that corrupt wasAtBottomRef in useScrollToBottom —
+  // snapshot bottom state before the first scroll so nav exit can restore it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: channelKey and refs don't need to retrigger; navHighlightedMsgId drives all transitions
+  useEffect(() => {
+    if (navHighlightedMsgId !== null) {
+      if (!navWasActiveRef.current) {
+        wasAtBottomBeforeNavRef.current =
+          channelListRefs.current.get(channelKey)?.getScrollState()
+            .isAtBottom ?? false;
+        navWasActiveRef.current = true;
+      }
+      const el = document.querySelector(
+        `[data-message-id="${navHighlightedMsgId}"]`,
+      );
+      el?.scrollIntoView({ block: "nearest", behavior: "instant" });
+    } else if (navWasActiveRef.current) {
+      if (wasAtBottomBeforeNavRef.current) {
+        channelListRefs.current.get(channelKey)?.scrollToBottom();
+      }
+      navWasActiveRef.current = false;
+      wasAtBottomBeforeNavRef.current = false;
+    }
+  }, [navHighlightedMsgId]);
+
+  // prevClientHeight in useScrollToBottom can race with flex relayout on WKWebView —
+  // track bottom state here and restore it explicitly when reply exits without keyboard nav.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: channelKey and refs don't need to retrigger; localReplyTo drives all transitions
+  useEffect(() => {
+    if (localReplyTo !== null) {
+      if (!navWasActiveRef.current) {
+        wasAtBottomBeforeNavRef.current =
+          channelListRefs.current.get(channelKey)?.getScrollState()
+            .isAtBottom ?? false;
+      }
+    } else if (!navWasActiveRef.current && wasAtBottomBeforeNavRef.current) {
+      // rAF lets the banner-removal relayout settle before scrollTop can reach the new maximum
+      requestAnimationFrame(() => {
+        channelListRefs.current.get(channelKey)?.scrollToBottom();
+      });
+      wasAtBottomBeforeNavRef.current = false;
+    }
+  }, [localReplyTo]);
+
   // Message history hook (must be after channelMessages is defined)
   const messageHistory = useMessageHistory({
     messages: channelMessages,
@@ -762,6 +830,7 @@ export const ChatArea: React.FC<{
     setAutocompleteInputText("");
     draftMap.current.delete(channelKey);
     setLocalReplyTo(null);
+    setNavHighlightedMsgId(null);
     setShowAutocomplete(false);
     messageHistory.resetHistory();
     if (tabCompletion.isActive) {
@@ -927,6 +996,46 @@ export const ChatArea: React.FC<{
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const isModKey = isMac ? e.metaKey || e.ctrlKey : e.ctrlKey;
+
+    // Reply navigation: Cmd/Ctrl+↑ moves to older repliable message, ↓ moves newer / cancels
+    if (isModKey && e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      const currentIdx =
+        navHighlightedMsgId !== null
+          ? repliableMessages.findIndex((m) => m.id === navHighlightedMsgId)
+          : repliableMessages.length; // one past end → first press lands on last
+      const nextIdx = currentIdx - 1;
+      if (nextIdx >= 0) {
+        const msg = repliableMessages[nextIdx];
+        setNavHighlightedMsgId(msg.id);
+        setLocalReplyTo(msg);
+      }
+      return;
+    }
+
+    if (isModKey && e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (navHighlightedMsgId !== null) {
+        const currentIdx = repliableMessages.findIndex(
+          (m) => m.id === navHighlightedMsgId,
+        );
+        const nextIdx = currentIdx + 1;
+        if (nextIdx < repliableMessages.length) {
+          const msg = repliableMessages[nextIdx];
+          setNavHighlightedMsgId(msg.id);
+          setLocalReplyTo(msg);
+        } else {
+          // Past the newest message → cancel reply
+          setNavHighlightedMsgId(null);
+          setLocalReplyTo(null);
+        }
+      }
+      return;
+    }
+
     if (e.key === "Tab") {
       e.preventDefault();
 
@@ -960,6 +1069,13 @@ export const ChatArea: React.FC<{
         e.key === " ")
     ) {
       // Let the dropdown handle these keys, don't interfere
+      return;
+    }
+
+    // Escape cancels active reply navigation (and the reply itself)
+    if (e.key === "Escape" && navHighlightedMsgId !== null) {
+      setNavHighlightedMsgId(null);
+      setLocalReplyTo(null);
       return;
     }
 
@@ -1066,6 +1182,11 @@ export const ChatArea: React.FC<{
       tabCompletion.resetCompletion();
     }
     setShowAutocomplete(false);
+
+    // Any normal keystroke exits nav mode but keeps the reply so the user can type
+    if (navHighlightedMsgId !== null) {
+      setNavHighlightedMsgId(null);
+    }
   };
 
   const handleTabCompletion = () => {
@@ -1775,6 +1896,11 @@ export const ChatArea: React.FC<{
                       searchQuery={isKeyActive ? searchQuery : ""}
                       isMemberListVisible={isMemberListVisible}
                       onReply={handleSetReplyTo}
+                      highlightedMessageId={
+                        isKeyActive
+                          ? (navHighlightedMsgId ?? undefined)
+                          : undefined
+                      }
                       onUsernameContextMenu={handleUsernameClick}
                       onIrcLinkClick={handleIrcLinkClick}
                       onReactClick={handleReactClick}
@@ -1801,7 +1927,10 @@ export const ChatArea: React.FC<{
                 <MessageReply
                   replyMessage={localReplyTo}
                   theme="discord"
-                  onClose={() => setLocalReplyTo(null)}
+                  onClose={() => {
+                    setLocalReplyTo(null);
+                    setNavHighlightedMsgId(null);
+                  }}
                 />
               )}
               <TypingIndicator

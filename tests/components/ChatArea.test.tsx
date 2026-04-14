@@ -325,3 +325,167 @@ describe("ChatArea Tab Completion Integration", () => {
     );
   });
 });
+
+const makeMsg = (
+  id: string,
+  overrides?: Partial<import("../../src/types").Message>,
+): import("../../src/types").Message => ({
+  id,
+  msgid: id,
+  type: "message",
+  content: `Message ${id}`,
+  timestamp: new Date("2024-01-01T12:00:00Z"),
+  userId: "alice",
+  channelId: "channel1",
+  serverId: "server1",
+  reactions: [],
+  replyMessage: null,
+  mentioned: [],
+  ...overrides,
+});
+
+// channelKey = `${selectedServerId}-${selectedChannelId}` = "server1-channel1"
+const NAV_CHANNEL_KEY = "server1-channel1";
+
+describe("ChatArea reply keyboard navigation", () => {
+  beforeEach(() => {
+    useStore.setState({
+      servers: [mockServer],
+      currentUser: { id: "user1", username: "testuser", isOnline: true },
+      messages: {
+        [NAV_CHANNEL_KEY]: [makeMsg("msg-old"), makeMsg("msg-new")],
+      },
+      ui: {
+        selectedServerId: "server1",
+        perServerSelections: {
+          server1: {
+            selectedChannelId: "channel1",
+            selectedPrivateChatId: null,
+          },
+        },
+        isNarrowView: false,
+        isMemberListVisible: true,
+        isChannelListVisible: true,
+        isAddServerModalOpen: false,
+        isEditServerModalOpen: false,
+        editServerId: null,
+        isSettingsModalOpen: false,
+        isQuickActionsOpen: false,
+        isDarkMode: true,
+        isMobileMenuOpen: false,
+        isChannelListModalOpen: false,
+        linkSecurityWarnings: [],
+        mobileViewActiveColumn: "serverList",
+        isServerMenuOpen: false,
+        contextMenu: {
+          isOpen: false,
+          x: 0,
+          y: 0,
+          type: "server",
+          itemId: null,
+        },
+        prefillServerDetails: null,
+        inputAttachments: [],
+        isServerNoticesPopupOpen: false,
+        serverNoticesPopupMinimized: false,
+        profileViewRequest: null,
+        settingsNavigation: null,
+        shouldFocusChatInput: false,
+        ...defaultUIExtensions,
+      },
+      typingUsers: {},
+    });
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("Ctrl+↑ opens reply banner for the most recent repliable message", () => {
+    const { container } = render(
+      <ChatArea onToggleChanList={() => {}} isChanListVisible={true} />,
+    );
+    const input = screen.getByPlaceholderText(/Message #general/i);
+
+    expect(container.querySelector(".rounded-t-lg")).toBeNull();
+
+    fireEvent.keyDown(input, { key: "ArrowUp", ctrlKey: true });
+
+    // Reply banner (MessageReply with onClose) has rounded-t-lg
+    expect(container.querySelector(".rounded-t-lg")).not.toBeNull();
+    // Input area switches to rounded-b-lg when a reply is active
+    expect(container.querySelector(".rounded-b-lg")).not.toBeNull();
+  });
+
+  it("Ctrl+↑ twice navigates to the older message", () => {
+    const { container } = render(
+      <ChatArea onToggleChanList={() => {}} isChanListVisible={true} />,
+    );
+    const input = screen.getByPlaceholderText(/Message #general/i);
+
+    // First press → newest (msg-new)
+    fireEvent.keyDown(input, { key: "ArrowUp", ctrlKey: true });
+    const bannerAfterFirst = container.querySelector(".rounded-t-lg");
+    expect(bannerAfterFirst).not.toBeNull();
+
+    // Second press → older (msg-old) — banner stays but target changes
+    fireEvent.keyDown(input, { key: "ArrowUp", ctrlKey: true });
+    expect(container.querySelector(".rounded-t-lg")).not.toBeNull();
+  });
+
+  it("Ctrl+↓ past the newest message cancels the reply", () => {
+    const { container } = render(
+      <ChatArea onToggleChanList={() => {}} isChanListVisible={true} />,
+    );
+    const input = screen.getByPlaceholderText(/Message #general/i);
+
+    // Open nav
+    fireEvent.keyDown(input, { key: "ArrowUp", ctrlKey: true });
+    expect(container.querySelector(".rounded-t-lg")).not.toBeNull();
+
+    // Navigate back past newest
+    fireEvent.keyDown(input, { key: "ArrowDown", ctrlKey: true });
+    expect(container.querySelector(".rounded-t-lg")).toBeNull();
+    expect(container.querySelector(".rounded-b-lg")).toBeNull();
+  });
+
+  it("Escape cancels keyboard nav and clears the reply", () => {
+    const { container } = render(
+      <ChatArea onToggleChanList={() => {}} isChanListVisible={true} />,
+    );
+    const input = screen.getByPlaceholderText(/Message #general/i);
+
+    fireEvent.keyDown(input, { key: "ArrowUp", ctrlKey: true });
+    expect(container.querySelector(".rounded-t-lg")).not.toBeNull();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(container.querySelector(".rounded-t-lg")).toBeNull();
+  });
+
+  it("typing a letter exits nav mode but keeps the reply banner", () => {
+    const { container } = render(
+      <ChatArea onToggleChanList={() => {}} isChanListVisible={true} />,
+    );
+    const input = screen.getByPlaceholderText(/Message #general/i);
+
+    fireEvent.keyDown(input, { key: "ArrowUp", ctrlKey: true });
+    expect(container.querySelector(".rounded-t-lg")).not.toBeNull();
+
+    // A regular key press exits nav mode (highlight removed) but localReplyTo stays
+    fireEvent.keyDown(input, { key: "h" });
+    expect(container.querySelector(".rounded-t-lg")).not.toBeNull();
+  });
+
+  it("ignores Ctrl+↑ when there are no repliable messages", () => {
+    useStore.setState({ messages: { [NAV_CHANNEL_KEY]: [] } });
+
+    const { container } = render(
+      <ChatArea onToggleChanList={() => {}} isChanListVisible={true} />,
+    );
+    const input = screen.getByPlaceholderText(/Message #general/i);
+
+    fireEvent.keyDown(input, { key: "ArrowUp", ctrlKey: true });
+    expect(container.querySelector(".rounded-t-lg")).toBeNull();
+  });
+});

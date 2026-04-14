@@ -67,6 +67,7 @@ interface MessageItemProps {
   privateChatId?: string;
   onRedactMessage?: (message: MessageType) => void;
   hideReply?: boolean;
+  isHighlighted?: boolean;
 }
 
 // Helper function to get user metadata
@@ -149,6 +150,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
     privateChatId,
     onRedactMessage,
     hideReply,
+    isHighlighted,
   } = props;
   // channelId is null in DMs (drives avatar lookup); privateChatId is the message store key.
   const mediaChannelId = channelId ?? privateChatId;
@@ -643,9 +645,9 @@ export const MessageItem = memo((props: MessageItemProps) => {
     <div
       ref={messageRowRef}
       data-message-id={message.id}
-      className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
+      className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-150 ${
         showHeader ? "mt-4" : "py-0.5"
-      }`}
+      }${isHighlighted ? " bg-primary/10 ring-1 ring-primary/30 rounded" : ""}`}
       onMouseEnter={handleMessageMouseEnter}
       onMouseLeave={handleMessageMouseLeave}
       onTouchStart={longPress.onTouchStart}

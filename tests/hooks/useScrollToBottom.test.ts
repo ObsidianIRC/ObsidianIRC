@@ -393,6 +393,67 @@ describe("useScrollToBottom", () => {
     expect(mockContainer.scrollTop).toBe(200);
   });
 
+  it("should re-stick to bottom across a reply-banner appear/disappear cycle", () => {
+    // At bottom: scrollTop(700) + clientHeight(300) = scrollHeight(1000)
+    mockContainer.scrollTop = 700;
+    setDim(mockContainer, "clientHeight", 300);
+    setDim(mockContainer, "scrollHeight", 1000);
+
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // Banner appears — container shrinks by 50px
+    setDim(mockContainer, "clientHeight", 250);
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+    // Was at bottom (700 + 300 = 1000) → scrolled to bottom with new height
+    expect(mockContainer.scrollTop).toBe(1000);
+
+    // Simulate being at bottom with banner present (scrollHeight - 250 = 750)
+    mockContainer.scrollTop = 750;
+
+    // Banner disappears — container grows back to 300
+    setDim(mockContainer, "clientHeight", 300);
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+    // Was at bottom (750 + 250 = 1000) → scrolled to bottom again
+    expect(mockContainer.scrollTop).toBe(1000);
+  });
+
+  it("should not scroll when user was scrolled up when banner appeared", () => {
+    // Scrolled up: scrollTop(200) + clientHeight(300) = 500 < scrollHeight(1000)
+    mockContainer.scrollTop = 200;
+    setDim(mockContainer, "clientHeight", 300);
+    setDim(mockContainer, "scrollHeight", 1000);
+
+    renderHook(() => {
+      const containerRef = useRef(mockContainer);
+      const endElementRef = useRef(mockEndElement);
+      return useScrollToBottom(containerRef, endElementRef);
+    });
+
+    // Banner appears — container shrinks
+    setDim(mockContainer, "clientHeight", 250);
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+    // Was NOT at bottom → scrollTop unchanged
+    expect(mockContainer.scrollTop).toBe(200);
+
+    // Banner disappears
+    setDim(mockContainer, "clientHeight", 300);
+    act(() => {
+      resizeObserverCallbacks[0]([], {} as ResizeObserver);
+    });
+    // Still not at bottom → scrollTop unchanged
+    expect(mockContainer.scrollTop).toBe(200);
+  });
+
   it("should discard IO callback when display:none collapses dims so wasAtBottomRef stays true", () => {
     // wasAtBottomRef starts true. When a keep-alive channel goes display:none, IO fires
     // isIntersecting:false while all dims are 0. isScrolledToBottom(container) returns true
