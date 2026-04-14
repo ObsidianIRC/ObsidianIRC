@@ -31,6 +31,7 @@ const EMPTY_MESSAGES: import("../../types").Message[] = [];
 
 export interface ChannelMessageListHandle {
   setAtBottom: () => void;
+  scrollToBottom: () => void;
   getScrollState: () => {
     scrollTop: number;
     isAtBottom: boolean;
@@ -66,6 +67,7 @@ interface ChannelMessageListProps {
   onOpenProfile: (username: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
   onClearSearch: () => void;
+  highlightedMessageId?: string;
   // undefined = first visit; null = was at bottom; object = restore to saved position
   initialScrollState?: { scrollTop: number; visibleCount: number } | null;
 }
@@ -94,6 +96,7 @@ export const ChannelMessageList = forwardRef<
       onOpenProfile,
       joinChannel,
       onClearSearch,
+      highlightedMessageId,
       initialScrollState,
     },
     ref,
@@ -187,6 +190,7 @@ export const ChannelMessageList = forwardRef<
       setAtBottom: () => {
         wasAtBottomRef.current = true;
       },
+      scrollToBottom,
       getScrollState: () => ({
         scrollTop: lastScrollTopRef.current,
         isAtBottom: wasAtBottomRef.current,
@@ -532,6 +536,7 @@ export const ChannelMessageList = forwardRef<
                     }
                     showHeader={showHeader}
                     setReplyTo={onReply}
+                    isHighlighted={message.id === highlightedMessageId}
                     onUsernameContextMenu={onUsernameContextMenu}
                     onIrcLinkClick={onIrcLinkClick}
                     onReactClick={onReactClick}
