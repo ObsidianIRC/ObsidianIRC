@@ -120,7 +120,7 @@ function applyModeChanges(
 ) {
   const state = useStore.getState();
   const server = state.servers.find((s: Server) => s.id === serverId);
-  if (!server || !server.prefix) return;
+  if (!server?.prefix) return;
 
   const serverPrefix = server.prefix; // Store in variable to satisfy TypeScript
 

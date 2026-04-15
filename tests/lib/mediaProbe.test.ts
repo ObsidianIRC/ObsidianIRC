@@ -190,6 +190,73 @@ describe("probeMediaUrl", () => {
     expect(result).toBeNull();
   });
 
+  test("image/svg+xml content-type → null", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "image/svg+xml" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl(".svg"));
+    expect(result).toBeNull();
+  });
+
+  test("audio/mpegurl content-type → null (HLS MIME)", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "audio/mpegurl" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl(".m3u8"));
+    expect(result).toBeNull();
+  });
+
+  test("application/vnd.apple.mpegurl content-type → null (HLS MIME)", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "application/vnd.apple.mpegurl" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result).toBeNull();
+  });
+
+  test("application/dash+xml content-type → null (DASH MIME)", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "application/dash+xml" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result).toBeNull();
+  });
+
+  test("fetch fails + .m3u extension → null", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    const result = await probeMediaUrl(uniqueUrl(".m3u"));
+    expect(result).toBeNull();
+  });
+
+  test(".svg URL with video/mp4 content-type → type video (HEAD wins over extension)", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        "content-type": "video/mp4",
+        "content-length": "1000000",
+      }),
+    );
+    const result = await probeMediaUrl(uniqueUrl(".svg"));
+    expect(result?.type).toBe("video");
+  });
+
+  test("fetch fails + .svg extension → null", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    const result = await probeMediaUrl(uniqueUrl(".svg"));
+    expect(result).toBeNull();
+  });
+
+  test("fetch fails + .m3u8 extension → null", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    const result = await probeMediaUrl(uniqueUrl(".m3u8"));
+    expect(result).toBeNull();
+  });
+
+  test("fetch fails + .mpd extension → null", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    const result = await probeMediaUrl(uniqueUrl(".mpd"));
+    expect(result).toBeNull();
+  });
+
   test("fetch fails + all element probes fail + .pdf URL → type pdf (extension fallback)", async () => {
     // Simulates Chrome/Firefox: CORS blocks HEAD, <img> rejects PDFs → extension fallback.
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
