@@ -296,7 +296,7 @@ export function canShowMedia(
 /** Returns false only for formats that definitively cannot have an alpha channel.
  *  JPEG and PDF are opaque — PDF pages have solid white backgrounds (WKWebView/Safari
  *  render cross-origin PDFs via <img>, which produces an opaque first-page image).
- *  PNG, GIF, WebP, SVG, AVIF, and unknown extensions default to true so the
+ *  PNG, GIF, WebP, AVIF, and unknown extensions default to true so the
  *  transparency-grid is preserved as a safe fallback when the format is uncertain. */
 export function imageCanHaveTransparency(url: string): boolean {
   const path = url.split("?")[0].split("#")[0].toLowerCase();
