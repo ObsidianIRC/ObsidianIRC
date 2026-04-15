@@ -85,6 +85,15 @@ function classifyContentType(
   contentType: string,
   contentLength?: number,
 ): ProbeResult | null {
+  // SVG/HLS/DASH can reach third-party servers outside CORS (old WebKit sub-resources, AVFoundation).
+  if (
+    contentType === "image/svg+xml" ||
+    contentType === "audio/mpegurl" ||
+    contentType === "application/vnd.apple.mpegurl" ||
+    contentType === "application/dash+xml"
+  )
+    return null;
+
   let type: MediaType;
   if (contentType.startsWith("video/")) {
     type = "video";
@@ -113,6 +122,13 @@ function classifyContentType(
 export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
   if (cache.has(url)) return cache.get(url) ?? null;
 
+  // Must block before any network request — these formats reach third-party servers outside CORS.
+  const urlLower = url.split("?")[0].split("#")[0].toLowerCase();
+  if (/\.(svg|m3u8?|mpd)$/.test(urlLower)) {
+    cacheSet(url, null);
+    return null;
+  }
+
   // Primary path: HTTP Content-Type is the single source of truth.
   // HEAD is tried first; GET fallback covers servers that reject HEAD (e.g. Icecast).
   const fetched = await fetchContentType(url);
@@ -129,7 +145,12 @@ export async function probeMediaUrl(url: string): Promise<ProbeResult | null> {
   // media-element probing: <video> elements can load audio-only files (.mp3 fires
   // loadedmetadata), which would misclassify audio as video when HEAD is blocked.
   const extType = detectMediaType(url);
-  if (extType === "audio" || extType === "video" || extType === "pdf") {
+  if (
+    extType === "audio" ||
+    extType === "video" ||
+    extType === "pdf" ||
+    extType === "image"
+  ) {
     const result: ProbeResult = {
       type: extType,
       streamable: extType === "audio",
