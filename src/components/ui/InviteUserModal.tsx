@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import { useState } from "react";
 import ircClient from "../../lib/ircClient";
@@ -73,7 +74,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
             setError("");
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Enter username to invite"
+          placeholder={t`Enter username to invite`}
           autoComplete="off"
           autoCapitalize="none"
           autoCorrect="off"

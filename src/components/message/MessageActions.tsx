@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { FaExpand, FaReply, FaTrash } from "react-icons/fa";
 import type { MessageType } from "../../types";
@@ -26,6 +27,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   canOpenMedia = false,
   inline = false,
 }) => {
+  const { t } = useLingui();
   return (
     <div
       className={`message-actions-container flex items-center bg-discord-dark-300 border border-white/10 rounded-lg shadow-xl divide-x divide-white/10 select-none z-10 ${
@@ -37,7 +39,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           type="button"
           className="px-2.5 py-1.5 text-discord-text-muted/70 hover:text-discord-text-normal hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
           onClick={onOpenMedia}
-          title="Open in viewer"
+          title={t`Open in viewer`}
         >
           <FaExpand className="w-3.5 h-3.5" />
         </button>
@@ -47,7 +49,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           type="button"
           className="px-2.5 py-1.5 text-red-400/70 hover:text-red-400 hover:bg-red-500/15 transition-colors first:rounded-l-lg last:rounded-r-lg"
           onClick={onRedactClick}
-          title="Delete message"
+          title={t`Delete message`}
         >
           <FaTrash className="w-4 h-4" />
         </button>
@@ -57,7 +59,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           type="button"
           className="px-2.5 py-1.5 text-discord-reply/70 hover:text-discord-reply hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
           onClick={onReplyClick}
-          title="Reply"
+          title={t`Reply`}
         >
           <FaReply className="w-4 h-4" />
         </button>
@@ -66,7 +68,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
         type="button"
         className="px-2.5 py-1.5 text-discord-text-muted hover:text-discord-text-normal hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg"
         onClick={(e) => onReactClick(e.currentTarget)}
-        title="Add reaction"
+        title={t`Add reaction`}
       >
         <MdAddReaction className="w-5 h-5" />
       </button>

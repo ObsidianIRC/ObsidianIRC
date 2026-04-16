@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useState } from "react";
 import { type EventGroup, getEventGroupTooltip } from "../../lib/eventGrouping";
@@ -21,6 +22,7 @@ export const CollapsedEventMessage: React.FC<CollapsedEventMessageProps> = ({
   users,
   onUsernameContextMenu,
 }) => {
+  const { t } = useLingui();
   const [showTooltip, setShowTooltip] = useState(false);
   const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const serverId = eventGroup.messages[0]?.serverId || "";
@@ -80,7 +82,7 @@ export const CollapsedEventMessage: React.FC<CollapsedEventMessageProps> = ({
       >
         {eventGroup.userSummaries.map((us) => {
           const displayName =
-            us.username === ircCurrentUser?.username ? "You" : us.username;
+            us.username === ircCurrentUser?.username ? t`You` : us.username;
           return (
             <div key={us.username} className="flex items-center gap-2 py-0.5">
               {renderAvatar(us.username, "sm")}

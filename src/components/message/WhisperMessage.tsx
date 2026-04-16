@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/macro";
 import type React from "react";
 import { processMarkdownInText } from "../../lib/ircUtils";
 import type { MessageType, User } from "../../types";
@@ -110,16 +111,22 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
         {/* Whisper label with sender and recipient */}
         <div className="text-xs text-purple-400 font-semibold mb-1 flex items-center gap-2">
           <span>🔒</span>
-          <span>WHISPER</span>
+          <span>
+            <Trans>WHISPER</Trans>
+          </span>
           <span className="text-purple-300 font-normal">
             {isOutgoing ? (
               <>
-                from <span className="font-semibold">{sender}</span> to{" "}
+                <Trans>from</Trans>{" "}
+                <span className="font-semibold">{sender}</span>{" "}
+                <Trans>to</Trans>{" "}
                 <span className="font-semibold">{recipient}</span>
               </>
             ) : (
               <>
-                from <span className="font-semibold">{sender}</span> to{" "}
+                <Trans>from</Trans>{" "}
+                <span className="font-semibold">{sender}</span>{" "}
+                <Trans>to</Trans>{" "}
                 <span className="font-semibold">{recipient}</span>
               </>
             )}

@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaUsers } from "react-icons/fa";
@@ -290,7 +291,7 @@ const ChannelListModal: React.FC = () => {
 
         <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center flex-shrink-0">
           <TextInput
-            placeholder="Filter channels..."
+            placeholder={t`Filter channels...`}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="flex-1 bg-discord-dark-300 text-white px-3 py-2 rounded"
@@ -439,7 +440,7 @@ const ChannelListModal: React.FC = () => {
                       value={mask}
                       onChange={(e) => setMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
-                      placeholder="*channel*"
+                      placeholder={t`*channel*`}
                     />
                   </div>
                 )}
@@ -453,7 +454,7 @@ const ChannelListModal: React.FC = () => {
                       value={notMask}
                       onChange={(e) => setNotMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
-                      placeholder="*spam*"
+                      placeholder={t`*spam*`}
                     />
                   </div>
                 )}

@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { BaseModal } from "../../lib/modal/BaseModal";
@@ -203,14 +204,14 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
       <BaseModal
         isOpen={true}
         onClose={onClose}
-        title="Select Member"
+        title={t`Select Member`}
         maxWidth="sm"
         closeOnClickOutside={true}
         closeOnEsc={true}
       >
         <div className="p-3 flex flex-col flex-1 min-h-0">
           <TextInput
-            placeholder="Filter members…"
+            placeholder={t`Filter members…`}
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             className="w-full bg-discord-dark-400 text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link mb-3 flex-shrink-0"

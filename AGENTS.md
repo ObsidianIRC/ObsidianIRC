@@ -14,7 +14,7 @@ npm run format; npm run fix:unsafe; npm run test; npm run build
 ```
 
 - `format` / `fix:unsafe` — Biome lint + format (pre-commit hook does this automatically)
-- `test` — Vitest, all 45 test files must pass
+- `test` — Vitest, all 50 test files must pass
 - `build` — TypeScript compile + Vite bundle (must be clean)
 
 ---
@@ -214,3 +214,96 @@ back on the next lint pass.
 - Explain **why**, never **what** — if the code is readable, omit the comment entirely
 - Keep to one line in most cases
 - Write in the context of the project, not the change — a comment must make sense to someone reading the code cold, with no knowledge of what was previously there or why it was modified
+
+---
+
+## Internationalisation (i18n) — adding user-facing strings
+
+All user-visible text **must** be wrapped with LinguiJS macros so it can be translated. The pre-commit hook auto-extracts new strings and re-compiles catalogs, so you only need to write the code correctly and commit — the catalog files update themselves.
+
+### Which tool to use
+
+| String location | Macro | Import |
+|-----------------|-------|--------|
+| JSX text children (`<button>`, `<span>`, `<p>`, headings) | `<Trans>…</Trans>` | `import { Trans } from "@lingui/macro"` |
+| JSX props: `placeholder=`, `aria-label=`, `title=` | `` t`…` `` via `useLingui` | `import { useLingui } from "@lingui/macro"` then `const { t } = useLingui()` inside the component |
+| Simple `t` outside JSX (inside a render function) | `` t`…` `` | `import { t } from "@lingui/macro"` |
+| Variables/interpolation | `` t`Hello ${name}` `` | same — placeholders become `{0}` in the PO file |
+| Module-level / outside component | **Do not use** `t` at module scope | `t` evaluates before `i18n.activate()` runs. Move the string inside the component body or use a function that returns the array/object. |
+
+### Correct patterns
+
+```tsx
+// JSX children
+<button><Trans>Save</Trans></button>
+
+// Props with interpolation (requires useLingui inside the component)
+import { useLingui } from "@lingui/macro";
+const { t } = useLingui();
+<input placeholder={t`Message #${channelName}`} />
+
+// Simple t tag inside render
+import { t } from "@lingui/macro";
+const label = t`Settings`;
+
+// Module-level array — WRONG (evaluates before i18n.activate):
+// const ITEMS = [{ label: t`Foo` }];   ← DO NOT DO THIS
+
+// Correct: move inside the component or convert to a function
+function getItems() {
+  return [{ label: t`Foo` }];
+}
+```
+
+### After adding new strings — commit and you're done
+
+The `i18n` command in `lefthook.yml` runs automatically on pre-commit whenever a `.ts`/`.tsx` file is staged:
+
+```bash
+npm run i18n:extract   # updates all .po files; new strings get empty msgstr
+npm run i18n:compile   # regenerates all .mjs files
+git add src/locales/   # stages the catalog changes into the same commit
+```
+
+New strings fall back to the English key at runtime until a translator fills in `msgstr`. This is safe — the app is always functional.
+
+### Translating new strings
+
+When a PR introduces new strings, the non-English `.po` files will have new entries with `msgstr ""`. To translate them:
+
+1. Run `npm run i18n:extract` (or it was already run by the pre-commit hook).
+2. Spawn parallel AI agents — one per target locale — with this prompt template:
+
+```
+Read /path/to/src/locales/en/messages.po and /path/to/src/locales/{locale}/messages.po.
+Fill in every empty msgstr "" with a {language} translation of the corresponding msgid.
+Rules:
+- Keep {0}, {1} interpolation placeholders literally.
+- Keep <0>, <1> JSX positional tags literally.
+- Keep IRC-specific terms (WHOIS, SASL, Op, Halfop, Voice) as-is.
+- Do not modify any msgid lines.
+Write the complete translated file back.
+```
+
+3. Run `npm run i18n:compile` to regenerate `.mjs` files.
+4. Commit `src/locales/`.
+
+### Adding a new locale
+
+1. Add the code to `locales` array in `lingui.config.ts`.
+2. Add it to `SUPPORTED` in `src/main.tsx`.
+3. Add an `<option>` in the Language `<select>` in `src/components/ui/UserSettings.tsx`.
+4. Run `npm run i18n:extract` → creates the new `.po` file.
+5. Translate it (see above).
+6. Run `npm run i18n:compile`.
+
+### CI checks
+
+The `i18n` job in `.github/workflows/workflow.yaml`:
+- **Fails** if source has `t`/`Trans` strings not yet extracted into `en/messages.po`.
+- **Fails** if compiled `.mjs` catalogs are stale relative to their `.po` files.
+- **Reports** (informational, non-blocking) how many strings are translated per locale in the job summary.
+
+### Tests
+
+`@lingui/react` is mocked in tests via the alias in `vite.config.ts` → `tests/mocks/lingui-react.ts`. The mock handles `I18nProvider`, `Trans` (including `values` and `components` interpolation), and `useLingui()`. When you add a new component with lingui macros, its tests work without any wrapper changes.

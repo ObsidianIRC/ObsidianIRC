@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import ircClient from "../../lib/ircClient";
 import type { MessageType, User } from "../../types";
@@ -91,7 +92,7 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
           )}
           <span className="italic text-white">
             {message.userId === "system"
-              ? "System"
+              ? t`System`
               : (displayName || username) +
                 (displayName ? ` (${username})` : "") +
                 message.content.substring(7, message.content.length - 1)}

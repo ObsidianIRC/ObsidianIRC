@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,6 +69,7 @@ export const TypingIndicator: React.FC<{
   channelId: string;
 }> = ({ serverId, channelId }) => {
   const key = `${serverId}-${channelId}`;
+  const { t } = useLingui();
 
   const typingUsers = useStore(
     (state) => state.typingUsers[key] ?? EMPTY_ARRAY,
@@ -75,13 +77,13 @@ export const TypingIndicator: React.FC<{
 
   let message = "";
   if (typingUsers.length === 1) {
-    message = `${typingUsers[0].username} is typing...`;
+    message = t`${typingUsers[0].username} is typing...`;
   } else if (typingUsers.length === 2) {
-    message = `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
+    message = t`${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
   } else if (typingUsers.length === 3) {
-    message = `${typingUsers[0].username}, ${typingUsers[1].username} and ${typingUsers[2].username} are typing...`;
+    message = t`${typingUsers[0].username}, ${typingUsers[1].username} and ${typingUsers[2].username} are typing...`;
   } else if (typingUsers.length > 3) {
-    message = `${typingUsers[0].username}, ${typingUsers[1].username}, ${typingUsers[2].username} and ${typingUsers.length - 3} others are typing...`;
+    message = t`${typingUsers[0].username}, ${typingUsers[1].username}, ${typingUsers[2].username} and ${typingUsers.length - 3} others are typing...`;
   }
 
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
@@ -95,6 +97,7 @@ export const ChatArea: React.FC<{
   onToggleChanList: () => void;
   isChanListVisible: boolean;
 }> = ({ onToggleChanList, isChanListVisible }) => {
+  const { t } = useLingui();
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [navHighlightedMsgId, setNavHighlightedMsgId] = useState<string | null>(
     null,
@@ -1959,26 +1962,22 @@ export const ChatArea: React.FC<{
                   spellCheck={true}
                   placeholder={
                     selectedChannel
-                      ? `Message #${selectedChannel.name.replace(/^#/, "")}${
-                          globalSettings.enableMultilineInput &&
-                          !isNativeMobile &&
-                          !isCompactInput
-                            ? globalSettings.multilineOnShiftEnter
-                              ? " (Shift+Enter for new line)"
-                              : " (Enter for new line, Shift+Enter to send)"
-                            : ""
-                        }`
+                      ? globalSettings.enableMultilineInput &&
+                        !isNativeMobile &&
+                        !isCompactInput
+                        ? globalSettings.multilineOnShiftEnter
+                          ? t`Message #${selectedChannel.name.replace(/^#/, "")} (Shift+Enter for new line)`
+                          : t`Message #${selectedChannel.name.replace(/^#/, "")} (Enter for new line, Shift+Enter to send)`
+                        : t`Message #${selectedChannel.name.replace(/^#/, "")}`
                       : selectedPrivateChat
-                        ? `Message @${selectedPrivateChat.username}${
-                            globalSettings.enableMultilineInput &&
-                            !isMobile &&
-                            !isCompactInput
-                              ? globalSettings.multilineOnShiftEnter
-                                ? " (Shift+Enter for new line)"
-                                : " (Enter for new line, Shift+Enter to send)"
-                              : ""
-                          }`
-                        : "Type a message..."
+                        ? globalSettings.enableMultilineInput &&
+                          !isMobile &&
+                          !isCompactInput
+                          ? globalSettings.multilineOnShiftEnter
+                            ? t`Message @${selectedPrivateChat.username} (Shift+Enter for new line)`
+                            : t`Message @${selectedPrivateChat.username} (Enter for new line, Shift+Enter to send)`
+                          : t`Message @${selectedPrivateChat.username}`
+                        : t`Type a message...`
                   }
                   enterKeyHint={
                     isNativeMobile && globalSettings.enableMultilineInput
@@ -2044,7 +2043,7 @@ export const ChatArea: React.FC<{
                       }}
                     >
                       <FaPlus className="mr-2" />
-                      Upload Image
+                      <Trans>Upload Image</Trans>
                     </button>
                   )}
                   <button
@@ -2055,7 +2054,7 @@ export const ChatArea: React.FC<{
                     }}
                   >
                     <FaGift className="mr-2" />
-                    Send a GIF
+                    <Trans>Send a GIF</Trans>
                   </button>
                   {/* Add more menu items here if needed */}
                 </div>
@@ -2298,12 +2297,14 @@ export const ChatArea: React.FC<{
             >
               <div className="flex items-center">
                 <FaList className="text-discord-text-muted mr-2" />
-                <h2 className="font-bold text-white">Server Notices</h2>
+                <h2 className="font-bold text-white">
+                  <Trans>Server Notices</Trans>
+                </h2>
               </div>
               <button
                 className="text-discord-text-muted hover:text-discord-text-normal"
                 onClick={() => setIsServerNoticesPoppedOut(false)}
-                title="Close popped out server notices"
+                title={t`Close popped out server notices`}
               >
                 <FaTimes />
               </button>

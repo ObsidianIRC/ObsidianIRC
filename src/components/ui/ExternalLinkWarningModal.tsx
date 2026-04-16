@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/macro";
 import type React from "react";
 import { useState } from "react";
 import {
@@ -22,6 +23,7 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useLingui();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -41,7 +43,9 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
       title={
         <div className="flex items-center gap-3">
           <FaExclamationTriangle className="text-yellow-500 text-xl flex-shrink-0" />
-          <span>External Link Warning</span>
+          <span>
+            <Trans>External Link Warning</Trans>
+          </span>
         </div>
       }
       maxWidth="md"
@@ -49,7 +53,7 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
       <ModalBody>
         <div className="space-y-4">
           <p className="text-discord-text-normal">
-            You are about to open an external link:
+            <Trans>You are about to open an external link:</Trans>
           </p>
 
           <div className="bg-discord-dark-400 rounded p-3 break-all flex items-center gap-2">
@@ -58,7 +62,7 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
             </code>
             <button
               type="button"
-              aria-label={copied ? "Copied" : "Copy URL"}
+              aria-label={copied ? t`Copied` : t`Copy URL`}
               onClick={handleCopy}
               className="shrink-0 p-1.5 rounded text-discord-text-muted hover:text-discord-text-normal hover:bg-discord-dark-300 transition-colors"
             >
@@ -68,24 +72,27 @@ const ExternalLinkWarningModal: React.FC<ExternalLinkWarningModalProps> = ({
 
           <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-30 rounded p-3">
             <p className="text-sm text-yellow-200">
-              <strong>⚠️ Be careful!</strong> Only open links from trusted
-              sources. Malicious links can compromise your security or privacy.
+              <Trans>
+                <strong>⚠️ Be careful!</strong> Only open links from trusted
+                sources. Malicious links can compromise your security or
+                privacy.
+              </Trans>
             </p>
           </div>
 
           <p className="text-sm text-discord-text-normal">
-            Do you want to open this link in a new tab?
+            <Trans>Do you want to open this link in a new tab?</Trans>
           </p>
         </div>
       </ModalBody>
 
       <ModalFooter>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button variant="primary" onClick={onConfirm}>
           <FaExternalLinkAlt className="inline mr-2 text-sm" />
-          Open Link
+          <Trans>Open Link</Trans>
         </Button>
       </ModalFooter>
     </BaseModal>

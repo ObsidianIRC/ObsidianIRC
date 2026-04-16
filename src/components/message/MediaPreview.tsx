@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/macro";
 import exifr from "exifr";
 import type * as React from "react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -264,7 +265,7 @@ const ImagePreview: React.FC<{
       <div className="max-w-md">
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
           <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 border border-red-200">
-            <span>This image has expired</span>
+            <Trans>This image has expired</Trans>
           </div>
         </div>
       </div>

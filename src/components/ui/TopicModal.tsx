@@ -1,3 +1,4 @@
+import { Trans, t } from "@lingui/macro";
 import type React from "react";
 import { useState } from "react";
 import ircClient from "../../lib/ircClient";
@@ -52,7 +53,7 @@ export const TopicModal: React.FC<TopicModalProps> = ({
               ? "bg-discord-dark-400 text-white focus:ring-1 focus:ring-discord-primary"
               : "bg-discord-dark-400/60 text-discord-text-muted cursor-default select-all"
           }`}
-          placeholder={canEdit ? "Set a topic…" : "No topic set"}
+          placeholder={canEdit ? t`Set a topic…` : t`No topic set`}
           autoFocus={canEdit}
         />
       </ModalBody>
@@ -65,7 +66,7 @@ export const TopicModal: React.FC<TopicModalProps> = ({
             disabled={!isDirty}
             className="ml-auto"
           >
-            Save
+            <Trans>Save</Trans>
           </Button>
         </ModalFooter>
       )}

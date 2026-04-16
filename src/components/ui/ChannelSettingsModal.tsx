@@ -1,3 +1,4 @@
+import { Trans, t } from "@lingui/macro";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -1102,14 +1103,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                             <button
                               onClick={() => saveEdit(mode.mask, editValue)}
                               className="text-green-400 hover:text-green-300"
-                              title="Save"
+                              title={t`Save`}
                             >
                               ✓
                             </button>
                             <button
                               onClick={cancelEditing}
                               className="text-red-400 hover:text-red-300"
-                              title="Cancel"
+                              title={t`Cancel`}
                             >
                               ✕
                             </button>
@@ -1119,14 +1120,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                             <button
                               onClick={() => startEditing(mode.mask)}
                               className="text-discord-text-muted hover:text-white"
-                              title="Edit"
+                              title={t`Edit`}
                             >
                               <FaEdit size={14} />
                             </button>
                             <button
                               onClick={() => removeMode(mode.type, mode.mask)}
                               className="text-red-400 hover:text-red-300"
-                              title="Remove"
+                              title={t`Remove`}
                               disabled={removingMasks.has(mode.mask)}
                             >
                               {removingMasks.has(mode.mask) ? (
@@ -1168,7 +1169,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   type="text"
                   value={channelTopic}
                   onChange={(e) => setChannelTopic(e.target.value)}
-                  placeholder="Welcome to the channel!"
+                  placeholder={t`Welcome to the channel!`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1206,7 +1207,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                         </p>
                         <img
                           src={channelAvatar.replace("{size}", "64")}
-                          alt="Channel avatar preview"
+                          alt={t`Channel avatar preview`}
                           className="w-16 h-16 rounded-full object-cover"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
@@ -1232,7 +1233,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   type="text"
                   value={channelDisplayName}
                   onChange={(e) => setChannelDisplayName(e.target.value)}
-                  placeholder="General Support Channel"
+                  placeholder={t`General Support Channel`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1254,7 +1255,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="#new-channel-name"
+                  placeholder={t`#new-channel-name`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
                 <input
@@ -1265,7 +1266,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="Reason (optional)"
+                  placeholder={t`Reason (optional)`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1302,7 +1303,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                         : null,
                     )
                   }
-                  placeholder="No limit"
+                  placeholder={t`No limit`}
                   min="1"
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
@@ -1339,7 +1340,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   type="password"
                   value={channelKey}
                   onChange={(e) => setChannelKey(e.target.value)}
-                  placeholder="No key"
+                  placeholder={t`No key`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1443,12 +1444,24 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                     onChange={(e) => setFloodProfile(e.target.value)}
                     className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                   >
-                    <option value="">No flood profile</option>
-                    <option value="very-strict">Very Strict</option>
-                    <option value="strict">Strict</option>
-                    <option value="normal">Normal</option>
-                    <option value="relaxed">Relaxed</option>
-                    <option value="very-relaxed">Very Relaxed</option>
+                    <option value="">
+                      <Trans>No flood profile</Trans>
+                    </option>
+                    <option value="very-strict">
+                      <Trans>Very Strict</Trans>
+                    </option>
+                    <option value="strict">
+                      <Trans>Strict</Trans>
+                    </option>
+                    <option value="normal">
+                      <Trans>Normal</Trans>
+                    </option>
+                    <option value="relaxed">
+                      <Trans>Relaxed</Trans>
+                    </option>
+                    <option value="very-relaxed">
+                      <Trans>Very Relaxed</Trans>
+                    </option>
                   </select>
                 </div>
 
@@ -1462,7 +1475,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       type="text"
                       value={floodParams}
                       onChange={(e) => setFloodParams(e.target.value)}
-                      placeholder="Default"
+                      placeholder={t`Default`}
                       className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
                     />
                     <button
@@ -1811,7 +1824,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                     type="text"
                     value={channelHistory}
                     onChange={(e) => setChannelHistory(e.target.value)}
-                    placeholder="e.g., 100:1440"
+                    placeholder={t`e.g., 100:1440`}
                     className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                   />
                 </div>
@@ -1829,7 +1842,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                     type="text"
                     value={channelLink}
                     onChange={(e) => setChannelLink(e.target.value)}
-                    placeholder="#overflow"
+                    placeholder={t`#overflow`}
                     className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                   />
                 </div>
@@ -1926,7 +1939,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <button
                 onClick={onClose}
                 className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                aria-label="Close"
+                aria-label={t`Close`}
               >
                 <FaTimes />
               </button>
@@ -1967,7 +1980,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                 <button
                   onClick={() => setMobileView("categories")}
                   className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                  aria-label="Back"
+                  aria-label={t`Back`}
                 >
                   <FaChevronLeft />
                 </button>
@@ -1978,7 +1991,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <button
                 onClick={onClose}
                 className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                aria-label="Close"
+                aria-label={t`Close`}
               >
                 <FaTimes />
               </button>
@@ -2004,7 +2017,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         {/* Sidebar */}
         <div className="bg-discord-dark-300 flex flex-col">
           <div className="p-4 border-b border-discord-dark-500 flex justify-center">
-            <h2 className="text-white text-lg font-bold">Channel Settings</h2>
+            <h2 className="text-white text-lg font-bold">
+              <Trans>Channel Settings</Trans>
+            </h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             <nav className="p-2">

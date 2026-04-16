@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/macro";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaQuestionCircle } from "react-icons/fa";
@@ -8,6 +9,7 @@ import useStore from "../../store";
 import { TextInput } from "./TextInput";
 
 export const AddServerModal: React.FC = () => {
+  const { t } = useLingui();
   const {
     toggleAddServerModal,
     connect,
@@ -76,22 +78,22 @@ export const AddServerModal: React.FC = () => {
     const finalSaslAccountName = saslAccountName.trim() || nickname.trim();
 
     if (!finalServerName) {
-      setError("Server name is required");
+      setError(t`Server name is required`);
       return;
     }
 
     if (!serverHost.trim()) {
-      setError("Server host is required");
+      setError(t`Server host is required`);
       return;
     }
 
     if (!serverPort.trim() || Number.isNaN(Number.parseInt(serverPort, 10))) {
-      setError("Valid server port is required");
+      setError(t`Valid server port is required`);
       return;
     }
 
     if (!nickname.trim()) {
-      setError("Nickname is required");
+      setError(t`Nickname is required`);
       return;
     }
 
@@ -139,7 +141,7 @@ export const AddServerModal: React.FC = () => {
     <BaseModal
       isOpen={!!isAddServerModalOpen}
       onClose={() => toggleAddServerModal(false)}
-      title={prefillServerDetails?.ui?.title || "Add IRC Server"}
+      title={prefillServerDetails?.ui?.title || t`Add IRC Server`}
       maxWidth="md"
       showCloseButton={!prefillServerDetails?.ui?.hideClose}
       closeOnEsc={!prefillServerDetails?.ui?.hideClose}
@@ -151,7 +153,7 @@ export const AddServerModal: React.FC = () => {
             <>
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Network Name
+                  <Trans>Network Name</Trans>
                 </label>
                 <TextInput
                   value={serverName || serverHost || ""}

@@ -1,3 +1,4 @@
+import { Trans, t } from "@lingui/macro";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -61,15 +62,15 @@ const parseChannels = (channelsStr: string) => {
 const getStatusBadge = (status: string) => {
   // Get the highest privilege from multi-prefix
   if (status.includes("~"))
-    return { text: "~", label: "Owner", color: "bg-red-600" };
+    return { text: "~", label: t`Owner`, color: "bg-red-600" };
   if (status.includes("&"))
-    return { text: "&", label: "Admin", color: "bg-orange-600" };
+    return { text: "&", label: t`Admin`, color: "bg-orange-600" };
   if (status.includes("@"))
-    return { text: "@", label: "Op", color: "bg-green-600" };
+    return { text: "@", label: t`Op`, color: "bg-green-600" };
   if (status.includes("%"))
-    return { text: "%", label: "Halfop", color: "bg-blue-600" };
+    return { text: "%", label: t`Halfop`, color: "bg-blue-600" };
   if (status.includes("+"))
-    return { text: "+", label: "Voice", color: "bg-purple-600" };
+    return { text: "+", label: t`Voice`, color: "bg-purple-600" };
   return null;
 };
 
@@ -361,7 +362,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {isVerified && displayName === username && (
                 <span
                   className="inline-flex items-center justify-center w-5 h-5 text-xs text-white bg-green-500 rounded-full"
-                  title="User is authenticated"
+                  title={t`User is authenticated`}
                 >
                   ✓
                 </span>
@@ -373,7 +374,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 {isVerified && (
                   <span
                     className="inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-green-500 rounded-full"
-                    title="User is authenticated"
+                    title={t`User is authenticated`}
                   >
                     ✓
                   </span>
@@ -577,7 +578,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                               {isSecret && (
                                 <span
                                   className="text-discord-text-muted text-xs"
-                                  title="Secret channel"
+                                  title={t`Secret channel`}
                                 >
                                   🔒
                                 </span>
@@ -684,7 +685,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         : "bg-yellow-600 hover:bg-yellow-700 text-white hover:shadow-lg hover:shadow-yellow-600/20"
                     }`}
                   >
-                    {server?.isAway ? "I'm Back" : "Set Away"}
+                    {server?.isAway ? (
+                      <Trans>I'm Back</Trans>
+                    ) : (
+                      <Trans>Set Away</Trans>
+                    )}
                   </button>
                 </>
               )}
@@ -705,17 +710,17 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     onClose();
                   }}
                   className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-green-600/20 flex items-center gap-2"
-                  title="Send private message"
+                  title={t`Send private message`}
                 >
                   <FaUser size={14} />
-                  PM User
+                  <Trans>PM User</Trans>
                 </button>
               )}
               <button
                 onClick={onBack ?? onClose}
                 className={`px-6 py-2 bg-discord-blurple hover:bg-discord-blurple-hover text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-discord-blurple/20 ${!isOwnProfile ? "ml-auto" : ""}`}
               >
-                {onBack ? "← Back" : "Close"}
+                {onBack ? <Trans>← Back</Trans> : <Trans>Close</Trans>}
               </button>
             </div>
           </div>

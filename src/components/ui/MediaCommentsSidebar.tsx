@@ -1,4 +1,5 @@
 import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { t } from "@lingui/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import {
   useCallback,
@@ -325,7 +326,7 @@ export function MediaCommentsSidebar({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Back to image"
+              aria-label={t`Back to image`}
               className="p-1.5 rounded-full hover:bg-white/10 text-discord-text-muted hover:text-discord-text-normal transition-colors"
             >
               <ArrowLeftIcon className="w-4 h-4" />
@@ -346,7 +347,7 @@ export function MediaCommentsSidebar({
             <button
               type="button"
               onClick={onCloseAll}
-              aria-label="Close viewer"
+              aria-label={t`Close viewer`}
               className="p-1.5 rounded-full hover:bg-white/10 text-discord-text-muted hover:text-discord-text-normal transition-colors"
             >
               <XMarkIcon className="w-4 h-4" />
@@ -370,7 +371,7 @@ export function MediaCommentsSidebar({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close comments"
+              aria-label={t`Close comments`}
               className="p-1.5 rounded-full hover:bg-white/10 text-discord-text-muted hover:text-discord-text-normal transition-colors"
             >
               <XMarkIcon className="w-4 h-4" />
@@ -529,7 +530,7 @@ export function MediaCommentsSidebar({
           <button
             type="button"
             className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
-            aria-label="Attachment options"
+            aria-label={t`Attachment options`}
           >
             <FaPlus />
           </button>

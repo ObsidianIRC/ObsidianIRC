@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { getColorStyle } from "../../lib/ircUtils";
 
@@ -26,6 +27,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
   isVerified = false,
   isIrcOp = false,
 }) => {
+  const { t } = useLingui();
   const username = userId;
   const isSystem = userId === "system";
 
@@ -48,7 +50,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
         {isVerified && (
           <span
             className="ml-1 inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-green-500 rounded-full"
-            title="User is authenticated"
+            title={t`User is authenticated`}
           >
             ✓
           </span>
@@ -56,7 +58,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({
         {isIrcOp && (
           <span
             className="ml-1 inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-blue-500 rounded"
-            title="IRC Operator"
+            title={t`IRC Operator`}
           >
             🔑
           </span>

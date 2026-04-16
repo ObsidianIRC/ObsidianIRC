@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/macro";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { FaPencilAlt, FaPlus, FaRedo, FaTrash } from "react-icons/fa";
@@ -31,6 +32,7 @@ const ServerIcon: React.FC<ServerIconProps> = ({
   onDelete,
   onReconnect,
 }) => {
+  const { t } = useLingui();
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
 
   const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
@@ -100,7 +102,7 @@ const ServerIcon: React.FC<ServerIconProps> = ({
               e.stopPropagation();
               onReconnect();
             }}
-            title="Reconnect to server"
+            title={t`Reconnect to server`}
           />
         )}
 
@@ -135,7 +137,7 @@ const ServerIcon: React.FC<ServerIconProps> = ({
                 e.stopPropagation();
                 onEdit();
               }}
-              title="Edit Server"
+              title={t`Edit Server`}
             >
               <FaPencilAlt />
             </button>
@@ -145,7 +147,7 @@ const ServerIcon: React.FC<ServerIconProps> = ({
                 e.stopPropagation();
                 onDelete();
               }}
-              title="Disconnect"
+              title={t`Disconnect`}
             >
               <FaTrash />
             </button>
@@ -171,6 +173,7 @@ const ServerIcon: React.FC<ServerIconProps> = ({
 };
 
 export const ServerList: React.FC = () => {
+  const { t } = useLingui();
   const {
     servers,
     ui: { selectedServerId },
@@ -223,12 +226,12 @@ export const ServerList: React.FC = () => {
         <div className="text-white text-xl">
           <img
             src="./images/obsidian.png"
-            alt="Home"
+            alt={t`Home`}
             className="w-full h-full rounded-lg"
           />
         </div>
         <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
-          Home
+          {t`Home`}
         </div>
       </div>
 
@@ -243,7 +246,7 @@ export const ServerList: React.FC = () => {
         >
           <FaPlus className="group-hover:text-white text-2xl font-extrabold transition-colors duration-200" />
           <div className="absolute top-0 left-16 bg-black text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-40 pointer-events-none">
-            Add Server
+            {t`Add Server`}
           </div>
         </div>
       </div>

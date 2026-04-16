@@ -1,3 +1,5 @@
+import { Trans } from "@lingui/macro";
+import { useLingui } from "@lingui/react/macro";
 import type * as React from "react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
@@ -152,6 +154,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
     hideReply,
     isHighlighted,
   } = props;
+  const { t } = useLingui();
   // channelId is null in DMs (drives avatar lookup); privateChatId is the message store key.
   const mediaChannelId = channelId ?? privateChatId;
   const pmUserCache = useRef(new Map<string, User>());
@@ -813,7 +816,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
                             className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
                             onClick={() => setShowAllImages(false)}
                           >
-                            Show less
+                            <Trans>Show less</Trans>
                           </button>
                         </>
                       ) : (
@@ -822,8 +825,9 @@ export const MessageItem = memo((props: MessageItemProps) => {
                           className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
                           onClick={() => setShowAllImages(true)}
                         >
-                          Show {extraKnownEntries.length} more item
-                          {extraKnownEntries.length > 1 ? "s" : ""}
+                          {extraKnownEntries.length > 1
+                            ? t`Show ${extraKnownEntries.length} more items`
+                            : t`Show 1 more item`}
                         </button>
                       ))}
                   </div>

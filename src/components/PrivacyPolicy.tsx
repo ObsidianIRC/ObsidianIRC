@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -17,7 +18,7 @@ const PrivacyPolicy = () => {
             <div className="w-14 h-14 bg-discord-primary rounded-lg flex items-center justify-center">
               <img
                 src="/images/obsidian.png"
-                alt="ObsidianIRC"
+                alt={t`ObsidianIRC`}
                 className="w-full h-full rounded-lg"
               />
             </div>

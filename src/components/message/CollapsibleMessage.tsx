@@ -1,4 +1,5 @@
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { useLingui } from "@lingui/react/macro";
 import type * as React from "react";
 import {
   forwardRef,
@@ -27,6 +28,7 @@ export const CollapsibleMessage = forwardRef<
   CollapsibleMessageHandle,
   CollapsibleMessageProps
 >(({ content, maxLines = COLLAPSIBLE_MAX_LINES, onNeedsCollapsing }, ref) => {
+  const { t } = useLingui();
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsCollapsing, setNeedsCollapsing] = useState(false);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
@@ -191,7 +193,7 @@ export const CollapsibleMessage = forwardRef<
           <div className="flex justify-start mt-0.5 ml-3">
             <button
               onClick={toggleExpanded}
-              title={isExpanded ? "Show less" : "Read more"}
+              title={isExpanded ? t`Show less` : t`Read more`}
               className="opacity-80 hover:opacity-100 transition-opacity p-0.5 rounded"
             >
               <ChevronDownIcon

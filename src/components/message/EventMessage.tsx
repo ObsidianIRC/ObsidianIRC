@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/macro";
 import type React from "react";
 import { useEffect, useState } from "react";
 import ircClient from "../../lib/ircClient";
@@ -115,12 +116,14 @@ export const EventMessage: React.FC<EventMessageProps> = ({
       {/* Tooltip for future collapsing functionality */}
       {showTooltip && (
         <div className="absolute bottom-full left-12 mb-1 px-2 py-1 bg-discord-dark-100 text-white text-xs rounded shadow-lg z-10 whitespace-nowrap">
-          {message.type === "join" && "Joined the channel"}
-          {message.type === "part" && "Left the channel"}
-          {message.type === "quit" && "Quit the server"}
-          {message.type === "nick" && "Changed nickname"}
-          {message.type === "mode" && "Changed channel modes"}
-          {message.type === "kick" && "Was kicked from the channel"}
+          {message.type === "join" && <Trans>Joined the channel</Trans>}
+          {message.type === "part" && <Trans>Left the channel</Trans>}
+          {message.type === "quit" && <Trans>Quit the server</Trans>}
+          {message.type === "nick" && <Trans>Changed nickname</Trans>}
+          {message.type === "mode" && <Trans>Changed channel modes</Trans>}
+          {message.type === "kick" && (
+            <Trans>Was kicked from the channel</Trans>
+          )}
         </div>
       )}
     </div>

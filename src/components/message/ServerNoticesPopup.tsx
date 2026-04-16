@@ -1,3 +1,5 @@
+import { Trans } from "@lingui/macro";
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { FaTimes, FaWindowMaximize, FaWindowMinimize } from "react-icons/fa";
@@ -25,6 +27,7 @@ export const ServerNoticesPopup: React.FC<ServerNoticesPopupProps> = ({
   onIrcLinkClick,
   joinChannel,
 }) => {
+  const { t } = useLingui();
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -81,7 +84,7 @@ export const ServerNoticesPopup: React.FC<ServerNoticesPopupProps> = ({
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-2">
             <div className="text-green-400 font-medium text-sm">
-              📋 Server Notices
+              📋 <Trans>Server Notices</Trans>
             </div>
             <div className="text-gray-400 text-xs">({messages.length})</div>
           </div>
@@ -89,14 +92,14 @@ export const ServerNoticesPopup: React.FC<ServerNoticesPopupProps> = ({
             <button
               onClick={() => setIsMinimized(false)}
               className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white"
-              title="Maximize"
+              title={t`Maximize`}
             >
               <FaWindowMaximize className="text-xs" />
             </button>
             <button
               onClick={onClose}
               className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-red-400"
-              title="Close"
+              title={t`Close`}
             >
               <FaTimes className="text-xs" />
             </button>
@@ -123,21 +126,25 @@ export const ServerNoticesPopup: React.FC<ServerNoticesPopupProps> = ({
         onMouseDown={handleMouseDown}
       >
         <div className="flex items-center gap-2">
-          <div className="text-green-400 font-medium">📋 Server Notices</div>
-          <div className="text-gray-400 text-sm">({messages.length} logs)</div>
+          <div className="text-green-400 font-medium">
+            📋 <Trans>Server Notices</Trans>
+          </div>
+          <div className="text-gray-400 text-sm">
+            ({messages.length} <Trans>logs</Trans>)
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsMinimized(true)}
             className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white"
-            title="Minimize"
+            title={t`Minimize`}
           >
             <FaWindowMinimize className="text-sm" />
           </button>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-red-400"
-            title="Close"
+            title={t`Close`}
           >
             <FaTimes className="text-sm" />
           </button>

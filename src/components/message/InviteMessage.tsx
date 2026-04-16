@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/macro";
 import type React from "react";
 import { FaEnvelope } from "react-icons/fa";
 import useStore from "../../store";
@@ -93,12 +94,12 @@ export const InviteMessage: React.FC<InviteMessageProps> = ({
             className="px-4 py-2 bg-discord-green hover:bg-opacity-80 text-white rounded font-medium transition-all text-sm"
             type="button"
           >
-            Join {message.inviteChannel}
+            <Trans>Join</Trans> {message.inviteChannel}
           </button>
         )}
         {alreadyInChannel && (
           <span className="text-xs text-discord-text-muted italic">
-            Already in {message.inviteChannel}
+            <Trans>Already in</Trans> {message.inviteChannel}
           </span>
         )}
       </div>

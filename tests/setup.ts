@@ -1,5 +1,10 @@
 import "@testing-library/jest-dom";
+import { i18n } from "@lingui/core";
 import { vi } from "vitest";
+
+// Initialize lingui with empty English catalog so t`` and Trans just pass strings through
+i18n.load("en", {});
+i18n.activate("en");
 
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 window.HTMLElement.prototype.scrollTo = vi.fn();

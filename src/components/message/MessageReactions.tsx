@@ -1,3 +1,5 @@
+import { Trans } from "@lingui/macro";
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -63,7 +65,7 @@ const ReactionTooltip: React.FC<{
         {names}
       </div>
       <div className="text-[11px] text-white/40 mt-1">
-        reacted to this message
+        <Trans>reacted to this message</Trans>
       </div>
     </div>
   );
@@ -74,6 +76,7 @@ const ReactionButton: React.FC<{
   reactionData: ReactionData;
   onReactionClick: (emoji: string, currentUserReacted: boolean) => void;
 }> = ({ emoji, reactionData, onReactionClick }) => {
+  const { t } = useLingui();
   const [showTooltip, setShowTooltip] = useState(false);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,7 +118,11 @@ const ReactionButton: React.FC<{
             : "bg-discord-dark-300 text-discord-text-muted hover:bg-discord-dark-200"
         }`}
         onClick={() => onReactionClick(emoji, reactionData.currentUserReacted)}
-        aria-label={`${reactionData.currentUserReacted ? "Remove" : "Add"} reaction ${emoji}`}
+        aria-label={
+          reactionData.currentUserReacted
+            ? t`Remove reaction ${emoji}`
+            : t`Add reaction ${emoji}`
+        }
       >
         <span>{emoji}</span>
         <span className="text-xs font-medium tabular-nums">
@@ -133,6 +140,7 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
   onAddReaction,
   alwaysShowAdd = false,
 }) => {
+  const { t } = useLingui();
   if (!reactions || reactions.length === 0) {
     if (!alwaysShowAdd || !onAddReaction) return null;
     return (
@@ -140,7 +148,7 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
         <button
           type="button"
           className="inline-flex items-center px-2 py-0.5 rounded-full text-sm bg-discord-dark-300 text-discord-channels-default hover:bg-discord-dark-200 hover:text-discord-text-muted transition-all"
-          title="Add reaction"
+          title={t`Add reaction`}
           onClick={(e) => onAddReaction(e.currentTarget)}
         >
           <MdAddReaction className="w-4 h-4" />
@@ -186,7 +194,7 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
         <button
           type="button"
           className="inline-flex items-center px-2 py-0.5 rounded-full text-sm bg-discord-dark-300 text-discord-channels-default hover:bg-discord-dark-200 hover:text-discord-text-muted transition-all"
-          title="Add reaction"
+          title={t`Add reaction`}
           onClick={(e) => onAddReaction(e.currentTarget)}
         >
           <MdAddReaction className="w-4 h-4" />

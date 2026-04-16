@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -497,7 +498,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                                   : undefined,
                               })
                             }
-                            placeholder="Permanent"
+                            placeholder={t`Permanent`}
                             min="1"
                             className="w-full px-2 py-1 bg-discord-darker border border-discord-border rounded text-white text-sm placeholder-discord-text-muted focus:outline-none focus:ring-1 focus:ring-discord-blue"
                           />

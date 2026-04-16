@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { FaTimes } from "react-icons/fa";
 
@@ -50,6 +51,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
   onReplyClick,
   onClose,
 }) => {
+  const { t } = useLingui();
   const replyUsername = replyMessage.userId;
 
   const mediaVisibilityLevel = useStore(
@@ -82,7 +84,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
         }
         ${isClickable ? "cursor-pointer hover:bg-black/[0.32]" : ""}`}
       onClick={isClickable ? onReplyClick : undefined}
-      title={isClickable ? "Click to jump to message" : ""}
+      title={isClickable ? t`Click to jump to message` : ""}
     >
       <div className="w-0.5 flex-shrink-0 bg-discord-reply/70 rounded-l" />
       <div className="flex-1 min-w-0 py-1.5 px-2.5 overflow-hidden">
@@ -123,7 +125,7 @@ export const MessageReply: React.FC<MessageReplyProps> = ({
             e.stopPropagation();
             onClose();
           }}
-          aria-label="Cancel reply"
+          aria-label={t`Cancel reply`}
         >
           <FaTimes className="text-base" />
         </button>

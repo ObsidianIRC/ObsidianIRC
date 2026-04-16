@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type * as React from "react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -191,7 +192,7 @@ const GifSelector: React.FC<GifSelectorProps> = ({
         <div className="p-4 border-b border-discord-dark-300">
           <div className="flex space-x-2">
             <TextInput
-              placeholder="Search GIFs..."
+              placeholder={t`Search GIFs...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSearch()}

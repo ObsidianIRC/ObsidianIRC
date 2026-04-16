@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { FaTimes } from "react-icons/fa";
@@ -127,7 +128,7 @@ const ColorPicker: React.FC<{
       <BaseModal
         isOpen={true}
         onClose={onClose}
-        title="Color & Formatting"
+        title={t`Color & Formatting`}
         maxWidth="sm"
         closeOnClickOutside={true}
         closeOnEsc={true}

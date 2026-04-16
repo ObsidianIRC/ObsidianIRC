@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import { useRef, useState } from "react";
 import { FaSpinner, FaTimes, FaUpload } from "react-icons/fa";
@@ -220,7 +221,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         <div className="flex items-center gap-3">
           <img
             src={previewUrl || currentAvatarUrl}
-            alt="Avatar preview"
+            alt={t`Avatar preview`}
             className="w-16 h-16 rounded-full object-cover border-2 border-discord-dark-300"
             onError={(e) => {
               e.currentTarget.style.display = "none";

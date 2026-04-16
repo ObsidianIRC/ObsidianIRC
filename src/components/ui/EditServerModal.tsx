@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/macro";
 import type React from "react";
 import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
@@ -14,6 +15,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   serverId,
   onClose,
 }) => {
+  const { t } = useLingui();
   const { servers, updateServer, sendRaw, isConnecting } = useStore();
 
   const server = servers.find((s) => s.id === serverId);
@@ -67,22 +69,22 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     const finalSaslAccountName = saslAccountName.trim() || nickname.trim();
 
     if (!finalServerName) {
-      setError("Server name is required");
+      setError(t`Server name is required`);
       return;
     }
 
     if (!serverHost.trim()) {
-      setError("Server host is required");
+      setError(t`Server host is required`);
       return;
     }
 
     if (!serverPort.trim() || Number.isNaN(Number.parseInt(serverPort, 10))) {
-      setError("Valid server port is required");
+      setError(t`Valid server port is required`);
       return;
     }
 
     if (!nickname.trim()) {
-      setError("Nickname is required");
+      setError(t`Nickname is required`);
       return;
     }
 
@@ -124,7 +126,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     if (operName.trim() && operPassword.trim()) {
       sendRaw(serverId, `OPER ${operName.trim()} ${operPassword.trim()}`);
     } else {
-      setError("Oper name and password are required");
+      setError(t`Oper name and password are required`);
     }
   };
 
@@ -132,7 +134,9 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 modal-container">
       <div className="bg-discord-dark-200 rounded-lg w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl font-bold">Edit Server</h2>
+          <h2 className="text-white text-xl font-bold">
+            <Trans>Edit Server</Trans>
+          </h2>
           <button
             onClick={onClose}
             className="text-discord-text-muted hover:text-white"
@@ -144,7 +148,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-discord-text-muted text-sm font-medium mb-1">
-              Network Name
+              <Trans>Network Name</Trans>
             </label>
             <TextInput
               value={serverName}
@@ -157,7 +161,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           <div className="mb-4 flex gap-4">
             <div className="flex-1">
               <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                Server Host
+                <Trans>Server Host</Trans>
               </label>
               <TextInput
                 value={serverHost}
@@ -169,9 +173,9 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
 
             <div className="w-28">
               <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                Port{" "}
+                <Trans>Port</Trans>{" "}
                 <FaQuestionCircle
-                  title="Only secure websockets are supported"
+                  title={t`Only secure websockets are supported`}
                   className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
                 />
               </label>
@@ -186,12 +190,12 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
 
           <div className="mb-4">
             <label className="block text-discord-text-muted text-sm font-medium mb-1">
-              Nickname
+              <Trans>Nickname</Trans>
             </label>
             <TextInput
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="YourNickname"
+              placeholder={t`YourNickname`}
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
             />
           </div>
@@ -210,7 +214,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                   htmlFor="showAccount"
                   className="text-discord-text-muted text-sm"
                 >
-                  Login to an account
+                  <Trans>Login to an account</Trans>
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -225,7 +229,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                   htmlFor="showServerPassword"
                   className="text-discord-text-muted text-sm"
                 >
-                  Use server password
+                  <Trans>Use server password</Trans>
                 </label>
               </div>
             </div>
@@ -234,13 +238,13 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           {showServerPassword && (
             <div className="mb-4">
               <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                Server Password
+                <Trans>Server Password</Trans>
               </label>
               <TextInput
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Server Password"
+                placeholder={t`Server Password`}
                 className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
               />
             </div>
@@ -250,12 +254,12 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             <div className="mb-4 flex gap-4">
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Account details
+                  <Trans>Account details</Trans>
                 </label>
                 <TextInput
                   value={saslAccountName || nickname}
                   onChange={(e) => setSaslAccountName(e.target.value)}
-                  placeholder="SASL Account Name"
+                  placeholder={t`SASL Account Name`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -265,7 +269,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                   type="password"
                   value={saslPassword ? atob(saslPassword) : ""}
                   onChange={(e) => setSaslPassword(btoa(e.target.value))}
-                  placeholder="Password"
+                  placeholder={t`Password`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -275,30 +279,30 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           {/* IRC Operator Section */}
           <div className="mb-4 border-t border-discord-dark-300 pt-4">
             <h3 className="text-discord-text-normal text-lg font-semibold mb-3">
-              IRC Operator
+              <Trans>IRC Operator</Trans>
             </h3>
 
             <div className="mb-4 flex gap-4">
               <div className="flex-1">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Oper Name
+                  <Trans>Oper Name</Trans>
                 </label>
                 <TextInput
                   value={operName}
                   onChange={(e) => setOperName(e.target.value)}
-                  placeholder="Operator username"
+                  placeholder={t`Operator username`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
               <div className="flex-1">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Oper Password
+                  <Trans>Oper Password</Trans>
                 </label>
                 <TextInput
                   type="password"
                   value={operPassword}
                   onChange={(e) => setOperPassword(e.target.value)}
-                  placeholder="Operator password"
+                  placeholder={t`Operator password`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -307,20 +311,24 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             <div className="mb-4 text-xs text-discord-text-muted">
               {forgetOperCredentials ? (
                 <span className="text-red-400">
-                  ⚠️ Existing oper credentials will be forgotten
+                  <Trans>⚠️ Existing oper credentials will be forgotten</Trans>
                 </span>
               ) : operName.trim() && operPassword.trim() ? (
                 <span className="text-green-400">
-                  ✓ Both username and password will be updated
+                  <Trans>✓ Both username and password will be updated</Trans>
                 </span>
               ) : operName.trim() ? (
                 <span className="text-blue-400">
-                  ✓ Username will be updated, password preserved
+                  <Trans>✓ Username will be updated, password preserved</Trans>
                 </span>
               ) : serverConfig?.operUsername ? (
-                <span>Existing credentials will be preserved</span>
+                <span>
+                  <Trans>Existing credentials will be preserved</Trans>
+                </span>
               ) : (
-                <span>No oper credentials configured</span>
+                <span>
+                  <Trans>No oper credentials configured</Trans>
+                </span>
               )}
             </div>
 
@@ -337,7 +345,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                   htmlFor="operOnConnect"
                   className="text-discord-text-muted text-sm"
                 >
-                  Oper on connect
+                  <Trans>Oper on connect</Trans>
                 </label>
               </div>
 
@@ -354,9 +362,11 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                         : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                     }`}
                   >
-                    {forgetOperCredentials
-                      ? "Will Forget"
-                      : "Forget Credentials"}
+                    {forgetOperCredentials ? (
+                      <Trans>Will Forget</Trans>
+                    ) : (
+                      <Trans>Forget Credentials</Trans>
+                    )}
                   </button>
                 )}
                 <button
@@ -369,7 +379,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                       : "bg-gray-600 text-gray-400 cursor-not-allowed"
                   }`}
                 >
-                  Oper Up
+                  <Trans>Oper Up</Trans>
                 </button>
               </div>
             </div>
@@ -387,7 +397,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               htmlFor="registerAccount"
               className="text-discord-text-muted text-sm"
             >
-              Register for an account
+              <Trans>Register for an account</Trans>
             </label>
           </div>
 
@@ -395,25 +405,25 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             <>
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Account Email
+                  <Trans>Account Email</Trans>
                 </label>
                 <TextInput
                   type="email"
                   value={registerEmail}
                   onChange={(e) => setRegisterEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  placeholder={t`your@email.com`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Account Password
+                  <Trans>Account Password</Trans>
                 </label>
                 <TextInput
                   type="password"
                   value={registerPassword}
                   onChange={(e) => setRegisterPassword(e.target.value)}
-                  placeholder="Choose a secure password"
+                  placeholder={t`Choose a secure password`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -430,14 +440,18 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               onClick={onClose}
               className="mr-3 px-4 py-2 text-discord-text-normal hover:underline"
             >
-              Cancel
+              <Trans>Cancel</Trans>
             </button>
             <button
               type="submit"
               disabled={isConnecting}
               className={`px-4 py-2 bg-discord-primary text-white rounded font-medium ${isConnecting ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-80"}`}
             >
-              {isConnecting ? "Updating..." : "Update Server"}
+              {isConnecting ? (
+                <Trans>Updating...</Trans>
+              ) : (
+                <Trans>Update Server</Trans>
+              )}
             </button>
           </div>
         </form>

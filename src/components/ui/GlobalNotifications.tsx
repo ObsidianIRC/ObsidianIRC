@@ -1,9 +1,11 @@
+import { useLingui } from "@lingui/macro";
 import type React from "react";
 import { useEffect } from "react";
 import { FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
 import useStore from "../../store";
 
 export const GlobalNotifications: React.FC = () => {
+  const { t } = useLingui();
   const { globalNotifications, removeGlobalNotification } = useStore();
 
   // Auto-remove notifications after 10 seconds
@@ -96,7 +98,7 @@ export const GlobalNotifications: React.FC = () => {
                   <button
                     onClick={() => removeGlobalNotification(notification.id)}
                     className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
-                    aria-label="Dismiss notification"
+                    aria-label={t`Dismiss notification`}
                   >
                     ×
                   </button>

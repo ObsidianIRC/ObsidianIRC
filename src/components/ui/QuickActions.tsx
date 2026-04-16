@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -25,7 +26,7 @@ import type {
 import {
   getUIActionBadge,
   getUIActionIcon,
-  UI_ACTIONS,
+  getUIActions,
 } from "./QuickActions/uiActionConfig";
 import { TextInput } from "./TextInput";
 
@@ -203,7 +204,7 @@ const QuickActions: React.FC = () => {
       currentUser,
     );
 
-    UI_ACTIONS.forEach((actionConfig) => {
+    getUIActions().forEach((actionConfig) => {
       if (!actionConfig.availability(actionContext)) {
         return;
       }
@@ -646,7 +647,7 @@ const QuickActions: React.FC = () => {
           <FaSearch className="text-discord-text-muted mr-3" />
           <TextInput
             ref={inputRef}
-            placeholder="Search settings, channels, servers..."
+            placeholder={t`Search settings, channels, servers...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-transparent text-white placeholder-discord-text-muted outline-none"

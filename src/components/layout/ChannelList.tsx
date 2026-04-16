@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -284,14 +285,14 @@ export const ChannelList: React.FC<{
           <FaCheckCircle
             className="inline ml-0.5 text-green-500"
             style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
-            title="Verified account"
+            title={t`Verified account`}
           />
         )}
         {isBot && (
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="Bot"
+            title={t`Bot`}
           >
             🤖
           </span>
@@ -300,7 +301,7 @@ export const ChannelList: React.FC<{
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="IRC Operator"
+            title={t`IRC Operator`}
           >
             🔑
           </span>
@@ -525,7 +526,7 @@ export const ChannelList: React.FC<{
                             ? [] // No context menu on mobile - trash icon handles deletion
                             : [
                                 {
-                                  label: "Delete Channel",
+                                  label: t`Delete Channel`,
                                   icon: <FaTrash size={14} />,
                                   onClick: () => {
                                     if (selectedServerId) {
@@ -763,7 +764,7 @@ export const ChannelList: React.FC<{
                             {/* Trash Button */}
                             {selectedChannelId === channel.id && (
                               <button
-                                title="Leave channel"
+                                title={t`Leave channel`}
                                 className={`text-discord-red hover:text-white ${
                                   isNarrowView
                                     ? "block" // Always visible on mobile
@@ -859,7 +860,7 @@ export const ChannelList: React.FC<{
                                   : "",
                               },
                               {
-                                label: "Delete Private Chat",
+                                label: t`Delete Private Chat`,
                                 icon: <FaTrash size={14} />,
                                 onClick: () => {
                                   if (selectedServerId) {
@@ -1049,9 +1050,9 @@ export const ChannelList: React.FC<{
                               title={
                                 privateChat.isOnline
                                   ? privateChat.isAway
-                                    ? "Away"
-                                    : "Online"
-                                  : "Offline"
+                                    ? t`Away`
+                                    : t`Online`
+                                  : t`Offline`
                               }
                             />
                           </div>
@@ -1285,7 +1286,7 @@ export const ChannelList: React.FC<{
                                     e.stopPropagation();
                                     e.preventDefault();
                                   }}
-                                  title="Close"
+                                  title={t`Close`}
                                 >
                                   <FaTrash />
                                 </button>
@@ -1382,7 +1383,7 @@ export const ChannelList: React.FC<{
                 {isIrcOp && (
                   <span
                     className="bg-blue-600 text-white px-1 py-0.5 rounded text-xs font-bold flex-shrink-0"
-                    title="You are an IRC Operator"
+                    title={t`You are an IRC Operator`}
                   >
                     🔑
                   </span>
@@ -1390,10 +1391,10 @@ export const ChannelList: React.FC<{
               </div>
               <div className="text-xs text-discord-channels-default truncate">
                 {userStatus === "online"
-                  ? "Online"
+                  ? t`Online`
                   : userStatus === "away"
-                    ? selectedServer?.awayMessage || "Away"
-                    : "Offline"}
+                    ? selectedServer?.awayMessage || t`Away`
+                    : t`Offline`}
               </div>
             </div>
           </div>
