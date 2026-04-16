@@ -71,8 +71,9 @@ const ServerIcon: React.FC<ServerIconProps> = ({
       <div
         className={`
           w-12 h-12 rounded-lg flex items-center justify-center
-          transition-all duration-200 cursor-pointer group relative
-          ${isSelected ? "bg-discord-primary" : "bg-discord-dark-400 hover:bg-discord-primary"}
+          transition-all duration-300 cursor-pointer group relative
+          hover:scale-110 active:scale-95 shadow-lg
+          ${isSelected ? "bg-discord-primary shadow-discord-primary/20" : "glass hover:bg-discord-primary"}
           ${isShimmering ? "shimmer" : ""}
           ${isTouchDevice ? "no-touch-action no-select" : ""}
         `}
@@ -209,8 +210,9 @@ export const ServerList: React.FC = () => {
       <div
         className={`
           mb-2 w-12 h-12 rounded-lg flex items-center justify-center
-          transition-all duration-200 group relative
-          ${selectedServerId === null ? "bg-discord-primary " : "bg-discord-dark-400 hover:bg-discord-primary"}
+          transition-all duration-300 group relative
+          hover:scale-110 active:scale-95 shadow-lg
+          ${selectedServerId === null ? "bg-discord-primary shadow-discord-primary/20" : "glass hover:bg-discord-primary"}
         `}
         onClick={() => selectServer(null, { clearSelection: true })}
       >
@@ -237,7 +239,7 @@ export const ServerList: React.FC = () => {
       {/* Add Server Button */}
       <div className="relative mb-2">
         <div
-          className="w-12 h-12 bg-discord-dark-100 hover:bg-discord-primary/80 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer group hover:rounded-xl"
+        className="w-12 h-12 glass hover:bg-discord-primary/80 rounded-lg flex items-center justify-center transition-all duration-300 cursor-pointer group hover:rounded-xl hover:scale-110 active:scale-95 shadow-lg"
           onClick={() => toggleAddServerModal(true)}
           data-testid="server-list-add-button"
         >

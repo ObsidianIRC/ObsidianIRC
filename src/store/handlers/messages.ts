@@ -275,10 +275,9 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
           // Add processed message ID if present
           if (mtags?.msgid) {
-            newState.processedMessageIds = new Set([
-              ...state.processedMessageIds,
-              mtags.msgid,
-            ]);
+            const newMap = new Map(state.processedMessageIds);
+            newMap.set(mtags.msgid, Date.now());
+            newState.processedMessageIds = newMap;
           }
 
           return newState;
@@ -415,12 +414,13 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
               ? [mtags.msgid]
               : [];
         if (idsToTrack.length > 0) {
-          store.setState((state) => ({
-            processedMessageIds: new Set([
-              ...state.processedMessageIds,
-              ...idsToTrack,
-            ]),
-          }));
+          store.setState((state) => {
+            const newMap = new Map(state.processedMessageIds);
+            for (const id of idsToTrack) {
+              newMap.set(id, Date.now());
+            }
+            return { processedMessageIds: newMap };
+          });
         }
 
         store.getState().addMessage(newMessage);
@@ -492,12 +492,13 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                   ? [mtags.msgid]
                   : [];
             if (idsToTrack.length > 0) {
-              store.setState((state) => ({
-                processedMessageIds: new Set([
-                  ...state.processedMessageIds,
-                  ...idsToTrack,
-                ]),
-              }));
+              store.setState((state) => {
+                const newMap = new Map(state.processedMessageIds);
+                for (const id of idsToTrack) {
+                  newMap.set(id, Date.now());
+                }
+                return { processedMessageIds: newMap };
+              });
             }
             store.getState().addMessage(newMessage);
           }
@@ -560,12 +561,13 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
               ? [mtags.msgid]
               : [];
         if (idsToTrack.length > 0) {
-          store.setState((state) => ({
-            processedMessageIds: new Set([
-              ...state.processedMessageIds,
-              ...idsToTrack,
-            ]),
-          }));
+          store.setState((state) => {
+            const newMap = new Map(state.processedMessageIds);
+            for (const id of idsToTrack) {
+              newMap.set(id, Date.now());
+            }
+            return { processedMessageIds: newMap };
+          });
         }
 
         store.getState().addMessage(newMessage);
@@ -701,12 +703,11 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
           // Mark this message ID as processed to prevent duplicates
           if (mtags?.msgid) {
-            store.setState((state) => ({
-              processedMessageIds: new Set([
-                ...state.processedMessageIds,
-                mtags.msgid,
-              ]),
-            }));
+            store.setState((state) => {
+              const newMap = new Map(state.processedMessageIds);
+              newMap.set(mtags.msgid, Date.now());
+              return { processedMessageIds: newMap };
+            });
           }
 
           store.getState().addMessage(newMessage);
@@ -841,12 +842,11 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
         // Mark this message ID as processed to prevent duplicates
         if (mtags?.msgid) {
-          store.setState((state) => ({
-            processedMessageIds: new Set([
-              ...state.processedMessageIds,
-              mtags.msgid,
-            ]),
-          }));
+          store.setState((state) => {
+            const newMap = new Map(state.processedMessageIds);
+            newMap.set(mtags.msgid, Date.now());
+            return { processedMessageIds: newMap };
+          });
         }
 
         // If the stored username casing differs from the server-sent nick, correct it now.
@@ -1077,12 +1077,11 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
     // Mark this message ID as processed to prevent duplicates
     if (mtags?.msgid) {
-      store.setState((state) => ({
-        processedMessageIds: new Set([
-          ...state.processedMessageIds,
-          mtags.msgid,
-        ]),
-      }));
+      store.setState((state) => {
+        const newMap = new Map(state.processedMessageIds);
+        newMap.set(mtags.msgid, Date.now());
+        return { processedMessageIds: newMap };
+      });
     }
 
     store.getState().addMessage(newMessage);
@@ -1237,12 +1236,11 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
       // Mark this message ID as processed to prevent duplicates
       if (mtags?.msgid) {
-        store.setState((state) => ({
-          processedMessageIds: new Set([
-            ...state.processedMessageIds,
-            mtags.msgid,
-          ]),
-        }));
+        store.setState((state) => {
+          const newMap = new Map(state.processedMessageIds);
+          newMap.set(mtags.msgid, Date.now());
+          return { processedMessageIds: newMap };
+        });
       }
 
       store.getState().addMessage(newMessage);

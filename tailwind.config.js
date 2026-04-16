@@ -90,7 +90,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["Roboto Mono", "monospace"],
+        sans: ["Inter", "system-ui", "sans-serif"],
         mono: ["Roboto Mono", "monospace"],
       },
       animation: {
