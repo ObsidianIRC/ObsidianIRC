@@ -10,6 +10,7 @@
     "notification:default",
     "opener:default",
     "os:default",
-    "deep-link:default"
+    "deep-link:default",
+    "autostart:default"
   ]
 }

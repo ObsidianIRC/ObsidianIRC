@@ -450,6 +450,7 @@ export interface AppState {
   selectedServerId: string | null;
   connectionError: string | null;
   messages: Record<string, Message[]>;
+  globalUsers: Record<string, User>; // serverId-username -> User (Normalized identity store)
   typingUsers: Record<string, User[]>;
   typingTimers: Record<string, Record<string, NodeJS.Timeout>>;
   globalNotifications: {
@@ -527,7 +528,8 @@ export interface AppState {
   // Channel order persistence
   channelOrder: ChannelOrderMap; // serverId -> ordered array of channel names
   // Message deduplication tracking
-  processedMessageIds: Set<string>; // Set of msgid values that have already been processed
+  processedMessageIds: Map<string, number>; // msgid -> timestamp of processing
+  processedMessageCleanupTimer?: NodeJS.Timeout;
   // Auto-connect prevention
   hasConnectedToSavedServers: boolean;
   // UI state
@@ -631,7 +633,17 @@ export interface AppState {
   ) => void;
   setName: (serverId: string, realname: string) => void;
   changeNick: (serverId: string, newNick: string) => void;
+  changeGlobalNick: (
+    serverId: string,
+    oldNick: string,
+    newNick: string,
+  ) => void;
   addMessage: (message: Message) => void;
+  updateGlobalUser: (
+    serverId: string,
+    user: Partial<User> & { username: string },
+  ) => void;
+  pruneProcessedMessageIds: () => void;
   addGlobalNotification: (notification: {
     type: "fail" | "warn" | "note";
     command: string;
@@ -846,9 +858,10 @@ const useStore = create<AppState>((set, get) => ({
   whoisData: {},
   pendingRegistration: null,
   channelOrder: loadChannelOrder(),
-  processedMessageIds: new Set<string>(),
+  processedMessageIds: new Map<string, number>(),
   hasConnectedToSavedServers: false,
   selectedServerId: null,
+  globalUsers: {},
 
   // UI state
   ui: {
@@ -1464,51 +1477,166 @@ const useStore = create<AppState>((set, get) => ({
     ircClient.changeNick(serverId, newNick);
   },
 
+  changeGlobalNick: (serverId, oldNick, newNick) => {
+    set((state) => {
+      const oldKey = `${serverId}-${oldNick.toLowerCase()}`;
+      const newKey = `${serverId}-${newNick.toLowerCase()}`;
+      const user = state.globalUsers[oldKey];
+
+      if (!user) return {};
+
+      const { [oldKey]: _, ...remainingUsers } = state.globalUsers;
+      const updatedUser = { ...user, username: newNick };
+
+      // Propagate to channel lists
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          return {
+            ...s,
+            channels: s.channels.map((ch) => ({
+              ...ch,
+              users: ch.users.map((u) =>
+                u.username.toLowerCase() === oldNick.toLowerCase()
+                  ? { ...u, username: newNick }
+                  : u,
+              ),
+            })),
+          };
+        }
+        return s;
+      });
+
+      return {
+        globalUsers: { ...remainingUsers, [newKey]: updatedUser },
+        servers: updatedServers,
+      };
+    });
+  },
+
   addMessage: (message) => {
     set((state) => {
       const channelKey = `${message.serverId}-${message.channelId}`;
-      const currentMessages = state.messages[channelKey] || [];
+      const existing = state.messages[channelKey] || [];
 
-      // Check for duplicate messages (same id, or same content/timestamp/user)
-      const isDuplicate = currentMessages.some((existingMessage) => {
-        return (
-          existingMessage.id === message.id ||
-          (existingMessage.content === message.content &&
-            new Date(existingMessage.timestamp).getTime() ===
-              new Date(message.timestamp).getTime() &&
-            existingMessage.userId === message.userId)
-        );
-      });
-
-      if (isDuplicate) {
-        return state; // Don't add duplicate message
+      // Check for duplicates using the optimized Map-based tracking
+      if (message.msgid && state.processedMessageIds.has(message.msgid)) {
+        return state;
       }
 
-      // Add message and sort chronologically by timestamp
-      const updatedMessages = [...currentMessages, message].sort((a, b) => {
-        const timeA =
-          a.timestamp instanceof Date
-            ? a.timestamp.getTime()
-            : new Date(a.timestamp).getTime();
-        const timeB =
-          b.timestamp instanceof Date
-            ? b.timestamp.getTime()
-            : new Date(b.timestamp).getTime();
-        return timeA - timeB;
+      // Fallback for messages without msgid (basic content duplication check)
+      if (!message.msgid) {
+        const isDuplicate = existing.some((existingMessage) => {
+          return (
+            existingMessage.content === message.content &&
+            new Date(existingMessage.timestamp).getTime() ===
+              new Date(message.timestamp).getTime() &&
+            existingMessage.userId === message.userId
+          );
+        });
+        if (isDuplicate) return state;
+      }
+
+      const updated = [...existing, message].sort((a, b) => {
+        const tA = new Date(a.timestamp).getTime();
+        const tB = new Date(b.timestamp).getTime();
+        return tA - tB;
       });
 
-      // Cap per-channel history to prevent unbounded memory growth in long sessions.
-      const cappedMessages =
-        updatedMessages.length > MAX_MESSAGES_PER_CHANNEL
-          ? updatedMessages.slice(-MAX_MESSAGES_PER_CHANNEL)
-          : updatedMessages;
+      // Enforce global history limit
+      const pruned = updated.slice(-MAX_MESSAGES_PER_CHANNEL);
+
+      const nextMessages = { ...state.messages, [channelKey]: pruned };
+      const nextProcessed = new Map(state.processedMessageIds);
+
+      // Track this msgid with current timestamp for TTL pruning
+      if (message.msgid) {
+        nextProcessed.set(message.msgid, Date.now());
+      }
+      if (message.multilineMessageIds) {
+        for (const id of message.multilineMessageIds) {
+          nextProcessed.set(id, Date.now());
+        }
+      }
+
+      // Initialize pruning timer (runs once an hour)
+      if (!state.processedMessageCleanupTimer) {
+        const timer = setInterval(
+          () => {
+            get().pruneProcessedMessageIds();
+          },
+          60 * 60 * 1000,
+        ) as unknown as NodeJS.Timeout;
+        return {
+          messages: nextMessages,
+          processedMessageIds: nextProcessed,
+          processedMessageCleanupTimer: timer,
+        };
+      }
 
       return {
-        messages: {
-          ...state.messages,
-          [channelKey]: cappedMessages,
-        },
+        messages: nextMessages,
+        processedMessageIds: nextProcessed,
       };
+    });
+  },
+
+  updateGlobalUser: (serverId, user) => {
+    set((state) => {
+      const key = `${serverId}-${user.username.toLowerCase()}`;
+      const existing = state.globalUsers[key];
+      const updated = {
+        ...(existing || {
+          id: uuidv4(),
+          username: user.username,
+          isOnline: true,
+          metadata: {},
+        }),
+        ...user,
+      };
+
+      // Propagate changes to all views for immediate UI reactivity
+      const updatedServers = state.servers.map((s) => {
+        if (s.id === serverId) {
+          return {
+            ...s,
+            channels: s.channels.map((ch) => ({
+              ...ch,
+              users: ch.users.map((u) =>
+                u.username.toLowerCase() === user.username.toLowerCase()
+                  ? { ...u, ...user }
+                  : u,
+              ),
+            })),
+            privateChats: s.privateChats?.map((pc) =>
+              pc.username.toLowerCase() === user.username.toLowerCase()
+                ? { ...pc, ...user }
+                : pc,
+            ),
+          };
+        }
+        return s;
+      });
+
+      return {
+        globalUsers: { ...state.globalUsers, [key]: updated },
+        servers: updatedServers,
+      };
+    });
+  },
+
+  pruneProcessedMessageIds: () => {
+    set((state) => {
+      const now = Date.now();
+      const TTL = 24 * 60 * 60 * 1000; // 24 hours
+      const nextMap = new Map<string, number>();
+
+      for (const [id, ts] of state.processedMessageIds.entries()) {
+        if (now - ts < TTL) {
+          nextMap.set(id, ts);
+        }
+      }
+
+      return { processedMessageIds: nextMap };
     });
   },
 

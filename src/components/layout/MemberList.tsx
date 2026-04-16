@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
+import { Virtuoso } from "react-virtuoso";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
@@ -519,7 +520,7 @@ export const MemberList: React.FC = () => {
 
   const isMobileView = useMediaQuery();
   return (
-    <div className="px-1 py-3 h-full overflow-y-auto">
+    <div className="px-1 py-3 h-full flex flex-col overflow-hidden">
       {isMobileView && (
         <button
           onClick={() => toggleMemberList(false)}
@@ -531,16 +532,22 @@ export const MemberList: React.FC = () => {
       <h3 className="text-xs font-semibold text-discord-channels-default uppercase mb-2 px-2">
         Members — {sortedUsers?.length || 0}
       </h3>
-      {sortedUsers?.map((user) => (
-        <UserItem
-          key={user.id}
-          user={user}
-          serverId={selectedServerId || ""}
-          channelId={selectedChannelId || ""}
-          currentUser={currentUser}
-          onContextMenu={handleUsernameClick}
+      <div className="flex-1 min-h-0">
+        <Virtuoso
+          style={{ height: "100%" }}
+          data={sortedUsers || []}
+          itemContent={(index, user) => (
+            <UserItem
+              key={user.id}
+              user={user}
+              serverId={selectedServerId || ""}
+              channelId={selectedChannelId || ""}
+              currentUser={currentUser}
+              onContextMenu={handleUsernameClick}
+            />
+          )}
         />
-      ))}
+      </div>
 
       <UserContextMenu
         isOpen={userContextMenu.isOpen}

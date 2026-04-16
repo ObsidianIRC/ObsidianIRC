@@ -362,10 +362,14 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
               [serverId]: remainingBatches,
             },
             messages: { ...state.messages, [key]: finalMessages },
-            processedMessageIds:
-              newMsgIds.length > 0
-                ? new Set([...state.processedMessageIds, ...newMsgIds])
-                : state.processedMessageIds,
+            processedMessageIds: (() => {
+              if (newMsgIds.length === 0) return state.processedMessageIds;
+              const newMap = new Map(state.processedMessageIds);
+              for (const id of newMsgIds) {
+                newMap.set(id, Date.now());
+              }
+              return newMap;
+            })(),
             servers: state.servers.map((s) => {
               if (s.id !== serverId) return s;
               return {
@@ -464,10 +468,14 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
               [serverId]: remainingBatches,
             },
             messages: { ...state.messages, [key]: finalMessages },
-            processedMessageIds:
-              newMsgIds.length > 0
-                ? new Set([...state.processedMessageIds, ...newMsgIds])
-                : state.processedMessageIds,
+            processedMessageIds: (() => {
+              if (newMsgIds.length === 0) return state.processedMessageIds;
+              const newMap = new Map(state.processedMessageIds);
+              for (const id of newMsgIds) {
+                newMap.set(id, Date.now());
+              }
+              return newMap;
+            })(),
           };
         }
 
