@@ -323,7 +323,7 @@ export const ChannelMessageList = forwardRef<
       serverId,
       filteredMessages.length,
       onClearSearch,
-      channel.name,
+      channel?.name,
       channelMessages[0],
       channel?.hasMoreHistory,
       channel,
