@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useState } from "react";
 import BaseModal from "../../lib/modal/BaseModal";
@@ -25,33 +26,34 @@ const ModerationModal: React.FC<ModerationModalProps> = ({
   username,
   action,
 }) => {
+  const { t } = useLingui();
   const [reason, setReason] = useState("");
 
   const getActionTitle = (action: ModerationAction): string => {
     switch (action) {
       case "warn":
-        return "Warn User";
+        return t`Warn User`;
       case "kick":
-        return "Kick User";
+        return t`Kick User`;
       case "ban-nick":
-        return "Ban User (by Nickname)";
+        return t`Ban User (by Nickname)`;
       case "ban-hostmask":
-        return "Ban User (by Hostmask)";
+        return t`Ban User (by Hostmask)`;
       default:
-        return "Moderate User";
+        return t`Moderate User`;
     }
   };
 
   const getActionDescription = (action: ModerationAction): string => {
     switch (action) {
       case "warn":
-        return `Send a warning message to ${username}`;
+        return t`Send a warning message to ${username}`;
       case "kick":
-        return `Remove ${username} from the channel`;
+        return t`Remove ${username} from the channel`;
       case "ban-nick":
-        return `Ban ${username} by nickname (prevents them from rejoining with the same nick)`;
+        return t`Ban ${username} by nickname (prevents them from rejoining with the same nick)`;
       case "ban-hostmask":
-        return `Ban ${username} by hostmask (prevents them from rejoining from the same IP/host)`;
+        return t`Ban ${username} by hostmask (prevents them from rejoining from the same IP/host)`;
       default:
         return "";
     }
@@ -80,11 +82,11 @@ const ModerationModal: React.FC<ModerationModalProps> = ({
       <form onSubmit={handleSubmit}>
         <ModalBody>
           <div className="space-y-4">
-            <Input type="text" label="Username" value={username} disabled />
+            <Input type="text" label={t`Username`} value={username} disabled />
 
             <Input
               type="text"
-              label="Action"
+              label={t`Action`}
               value={getActionDescription(action)}
               disabled
               className="text-sm"
@@ -92,11 +94,11 @@ const ModerationModal: React.FC<ModerationModalProps> = ({
 
             <Input
               type="text"
-              label="Reason"
+              label={t`Reason`}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Enter reason (optional)"
-              helperText="Will default to 'no reason' if left empty"
+              placeholder={t`Enter reason (optional)`}
+              helperText={t`Will default to 'no reason' if left empty`}
               autoFocus
             />
           </div>
@@ -104,7 +106,7 @@ const ModerationModal: React.FC<ModerationModalProps> = ({
 
         <ModalFooter>
           <Button type="button" variant="secondary" onClick={handleClose}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button
             type="submit"

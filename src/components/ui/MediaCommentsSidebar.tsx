@@ -1,4 +1,6 @@
 import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import {
   useCallback,
@@ -325,13 +327,13 @@ export function MediaCommentsSidebar({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Back to image"
+              aria-label={t`Back to image`}
               className="p-1.5 rounded-full hover:bg-white/10 text-discord-text-muted hover:text-discord-text-normal transition-colors"
             >
               <ArrowLeftIcon className="w-4 h-4" />
             </button>
             <span className="flex-1 text-sm font-semibold text-discord-text-normal truncate">
-              Comments
+              <Trans>Comments</Trans>
               {commentCount > 0 && (
                 <span className="ml-1.5 text-discord-text-muted font-normal">
                   ({commentCount})
@@ -346,7 +348,7 @@ export function MediaCommentsSidebar({
             <button
               type="button"
               onClick={onCloseAll}
-              aria-label="Close viewer"
+              aria-label={t`Close viewer`}
               className="p-1.5 rounded-full hover:bg-white/10 text-discord-text-muted hover:text-discord-text-normal transition-colors"
             >
               <XMarkIcon className="w-4 h-4" />
@@ -355,7 +357,7 @@ export function MediaCommentsSidebar({
         ) : (
           <>
             <span className="flex-1 text-sm font-semibold text-discord-text-normal truncate">
-              Comments
+              <Trans>Comments</Trans>
               {commentCount > 0 && (
                 <span className="ml-1.5 text-discord-text-muted font-normal">
                   ({commentCount})
@@ -370,7 +372,7 @@ export function MediaCommentsSidebar({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close comments"
+              aria-label={t`Close comments`}
               className="p-1.5 rounded-full hover:bg-white/10 text-discord-text-muted hover:text-discord-text-normal transition-colors"
             >
               <XMarkIcon className="w-4 h-4" />
@@ -428,14 +430,14 @@ export function MediaCommentsSidebar({
         <div className="min-w-0 flex-1">
           <p className="text-xs text-discord-text-muted leading-tight">
             {isAlbum
-              ? "Album"
+              ? t`Album`
               : (() => {
-                  const t = detectMediaType(currentImageUrl);
-                  if (t === "video") return "Video";
-                  if (t === "audio") return "Audio";
-                  if (t === "pdf") return "PDF";
-                  if (t === "embed") return "Embed";
-                  return "Image";
+                  const mt = detectMediaType(currentImageUrl);
+                  if (mt === "video") return t`Video`;
+                  if (mt === "audio") return t`Audio`;
+                  if (mt === "pdf") return t`PDF`;
+                  if (mt === "embed") return t`Embed`;
+                  return t`Image`;
                 })()}{" "}
             · @{liveSourceMessage.userId}
           </p>
@@ -475,7 +477,7 @@ export function MediaCommentsSidebar({
       >
         {comments.length === 0 ? (
           <p className="text-center text-xs text-discord-text-muted px-4 py-6">
-            No comments yet. Be the first!
+            <Trans>No comments yet. Be the first!</Trans>
           </p>
         ) : (
           comments.map((comment) => (
@@ -497,7 +499,7 @@ export function MediaCommentsSidebar({
               onRedactMessage={(msg) => {
                 if (!msg.msgid || !channelName) return;
                 if (
-                  window.confirm("Delete this message? This cannot be undone.")
+                  window.confirm(t`Delete this message? This cannot be undone.`)
                 ) {
                   redactMessage(serverId, channelName, msg.msgid);
                 }
@@ -529,7 +531,7 @@ export function MediaCommentsSidebar({
           <button
             type="button"
             className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
-            aria-label="Attachment options"
+            aria-label={t`Attachment options`}
           >
             <FaPlus />
           </button>

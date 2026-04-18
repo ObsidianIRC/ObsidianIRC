@@ -1,4 +1,6 @@
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type React from "react";
 import { useState } from "react";
 import type { SettingComponentProps } from "../../../lib/settings/types";
@@ -41,7 +43,7 @@ export const CustomMentionsField: React.FC<SettingComponentProps> = ({
           onChange={(e) => setNewMention(e.target.value)}
           onKeyPress={handleKeyPress}
           disabled={disabled}
-          placeholder="Add a word or phrase..."
+          placeholder={t`Add a word or phrase...`}
           className="flex-1 rounded border border-discord-button-secondary-default bg-discord-input-bg px-3 py-2 text-discord-text-normal placeholder-discord-text-muted focus:border-discord-text-link focus:outline-none disabled:opacity-50"
         />
         <button
@@ -50,7 +52,7 @@ export const CustomMentionsField: React.FC<SettingComponentProps> = ({
           disabled={disabled || !newMention.trim()}
           className="rounded bg-discord-button-success-default px-4 py-2 text-white hover:bg-discord-button-success-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add
+          <Trans>Add</Trans>
         </button>
       </div>
       {mentions.length > 0 && (

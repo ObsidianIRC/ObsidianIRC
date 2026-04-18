@@ -1,7 +1,5 @@
-/**
- * Modal for previewing and uploading images
- */
-
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import BaseModal from "../../lib/modal/BaseModal";
 import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 
@@ -29,14 +27,14 @@ export function ImagePreviewModal({
     <BaseModal
       isOpen={isOpen}
       onClose={onCancel}
-      title="Upload Image"
+      title={t`Upload Image`}
       maxWidth="md"
     >
       <ModalBody>
         <div className="flex justify-center mb-4">
           <img
             src={previewUrl}
-            alt="Preview"
+            alt={t`Preview`}
             className="max-w-full max-h-96 rounded-lg"
           />
         </div>
@@ -47,10 +45,10 @@ export function ImagePreviewModal({
 
       <ModalFooter>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button variant="primary" onClick={onUpload}>
-          Upload
+          <Trans>Upload</Trans>
         </Button>
       </ModalFooter>
     </BaseModal>

@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import type React from "react";
 import { createPortal } from "react-dom";
@@ -48,7 +49,7 @@ const ReactionModal: React.FC<ReactionModalProps> = ({
             onClick={onClose}
             className="text-sm text-discord-text-muted hover:text-white w-full text-center py-1"
           >
-            Close
+            <Trans>Close</Trans>
           </button>
         </div>
       </div>

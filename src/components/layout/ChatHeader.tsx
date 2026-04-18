@@ -1,4 +1,5 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -73,6 +74,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenChannelSettings,
   onOpenInviteUser,
 }) => {
+  const { t } = useLingui();
   const {
     toggleChannelListModal,
     toggleMemberList,
@@ -208,14 +210,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <FaCheckCircle
             className="inline ml-0.5 text-green-500"
             style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
-            title="Verified account"
+            title={t`Verified account`}
           />
         )}
         {isBot && (
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="Bot"
+            title={t`Bot`}
           >
             🤖
           </span>
@@ -224,7 +226,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="IRC Operator"
+            title={t`IRC Operator`}
           >
             🔑
           </span>
@@ -275,14 +277,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     !selectedPrivateChat &&
     selectedChannelId !== "server-notices"
   ) {
-    const title = selectedServerId ? "Select a channel" : "Home";
+    const title = selectedServerId ? t`Select a channel` : t`Home`;
     return (
       <div className="px-4 py-2.5 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
         {(isNarrowView || !isChanListVisible) && (
           <button
             onClick={onToggleChanList}
             className="p-2 md:p-0 text-discord-channels-default hover:text-white flex-shrink-0"
-            aria-label="Expand channel list"
+            aria-label={t`Expand channel list`}
           >
             {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
           </button>
@@ -295,7 +297,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   // Define overflow menu items based on context
   const overflowMenuItems: HeaderOverflowMenuItem[] = [
     {
-      label: "Media",
+      label: t`Media`,
       icon: <FaFilm />,
       onClick: () => {
         if (selectedServerId && selectedChannelId) {
@@ -305,19 +307,19 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       show: hasMedia,
     },
     {
-      label: "Channel Settings",
+      label: t`Channel Settings`,
       icon: <FaPenAlt />,
       onClick: onOpenChannelSettings,
       show: !!selectedChannel,
     },
     {
-      label: "Invite User",
+      label: t`Invite User`,
       icon: <FaUserPlus />,
       onClick: onOpenInviteUser,
       show: !!selectedChannel,
     },
     {
-      label: "Server Channels",
+      label: t`Server Channels`,
       icon: <FaList />,
       onClick: () => toggleChannelListModal(true),
       show: true,
@@ -336,7 +338,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           )}
           <TextInput
             autoFocus
-            placeholder="Search messages…"
+            placeholder={t`Search messages…`}
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
             onKeyDown={(e) => {
@@ -376,7 +378,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <button
               onClick={onToggleChanList}
               className="p-2 md:p-0 text-discord-channels-default hover:text-white flex-shrink-0"
-              aria-label="Expand channel list"
+              aria-label={t`Expand channel list`}
             >
               {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
@@ -476,7 +478,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 }}
                 className="text-discord-channels-default/40 text-xs hover:text-discord-channels-default truncate text-left italic"
               >
-                Click to set topic
+                <Trans>Click to set topic</Trans>
               </button>
             ) : null}
           </div>
@@ -490,13 +492,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 onClick={onToggleNotificationVolume}
                 aria-label={
                   globalSettings.notificationVolume > 0
-                    ? "Mute notifications"
-                    : "Enable notifications"
+                    ? t`Mute notifications`
+                    : t`Enable notifications`
                 }
                 title={
                   globalSettings.notificationVolume > 0
-                    ? "Mute notifications"
-                    : "Enable notifications"
+                    ? t`Mute notifications`
+                    : t`Enable notifications`
                 }
               >
                 {globalSettings.notificationVolume > 0 ? (
@@ -527,8 +529,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   }}
                   aria-label={
                     isMemberListVisible
-                      ? "Collapse member list"
-                      : "Expand member list"
+                      ? t`Collapse member list`
+                      : t`Expand member list`
                   }
                   data-testid="toggle-member-list"
                 >
@@ -548,21 +550,21 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <button
                 className="hidden md:block hover:text-discord-text-normal"
                 onClick={onOpenChannelSettings}
-                title="Channel Settings"
+                title={t`Channel Settings`}
               >
                 <FaPenAlt />
               </button>
               <button
                 className="hidden md:block hover:text-discord-text-normal"
                 onClick={onOpenInviteUser}
-                title="Invite User"
+                title={t`Invite User`}
               >
                 <FaUserPlus />
               </button>
               <button
                 className="hidden md:block hover:text-discord-text-normal"
                 onClick={() => toggleChannelListModal(true)}
-                title="Server Channels"
+                title={t`Server Channels`}
               >
                 <FaList />
               </button>
@@ -575,7 +577,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       openMediaExplorer(selectedServerId, selectedChannelId);
                     }
                   }}
-                  title="Media"
+                  title={t`Media`}
                 >
                   <FaFilm />
                 </button>
@@ -584,15 +586,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                aria-label="Toggle search"
-                title="Search"
+                aria-label={t`Toggle search`}
+                title={t`Search`}
               >
                 <FaSearch />
               </button>
 
               <div className="hidden md:block relative">
                 <TextInput
-                  placeholder="Search"
+                  placeholder={t`Search`}
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
                   className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
@@ -601,7 +603,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <button
                     className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
                     onClick={() => onSearchQueryChange("")}
-                    title="Clear search"
+                    title={t`Clear search`}
                   >
                     <FaTimes />
                   </button>
@@ -614,9 +616,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 ref={overflowButtonRef}
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsOverflowMenuOpen(!isOverflowMenuOpen)}
-                aria-label="More actions"
+                aria-label={t`More actions`}
                 aria-expanded={isOverflowMenuOpen}
-                title="More"
+                title={t`More`}
               >
                 <FaEllipsisV />
               </button>
@@ -633,7 +635,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <button
                 onClick={onToggleChanList}
                 className="p-2 md:p-0 text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
-                aria-label="Expand channel list"
+                aria-label={t`Expand channel list`}
               >
                 {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
               </button>
@@ -677,9 +679,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 title={
                   selectedPrivateChat.isOnline
                     ? selectedPrivateChat.isAway
-                      ? "Away"
-                      : "Online"
-                    : "Offline"
+                      ? t`Away`
+                      : t`Online`
+                    : t`Offline`
                 }
               />
             </div>
@@ -749,7 +751,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     pinPrivateChat(selectedServerId, selectedPrivateChat.id);
                   }
                 }}
-                title={selectedPrivateChat.isPinned ? "Unpin" : "Pin"}
+                title={selectedPrivateChat.isPinned ? t`Unpin` : t`Pin`}
               >
                 <FaThumbtack
                   className={
@@ -775,7 +777,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     toggleUserProfileModal(true);
                   }
                 }}
-                title="User Profile"
+                title={t`User Profile`}
               >
                 <FaInfoCircle />
               </button>
@@ -789,13 +791,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 onClick={onToggleNotificationVolume}
                 aria-label={
                   globalSettings.notificationVolume > 0
-                    ? "Mute notifications"
-                    : "Enable notifications"
+                    ? t`Mute notifications`
+                    : t`Enable notifications`
                 }
                 title={
                   globalSettings.notificationVolume > 0
-                    ? "Mute notifications"
-                    : "Enable notifications"
+                    ? t`Mute notifications`
+                    : t`Enable notifications`
                 }
               >
                 {globalSettings.notificationVolume > 0 ? (
@@ -814,7 +816,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       openMediaExplorer(selectedServerId, chatId);
                     }
                   }}
-                  title="Media"
+                  title={t`Media`}
                 >
                   <FaFilm />
                 </button>
@@ -822,15 +824,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                aria-label="Toggle search"
-                title="Search"
+                aria-label={t`Toggle search`}
+                title={t`Search`}
               >
                 <FaSearch />
               </button>
 
               <div className="hidden md:block relative">
                 <TextInput
-                  placeholder="Search"
+                  placeholder={t`Search`}
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
                   className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
@@ -839,7 +841,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <button
                     className="absolute right-6 top-1.5 text-red-400 hover:text-red-300 text-xs"
                     onClick={() => onSearchQueryChange("")}
-                    title="Clear search"
+                    title={t`Clear search`}
                   >
                     <FaTimes />
                   </button>
@@ -859,13 +861,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <button
                 onClick={onToggleChanList}
                 className="p-2 md:p-0 text-discord-channels-default hover:text-white mr-4 flex-shrink-0"
-                aria-label="Expand channel list"
+                aria-label={t`Expand channel list`}
               >
                 {isNarrowView ? <FaChevronLeft /> : <FaChevronRight />}
               </button>
             )}
             <FaList className="text-discord-text-muted mr-2" />
-            <h2 className="font-bold text-white mr-4">Server Notices</h2>
+            <h2 className="font-bold text-white mr-4">
+              <Trans>Server Notices</Trans>
+            </h2>
           </div>
         </div>
       )}

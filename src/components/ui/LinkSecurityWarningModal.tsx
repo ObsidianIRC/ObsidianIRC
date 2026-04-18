@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -22,6 +23,7 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
   serverId,
   timestamp,
 }) => {
+  const { t } = useLingui();
   const [timerExpired, setTimerExpired] = useState(false);
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
   const [hasScrollbar, setHasScrollbar] = useState(false);
@@ -201,7 +203,7 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
           <div className="flex items-center gap-3">
             <FaExclamationTriangle className="text-yellow-500 text-xl flex-shrink-0" />
             <h2 className="text-lg font-semibold text-white">
-              Security Warning
+              <Trans>Security Warning</Trans>
             </h2>
           </div>
         </div>
@@ -213,8 +215,10 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
             className="absolute inset-0 overflow-y-auto p-4 space-y-4"
           >
             <p className="text-discord-text">
-              The connection to <strong>{serverName}</strong> has the following
-              security concerns:
+              <Trans>
+                The connection to <strong>{serverName}</strong> has the
+                following security concerns:
+              </Trans>
             </p>
 
             {/* Security Issues List */}
@@ -225,40 +229,55 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
                     <FaShieldAlt className="text-orange-500 text-sm mt-0.5 flex-shrink-0" />
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-orange-200">
-                        Low Link Security (Level {securityLevel})
+                        <Trans>Low Link Security (Level {securityLevel})</Trans>
                       </p>
                       <p className="text-xs text-orange-100">
-                        The IRC server has reported that its server-to-server
-                        links have a low security level. This means that when
-                        your messages are relayed between IRC servers in the
-                        network, they may not be properly encrypted or the
-                        SSL/TLS certificates may not be validated correctly.
+                        <Trans>
+                          The IRC server has reported that its server-to-server
+                          links have a low security level. This means that when
+                          your messages are relayed between IRC servers in the
+                          network, they may not be properly encrypted or the
+                          SSL/TLS certificates may not be validated correctly.
+                        </Trans>
                       </p>
                       <p className="text-xs text-orange-100">
-                        <strong>What this means:</strong>
+                        <strong>
+                          <Trans>What this means:</Trans>
+                        </strong>
                       </p>
                       <ul className="text-xs text-orange-100 list-disc list-inside pl-2 space-y-0.5">
                         <li>
-                          Server-to-server communication may use unencrypted
-                          connections
+                          <Trans>
+                            Server-to-server communication may use unencrypted
+                            connections
+                          </Trans>
                         </li>
                         <li>
-                          Server operators on the network could potentially read
-                          your messages
+                          <Trans>
+                            Server operators on the network could potentially
+                            read your messages
+                          </Trans>
                         </li>
                         <li>
-                          Man-in-the-middle attacks on server links are possible
+                          <Trans>
+                            Man-in-the-middle attacks on server links are
+                            possible
+                          </Trans>
                         </li>
                         <li>
-                          Your messages could be intercepted when relayed
-                          between servers
+                          <Trans>
+                            Your messages could be intercepted when relayed
+                            between servers
+                          </Trans>
                         </li>
                       </ul>
                       <p className="text-xs text-orange-100">
-                        <strong>Risk:</strong> Sensitive information (messages,
-                        private conversations, authentication details) could be
-                        exposed to network administrators or attackers
-                        positioned between IRC servers.
+                        <Trans>
+                          <strong>Risk:</strong> Sensitive information
+                          (messages, private conversations, authentication
+                          details) could be exposed to network administrators or
+                          attackers positioned between IRC servers.
+                        </Trans>
                       </p>
                     </div>
                   </div>
@@ -268,8 +287,10 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
               {!isLinkSecurityWarning && (
                 <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-30 rounded p-3">
                   <p className="text-sm text-yellow-200">
-                    <strong>⚠️ Security Risk!</strong> This connection may be
-                    vulnerable to interception or man-in-the-middle attacks.
+                    <Trans>
+                      <strong>⚠️ Security Risk!</strong> This connection may be
+                      vulnerable to interception or man-in-the-middle attacks.
+                    </Trans>
                   </p>
                 </div>
               )}
@@ -279,9 +300,11 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
             {isLinkSecurityWarning && (
               <div className="bg-blue-500 bg-opacity-10 border border-blue-500 border-opacity-30 rounded p-3">
                 <p className="text-xs text-blue-200">
-                  <strong>💡 Recommendation:</strong> Only proceed if you trust
-                  this server and understand the risks. Avoid sharing sensitive
-                  information or passwords over this connection.
+                  <Trans>
+                    <strong>💡 Recommendation:</strong> Only proceed if you
+                    trust this server and understand the risks. Avoid sharing
+                    sensitive information or passwords over this connection.
+                  </Trans>
                 </p>
               </div>
             )}
@@ -299,7 +322,9 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
                     className="rounded border-discord-dark-200"
                   />
                   <span>
-                    Don't warn me about low link security for this server
+                    <Trans>
+                      Don't warn me about low link security for this server
+                    </Trans>
                   </span>
                 </label>
               )}
@@ -319,12 +344,16 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
                 {!timerExpired ? (
                   <>
                     <FaSpinner className="text-sm animate-spin" />
-                    <span className="font-semibold">Please wait...</span>
+                    <span className="font-semibold">
+                      <Trans>Please wait...</Trans>
+                    </span>
                   </>
                 ) : (
                   <>
                     <FaShieldAlt className="text-sm" />
-                    <span className="font-semibold">Continue Anyway</span>
+                    <span className="font-semibold">
+                      <Trans>Continue Anyway</Trans>
+                    </span>
                   </>
                 )}
               </button>
@@ -336,7 +365,7 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
             <button
               onClick={handleScrollToBottom}
               className="absolute bottom-4 right-4 bg-discord-primary hover:bg-opacity-80 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110 z-10"
-              aria-label="Scroll to bottom"
+              aria-label={t`Scroll to bottom`}
             >
               <FaArrowDown className="text-lg" />
             </button>
@@ -349,7 +378,7 @@ const SingleWarningModal: React.FC<WarningModalProps> = ({
             onClick={handleCancel}
             className="w-full px-4 py-2 rounded transition-colors bg-discord-dark-300 hover:bg-discord-dark-200 text-white cursor-pointer"
           >
-            Cancel Connection
+            <Trans>Cancel Connection</Trans>
           </button>
         </div>
       </div>

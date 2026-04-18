@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa";
 import { isTauri } from "../../lib/platformUtils";
@@ -13,6 +14,7 @@ interface DiscoverServer {
 }
 
 const DiscoverGrid = () => {
+  const { t } = useLingui();
   const { toggleAddServerModal, connect, isConnecting, connectionError } =
     useStore();
   const [query, setQuery] = useState("");
@@ -87,7 +89,7 @@ const DiscoverGrid = () => {
     <div className="h-full flex flex-col overflow-hidden bg-discord-dark-200 text-white">
       <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4">
         <h1 className="rounded-lg text-2xl font-bold mb-2">
-          Welcome to {__DEFAULT_IRC_SERVER_NAME__}!
+          <Trans>Welcome to {__DEFAULT_IRC_SERVER_NAME__}!</Trans>
         </h1>
       </div>
     </div>
@@ -95,7 +97,7 @@ const DiscoverGrid = () => {
     <div className="h-full flex flex-col overflow-hidden bg-discord-dark-200 text-white">
       <div className="m-1 rounded z-10 bg-discord-dark-300 border-b border-discord-dark-500 p-4 flex-shrink-0">
         <h1 className="rounded-lg text-2xl font-bold mb-2">
-          Discover the world of IRC with ObsidianIRC
+          <Trans>Discover the world of IRC with ObsidianIRC</Trans>
         </h1>
 
         <div className="bg-discord-dark-100 rounded-lg flex items-center px-2 py-2">
@@ -109,7 +111,7 @@ const DiscoverGrid = () => {
             </a>
           </button>
           <TextInput
-            placeholder="Search servers..."
+            placeholder={t`Search servers...`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="bg-transparent border-none outline-none flex-grow text-discord-text-normal placeholder-discord-text-muted"
@@ -133,7 +135,9 @@ const DiscoverGrid = () => {
             ))}
           </div>
         ) : (
-          <p className="p-4 text-discord-text-muted">No servers found.</p>
+          <p className="p-4 text-discord-text-muted">
+            <Trans>No servers found.</Trans>
+          </p>
         )}
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
@@ -56,41 +57,35 @@ const getStatusPriority = (status?: string): number => {
   return maxPriority;
 };
 
-const getStatusTitle = (status?: string): string => {
+const getStatusChar = (status?: string): string => {
   if (!status) return "";
   let highestPriority = 0;
-  let title = "";
+  let topChar = "";
   for (const char of status) {
     let priority = 0;
-    let charTitle = "";
     switch (char) {
       case "~":
         priority = 6;
-        charTitle = "Channel Owner";
         break;
       case "&":
         priority = 5;
-        charTitle = "Channel Admin";
         break;
       case "@":
         priority = 4;
-        charTitle = "Channel Operator";
         break;
       case "%":
         priority = 3;
-        charTitle = "Channel Half Operator";
         break;
       case "+":
         priority = 2;
-        charTitle = "Voiced User";
         break;
     }
     if (priority > highestPriority) {
       highestPriority = priority;
-      title = charTitle;
+      topChar = char;
     }
   }
-  return title;
+  return topChar;
 };
 
 const UserItem: React.FC<{
@@ -106,7 +101,25 @@ const UserItem: React.FC<{
     avatarElement?: Element | null,
   ) => void;
 }> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
+  const { t } = useLingui();
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
+  const statusTitle = (() => {
+    switch (getStatusChar(user.status)) {
+      case "~":
+        return t`Channel Owner`;
+      case "&":
+        return t`Channel Admin`;
+      case "@":
+        return t`Channel Operator`;
+      case "%":
+        return t`Channel Half Operator`;
+      case "+":
+        return t`Voiced User`;
+      default:
+        return "";
+    }
+  })();
 
   const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
     useStore((state) => state.globalSettings.mediaVisibilityLevel),
@@ -189,7 +202,7 @@ const UserItem: React.FC<{
           {!displayName && isIrcOp && (
             <span
               className="inline-flex items-center justify-center p-2.5 w-4 h-4 text-xs text-white bg-blue-500 rounded font-bold"
-              title="IRC Operator"
+              title={t`IRC Operator`}
             >
               🔑
             </span>
@@ -197,7 +210,7 @@ const UserItem: React.FC<{
           {user.status && (
             <span
               className="shrink-0 bg-blue-600 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-sm"
-              title={getStatusTitle(user.status)}
+              title={statusTitle}
             >
               {user.status}
             </span>
@@ -212,13 +225,13 @@ const UserItem: React.FC<{
               <FaCheckCircle
                 className="inline ml-1 text-green-500"
                 style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
-                title="Verified account"
+                title={t`Verified account`}
               />
             )}
             {!displayName && isOperator && (
               <span
                 className="inline ml-1 bg-red-600 text-white px-3 py-0.5 rounded text-xs font-bold"
-                title="IRC Operator"
+                title={t`IRC Operator`}
               >
                 🔑
               </span>
@@ -248,13 +261,13 @@ const UserItem: React.FC<{
                   <FaCheckCircle
                     className="inline ml-0.5 text-green-600"
                     style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
-                    title="Verified account"
+                    title={t`Verified account`}
                   />
                 )}
                 {(isIrcOp || isOperator) && (
                   <span
                     className="ml-0.5 inline-flex items-center justify-center w-3 h-3 text-xs text-white bg-blue-500 rounded"
-                    title="IRC Operator"
+                    title={t`IRC Operator`}
                   >
                     🔑
                   </span>
@@ -304,6 +317,7 @@ const UserItem: React.FC<{
 };
 
 export const MemberList: React.FC = () => {
+  const { t } = useLingui();
   const {
     servers,
     ui,
@@ -529,7 +543,7 @@ export const MemberList: React.FC = () => {
         </button>
       )}
       <h3 className="text-xs font-semibold text-discord-channels-default uppercase mb-2 px-2">
-        Members — {sortedUsers?.length || 0}
+        <Trans>Members — {sortedUsers?.length || 0}</Trans>
       </h3>
       {sortedUsers?.map((user) => (
         <UserItem

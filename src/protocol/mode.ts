@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import type { IRCClient } from "../lib/ircClient";
 import type AppState from "../store/";
 import type { Channel, Message, Server } from "../types/";
@@ -516,7 +517,7 @@ function sendModeNotification(
   const message: Message = {
     id: `mode-${Date.now()}-${Math.random()}`,
     type: "mode",
-    content: `sets mode: ${modeParts.join(" ")}`,
+    content: t`sets mode: ${modeParts.join(" ")}`,
     timestamp: new Date(),
     userId: sender,
     channelId: channel.id,

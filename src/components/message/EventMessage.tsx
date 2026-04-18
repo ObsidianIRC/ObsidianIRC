@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useState } from "react";
 import ircClient from "../../lib/ircClient";
@@ -21,10 +22,10 @@ export const EventMessage: React.FC<EventMessageProps> = ({
   messageUser,
   onUsernameContextMenu,
 }) => {
+  const { t, i18n } = useLingui();
   const [showTooltip, setShowTooltip] = useState(false);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
-  // Get server-specific current user instead of global currentUser
   const currentUser = ircClient.getCurrentUser(message.serverId);
 
   // Reset image load failed state when avatar URL changes
@@ -33,7 +34,7 @@ export const EventMessage: React.FC<EventMessageProps> = ({
   }, []);
 
   const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
+    return new Intl.DateTimeFormat(i18n.locale, {
       hour: "2-digit",
       minute: "2-digit",
     }).format(date);
@@ -63,7 +64,7 @@ export const EventMessage: React.FC<EventMessageProps> = ({
     messageUser?.metadata?.["display-name"]?.value || username;
   const userColor = messageUser?.metadata?.color?.value || "#888888";
   const isCurrentUser = currentUser?.username === username;
-  const displayText = isCurrentUser ? "You" : displayName;
+  const displayText = isCurrentUser ? t`You` : displayName;
 
   return (
     <div
@@ -115,12 +116,14 @@ export const EventMessage: React.FC<EventMessageProps> = ({
       {/* Tooltip for future collapsing functionality */}
       {showTooltip && (
         <div className="absolute bottom-full left-12 mb-1 px-2 py-1 bg-discord-dark-100 text-white text-xs rounded shadow-lg z-10 whitespace-nowrap">
-          {message.type === "join" && "Joined the channel"}
-          {message.type === "part" && "Left the channel"}
-          {message.type === "quit" && "Quit the server"}
-          {message.type === "nick" && "Changed nickname"}
-          {message.type === "mode" && "Changed channel modes"}
-          {message.type === "kick" && "Was kicked from the channel"}
+          {message.type === "join" && <Trans>Joined the channel</Trans>}
+          {message.type === "part" && <Trans>Left the channel</Trans>}
+          {message.type === "quit" && <Trans>Quit the server</Trans>}
+          {message.type === "nick" && <Trans>Changed nickname</Trans>}
+          {message.type === "mode" && <Trans>Changed channel modes</Trans>}
+          {message.type === "kick" && (
+            <Trans>Was kicked from the channel</Trans>
+          )}
         </div>
       )}
     </div>

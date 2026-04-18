@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import type React from "react";
 import { FaExpand, FaGrinAlt, FaReply, FaTimes } from "react-icons/fa";
 import BottomSheet from "./BottomSheet";
@@ -36,7 +37,7 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
 
   if (canReply && onReply) {
     actions.push({
-      label: "Reply",
+      label: t`Reply`,
       icon: <FaReply />,
       onClick: () => {
         onReply();
@@ -47,7 +48,7 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
 
   if (canReact && onReact) {
     actions.push({
-      label: "React",
+      label: t`React`,
       icon: <FaGrinAlt />,
       onClick: (e) => {
         onReact(e.currentTarget);
@@ -58,7 +59,7 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
 
   if (canOpenMedia && onOpenMedia) {
     actions.push({
-      label: "Open in viewer",
+      label: t`Open in viewer`,
       icon: <FaExpand />,
       onClick: () => {
         onOpenMedia();
@@ -69,7 +70,7 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
 
   if (canDelete && onDelete) {
     actions.push({
-      label: "Delete",
+      label: t`Delete`,
       icon: <FaTimes />,
       onClick: () => {
         onDelete();

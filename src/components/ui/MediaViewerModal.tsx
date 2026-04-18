@@ -3,6 +3,8 @@ import {
   ChevronRightIcon,
   XMarkIcon,
 } from "@heroicons/react/24/solid";
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import {
   Fragment,
   lazy,
@@ -159,7 +161,9 @@ const AudioViewerPlayer: React.FC<{ url: string }> = ({ url }) => {
 
       {/* Seek bar / LIVE badge / error */}
       {hasError ? (
-        <span className="text-sm text-red-400">Failed to load audio</span>
+        <span className="text-sm text-red-400">
+          <Trans>Failed to load audio</Trans>
+        </span>
       ) : isLive ? (
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -176,7 +180,7 @@ const AudioViewerPlayer: React.FC<{ url: string }> = ({ url }) => {
             max={duration || 0}
             step={0.1}
             value={currentTime}
-            aria-label="Seek"
+            aria-label={t`Seek`}
             onChange={(e) => {
               if (audioRef.current)
                 audioRef.current.currentTime = Number(e.target.value);
@@ -194,7 +198,7 @@ const AudioViewerPlayer: React.FC<{ url: string }> = ({ url }) => {
         type="button"
         onClick={togglePlay}
         disabled={hasError}
-        aria-label={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"}
+        aria-label={isLoading ? t`Loading` : isPlaying ? t`Pause` : t`Play`}
         className="w-16 h-16 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isLoading ? (
@@ -342,7 +346,7 @@ const PdfModalViewer: React.FC<{ url: string; onRequestOpen: () => void }> = ({
             disabled={pageNumber <= 1}
             onClick={() => setPageNumber((p) => p - 1)}
             className="disabled:opacity-30 hover:text-white transition-opacity"
-            aria-label="Previous page"
+            aria-label={t`Previous page`}
           >
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
@@ -354,7 +358,7 @@ const PdfModalViewer: React.FC<{ url: string; onRequestOpen: () => void }> = ({
             disabled={pageNumber >= numPages}
             onClick={() => setPageNumber((p) => p + 1)}
             className="disabled:opacity-30 hover:text-white transition-opacity"
-            aria-label="Next page"
+            aria-label={t`Next page`}
           >
             <ChevronRightIcon className="w-4 h-4" />
           </button>
@@ -1053,12 +1057,12 @@ export function MediaViewerModal({
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const msg = await invoke<string>("download_image", { url: currentUrl });
-      const toast = msg || "Saved";
+      const toast = msg || t`Saved`;
       setSavedMessage(toast);
       setTimeout(() => setSavedMessage(""), 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setSavedMessage(`Save failed: ${msg}`);
+      setSavedMessage(t`Save failed: ${msg}`);
       setTimeout(() => setSavedMessage(""), 6000);
     } finally {
       setIsDownloading(false);
@@ -1208,7 +1212,7 @@ export function MediaViewerModal({
                         type="button"
                         onClick={() => changeZoom(zoom - ZOOM_STEP)}
                         disabled={zoom <= ZOOM_MIN}
-                        aria-label="Zoom out"
+                        aria-label={t`Zoom out`}
                         className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
                         <FaMinus className="w-3 h-3" />
@@ -1221,7 +1225,7 @@ export function MediaViewerModal({
                         step={ZOOM_STEP}
                         value={zoom}
                         onChange={(e) => changeZoom(Number(e.target.value))}
-                        aria-label="Zoom level"
+                        aria-label={t`Zoom level`}
                         className="hidden sm:block w-28 cursor-pointer accent-white"
                       />
 
@@ -1229,7 +1233,7 @@ export function MediaViewerModal({
                         type="button"
                         onClick={() => changeZoom(zoom + ZOOM_STEP)}
                         disabled={zoom >= ZOOM_MAX}
-                        aria-label="Zoom in"
+                        aria-label={t`Zoom in`}
                         className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
                         <FaPlus className="w-3 h-3" />
@@ -1249,8 +1253,8 @@ export function MediaViewerModal({
                         type="button"
                         onClick={handleDownload}
                         disabled={isDownloading}
-                        title="Download"
-                        aria-label="Download"
+                        title={t`Download`}
+                        aria-label={t`Download`}
                         className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
                         {isDownloading ? (
@@ -1265,8 +1269,8 @@ export function MediaViewerModal({
                   <button
                     type="button"
                     onClick={() => setShowWarning(true)}
-                    title="Open in browser"
-                    aria-label="Open in browser"
+                    title={t`Open in browser`}
+                    aria-label={t`Open in browser`}
                     className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
                   >
                     <FaExternalLinkAlt className="w-3.5 h-3.5" />
@@ -1283,13 +1287,15 @@ export function MediaViewerModal({
                         onClick={() => setShowComments((v) => !v)}
                         title={
                           commentCount > 0
-                            ? `Comments (${commentCount})`
-                            : "Comments"
+                            ? t`Comments (${commentCount})`
+                            : t`Comments`
                         }
                         aria-label={
                           showComments
-                            ? "Hide comments"
-                            : `Show comments${commentCount > 0 ? ` (${commentCount})` : ""}`
+                            ? t`Hide comments`
+                            : commentCount > 0
+                              ? t`Show comments (${commentCount})`
+                              : t`Show comments`
                         }
                         aria-pressed={showComments}
                         className={`relative p-1.5 rounded-full transition-colors ${
@@ -1315,7 +1321,7 @@ export function MediaViewerModal({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t`Close`}
                 className="pointer-events-auto w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/70 hover:text-white transition-colors backdrop-blur-sm flex-shrink-0"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -1344,7 +1350,9 @@ export function MediaViewerModal({
               {isEmptyState && (
                 <div className="flex flex-col items-center gap-3 text-discord-text-muted pointer-events-none">
                   <FaFilm className="text-4xl opacity-40" />
-                  <span className="text-sm">No media in this channel</span>
+                  <span className="text-sm">
+                    <Trans>No media in this channel</Trans>
+                  </span>
                 </div>
               )}
               {/* Loading spinner — while probing an extensionless URL */}
@@ -1359,7 +1367,7 @@ export function MediaViewerModal({
                 <img
                   ref={imgRef}
                   src={currentUrl}
-                  alt="Image preview"
+                  alt={t`Image preview`}
                   draggable={false}
                   className={`select-none pointer-events-auto ${imageCanHaveTransparency(currentUrl) ? "transparency-grid" : "bg-white"}`}
                   style={{
@@ -1447,7 +1455,7 @@ export function MediaViewerModal({
                   {/* invisible when !hasPrev to preserve layout */}
                   <button
                     type="button"
-                    aria-label="Previous image"
+                    aria-label={t`Previous image`}
                     onClick={() =>
                       prevValidIndex !== undefined && goTo(prevValidIndex)
                     }
@@ -1479,7 +1487,7 @@ export function MediaViewerModal({
                             thumbRefs.current[thumbIndex] = el;
                           }}
                           type="button"
-                          aria-label={`Image ${thumbIndex + 1} of ${imageList.length}`}
+                          aria-label={t`Image ${thumbIndex + 1} of ${imageList.length}`}
                           aria-current={
                             thumbIndex === currentIndex ? "true" : undefined
                           }
@@ -1571,7 +1579,7 @@ export function MediaViewerModal({
 
                   <button
                     type="button"
-                    aria-label="Next image"
+                    aria-label={t`Next image`}
                     onClick={() =>
                       nextValidIndex !== undefined && goTo(nextValidIndex)
                     }

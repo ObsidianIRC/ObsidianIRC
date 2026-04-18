@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
@@ -84,7 +85,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
                   channel.id,
                   makeEventMessage(
                     "join",
-                    `joined ${channelName}`,
+                    t`joined ${channelName}`,
                     username,
                     channel.id,
                     serverId,
@@ -203,7 +204,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
             channel.id,
             makeEventMessage(
               "join",
-              `joined ${channelName}`,
+              t`joined ${channelName}`,
               username,
               channel.id,
               serverId,
@@ -242,8 +243,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
                 makeEventMessage(
                   "nick",
                   isOurNickChange
-                    ? `are now known as **${newNick}**`
-                    : `is now known as **${newNick}**`,
+                    ? t`are now known as **${newNick}**`
+                    : t`is now known as **${newNick}**`,
                   oldNick,
                   channel.id,
                   serverId,
@@ -308,8 +309,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
       const ourNick = ircClient.getNick(serverId);
       const isOurNickChange = oldNick === ourNick || newNick === ourNick;
       const nickContent = isOurNickChange
-        ? `are now known as **${newNick}**`
-        : `is now known as **${newNick}**`;
+        ? t`are now known as **${newNick}**`
+        : t`is now known as **${newNick}**`;
 
       server.channels.forEach((channel) => {
         const userWasInChannel = channel.users.some(
@@ -395,7 +396,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
                   channel.id,
                   makeEventMessage(
                     "quit",
-                    reason ? `quit (${reason})` : "quit",
+                    reason ? t`quit (${reason})` : t`quit`,
                     username,
                     channel.id,
                     serverId,
@@ -453,7 +454,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
 
     if (state.globalSettings.showEvents && state.globalSettings.showQuits) {
       if (server) {
-        const quitContent = reason ? `quit (${reason})` : "quit";
+        const quitContent = reason ? t`quit (${reason})` : t`quit`;
         server.channels.forEach((channel) => {
           if (channelsUserWasIn.includes(channel.id)) {
             appendMessage(
@@ -528,8 +529,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
                 makeEventMessage(
                   "part",
                   reason
-                    ? `left ${channelName} (${reason})`
-                    : `left ${channelName}`,
+                    ? t`left ${channelName} (${reason})`
+                    : t`left ${channelName}`,
                   username,
                   channel.id,
                   serverId,
@@ -580,8 +581,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
               makeEventMessage(
                 "part",
                 reason
-                  ? `left ${channelName} (${reason})`
-                  : `left ${channelName}`,
+                  ? t`left ${channelName} (${reason})`
+                  : t`left ${channelName}`,
                 username,
                 channel.id,
                 serverId,
@@ -657,8 +658,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
               makeEventMessage(
                 "kick",
                 reason
-                  ? `was kicked from ${channelName} by ${username} (${reason})`
-                  : `was kicked from ${channelName} by ${username}`,
+                  ? t`was kicked from ${channelName} by ${username} (${reason})`
+                  : t`was kicked from ${channelName} by ${username}`,
                 target,
                 channel.id,
                 serverId,
@@ -738,8 +739,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
     const isForCurrentUser =
       target.toLowerCase() === currentUser.username.toLowerCase();
     const content = isForCurrentUser
-      ? `${inviter} has invited you to join ${channel}`
-      : `${inviter} has invited ${target} to join ${channel}`;
+      ? t`${inviter} has invited you to join ${channel}`
+      : t`${inviter} has invited ${target} to join ${channel}`;
 
     const inviteMessage: Message = {
       ...makeEventMessage(
@@ -771,7 +772,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
     const inviteMessage: Message = {
       ...makeEventMessage(
         "invite",
-        `You invited ${target} to join ${channel}`,
+        t`You invited ${target} to join ${channel}`,
         "",
         targetChannelId,
         serverId,
@@ -802,7 +803,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
             channel.id,
             makeEventMessage(
               "system",
-              `Nickname '${nick}' already in use, retrying with '${newNick}'`,
+              t`Nickname '${nick}' already in use, retrying with '${newNick}'`,
               "system",
               channel.id,
               serverId,
@@ -838,7 +839,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
           channel.id,
           makeEventMessage(
             "system",
-            `Nick change failed: ${error} ${nick ? `(${nick})` : ""}`,
+            t`Nick change failed: ${error} ${nick ? `(${nick})` : ""}`,
             "system",
             channel.id,
             serverId,
@@ -935,7 +936,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
 
       const renameMessage: Message = {
         id: `rename-${Date.now()}`,
-        content: `Channel has been renamed from ${oldName} to ${newName} by ${user}${reason ? ` (${reason})` : ""}`,
+        content: t`Channel has been renamed from ${oldName} to ${newName} by ${user}${reason ? ` (${reason})` : ""}`,
         timestamp: new Date(),
         userId: "system",
         channelId: channel.id,

@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro";
 import type { Message } from "../types";
 
 export interface UserEventSummary {
@@ -19,32 +20,34 @@ export interface EventGroup {
 
 const COLLAPSIBLE_EVENT_TYPES = ["join", "part", "quit"];
 
-function formatCount(word: string, count: number, suffix = "times"): string {
-  if (count === 1) return word;
-  if (count > 9) return `${word} multiple times`;
-  return `${word} ${count} ${suffix}`;
-}
-
 function computeUserSummary(types: string[]): string {
   // Final departure always wins so the summary is never misleading about current presence.
   const last = types[types.length - 1];
   if (last === "quit")
     return types.length === 2 && types[0] === "join"
-      ? "joined and quit"
-      : "quit";
-  if (last === "part") return "left";
+      ? t`joined and quit`
+      : t`quit`;
+  if (last === "part") return t`left`;
 
   // Last event is join — check for quit→join reconnect cycles.
   let reconnectCount = 0;
   for (let i = 0; i < types.length - 1; i++) {
     if (types[i] === "quit" && types[i + 1] === "join") reconnectCount++;
   }
-  if (reconnectCount > 0) return formatCount("reconnected", reconnectCount);
+  if (reconnectCount > 0)
+    return plural(reconnectCount, {
+      one: "reconnected",
+      other: `reconnected ${reconnectCount} times`,
+    });
 
-  const joinCount = types.filter((t) => t === "join").length;
-  if (joinCount > 0) return formatCount("joined", joinCount);
+  const joinCount = types.filter((type) => type === "join").length;
+  if (joinCount > 0)
+    return plural(joinCount, {
+      one: "joined",
+      other: `joined ${joinCount} times`,
+    });
 
-  return "quit";
+  return t`quit`;
 }
 
 /**
@@ -190,6 +193,8 @@ export function getEventGroupTooltip(eventGroup: EventGroup): string {
     {} as Record<string, number>,
   );
   return Object.entries(counts)
-    .map(([u, c]) => `${u}: ${c} time${c > 1 ? "s" : ""}`)
+    .map(
+      ([u, c]) => `${u}: ${plural(c, { one: "1 time", other: `${c} times` })}`,
+    )
     .join("\n");
 }

@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import React, {
   useCallback,
   useEffect,
@@ -97,45 +99,6 @@ interface CategoryInfo {
   description: string;
 }
 
-const categories: CategoryInfo[] = [
-  {
-    id: "profile",
-    title: "Profile",
-    icon: <FaUser className="w-5 h-5" />,
-    description: "Manage your profile information and metadata",
-  },
-  {
-    id: "notifications",
-    title: "Notifications",
-    icon: <FaBell className="w-5 h-5" />,
-    description: "Configure notification sounds and highlights",
-  },
-  {
-    id: "preferences",
-    title: "Preferences",
-    icon: <FaCog className="w-5 h-5" />,
-    description: "Customize your IRC client experience",
-  },
-  {
-    id: "media",
-    title: "Media",
-    icon: <FaImage className="w-5 h-5" />,
-    description: "Control media display and external content",
-  },
-  {
-    id: "account",
-    title: "Account",
-    icon: <FaServer className="w-5 h-5" />,
-    description: "Manage your account and authentication",
-  },
-  {
-    id: "privacy",
-    title: "Privacy",
-    icon: <FaShieldAlt className="w-5 h-5" />,
-    description: "View our privacy policy and data practices",
-  },
-];
-
 export const UserSettings: React.FC = React.memo(() => {
   const {
     toggleSettingsModal,
@@ -186,6 +149,46 @@ export const UserSettings: React.FC = React.memo(() => {
     [currentServer],
   );
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const { i18n } = useLingui();
+  const categories: CategoryInfo[] = [
+    {
+      id: "profile",
+      title: t`Profile`,
+      icon: <FaUser className="w-5 h-5" />,
+      description: t`Manage your profile information and metadata`,
+    },
+    {
+      id: "notifications",
+      title: t`Notifications`,
+      icon: <FaBell className="w-5 h-5" />,
+      description: t`Configure notification sounds and highlights`,
+    },
+    {
+      id: "preferences",
+      title: t`Preferences`,
+      icon: <FaCog className="w-5 h-5" />,
+      description: t`Customize your IRC client experience`,
+    },
+    {
+      id: "media",
+      title: t`Media`,
+      icon: <FaImage className="w-5 h-5" />,
+      description: t`Control media display and external content`,
+    },
+    {
+      id: "account",
+      title: t`Account`,
+      icon: <FaServer className="w-5 h-5" />,
+      description: t`Manage your account and authentication`,
+    },
+    {
+      id: "privacy",
+      title: t`Privacy`,
+      icon: <FaShieldAlt className="w-5 h-5" />,
+      description: t`View our privacy policy and data practices`,
+    },
+  ];
 
   // Category state
   const [activeCategory, setActiveCategory] =
@@ -405,7 +408,7 @@ export const UserSettings: React.FC = React.memo(() => {
 
     const initialAwayMessage = globalSettings.awayMessage || "";
     const initialQuitMessage =
-      globalSettings.quitMessage || "ObsidianIRC - Bringing IRC to the future";
+      globalSettings.quitMessage || t`ObsidianIRC - Bringing IRC to the future`;
     setAwayMessage(initialAwayMessage);
     setQuitMessage(initialQuitMessage);
 
@@ -750,7 +753,7 @@ export const UserSettings: React.FC = React.memo(() => {
   const handleClose = useCallback(() => {
     if (hasUnsavedChanges) {
       const confirmClose = window.confirm(
-        "You have unsaved changes. Are you sure you want to close without saving?",
+        t`You have unsaved changes. Are you sure you want to close without saving?`,
       );
       if (!confirmClose) {
         return;
@@ -764,21 +767,18 @@ export const UserSettings: React.FC = React.memo(() => {
   const renderMediaFields = () => {
     type LevelInfo = { label: string; description: string; warning?: true };
     const LEVELS: LevelInfo[] = [
-      { label: "Off", description: "No media previews are loaded." },
+      { label: t`Off`, description: t`No media previews are loaded.` },
       {
-        label: "Safe",
-        description:
-          "Shows media from your server's trusted file host. No requests are made to external services.",
+        label: t`Safe`,
+        description: t`Shows media from your server's trusted file host. No requests are made to external services.`,
       },
       {
-        label: "Trusted Sources",
-        description:
-          "Also shows previews from YouTube, Vimeo, SoundCloud, and similar known services.",
+        label: t`Trusted Sources`,
+        description: t`Also shows previews from YouTube, Vimeo, SoundCloud, and similar known services.`,
       },
       {
-        label: "All Content",
-        description:
-          "Shows all external media. Any URL may cause a request to an unknown server.",
+        label: t`All Content`,
+        description: t`Shows all external media. Any URL may cause a request to an unknown server.`,
         warning: true,
       },
     ];
@@ -791,13 +791,13 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-6">
         <div>
           <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-discord-text-muted">
-            Display
+            <Trans>Display</Trans>
           </p>
 
           {/* Title row */}
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium text-discord-text-normal">
-              Media Previews
+              <Trans>Media Previews</Trans>
             </span>
             <span
               className={`text-xs font-semibold ${current.warning ? "text-yellow-400" : "text-discord-primary"}`}
@@ -806,7 +806,7 @@ export const UserSettings: React.FC = React.memo(() => {
             </span>
           </div>
           <p className="mb-5 text-xs text-discord-text-muted">
-            Control how much external media is loaded in chat.
+            <Trans>Control how much external media is loaded in chat.</Trans>
           </p>
 
           {/* Slider track */}
@@ -869,10 +869,12 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-4">
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
           <h3 className="text-discord-text-normal font-medium">
-            Privacy Policy
+            <Trans>Privacy Policy</Trans>
           </h3>
           <p className="text-discord-text-muted text-sm">
-            Learn how we handle your data and protect your privacy.
+            <Trans>
+              Learn how we handle your data and protect your privacy.
+            </Trans>
           </p>
 
           <div className="space-y-3">
@@ -888,7 +890,7 @@ export const UserSettings: React.FC = React.memo(() => {
               className="flex items-center justify-between w-full p-3 bg-discord-dark-500 rounded hover:bg-discord-dark-300 transition-colors"
             >
               <span className="text-discord-text-normal">
-                View Full Privacy Policy
+                <Trans>View Full Privacy Policy</Trans>
               </span>
               <svg
                 className="w-4 h-4 text-discord-text-muted"
@@ -909,33 +911,57 @@ export const UserSettings: React.FC = React.memo(() => {
 
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
           <h3 className="text-discord-text-normal font-medium">
-            Data Collection
+            <Trans>Data Collection</Trans>
           </h3>
           <div className="space-y-2 text-discord-text-muted text-sm">
             <p>
-              • <strong>Local Storage:</strong> Your messages and settings are
-              stored locally on your device
+              •{" "}
+              <strong>
+                <Trans>Local Storage:</Trans>
+              </strong>{" "}
+              <Trans>
+                Your messages and settings are stored locally on your device
+              </Trans>
             </p>
             <p>
-              • <strong>No Central Server:</strong> We don't store your IRC
-              communications on our servers
+              •{" "}
+              <strong>
+                <Trans>No Central Server:</Trans>
+              </strong>{" "}
+              <Trans>
+                We don't store your IRC communications on our servers
+              </Trans>
             </p>
             <p>
-              • <strong>IRC Servers:</strong> Only connect to servers you choose
+              •{" "}
+              <strong>
+                <Trans>IRC Servers:</Trans>
+              </strong>{" "}
+              <Trans>Only connect to servers you choose</Trans>
             </p>
             <p>
-              • <strong>Anonymous Analytics:</strong> Optional crash reports to
-              improve the app
+              •{" "}
+              <strong>
+                <Trans>Anonymous Analytics:</Trans>
+              </strong>{" "}
+              <Trans>Optional crash reports to improve the app</Trans>
             </p>
           </div>
         </div>
 
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
-          <h3 className="text-discord-text-normal font-medium">Contact</h3>
+          <h3 className="text-discord-text-normal font-medium">
+            <Trans>Contact</Trans>
+          </h3>
           <div className="space-y-2 text-discord-text-muted text-sm">
-            <p>Questions about privacy? Contact us:</p>
             <p>
-              • <strong>Email:</strong>{" "}
+              <Trans>Questions about privacy? Contact us:</Trans>
+            </p>
+            <p>
+              •{" "}
+              <strong>
+                <Trans>Email:</Trans>
+              </strong>{" "}
               <a
                 href="mailto:obsidianirc@gmail.com"
                 className="text-discord-primary hover:text-discord-primary-light"
@@ -944,7 +970,10 @@ export const UserSettings: React.FC = React.memo(() => {
               </a>
             </p>
             <p>
-              • <strong>GitHub:</strong>{" "}
+              •{" "}
+              <strong>
+                <Trans>GitHub:</Trans>
+              </strong>{" "}
               <a
                 href="https://github.com/ObsidianIRC/ObsidianIRC"
                 target="_blank"
@@ -992,10 +1021,11 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="block text-discord-text-normal text-sm font-medium">
-            {nicknameSetting?.title || "Nickname"}
+            {nicknameSetting ? i18n._(nicknameSetting.title) : t`Nickname`}
           </label>
           <p className="text-discord-text-muted text-xs">
-            {nicknameSetting?.description}
+            {nicknameSetting?.description &&
+              i18n._(nicknameSetting.description)}
           </p>
           <TextInput
             ref={nicknameInputRef}
@@ -1007,31 +1037,38 @@ export const UserSettings: React.FC = React.memo(() => {
 
         <div className="space-y-2">
           <label className="block text-discord-text-normal text-sm font-medium">
-            {realnameSetting?.title || "Real Name"}
+            {realnameSetting ? i18n._(realnameSetting.title) : t`Real Name`}
           </label>
           <p className="text-discord-text-muted text-xs">
-            {realnameSetting?.description}
+            {realnameSetting?.description &&
+              i18n._(realnameSetting.description)}
           </p>
           <TextInput
             ref={realnameInputRef}
             value={realname}
             onChange={handleRealnameChange}
-            placeholder={realnameSetting?.placeholder || "Enter real name"}
+            placeholder={
+              realnameSetting?.placeholder
+                ? i18n._(realnameSetting.placeholder)
+                : t`Enter real name`
+            }
             className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
           />
         </div>
 
         <div className="space-y-4 mt-6 pt-6 border-t border-discord-dark-400">
           <h3 className="text-sm font-semibold text-discord-text-normal uppercase">
-            Extended Profile
+            <Trans>Extended Profile</Trans>
           </h3>
 
           {!supportsMetadata && (
             <div className="p-4 bg-discord-dark-400 rounded">
               <p className="text-discord-text-muted text-sm">
-                This server does not support extended profile metadata (IRCv3
-                METADATA extension). Additional fields like avatar, display
-                name, and status are not available.
+                <Trans>
+                  This server does not support extended profile metadata (IRCv3
+                  METADATA extension). Additional fields like avatar, display
+                  name, and status are not available.
+                </Trans>
               </p>
             </div>
           )}
@@ -1047,17 +1084,22 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {displayNameSetting?.title || "Display Name"}
+                  {displayNameSetting
+                    ? i18n._(displayNameSetting.title)
+                    : t`Display Name`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {displayNameSetting?.description}
+                  {displayNameSetting?.description &&
+                    i18n._(displayNameSetting.description)}
                 </p>
                 <TextInput
                   ref={displayNameInputRef}
                   value={displayName}
                   onChange={handleDisplayNameChange}
                   placeholder={
-                    displayNameSetting?.placeholder || "Enter display name"
+                    displayNameSetting?.placeholder
+                      ? i18n._(displayNameSetting.placeholder)
+                      : t`Enter display name`
                   }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
@@ -1072,18 +1114,20 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {avatarSetting?.title || "Avatar"}
+                  {avatarSetting ? i18n._(avatarSetting.title) : t`Avatar`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {avatarSetting?.description}
+                  {avatarSetting?.description &&
+                    i18n._(avatarSetting.description)}
                 </p>
                 <TextInput
                   ref={avatarInputRef}
                   value={avatar}
                   onChange={handleAvatarChange}
                   placeholder={
-                    avatarSetting?.placeholder ||
-                    "https://example.com/avatar.png"
+                    avatarSetting?.placeholder
+                      ? i18n._(avatarSetting.placeholder)
+                      : "https://example.com/avatar.png"
                   }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
@@ -1105,16 +1149,21 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {homepageSetting?.title || "Homepage"}
+                  {homepageSetting
+                    ? i18n._(homepageSetting.title)
+                    : t`Homepage`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {homepageSetting?.description}
+                  {homepageSetting?.description &&
+                    i18n._(homepageSetting.description)}
                 </p>
                 <TextInput
                   value={homepage}
                   onChange={handleHomepageChange}
                   placeholder={
-                    homepageSetting?.placeholder || "https://example.com"
+                    homepageSetting?.placeholder
+                      ? i18n._(homepageSetting.placeholder)
+                      : "https://example.com"
                   }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
@@ -1129,16 +1178,17 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {statusSetting?.title || "Status"}
+                  {statusSetting ? i18n._(statusSetting.title) : t`Status`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {statusSetting?.description}
+                  {statusSetting?.description &&
+                    i18n._(statusSetting.description)}
                 </p>
                 <TextInput
                   ref={statusInputRef}
                   value={status}
                   onChange={handleStatusChange}
-                  placeholder="What's on your mind?"
+                  placeholder={t`What's on your mind?`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
               </div>
@@ -1152,10 +1202,11 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {colorSetting?.title || "Color"}
+                  {colorSetting ? i18n._(colorSetting.title) : t`Color`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {colorSetting?.description}
+                  {colorSetting?.description &&
+                    i18n._(colorSetting.description)}
                 </p>
                 <div className="flex space-x-2">
                   <input
@@ -1183,16 +1234,20 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {botSetting?.title || "Bot"}
+                  {botSetting ? i18n._(botSetting.title) : t`Bot`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {botSetting?.description}
+                  {botSetting?.description && i18n._(botSetting.description)}
                 </p>
                 <TextInput
                   ref={botInputRef}
                   value={bot}
                   onChange={handleBotChange}
-                  placeholder={botSetting?.placeholder || "on"}
+                  placeholder={
+                    botSetting?.placeholder
+                      ? i18n._(botSetting.placeholder)
+                      : "on"
+                  }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
               </div>
@@ -1206,17 +1261,24 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {pronounsSetting?.title || "Pronouns"}
+                  {pronounsSetting
+                    ? i18n._(pronounsSetting.title)
+                    : t`Pronouns`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {pronounsSetting?.description}
+                  {pronounsSetting?.description &&
+                    i18n._(pronounsSetting.description)}
                 </p>
                 <TextInput
                   ref={pronounsInputRef}
                   list="pronouns-suggestions"
                   value={pronouns}
                   onChange={handlePronounsChange}
-                  placeholder={pronounsSetting?.placeholder || "she/her"}
+                  placeholder={
+                    pronounsSetting?.placeholder
+                      ? i18n._(pronounsSetting.placeholder)
+                      : "she/her"
+                  }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
                 <datalist id="pronouns-suggestions">
@@ -1231,7 +1293,7 @@ export const UserSettings: React.FC = React.memo(() => {
 
         <div className="space-y-4 mt-6 pt-6 border-t border-discord-dark-400">
           <h3 className="text-sm font-semibold text-discord-text-normal uppercase">
-            {awayMessageSetting?.subcategory || "Status Messages"}
+            {awayMessageSetting?.subcategory || t`Status Messages`}
           </h3>
 
           <div
@@ -1243,17 +1305,22 @@ export const UserSettings: React.FC = React.memo(() => {
             }`}
           >
             <label className="block text-discord-text-normal text-sm font-medium">
-              {awayMessageSetting?.title || "Away Message"}
+              {awayMessageSetting
+                ? i18n._(awayMessageSetting.title)
+                : t`Away Message`}
             </label>
             <p className="text-discord-text-muted text-xs">
-              {awayMessageSetting?.description}
+              {awayMessageSetting?.description &&
+                i18n._(awayMessageSetting.description)}
             </p>
             <TextInput
               ref={awayMessageInputRef}
               value={awayMessage}
               onChange={handleAwayMessageChange}
               placeholder={
-                awayMessageSetting?.placeholder || "Away from keyboard"
+                awayMessageSetting?.placeholder
+                  ? i18n._(awayMessageSetting.placeholder)
+                  : t`Away from keyboard`
               }
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
@@ -1268,18 +1335,22 @@ export const UserSettings: React.FC = React.memo(() => {
             }`}
           >
             <label className="block text-discord-text-normal text-sm font-medium">
-              {quitMessageSetting?.title || "Quit Message"}
+              {quitMessageSetting
+                ? i18n._(quitMessageSetting.title)
+                : t`Quit Message`}
             </label>
             <p className="text-discord-text-muted text-xs">
-              {quitMessageSetting?.description}
+              {quitMessageSetting?.description &&
+                i18n._(quitMessageSetting.description)}
             </p>
             <TextInput
               ref={quitMessageInputRef}
               value={quitMessage}
               onChange={handleQuitMessageChange}
               placeholder={
-                quitMessageSetting?.placeholder ||
-                "ObsidianIRC - Bringing IRC to the future"
+                quitMessageSetting?.placeholder
+                  ? i18n._(quitMessageSetting.placeholder)
+                  : t`ObsidianIRC - Bringing IRC to the future`
               }
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
@@ -1303,32 +1374,36 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-4">
         {/* IRC Operator Authentication */}
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
-          <h3 className="text-discord-text-normal font-medium">IRC Operator</h3>
+          <h3 className="text-discord-text-normal font-medium">
+            <Trans>IRC Operator</Trans>
+          </h3>
           <p className="text-discord-text-muted text-sm">
-            Authenticate as an IRC Operator for administrative access
+            <Trans>
+              Authenticate as an IRC Operator for administrative access
+            </Trans>
           </p>
 
           <div className="space-y-2">
             <label className="block text-discord-text-normal text-sm font-medium">
-              Oper Name
+              <Trans>Oper Name</Trans>
             </label>
             <TextInput
               value={operName}
               onChange={(e) => setOperName(e.target.value)}
-              placeholder="Enter oper username"
+              placeholder={t`Enter oper username`}
               className="w-full bg-discord-dark-500 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
           </div>
 
           <div className="space-y-2">
             <label className="block text-discord-text-normal text-sm font-medium">
-              Oper Password
+              <Trans>Oper Password</Trans>
             </label>
             <TextInput
               type="password"
               value={operPassword}
               onChange={(e) => setOperPassword(e.target.value)}
-              placeholder="Enter oper password"
+              placeholder={t`Enter oper password`}
               className="w-full bg-discord-dark-500 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
           </div>
@@ -1387,7 +1462,7 @@ export const UserSettings: React.FC = React.memo(() => {
               <button
                 onClick={handleClose}
                 className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                aria-label="Close"
+                aria-label={t`Close`}
               >
                 <FaTimes />
               </button>
@@ -1427,7 +1502,7 @@ export const UserSettings: React.FC = React.memo(() => {
                 <button
                   onClick={() => setMobileView("categories")}
                   className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                  aria-label="Back"
+                  aria-label={t`Back`}
                 >
                   <FaChevronLeft />
                 </button>
@@ -1438,7 +1513,7 @@ export const UserSettings: React.FC = React.memo(() => {
               <button
                 onClick={handleClose}
                 className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                aria-label="Close"
+                aria-label={t`Close`}
               >
                 <FaTimes />
               </button>
@@ -1454,6 +1529,48 @@ export const UserSettings: React.FC = React.memo(() => {
                 activeCategory !== "media" &&
                 activeCategory !== "privacy" && (
                   <div className="space-y-4">
+                    {activeCategory === "preferences" && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-discord-text-normal">
+                          <Trans>Language</Trans>
+                        </label>
+                        <select
+                          className="bg-discord-dark-400 text-white rounded px-3 py-2 text-sm border border-discord-dark-300 focus:outline-none focus:border-discord-primary"
+                          value={i18n.locale}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            localStorage.setItem("locale", next);
+                            const url = new URL(window.location.href);
+                            if (url.searchParams.has("lang")) {
+                              url.searchParams.set("lang", next);
+                              window.location.href = url.toString();
+                            } else {
+                              window.location.reload();
+                            }
+                          }}
+                        >
+                          <option value="en">English</option>
+                          <option value="es">Español</option>
+                          <option value="fr">Français</option>
+                          <option value="zh">中文 (简体)</option>
+                          <option value="zh-TW">中文 (繁體)</option>
+                          <option value="pt">Português</option>
+                          <option value="de">Deutsch</option>
+                          <option value="it">Italiano</option>
+                          <option value="ro">Română</option>
+                          <option value="ru">Русский</option>
+                          <option value="fi">Suomi</option>
+                          <option value="ja">日本語</option>
+                          <option value="pl">Polski</option>
+                          <option value="nl">Nederlands</option>
+                          <option value="ko">한국어</option>
+                          <option value="tr">Türkçe</option>
+                          <option value="uk">Українська</option>
+                          <option value="sv">Svenska</option>
+                          <option value="cs">Čeština</option>
+                        </select>
+                      </div>
+                    )}
                     {categorySettings.map((setting) => (
                       <SettingField
                         key={setting.id}
@@ -1476,14 +1593,14 @@ export const UserSettings: React.FC = React.memo(() => {
                   className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-normal rounded font-medium flex items-center gap-2"
                 >
                   <FaUser size={12} />
-                  View Profile
+                  <Trans>View Profile</Trans>
                 </button>
               )}
               <button
                 onClick={handleClose}
                 className="flex-1 px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
               >
-                Cancel
+                <Trans>Cancel</Trans>
               </button>
               <button
                 onClick={handleSave}
@@ -1494,7 +1611,11 @@ export const UserSettings: React.FC = React.memo(() => {
                     : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
                 }`}
               >
-                {hasUnsavedChanges ? "Save" : "No Changes"}
+                {hasUnsavedChanges ? (
+                  <Trans>Save</Trans>
+                ) : (
+                  <Trans>No Changes</Trans>
+                )}
               </button>
             </div>
           </>
@@ -1530,7 +1651,9 @@ export const UserSettings: React.FC = React.memo(() => {
             {isMobile ? (
               <FaCog className="text-white text-xl" />
             ) : (
-              <h2 className="text-white text-xl font-bold">User Settings</h2>
+              <h2 className="text-white text-xl font-bold">
+                <Trans>User Settings</Trans>
+              </h2>
             )}
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -1590,6 +1713,43 @@ export const UserSettings: React.FC = React.memo(() => {
               activeCategory !== "media" &&
               activeCategory !== "privacy" && (
                 <div className="space-y-4">
+                  {activeCategory === "preferences" && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-discord-text-normal">
+                        <Trans>Language</Trans>
+                      </label>
+                      <select
+                        className="bg-discord-dark-400 text-white rounded px-3 py-2 text-sm border border-discord-dark-300 focus:outline-none focus:border-discord-primary"
+                        value={i18n.locale}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          localStorage.setItem("locale", next);
+                          const url = new URL(window.location.href);
+                          if (url.searchParams.has("lang")) {
+                            url.searchParams.set("lang", next);
+                            window.location.href = url.toString();
+                          } else {
+                            window.location.reload();
+                          }
+                        }}
+                      >
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="zh">中文 (简体)</option>
+                        <option value="zh-TW">中文 (繁體)</option>
+                        <option value="pt">Português</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                        <option value="ro">Română</option>
+                        <option value="ru">Русский</option>
+                        <option value="fi">Suomi</option>
+                        <option value="ja">日本語</option>
+                        <option value="pl">Polski</option>
+                        <option value="nl">Nederlands</option>
+                      </select>
+                    </div>
+                  )}
                   {categorySettings.map((setting) => (
                     <SettingField
                       key={setting.id}
@@ -1612,7 +1772,7 @@ export const UserSettings: React.FC = React.memo(() => {
                 className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-normal rounded font-medium flex items-center gap-2"
               >
                 <FaUser size={12} />
-                View Profile
+                <Trans>View Profile</Trans>
               </button>
             )}
             <div className="flex gap-3 ml-auto">
@@ -1620,7 +1780,7 @@ export const UserSettings: React.FC = React.memo(() => {
                 onClick={handleClose}
                 className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
               >
-                Cancel
+                <Trans>Cancel</Trans>
               </button>
               <button
                 onClick={handleSave}
@@ -1631,7 +1791,11 @@ export const UserSettings: React.FC = React.memo(() => {
                     : "bg-discord-dark-400 text-discord-text-muted cursor-not-allowed"
                 }`}
               >
-                {hasUnsavedChanges ? "Save Changes" : "No Changes"}
+                {hasUnsavedChanges ? (
+                  <Trans>Save Changes</Trans>
+                ) : (
+                  <Trans>No Changes</Trans>
+                )}
               </button>
             </div>
           </div>

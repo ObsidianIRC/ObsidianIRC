@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaQuestionCircle } from "react-icons/fa";
@@ -8,6 +9,7 @@ import useStore from "../../store";
 import { TextInput } from "./TextInput";
 
 export const AddServerModal: React.FC = () => {
+  const { t } = useLingui();
   const {
     toggleAddServerModal,
     connect,
@@ -76,22 +78,22 @@ export const AddServerModal: React.FC = () => {
     const finalSaslAccountName = saslAccountName.trim() || nickname.trim();
 
     if (!finalServerName) {
-      setError("Server name is required");
+      setError(t`Server name is required`);
       return;
     }
 
     if (!serverHost.trim()) {
-      setError("Server host is required");
+      setError(t`Server host is required`);
       return;
     }
 
     if (!serverPort.trim() || Number.isNaN(Number.parseInt(serverPort, 10))) {
-      setError("Valid server port is required");
+      setError(t`Valid server port is required`);
       return;
     }
 
     if (!nickname.trim()) {
-      setError("Nickname is required");
+      setError(t`Nickname is required`);
       return;
     }
 
@@ -139,7 +141,7 @@ export const AddServerModal: React.FC = () => {
     <BaseModal
       isOpen={!!isAddServerModalOpen}
       onClose={() => toggleAddServerModal(false)}
-      title={prefillServerDetails?.ui?.title || "Add IRC Server"}
+      title={prefillServerDetails?.ui?.title || t`Add IRC Server`}
       maxWidth="md"
       showCloseButton={!prefillServerDetails?.ui?.hideClose}
       closeOnEsc={!prefillServerDetails?.ui?.hideClose}
@@ -151,19 +153,19 @@ export const AddServerModal: React.FC = () => {
             <>
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Network Name
+                  <Trans>Network Name</Trans>
                 </label>
                 <TextInput
                   value={serverName || serverHost || ""}
                   onChange={(e) => setServerName(e.target.value)}
-                  placeholder="ExampleNET"
+                  placeholder={t`ExampleNET`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
 
               <div className="mb-4">
                 <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Server Host
+                  <Trans>Server Host</Trans>
                 </label>
                 <TextInput
                   inputMode="url"
@@ -186,9 +188,9 @@ export const AddServerModal: React.FC = () => {
               <div className="mb-4 flex items-end gap-4">
                 <div className="w-24 sm:w-28">
                   <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                    Port{" "}
+                    <Trans>Port</Trans>{" "}
                     <FaQuestionCircle
-                      title="Only secure websockets are supported"
+                      title={t`Only secure websockets are supported`}
                       className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
                     />
                   </label>
@@ -226,8 +228,8 @@ export const AddServerModal: React.FC = () => {
                       <FaQuestionCircle
                         title={
                           lockWebSocket
-                            ? "This server only supports one connection type"
-                            : "Use WebSocket instead of raw TCP"
+                            ? t`This server only supports one connection type`
+                            : t`Use WebSocket instead of raw TCP`
                         }
                         className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
                       />
@@ -240,12 +242,12 @@ export const AddServerModal: React.FC = () => {
 
           <div className="mb-4">
             <label className="block text-discord-text-muted text-sm font-medium mb-1">
-              Nickname
+              <Trans>Nickname</Trans>
             </label>
             <TextInput
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="YourNickname"
+              placeholder={t`YourNickname`}
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
             />
           </div>
@@ -265,7 +267,7 @@ export const AddServerModal: React.FC = () => {
                   htmlFor="showAccount"
                   className="text-discord-text-muted text-sm"
                 >
-                  Login to an account
+                  <Trans>Login to an account</Trans>
                 </label>
               </div>
               {showAccount && (
@@ -273,14 +275,14 @@ export const AddServerModal: React.FC = () => {
                   <TextInput
                     value={saslAccountName || nickname}
                     onChange={(e) => setSaslAccountName(e.target.value)}
-                    placeholder="Account Name"
+                    placeholder={t`Account Name`}
                     className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                   />
                   <TextInput
                     type="password"
                     value={atob(saslPassword)}
                     onChange={(e) => setSaslPassword(btoa(e.target.value))}
-                    placeholder="Password"
+                    placeholder={t`Password`}
                     className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                   />
                 </div>
@@ -301,7 +303,7 @@ export const AddServerModal: React.FC = () => {
                   htmlFor="showServerPassword"
                   className="text-discord-text-muted text-sm"
                 >
-                  Use server password
+                  <Trans>Use server password</Trans>
                 </label>
               </div>
               {showServerPassword && (
@@ -310,7 +312,7 @@ export const AddServerModal: React.FC = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Server Password"
+                    placeholder={t`Server Password`}
                     className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                   />
                 </div>
@@ -331,7 +333,7 @@ export const AddServerModal: React.FC = () => {
                   htmlFor="registerAccount"
                   className="text-discord-text-muted text-sm"
                 >
-                  Register for an account
+                  <Trans>Register for an account</Trans>
                 </label>
               </div>
               {registerAccount && (
@@ -340,14 +342,14 @@ export const AddServerModal: React.FC = () => {
                     type="email"
                     value={registerEmail}
                     onChange={(e) => setRegisterEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder={t`your@email.com`}
                     className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                   />
                   <TextInput
                     type="password"
                     value={registerPassword}
                     onChange={(e) => setRegisterPassword(e.target.value)}
-                    placeholder="Choose a secure password"
+                    placeholder={t`Choose a secure password`}
                     className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                   />
                 </div>
@@ -369,11 +371,15 @@ export const AddServerModal: React.FC = () => {
               variant="secondary"
               onClick={() => toggleAddServerModal(false)}
             >
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
           )}
           <Button type="submit" variant="primary" disabled={isConnecting}>
-            {isConnecting ? "Connecting..." : "Connect"}
+            {isConnecting ? (
+              <Trans>Connecting...</Trans>
+            ) : (
+              <Trans>Connect</Trans>
+            )}
           </Button>
         </ModalFooter>
       </form>

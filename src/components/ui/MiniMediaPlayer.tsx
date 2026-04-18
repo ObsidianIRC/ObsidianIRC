@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import type * as React from "react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { FaSoundcloud, FaSpotify, FaVimeoV, FaYoutube } from "react-icons/fa";
@@ -18,7 +19,7 @@ const ReactPlayer = lazy(() => import("react-player"));
 const CloseButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     type="button"
-    aria-label="Stop"
+    aria-label={t`Stop`}
     className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-muted hover:text-discord-text-normal transition-colors shrink-0"
     onClick={onClick}
   >
@@ -255,7 +256,7 @@ export const MiniMediaPlayer: React.FC = () => {
         <>
           <button
             type="button"
-            aria-label="Open in viewer"
+            aria-label={t`Open in viewer`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-muted shrink-0"
             onClick={() =>
               openMedia(
@@ -286,7 +287,7 @@ export const MiniMediaPlayer: React.FC = () => {
           {isAudioLoading ? (
             // Single loading element: spinner + label in the flex-1 zone, no play button
             <output
-              aria-label="Connecting"
+              aria-label={t`Connecting`}
               className="flex-1 flex items-center gap-2 min-w-0 text-discord-text-muted"
             >
               <svg
@@ -319,7 +320,7 @@ export const MiniMediaPlayer: React.FC = () => {
               </span>
               <div
                 className="p-1 text-red-400 shrink-0"
-                title="Failed to load audio"
+                title={t`Failed to load audio`}
               >
                 <svg
                   className="w-4 h-4"
@@ -354,7 +355,7 @@ export const MiniMediaPlayer: React.FC = () => {
                   max={audioDuration}
                   step={0.1}
                   value={audioCurrentTime}
-                  aria-label="Audio position"
+                  aria-label={t`Audio position`}
                   onChange={(e) => {
                     getAudio().currentTime = Number(e.target.value);
                   }}
@@ -364,7 +365,7 @@ export const MiniMediaPlayer: React.FC = () => {
               )}
               <button
                 type="button"
-                aria-label={isPlaying ? "Pause" : "Play"}
+                aria-label={isPlaying ? t`Pause` : t`Play`}
                 className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal shrink-0"
                 onClick={() =>
                   isPlaying ? pauseActiveMedia() : playMedia(url, "audio")
@@ -394,7 +395,6 @@ export const MiniMediaPlayer: React.FC = () => {
           <CloseButton onClick={stopActiveMedia} />
         </>
       )}
-
       {type === "video" && (
         <>
           {/* Hidden <video> — always rendered when a video is active so the browser pre-loads the
@@ -422,7 +422,7 @@ export const MiniMediaPlayer: React.FC = () => {
           </div>
           <button
             type="button"
-            aria-label="Open in viewer"
+            aria-label={t`Open in viewer`}
             className={
               isInlineVisible
                 ? "p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-muted shrink-0"
@@ -459,7 +459,7 @@ export const MiniMediaPlayer: React.FC = () => {
           </span>
           <button
             type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t`Pause` : t`Play`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal shrink-0"
             onClick={() =>
               isPlaying ? pauseActiveMedia() : playMedia(url, "video")
@@ -478,7 +478,6 @@ export const MiniMediaPlayer: React.FC = () => {
           <CloseButton onClick={stopActiveMedia} />
         </>
       )}
-
       {type === "embed" && (
         <>
           {!isInlineVisible && (
@@ -519,7 +518,7 @@ export const MiniMediaPlayer: React.FC = () => {
           {embedThumb ? (
             <button
               type="button"
-              aria-label="Open in viewer"
+              aria-label={t`Open in viewer`}
               className="shrink-0 rounded overflow-hidden hover:opacity-80 transition-opacity"
               onClick={() =>
                 openMedia(
@@ -539,7 +538,7 @@ export const MiniMediaPlayer: React.FC = () => {
           ) : (
             <button
               type="button"
-              aria-label="Open in viewer"
+              aria-label={t`Open in viewer`}
               className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-muted shrink-0"
               onClick={() =>
                 openMedia(
@@ -567,7 +566,7 @@ export const MiniMediaPlayer: React.FC = () => {
           </span>
           <button
             type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t`Pause` : t`Play`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal shrink-0"
             onClick={() =>
               isPlaying ? pauseActiveMedia() : playMedia(url, "embed")
