@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type {
   CategoryMetadata,
   SettingCategory,
@@ -184,8 +185,8 @@ class SettingsRegistry {
    */
   private updateSearchIndex(setting: SettingDefinition): void {
     const searchableText = [
-      setting.title.toLowerCase(),
-      setting.description?.toLowerCase() || "",
+      setting.title.id.toLowerCase(),
+      setting.description?.id.toLowerCase() || "",
       setting.category.toLowerCase(),
       setting.subcategory?.toLowerCase() || "",
       ...(setting.searchKeywords?.map((k) => k.toLowerCase()) || []),
@@ -231,21 +232,21 @@ class SettingsRegistry {
       const matches: SettingSearchResult["matches"] = {};
 
       // Exact title match gets highest score
-      if (setting.title.toLowerCase() === queryLower) {
+      if (setting.title.id.toLowerCase() === queryLower) {
         score += 1.0;
         matches.title = true;
-      } else if (setting.title.toLowerCase().includes(queryLower)) {
+      } else if (setting.title.id.toLowerCase().includes(queryLower)) {
         score += 0.7;
         matches.title = true;
       }
 
       // Check individual terms
       for (const term of queryTerms) {
-        if (setting.title.toLowerCase().includes(term)) {
+        if (setting.title.id.toLowerCase().includes(term)) {
           score += 0.3;
           matches.title = true;
         }
-        if (setting.description?.toLowerCase().includes(term)) {
+        if (setting.description?.id.toLowerCase().includes(term)) {
           score += 0.2;
           matches.description = true;
         }
@@ -337,7 +338,7 @@ class SettingsRegistry {
   ): { valid: boolean; error?: string } {
     const setting = this.get(settingId);
     if (!setting) {
-      return { valid: false, error: "Setting not found" };
+      return { valid: false, error: t`Setting not found` };
     }
 
     const validation = setting.validation;
@@ -350,7 +351,7 @@ class SettingsRegistry {
       validation.required &&
       (value === null || value === undefined || value === "")
     ) {
-      return { valid: false, error: "This field is required" };
+      return { valid: false, error: t`This field is required` };
     }
 
     // Type-specific validation
@@ -358,26 +359,26 @@ class SettingsRegistry {
       if (validation.minLength && value.length < validation.minLength) {
         return {
           valid: false,
-          error: `Minimum length is ${validation.minLength}`,
+          error: t`Minimum length is ${validation.minLength}`,
         };
       }
       if (validation.maxLength && value.length > validation.maxLength) {
         return {
           valid: false,
-          error: `Maximum length is ${validation.maxLength}`,
+          error: t`Maximum length is ${validation.maxLength}`,
         };
       }
       if (validation.pattern && !validation.pattern.test(value)) {
-        return { valid: false, error: "Invalid format" };
+        return { valid: false, error: t`Invalid format` };
       }
     }
 
     if (typeof value === "number") {
       if (validation.min !== undefined && value < validation.min) {
-        return { valid: false, error: `Minimum value is ${validation.min}` };
+        return { valid: false, error: t`Minimum value is ${validation.min}` };
       }
       if (validation.max !== undefined && value > validation.max) {
-        return { valid: false, error: `Maximum value is ${validation.max}` };
+        return { valid: false, error: t`Maximum value is ${validation.max}` };
       }
     }
 
@@ -388,7 +389,7 @@ class SettingsRegistry {
         return { valid: false, error: result };
       }
       if (!result) {
-        return { valid: false, error: "Invalid value" };
+        return { valid: false, error: t`Invalid value` };
       }
     }
 

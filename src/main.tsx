@@ -15,11 +15,34 @@ if (!rootElement) {
   throw new Error("Failed to find root element");
 }
 
-const SUPPORTED = ["en", "es", "fr", "zh", "pt", "de", "it", "ro"];
+const SUPPORTED = [
+  "en",
+  "es",
+  "fr",
+  "zh",
+  "zh-TW",
+  "pt",
+  "de",
+  "it",
+  "ro",
+  "ru",
+  "fi",
+  "ja",
+  "pl",
+  "nl",
+  "ko",
+  "tr",
+  "uk",
+  "sv",
+  "cs",
+];
 
 function matchLocale(raw: string | null | undefined): string {
   if (!raw) return "en";
-  const lang = raw.split("-")[0].toLowerCase();
+  const normalized = raw.toLowerCase().replace("_", "-");
+  // Check full locale first (e.g. zh-TW before zh)
+  if (SUPPORTED.includes(normalized)) return normalized;
+  const lang = normalized.split("-")[0];
   return SUPPORTED.includes(lang) ? lang : "en";
 }
 
@@ -29,6 +52,13 @@ async function resolveLocale(): Promise<string> {
     ? localStorage.getItem("__dev_locale")
     : null;
   if (devOverride && SUPPORTED.includes(devOverride)) return devOverride;
+
+  // URL param ?lang=de — highest priority, does not overwrite localStorage
+  const urlLang = new URLSearchParams(window.location.search).get("lang");
+  if (urlLang) {
+    const matched = matchLocale(urlLang);
+    if (matched !== "en" || urlLang === "en") return matched;
+  }
 
   // User explicit preference from the in-app language switcher
   const userPref = localStorage.getItem("locale");

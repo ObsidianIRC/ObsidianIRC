@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { Trans, t } from "@lingui/macro";
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -435,7 +435,7 @@ export const ChannelList: React.FC<{
         {!selectedServer && (
           <div className="px-2">
             <div className="text-discord-channels-default font-medium mb-1 text-xs">
-              HOME
+              <Trans>HOME</Trans>
             </div>
             <div
               className={`
@@ -444,7 +444,7 @@ export const ChannelList: React.FC<{
               `}
               onClick={() => selectChannel(null, { navigate: true })}
             >
-              Discover
+              <Trans>Discover</Trans>
             </div>
           </div>
         )}
@@ -464,7 +464,7 @@ export const ChannelList: React.FC<{
                   <FaChevronRight className="text-xs mr-1" />
                 )}
                 <span className="uppercase text-xs font-semibold tracking-wide">
-                  Text Channels
+                  <Trans>Text Channels</Trans>
                 </span>
                 <FaPlus
                   className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
@@ -798,7 +798,7 @@ export const ChannelList: React.FC<{
             <div className="px-2 mb-2">
               <div className="w-full flex items-center justify-center bg-discord-dark-400 rounded px-2 py-0.5 leading-none">
                 <span className="text-[10px] text-discord-text-muted italic">
-                  Voice Channels coming soon!
+                  <Trans>Voice Channels coming soon!</Trans>
                 </span>
               </div>
             </div>
@@ -815,7 +815,7 @@ export const ChannelList: React.FC<{
                   <FaChevronRight className="text-xs mr-1" />
                 )}
                 <span className="uppercase text-xs font-semibold tracking-wide">
-                  Private Messages
+                  <Trans>Private Messages</Trans>
                 </span>
                 <FaPlus
                   className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
@@ -837,8 +837,8 @@ export const ChannelList: React.FC<{
                           : [
                               {
                                 label: privateChat.isPinned
-                                  ? "Unpin Private Chat"
-                                  : "Pin Private Chat",
+                                  ? t`Unpin Private Chat`
+                                  : t`Pin Private Chat`,
                                 icon: <FaThumbtack size={14} />,
                                 onClick: () => {
                                   if (selectedServerId) {
@@ -1248,7 +1248,7 @@ export const ChannelList: React.FC<{
                                   e.stopPropagation();
                                   e.preventDefault();
                                 }}
-                                title={privateChat.isPinned ? "Unpin" : "Pin"}
+                                title={privateChat.isPinned ? t`Unpin` : t`Pin`}
                               >
                                 <FaThumbtack
                                   className={
@@ -1305,7 +1305,7 @@ export const ChannelList: React.FC<{
             <div className="mb-2">
               <div className="px-2 mb-1">
                 <span className="uppercase text-xs font-semibold tracking-wide">
-                  Server
+                  <Trans>Server</Trans>
                 </span>
               </div>
 
@@ -1326,7 +1326,9 @@ export const ChannelList: React.FC<{
                         selectedChannelId === "server-notices" ? "text-2xl" : ""
                       }`}
                     />
-                    <span className="truncate">Server Notices</span>
+                    <span className="truncate">
+                      <Trans>Server Notices</Trans>
+                    </span>
                   </div>
                 </div>
               </div>

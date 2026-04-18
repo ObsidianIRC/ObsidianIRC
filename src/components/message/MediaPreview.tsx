@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/macro";
+import { Trans, t } from "@lingui/macro";
 import exifr from "exifr";
 import type * as React from "react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -324,7 +324,7 @@ const VideoUnsupported: React.FC<{
         type="button"
         className="flex items-center gap-2 py-2 px-3 rounded border border-discord-dark-500/50 bg-discord-dark-400/30 text-discord-text-muted text-xs hover:bg-discord-dark-500/40 hover:text-discord-text-normal transition-colors w-full text-left"
         onClick={() => openMedia(url, msgid, serverId, channelId)}
-        title="Open in viewer"
+        title={t`Open in viewer`}
       >
         <svg
           className="w-4 h-4 shrink-0"
@@ -338,7 +338,7 @@ const VideoUnsupported: React.FC<{
           {url.split("/").pop()?.split("?")[0] || "video"}
         </span>
         <span className="text-discord-text-muted/60 shrink-0">
-          — open in viewer
+          {t`— open in viewer`}
         </span>
       </button>
     </div>
@@ -574,7 +574,7 @@ const VideoPlayer: React.FC<{
         {!isPlaying && (
           <button
             type="button"
-            aria-label="Play"
+            aria-label={t`Play`}
             onClick={handlePlayPause}
             className="absolute inset-0 flex items-center justify-center z-10"
           >
@@ -593,7 +593,7 @@ const VideoPlayer: React.FC<{
           <div className="flex items-center gap-2 text-white">
             <button
               type="button"
-              aria-label={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? t`Pause` : t`Play`}
               className="shrink-0 hover:scale-110 transition-transform"
               onClick={handlePlayPause}
             >
@@ -616,7 +616,7 @@ const VideoPlayer: React.FC<{
               defaultValue={0}
               onChange={handleSeek}
               className="flex-1 h-0.5 accent-white cursor-pointer rounded-full"
-              aria-label="Seek"
+              aria-label={t`Seek`}
             />
             <span className="text-xs tabular-nums shrink-0 text-white/40">
               {formatVideoTime(duration)}
@@ -624,7 +624,7 @@ const VideoPlayer: React.FC<{
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                aria-label={volume === 0 ? "Unmute" : "Mute"}
+                aria-label={volume === 0 ? t`Unmute` : t`Mute`}
                 className="shrink-0 hover:scale-110 transition-transform text-white/75 hover:text-white"
                 onClick={handleToggleMute}
               >
@@ -642,7 +642,7 @@ const VideoPlayer: React.FC<{
                 value={volume}
                 onChange={handleVolumeChange}
                 className="w-14 h-0.5 accent-white cursor-pointer"
-                aria-label="Volume"
+                aria-label={t`Volume`}
               />
             </div>
           </div>
@@ -739,7 +739,7 @@ const AudioPreview: React.FC<{
         <>
           <button
             type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t`Pause` : t`Play`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal"
             onClick={() => (isPlaying ? pause() : play())}
           >
@@ -755,7 +755,7 @@ const AudioPreview: React.FC<{
           </button>
           <button
             type="button"
-            aria-label="Stop"
+            aria-label={t`Stop`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-muted"
             onClick={stop}
           >

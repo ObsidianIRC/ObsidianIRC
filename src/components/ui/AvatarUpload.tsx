@@ -192,7 +192,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
           className="flex items-center gap-2 px-3 py-2 bg-discord-primary hover:bg-discord-primary-hover text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isUploading ? <FaSpinner className="animate-spin" /> : <FaUpload />}
-          {isUploading ? "Uploading..." : "Upload Avatar"}
+          {isUploading ? t`Uploading...` : t`Upload Avatar`}
         </button>
 
         {(previewUrl || currentAvatarUrl) && (
@@ -202,7 +202,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
             className="flex items-center gap-2 px-3 py-2 bg-discord-dark-300 hover:bg-discord-dark-200 text-white rounded"
           >
             <FaTimes />
-            Clear
+            {t`Clear`}
           </button>
         )}
       </div>
@@ -228,7 +228,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
             }}
           />
           <div className="text-sm text-discord-text-muted">
-            {previewUrl ? "Preview (not yet uploaded)" : "Current avatar"}
+            {previewUrl ? t`Preview (not yet uploaded)` : t`Current avatar`}
           </div>
         </div>
       )}

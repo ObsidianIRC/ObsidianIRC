@@ -21,19 +21,19 @@ export const IgnoreListField: React.FC<SettingComponentProps> = ({
   const handleAddPattern = () => {
     const trimmed = newPattern.trim();
     if (!trimmed) {
-      setValidationError("Pattern cannot be empty");
+      setValidationError(t`Pattern cannot be empty`);
       return;
     }
 
     if (!isValidIgnorePattern(trimmed)) {
       setValidationError(
-        "Invalid pattern format. Use nick!user@host format (wildcards * allowed)",
+        t`Invalid pattern format. Use nick!user@host format (wildcards * allowed)`,
       );
       return;
     }
 
     if (ignoreList.includes(trimmed)) {
-      setValidationError("Pattern already exists");
+      setValidationError(t`Pattern already exists`);
       return;
     }
 
@@ -80,21 +80,20 @@ export const IgnoreListField: React.FC<SettingComponentProps> = ({
             disabled={disabled || !newPattern.trim()}
             className="rounded bg-discord-button-success-default px-4 py-2 text-white hover:bg-discord-button-success-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add
+            {t`Add`}
           </button>
         </div>
         {validationError && (
           <p className="text-red-400 text-xs">{validationError}</p>
         )}
         <p className="text-discord-text-muted text-xs">
-          Use * for wildcards. Examples: baduser!*@*, *!*@spammer.com,
-          troll*!*@*
+          {t`Use * for wildcards. Examples: baduser!*@*, *!*@spammer.com, troll*!*@*`}
         </p>
       </div>
       {ignoreList.length > 0 && (
         <div className="space-y-2 bg-discord-dark-400 rounded p-3">
           <p className="text-discord-text-muted text-sm font-medium">
-            Ignored patterns:
+            {t`Ignored patterns:`}
           </p>
           <div className="space-y-1">
             {ignoreList.map((pattern) => (

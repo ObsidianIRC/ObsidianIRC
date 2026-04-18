@@ -3,7 +3,7 @@ import { formatter } from "@lingui/format-po";
 
 export default defineConfig({
   sourceLocale: "en",
-  locales: ["en", "es", "fr", "zh", "pt", "de", "it", "ro"],
+  locales: ["en", "es", "fr", "zh", "zh-TW", "pt", "de", "it", "ro", "ru", "fi", "ja", "pl", "nl", "ko", "tr", "uk", "sv", "cs"],
   catalogs: [
     {
       path: "<rootDir>/src/locales/{locale}/messages",

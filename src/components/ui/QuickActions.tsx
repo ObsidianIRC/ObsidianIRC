@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { t, useLingui } from "@lingui/macro";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -58,6 +58,7 @@ const QuickActions: React.FC = () => {
     setInviteUserRequest,
   } = useStore();
 
+  const { i18n } = useLingui();
   const joinAndSelectChannel = useJoinAndSelectChannel();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -188,8 +189,10 @@ const QuickActions: React.FC = () => {
       results.push({
         type: "setting",
         id: `setting-${settingResult.setting.id}`,
-        title: settingResult.setting.title,
-        description: settingResult.setting.description,
+        title: i18n._(settingResult.setting.title),
+        description: settingResult.setting.description
+          ? i18n._(settingResult.setting.description)
+          : undefined,
         score: settingResult.score,
         data: settingResult,
       });
@@ -404,7 +407,15 @@ const QuickActions: React.FC = () => {
     });
 
     return results.sort((a, b) => b.score - a.score).slice(0, 15);
-  }, [searchQuery, servers, channelList, ui, globalSettings, currentUser]);
+  }, [
+    searchQuery,
+    servers,
+    channelList,
+    ui,
+    globalSettings,
+    currentUser,
+    i18n._,
+  ]);
 
   const handleUIToggle = useCallback(
     (data: UIActionData) => {
@@ -665,8 +676,8 @@ const QuickActions: React.FC = () => {
           {searchResults.length === 0 ? (
             <div className="p-8 text-center text-discord-text-muted">
               {searchQuery.trim().length === 0
-                ? "No unread mentions or messages"
-                : "No results found"}
+                ? t`No unread mentions or messages`
+                : t`No results found`}
             </div>
           ) : (
             <div className="p-2">
@@ -700,19 +711,19 @@ const QuickActions: React.FC = () => {
                 const getTypeBadge = () => {
                   switch (result.type) {
                     case "setting":
-                      return "Setting";
+                      return t`Setting`;
                     case "channel":
-                      return "Channel";
+                      return t`Channel`;
                     case "dm":
                       return "DM";
                     case "server":
-                      return "Server";
+                      return t`Server`;
                     case "join-channel":
-                      return "Join";
+                      return t`Join`;
                     case "start-dm":
-                      return "New DM";
+                      return t`New DM`;
                     case "ui-toggle":
-                      return "Toggle";
+                      return t`Toggle`;
                     case "ui-modal":
                       return getUIActionBadge(result.id);
                   }

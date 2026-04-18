@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { Trans, t } from "@lingui/macro";
 import type React from "react";
 import { useState } from "react";
 import ircClient from "../../lib/ircClient";
@@ -30,7 +30,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
     const trimmedUsername = username.trim();
 
     if (!trimmedUsername) {
-      setError("Please enter a username");
+      setError(t`Please enter a username`);
       return;
     }
 
@@ -60,14 +60,14 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
     <BaseModal
       isOpen={isOpen}
       onClose={handleClose}
-      title={`Invite User to ${channelName}`}
+      title={t`Invite User to ${channelName}`}
       maxWidth="md"
     >
       <ModalBody>
         <Input
           id="username"
           type="text"
-          label="Username"
+          label={t`Username`}
           value={username}
           onChange={(e) => {
             setUsername(e.target.value);
@@ -80,17 +80,17 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
           autoCorrect="off"
           spellCheck={false}
           error={error}
-          helperText={`The user will receive an invitation to join ${channelName}.`}
+          helperText={t`The user will receive an invitation to join ${channelName}.`}
           autoFocus
         />
       </ModalBody>
 
       <ModalFooter>
         <Button variant="secondary" onClick={handleClose}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button variant="primary" onClick={handleInvite}>
-          Send Invite
+          <Trans>Send Invite</Trans>
         </Button>
       </ModalFooter>
     </BaseModal>

@@ -2,7 +2,7 @@
  * Modal for previewing and uploading images
  */
 
-import { t } from "@lingui/macro";
+import { Trans, t } from "@lingui/macro";
 import BaseModal from "../../lib/modal/BaseModal";
 import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 
@@ -48,10 +48,10 @@ export function ImagePreviewModal({
 
       <ModalFooter>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button variant="primary" onClick={onUpload}>
-          Upload
+          <Trans>Upload</Trans>
         </Button>
       </ModalFooter>
     </BaseModal>

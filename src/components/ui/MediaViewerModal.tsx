@@ -3,7 +3,7 @@ import {
   ChevronRightIcon,
   XMarkIcon,
 } from "@heroicons/react/24/solid";
-import { t } from "@lingui/macro";
+import { Trans, t } from "@lingui/macro";
 import {
   Fragment,
   lazy,
@@ -160,7 +160,9 @@ const AudioViewerPlayer: React.FC<{ url: string }> = ({ url }) => {
 
       {/* Seek bar / LIVE badge / error */}
       {hasError ? (
-        <span className="text-sm text-red-400">Failed to load audio</span>
+        <span className="text-sm text-red-400">
+          <Trans>Failed to load audio</Trans>
+        </span>
       ) : isLive ? (
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -1345,7 +1347,9 @@ export function MediaViewerModal({
               {isEmptyState && (
                 <div className="flex flex-col items-center gap-3 text-discord-text-muted pointer-events-none">
                   <FaFilm className="text-4xl opacity-40" />
-                  <span className="text-sm">No media in this channel</span>
+                  <span className="text-sm">
+                    <Trans>No media in this channel</Trans>
+                  </span>
                 </div>
               )}
               {/* Loading spinner — while probing an extensionless URL */}

@@ -1,0 +1,2547 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-04-17 08:23+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: fi\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/lib/irc/IRCClient.ts
+msgid "ObsidianIRC - Bringing IRC to the future"
+msgstr "ObsidianIRC - Viedään IRC tulevaisuuteen"
+
+#: src/components/message/MediaPreview.tsx
+msgid "— open in viewer"
+msgstr "— avaa katseluohjelmassa"
+
+#. placeholder {0}: typingUsers[0].username
+#. placeholder {1}: typingUsers[1].username
+#: src/components/layout/ChatArea.tsx
+msgid "{0} and {1} are typing..."
+msgstr "{0} ja {1} kirjoittavat..."
+
+#. placeholder {0}: typingUsers[0].username
+#: src/components/layout/ChatArea.tsx
+msgid "{0} is typing..."
+msgstr "{0} kirjoittaa..."
+
+#. placeholder {0}: filteredMessages.length - displayedMessages.length
+#: src/components/layout/ChannelMessageList.tsx
+msgid "{0} older messages"
+msgstr "{0} vanhempaa viestiä"
+
+#. placeholder {0}: typingUsers[0].username
+#. placeholder {1}: typingUsers[1].username
+#. placeholder {2}: typingUsers[2].username
+#: src/components/layout/ChatArea.tsx
+msgid "{0}, {1} and {2} are typing..."
+msgstr "{0}, {1} ja {2} kirjoittavat..."
+
+#. placeholder {0}: typingUsers[0].username
+#. placeholder {1}: typingUsers[1].username
+#. placeholder {2}: typingUsers[2].username
+#. placeholder {3}: typingUsers.length - 3
+#: src/components/layout/ChatArea.tsx
+msgid "{0}, {1}, {2} and {3} others are typing..."
+msgstr "{0}, {1}, {2} ja {3} muuta kirjoittavat..."
+
+#: src/store/handlers/users.ts
+msgid "{inviter} has invited {target} to join {channel}"
+msgstr "{inviter} kutsui {target} liittymään kanavalle {channel}"
+
+#: src/store/handlers/users.ts
+msgid "{inviter} has invited you to join {channel}"
+msgstr "{inviter} kutsui sinut liittymään kanavalle {channel}"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "*channel*"
+msgstr "*kanava*"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "*spam*"
+msgstr "*spam*"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "#new-channel-name"
+msgstr "#uusi-kanavan-nimi"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "#overflow"
+msgstr "#overflow"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "← Back"
+msgstr "← Takaisin"
+
+#: src/components/ui/ExternalLinkWarningModal.tsx
+msgid "<0>⚠️ Be careful!</0> Only open links from trusted sources. Malicious links can compromise your security or privacy."
+msgstr "<0>⚠️ Ole varovainen!</0> Avaa linkkejä vain luotetuista lähteistä. Haitalliset linkit voivat vaarantaa tietoturvasi tai yksityisyytesi."
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "<0>⚠️ Security Risk!</0> This connection may be vulnerable to interception or man-in-the-middle attacks."
+msgstr "<0>⚠️ Tietoturvariski!</0> Tämä yhteys voi olla alttiina salakuuntelulle tai välimieshyökkäyksille."
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "<0>💡 Recommendation:</0> Only proceed if you trust this server and understand the risks. Avoid sharing sensitive information or passwords over this connection."
+msgstr "<0>💡 Suositus:</0> Jatka vain jos luotat tähän palvelimeen ja ymmärrät riskit. Vältä arkaluonteisten tietojen tai salasanojen jakamista tämän yhteyden kautta."
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "<0>Risk:</0> Sensitive information (messages, private conversations, authentication details) could be exposed to network administrators or attackers positioned between IRC servers."
+msgstr "<0>Riski:</0> Arkaluonteiset tiedot (viestit, yksityiskeskustelut, tunnistautumistiedot) voisivat paljastua verkon ylläpitäjille tai hyökkääjille, jotka sijaitsevat IRC-palvelimien välissä."
+
+#: src/components/ui/EditServerModal.tsx
+msgid "⚠️ Existing oper credentials will be forgotten"
+msgstr "⚠️ Olemassa olevat oper-tunnukset unohdetaan"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "✓ Both username and password will be updated"
+msgstr "✓ Sekä käyttäjänimi että salasana päivitetään"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "✓ Username will be updated, password preserved"
+msgstr "✓ Käyttäjänimi päivitetään, salasana säilytetään"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Account"
+msgstr "Tili"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Account details"
+msgstr "Tilin tiedot"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Account Email"
+msgstr "Tilin sähköposti"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Account Name"
+msgstr "Tilin nimi"
+
+#: src/components/ui/EditServerModal.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Account Password"
+msgstr "Tilin salasana"
+
+#: src/components/ui/FloodSettingsModal.tsx
+#: src/components/ui/ModerationModal.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Action"
+msgstr "Toiminto"
+
+#: src/components/ui/settings/CustomMentionsField.tsx
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Add"
+msgstr "Lisää"
+
+#: src/components/ui/settings/CustomMentionsField.tsx
+msgid "Add a word or phrase..."
+msgstr "Lisää sana tai lause..."
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Add ban mask (e.g., nick!*@*, *!*@host.com)"
+msgstr "Lisää porttikieltomaski (esim. nick!*@*, *!*@host.com)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Add exception mask (e.g., nick!*@*, *!*@host.com)"
+msgstr "Lisää poikkeusmaski (esim. nick!*@*, *!*@host.com)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Add invitation mask (e.g., nick!*@*, *!*@host.com)"
+msgstr "Lisää kutsumask (esim. nick!*@*, *!*@host.com)"
+
+#: src/components/ui/AddServerModal.tsx
+msgid "Add IRC Server"
+msgstr "Lisää IRC-palvelin"
+
+#: src/components/message/MessageActions.tsx
+#: src/components/message/MessageReactions.tsx
+#: src/components/message/MessageReactions.tsx
+msgid "Add reaction"
+msgstr "Lisää reaktio"
+
+#: src/components/message/MessageReactions.tsx
+msgid "Add reaction {emoji}"
+msgstr "Lisää reaktio {emoji}"
+
+#: src/components/ui/FloodSettingsModal.tsx
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Add Rule"
+msgstr "Lisää sääntö"
+
+#: src/components/layout/ServerList.tsx
+msgid "Add Server"
+msgstr "Lisää palvelin"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Additional Information"
+msgstr "Lisätiedot"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Additional words or phrases to highlight"
+msgstr "Lisäsanat tai -lauseet korostettavaksi"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Admin"
+msgstr "Admin"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Advanced"
+msgstr "Lisäasetukset"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Advanced Filters"
+msgstr "Lisäsuodattimet"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Album"
+msgstr "Albumi"
+
+#: src/components/ui/UserSettings.tsx
+msgid "All Content"
+msgstr "Kaikki sisältö"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Allow entering multiple lines of text"
+msgstr "Salli monirivisyöttö"
+
+#: src/components/message/InviteMessage.tsx
+msgid "Already in"
+msgstr "Jo mukana"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Also shows previews from YouTube, Vimeo, SoundCloud, and similar known services."
+msgstr "Näyttää myös esikatselut YouTubesta, Vimeosta, SoundCloudista ja vastaavista tunnetuista palveluista."
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Alternative name for display in the UI. May contain spaces, emoji, and special characters. The real channel name ({channelName}) will still be used for IRC commands."
+msgstr "Vaihtoehtoinen nimi käyttöliittymässä näytettäväksi. Voi sisältää välilyöntejä, emojeja ja erikoismerkkejä. Todellista kanavan nimeä ({channelName}) käytetään edelleen IRC-komennoissa."
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Amount"
+msgstr "Määrä"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Anonymous Analytics:"
+msgstr "Anonyymi analytiikka:"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Apply"
+msgstr "Käytä"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Apply Filters & Refresh"
+msgstr "Käytä suodattimet ja päivitä"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Applying..."
+msgstr "Käytetään..."
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "are now known as **{newNick}**"
+msgstr "on nyt tunnettu nimellä **{newNick}**"
+
+#: src/components/layout/ChatArea.tsx
+msgid "Are you sure you want to delete this message? This action cannot be undone."
+msgstr "Haluatko varmasti poistaa tämän viestin? Tätä toimintoa ei voi kumota."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Attachment options"
+msgstr "Liitteet-valinnat"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Audio"
+msgstr "Ääni"
+
+#: src/components/ui/MiniMediaPlayer.tsx
+msgid "Audio position"
+msgstr "Äänentoistoasento"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Authenticate as an IRC Operator for administrative access"
+msgstr "Tunnistaudu IRC-operaattoriksi ylläpito-oikeuksia varten"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Authenticated Account"
+msgstr "Tunnistautunut tili"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Auto Fallback to Single Line"
+msgstr "Automaattinen palautuminen yksiriviseksi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Automatically authenticate as operator on connect"
+msgstr "Tunnistaudu automaattisesti operaattoriksi yhdistäessä"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Automatically switch to single line for short messages"
+msgstr "Vaihda automaattisesti yksiriviseen lyhyille viesteille"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Avatar"
+msgstr "Avatar"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Avatar preview"
+msgstr "Avatarin esikatselu"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/UserProfileModal.tsx
+msgid "Away"
+msgstr "Poissa"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Away from keyboard"
+msgstr "Poissa näppäimistöltä"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Away Message"
+msgstr "Poissaoloviesti"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Back"
+msgstr "Takaisin"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Back to image"
+msgstr "Takaisin kuvaan"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Ban {username} by hostmask (prevents them from rejoining from the same IP/host)"
+msgstr "Estä {username} hostmaskin perusteella (estää liittymisen samasta IP-osoitteesta/hostista)"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Ban {username} by nickname (prevents them from rejoining with the same nick)"
+msgstr "Estä {username} nimimerkin perusteella (estää liittymisen samalla nimimerkillä)"
+
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ban by Hostmask"
+msgstr "Estä hostmaskin perusteella"
+
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ban by Nickname"
+msgstr "Estä nimimerkin perusteella"
+
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ban User"
+msgstr "Estä käyttäjä"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Ban User (by Hostmask)"
+msgstr "Estä käyttäjä (hostmaskin perusteella)"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Ban User (by Nickname)"
+msgstr "Estä käyttäjä (nimimerkin perusteella)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Bans"
+msgstr "Estot"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Bot"
+msgstr "Botti"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Browse all channels on the server"
+msgstr "Selaa kaikkia palvelimen kanavia"
+
+#: src/components/ui/AddPrivateChatModal.tsx
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/EditServerModal.tsx
+#: src/components/ui/ExternalLinkWarningModal.tsx
+#: src/components/ui/FloodSettingsModal.tsx
+#: src/components/ui/ImagePreviewModal.tsx
+#: src/components/ui/InviteUserModal.tsx
+#: src/components/ui/ModerationModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Cancel"
+msgstr "Peruuta"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Cancel Connection"
+msgstr "Peruuta yhteys"
+
+#: src/components/message/MessageReply.tsx
+msgid "Cancel reply"
+msgstr "Peruuta vastaus"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Change the channel name (operators only)"
+msgstr "Muuta kanavan nimeä (vain operaattorit)"
+
+#: src/components/message/EventMessage.tsx
+msgid "Changed channel modes"
+msgstr "Muutti kanavan asetuksia"
+
+#: src/components/message/EventMessage.tsx
+msgid "Changed nickname"
+msgstr "Vaihtoi nimimerkin"
+
+#: src/store/handlers/channels.ts
+msgid "changed the topic to: {topic}"
+msgstr "vaihtoi aiheen: {topic}"
+
+#: src/components/ui/QuickActions.tsx
+msgid "Channel"
+msgstr "Kanava"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Admin"
+msgstr "Kanavan ylläpitäjä"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Avatar"
+msgstr "Kanavan avatar"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel avatar preview"
+msgstr "Kanavan avatarin esikatselu"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Display Name"
+msgstr "Kanavan näyttönimi"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Half Operator"
+msgstr "Kanavan puolioperaattori"
+
+#. placeholder {0}: reason ? ` (${reason})` : ""
+#: src/store/handlers/users.ts
+msgid "Channel has been renamed from {oldName} to {newName} by {user}{0}"
+msgstr "Kanava on nimetty uudelleen nimestä {oldName} nimeen {newName} käyttäjän {user} toimesta{0}"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Key (+k)"
+msgstr "Kanavan avain (+k)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Name"
+msgstr "Kanavan nimi"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Channel Name Mask"
+msgstr "Kanavan nimimaski"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Operator"
+msgstr "Kanavan operaattori"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Owner"
+msgstr "Kanavan omistaja"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Channel Settings"
+msgstr "Kanavan asetukset"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Topic"
+msgstr "Kanavan aihe"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel won't appear in LIST or NAMES commands"
+msgstr "Kanava ei näy LIST- tai NAMES-komennoissa"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Channels"
+msgstr "Kanavat"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Channels on {networkName}"
+msgstr "Kanavat verkossa {networkName}"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Choose a predefined flood protection profile. These profiles provide balanced protection settings for different use cases."
+msgstr "Valitse valmis tulvasuojausprofiili. Nämä profiilit tarjoavat tasapainoisia suojausasetuksia eri käyttötarkoituksiin."
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Choose a secure password"
+msgstr "Valitse turvallinen salasana"
+
+#: src/components/ui/settings/SettingRenderer.tsx
+msgid "Choose file"
+msgstr "Valitse tiedosto"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Clear"
+msgstr "Tyhjennä"
+
+#: src/components/layout/ChannelMessageList.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Clear search"
+msgstr "Tyhjennä haku"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Click to copy"
+msgstr "Kopioi napsauttamalla"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Click to join {channel}"
+msgstr "Liity kanavalle {channel} napsauttamalla"
+
+#: src/components/message/MessageReply.tsx
+msgid "Click to jump to message"
+msgstr "Siirry viestiin napsauttamalla"
+
+#: src/components/layout/ChatHeader.tsx
+msgid "Click to set topic"
+msgstr "Aseta aihe napsauttamalla"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Client Limit (+l)"
+msgstr "Käyttäjäraja (+l)"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/message/ServerNoticesPopup.tsx
+#: src/components/message/ServerNoticesPopup.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/ReactionModal.tsx
+#: src/components/ui/UserProfileModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Close"
+msgstr "Sulje"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Close comments"
+msgstr "Sulje kommentit"
+
+#: src/lib/modal/BaseModal.tsx
+msgid "Close modal"
+msgstr "Sulje ikkuna"
+
+#: src/components/layout/ChatArea.tsx
+msgid "Close popped out server notices"
+msgstr "Sulje irrotettu palvelintiedotteet-näkymä"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Close viewer"
+msgstr "Sulje katseluohjelma"
+
+#: src/components/layout/ChatHeader.tsx
+msgid "Collapse member list"
+msgstr "Pienennä jäsenlista"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Color"
+msgstr "Väri"
+
+#: src/components/ui/ColorPicker.tsx
+msgid "Color & Formatting"
+msgstr "Väri ja muotoilu"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Comments"
+msgstr "Kommentit"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Configure detailed flood protection rules. Each rule specifies what type of activity to monitor and what action to take when thresholds are exceeded."
+msgstr "Määritä yksityiskohtaiset tulvasuojaussäännöt. Kukin sääntö määrittää, mitä toimintaa seurataan ja mitä tehdään kun raja-arvot ylitetään."
+
+#: src/components/ui/UserSettings.tsx
+msgid "Configure notification sounds and highlights"
+msgstr "Määritä ilmoitusäänet ja korostukset"
+
+#: src/components/ui/AddServerModal.tsx
+msgid "Connect"
+msgstr "Yhdistä"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Connected To"
+msgstr "Yhdistetty palvelimeen"
+
+#: src/components/ui/MiniMediaPlayer.tsx
+msgid "Connecting"
+msgstr "Yhdistetään"
+
+#: src/components/ui/AddServerModal.tsx
+msgid "Connecting..."
+msgstr "Yhdistetään..."
+
+#: src/components/ui/UserSettings.tsx
+msgid "Contact"
+msgstr "Yhteystiedot"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Continue Anyway"
+msgstr "Jatka silti"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Control how much external media is loaded in chat."
+msgstr "Hallitsee, kuinka paljon ulkoista mediaa ladataan chatissa."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Control how much external media is loaded. Off / Safe / Trusted Sources / All Content."
+msgstr "Hallinnoi ulkoisen median lataamista. Pois / Turvallinen / Luotetut lähteet / Kaikki sisältö."
+
+#: src/components/ui/UserSettings.tsx
+msgid "Control media display and external content"
+msgstr "Hallinnoi median näyttöä ja ulkoista sisältöä"
+
+#: src/components/ui/ExternalLinkWarningModal.tsx
+msgid "Copied"
+msgstr "Kopioitu"
+
+#: src/components/ui/ExternalLinkWarningModal.tsx
+msgid "Copy URL"
+msgstr "Kopioi URL"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Created After (min ago)"
+msgstr "Luotu myöhemmin kuin (min sitten)"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Created Before (min ago)"
+msgstr "Luotu aiemmin kuin (min sitten)"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Current avatar"
+msgstr "Nykyinen avatar"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Custom Flood Rules (+f)"
+msgstr "Mukautetut tulvasäännöt (+f)"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Custom Mentions"
+msgstr "Mukautetut maininnat"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Custom notification sound file"
+msgstr "Mukautettu ilmoitusäänitiedosto"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Customize your IRC client experience"
+msgstr "Mukauta IRC-asiakasohjelmaasi"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Data Collection"
+msgstr "Tiedonkeruu"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Deep dive"
+msgstr "Syvempi tarkastelu"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Default"
+msgstr "Oletus"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Default (no profile)"
+msgstr "Oletus (ei profiilia)"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Default message when marking yourself as away"
+msgstr "Oletusviesti poissaoloilmoitukselle"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Default Nickname"
+msgstr "Oletusnimimerkki"
+
+#: src/components/mobile/MessageBottomSheet.tsx
+msgid "Delete"
+msgstr "Poista"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Delete Channel"
+msgstr "Poista kanava"
+
+#: src/components/message/MessageActions.tsx
+msgid "Delete message"
+msgstr "Poista viesti"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Delete Private Chat"
+msgstr "Poista yksityiskeskustelu"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete this message? This cannot be undone."
+msgstr "Poistetaanko tämä viesti? Toimintoa ei voi kumota."
+
+#: src/components/layout/ServerList.tsx
+#: src/components/mobile/ServerBottomSheet.tsx
+msgid "Disconnect"
+msgstr "Katkaise yhteys"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Discover"
+msgstr "Selaa"
+
+#: src/components/ui/HomeScreen.tsx
+msgid "Discover the world of IRC with ObsidianIRC"
+msgstr "Tutustu IRC:n maailmaan ObsidianIRC:llä"
+
+#: src/components/ui/GlobalNotifications.tsx
+msgid "Dismiss notification"
+msgstr "Hylkää ilmoitus"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Display"
+msgstr "Näyttö"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display all server events in chat"
+msgstr "Näytä kaikki palvelintapahtumat chatissa"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display Name"
+msgstr "Näyttönimi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users are kicked from channels"
+msgstr "Näytä kun käyttäjiä poistetaan kanavilta"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users change their nickname"
+msgstr "Näytä kun käyttäjät vaihtavat nimimerkkinsä"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users disconnect from server"
+msgstr "Näytä kun käyttäjät katkaisevat yhteyden palvelimeen"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users join or leave channels"
+msgstr "Näytä kun käyttäjät liittyvät kanavalle tai poistuvat"
+
+#: src/components/ui/ExternalLinkWarningModal.tsx
+msgid "Do you want to open this link in a new tab?"
+msgstr "Haluatko avata tämän linkin uudessa välilehdessä?"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Don't warn me about low link security for this server"
+msgstr "Älä varoita minua tämän palvelimen heikosta linkkiturvallisuudesta"
+
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Download"
+msgstr "Lataa"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "e.g., 100:1440"
+msgstr "esim. 100:1440"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Edit"
+msgstr "Muokkaa"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Edit Profile"
+msgstr "Muokkaa profiilia"
+
+#: src/components/layout/ServerList.tsx
+#: src/components/mobile/ServerBottomSheet.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Edit Server"
+msgstr "Muokkaa palvelinta"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Email:"
+msgstr "Sähköposti:"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Embed"
+msgstr "Upotus"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Highlights"
+msgstr "Ota korostukset käyttöön"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Markdown"
+msgstr "Ota Markdown käyttöön"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Multiline Input"
+msgstr "Ota monirivisyöttö käyttöön"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Notification Sounds"
+msgstr "Ota ilmoitusäänet käyttöön"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Enable notifications"
+msgstr "Ota ilmoitukset käyttöön"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Enter display name"
+msgstr "Syötä näyttönimi"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Enter oper password"
+msgstr "Syötä oper-salasana"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Enter oper username"
+msgstr "Syötä oper-käyttäjänimi"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Enter real name"
+msgstr "Syötä oikea nimi"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Enter reason (optional)"
+msgstr "Syötä syy (valinnainen)"
+
+#: src/components/ui/InviteUserModal.tsx
+msgid "Enter username to invite"
+msgstr "Syötä kutsuttavan käyttäjänimi"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Exceptions"
+msgstr "Poikkeukset"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Exclude Channel Name Mask"
+msgstr "Sulje pois kanavan nimimaski"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Existing credentials will be preserved"
+msgstr "Olemassa olevat tunnistautumistiedot säilytetään"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Expand channel list"
+msgstr "Laajenna kanavaluettelo"
+
+#: src/components/layout/ChatHeader.tsx
+msgid "Expand member list"
+msgstr "Laajenna jäsenlista"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Extended Profile"
+msgstr "Laajennettu profiili"
+
+#: src/components/ui/ExternalLinkWarningModal.tsx
+msgid "External Link Warning"
+msgstr "Ulkoisen linkin varoitus"
+
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+msgid "Failed to load audio"
+msgstr "Äänen lataaminen epäonnistui"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Filter channels..."
+msgstr "Suodata kanavia..."
+
+#: src/components/ui/AutocompleteDropdown.tsx
+msgid "Filter members…"
+msgstr "Suodata jäseniä…"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Flood Profile (+F)"
+msgstr "Tulvasuojausprofiili (+F)"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Flood Protection Settings"
+msgstr "Tulvasuojausasetukset"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Forget Credentials"
+msgstr "Unohda tunnistautumistiedot"
+
+#. placeholder {0}: filteredMessages.length
+#. placeholder {1}: filteredMessages.length === 1 ? "message" : "messages"
+#: src/components/layout/ChannelMessageList.tsx
+msgid "Found {0} {1} matching \"{searchQuery}\""
+msgstr "Löydettiin {0} {1} hakusanalle \"{searchQuery}\""
+
+#: src/components/message/WhisperMessage.tsx
+#: src/components/message/WhisperMessage.tsx
+msgid "from"
+msgstr "lähettäjä"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "General"
+msgstr "Yleiset"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "General Support Channel"
+msgstr "Yleinen tukikanava"
+
+#: src/components/layout/ChannelMessageList.tsx
+msgid "Getting more messages..."
+msgstr "Haetaan lisää viestejä..."
+
+#: src/components/ui/UserSettings.tsx
+msgid "GitHub:"
+msgstr "GitHub:"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Halfop"
+msgstr "Halfop"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Highlight messages that mention you"
+msgstr "Korosta viestit, joissa mainitaan sinut"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ServerList.tsx
+#: src/components/layout/ServerList.tsx
+msgid "Home"
+msgstr "Koti"
+
+#: src/components/layout/ChannelList.tsx
+msgid "HOME"
+msgstr "KOTI"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Homepage"
+msgstr "Kotisivu"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Host"
+msgstr "Isäntä"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "How many seconds to monitor for flood activity before resetting counters"
+msgstr "Kuinka monta sekuntia tulvatoimintaa seurataan ennen laskurien nollaamista"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "I'm Back"
+msgstr "Olen takaisin"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Idle"
+msgstr "Toimeton"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Ignore List"
+msgstr "Estolistа"
+
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ignore User"
+msgstr "Estä käyttäjä"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Ignored patterns:"
+msgstr "Estetyt mallit:"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Image"
+msgstr "Kuva"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Image preview"
+msgstr "Kuvan esikatselu"
+
+#: src/components/ui/InputToolbar.tsx
+msgid "Insert emoji"
+msgstr "Lisää emoji"
+
+#: src/lib/settings/registry.ts
+msgid "Invalid format"
+msgstr "Virheellinen muoto"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Invalid pattern format. Use nick!user@host format (wildcards * allowed)"
+msgstr "Virheellinen mallimuoto. Käytä nick!käyttäjä@isäntä-muotoa (jokerimerkit * sallittu)"
+
+#: src/lib/settings/registry.ts
+msgid "Invalid value"
+msgstr "Virheellinen arvo"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Invitations"
+msgstr "Kutsut"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Invite a user to the current channel"
+msgstr "Kutsu käyttäjä nykyiselle kanavalle"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Invite User"
+msgstr "Kutsu käyttäjä"
+
+#: src/components/ui/InviteUserModal.tsx
+msgid "Invite User to {channelName}"
+msgstr "Kutsu käyttäjä kanavalle {channelName}"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Invite-Only (+i)"
+msgstr "Vain kutsulla (+i)"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/MemberList.tsx
+#: src/components/layout/MemberList.tsx
+#: src/components/layout/MemberList.tsx
+#: src/components/message/MessageHeader.tsx
+#: src/components/ui/EditServerModal.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "IRC Operator"
+msgstr "IRC-operaattori"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "IRC operator password"
+msgstr "IRC-operaattorin salasana"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "IRC operator username"
+msgstr "IRC-operaattorin käyttäjänimi"
+
+#: src/components/ui/UserSettings.tsx
+msgid "IRC Servers:"
+msgstr "IRC-palvelimet:"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "is now known as **{newNick}**"
+msgstr "on nyt tunnettu nimellä **{newNick}**"
+
+#: src/components/message/InviteMessage.tsx
+#: src/components/ui/QuickActions.tsx
+msgid "Join"
+msgstr "Liity"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "joined {channelName}"
+msgstr "liittyi kanavalle {channelName}"
+
+#: src/components/message/EventMessage.tsx
+msgid "Joined the channel"
+msgstr "Liittyi kanavalle"
+
+#: src/components/ui/ModerationModal.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Kick User"
+msgstr "Poista käyttäjä"
+
+#: src/components/ui/UserSettings.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Language"
+msgstr "Kieli"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Learn how we handle your data and protect your privacy."
+msgstr "Lue, miten käsittelemme tietojasi ja suojelemme yksityisyyttäsi."
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Learn more about custom rules →"
+msgstr "Lue lisää mukautetuista säännöistä →"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Learn more about profiles →"
+msgstr "Lue lisää profiileista →"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Leave channel"
+msgstr "Poistu kanavalta"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "left {channelName}"
+msgstr "poistui kanavalta {channelName}"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "left {channelName} ({reason})"
+msgstr "poistui kanavalta {channelName} ({reason})"
+
+#: src/components/message/EventMessage.tsx
+msgid "Left the channel"
+msgstr "Poistui kanavalta"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Let others know when you are typing"
+msgstr "Ilmoita muille, kun kirjoitat"
+
+#: src/components/message/LinkPreview.tsx
+msgid "Link preview"
+msgstr "Linkin esikatselu"
+
+#: src/components/layout/ChannelMessageList.tsx
+msgid "Load older messages"
+msgstr "Lataa vanhempia viestejä"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Loading channel modes..."
+msgstr "Ladataan kanavan tiloja..."
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Loading channels..."
+msgstr "Ladataan kanavia..."
+
+#: src/components/ui/GifSelector.tsx
+msgid "Loading GIFs..."
+msgstr "Ladataan GIF-kuvia..."
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Loading more channels..."
+msgstr "Ladataan lisää kanavia..."
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Loading WHOIS data..."
+msgstr "Ladataan WHOIS-tietoja..."
+
+#: src/components/ui/UserSettings.tsx
+msgid "Local Storage:"
+msgstr "Paikallinen tallennustila:"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Login to an account"
+msgstr "Kirjaudu tilille"
+
+#: src/components/message/ServerNoticesPopup.tsx
+msgid "logs"
+msgstr "lokit"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Low Link Security (Level {securityLevel})"
+msgstr "Heikko linkkiturvallisuus (taso {securityLevel})"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Man-in-the-middle attacks on server links are possible"
+msgstr "Välimieshyökkäykset palvelinlinkeissä ovat mahdollisia"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Manage your account and authentication"
+msgstr "Hallinnoi tiliäsi ja tunnistautumista"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Manage your profile information and metadata"
+msgstr "Hallinnoi profiilitietojasi ja metatietoja"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Mark as bot - usually 'on' or empty"
+msgstr "Merkitse botiksi – yleensä 'on' tai tyhjä"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Max Users"
+msgstr "Enimmäiskäyttäjämäärä"
+
+#: src/components/message/ServerNoticesPopup.tsx
+msgid "Maximize"
+msgstr "Suurenna"
+
+#. placeholder {0}: validation.maxLength
+#: src/lib/settings/registry.ts
+msgid "Maximum length is {0}"
+msgstr "Enimmäispituus on {0}"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Maximum number of users allowed in the channel. Leave empty for no limit."
+msgstr "Kanavalla sallittu enimmäiskäyttäjämäärä. Jätä tyhjäksi, jos rajaa ei haluta."
+
+#. placeholder {0}: validation.max
+#: src/lib/settings/registry.ts
+msgid "Maximum value is {0}"
+msgstr "Enimmäisarvo on {0}"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Media"
+msgstr "Media"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Media Previews"
+msgstr "Median esikatselut"
+
+#. placeholder {0}: sortedUsers?.length || 0
+#: src/components/layout/MemberList.tsx
+msgid "Members — {0}"
+msgstr "Jäsenet — {0}"
+
+#. placeholder {0}: selectedPrivateChat.username
+#: src/components/layout/ChatArea.tsx
+msgid "Message @{0}"
+msgstr "Viesti @{0}"
+
+#. placeholder {0}: selectedPrivateChat.username
+#: src/components/layout/ChatArea.tsx
+msgid "Message @{0} (Enter for new line, Shift+Enter to send)"
+msgstr "Viesti @{0} (Enter = uusi rivi, Shift+Enter = lähetä)"
+
+#. placeholder {0}: selectedPrivateChat.username
+#: src/components/layout/ChatArea.tsx
+msgid "Message @{0} (Shift+Enter for new line)"
+msgstr "Viesti @{0} (Shift+Enter = uusi rivi)"
+
+#. placeholder {0}: selectedChannel.name.replace(/^#/, "")
+#: src/components/layout/ChatArea.tsx
+msgid "Message #{0}"
+msgstr "Viesti #{0}"
+
+#. placeholder {0}: selectedChannel.name.replace(/^#/, "")
+#: src/components/layout/ChatArea.tsx
+msgid "Message #{0} (Enter for new line, Shift+Enter to send)"
+msgstr "Viesti #{0} (Enter = uusi rivi, Shift+Enter = lähetä)"
+
+#. placeholder {0}: selectedChannel.name.replace(/^#/, "")
+#: src/components/layout/ChatArea.tsx
+msgid "Message #{0} (Shift+Enter for new line)"
+msgstr "Viesti #{0} (Shift+Enter = uusi rivi)"
+
+#. placeholder {0}: searchTerm.trim()
+#: src/components/ui/AddPrivateChatModal.tsx
+msgid "Message <0>{0}</0>"
+msgstr "Viesti <0>{0}</0>"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Message shown when you disconnect from the server"
+msgstr "Viesti, joka näytetään katkaistessasi yhteyden palvelimeen"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Min Users"
+msgstr "Vähimmäiskäyttäjämäärä"
+
+#: src/components/message/ServerNoticesPopup.tsx
+msgid "Minimize"
+msgstr "Pienennä"
+
+#. placeholder {0}: validation.minLength
+#: src/lib/settings/registry.ts
+msgid "Minimum length is {0}"
+msgstr "Vähimmäispituus on {0}"
+
+#. placeholder {0}: validation.min
+#: src/lib/settings/registry.ts
+msgid "Minimum value is {0}"
+msgstr "Vähimmäisarvo on {0}"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Modal"
+msgstr "Ikkuna"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Moderate User"
+msgstr "Moderoi käyttäjää"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Moderated (+m)"
+msgstr "Moderoitu (+m)"
+
+#: src/components/layout/ChatHeader.tsx
+msgid "More"
+msgstr "Lisää"
+
+#: src/components/layout/ChatHeader.tsx
+msgid "More actions"
+msgstr "Lisää toimintoja"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Multiline on Shift+Enter"
+msgstr "Monirivinen Shift+Enter-painikkeella"
+
+#: src/components/message/MediaPreview.tsx
+msgid "Mute"
+msgstr "Mykistä"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Mute notifications"
+msgstr "Mykistä ilmoitukset"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Mute or unmute notification sounds"
+msgstr "Mykistä tai poista mykistys ilmoitusäänistä"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Network Name"
+msgstr "Verkon nimi"
+
+#: src/components/ui/QuickActions.tsx
+msgid "New DM"
+msgstr "Uusi DM"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Next image"
+msgstr "Seuraava kuva"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Next page"
+msgstr "Seuraava sivu"
+
+#. placeholder {0}: nick ? `(${nick})` : ""
+#: src/store/handlers/users.ts
+msgid "Nick change failed: {error} {0}"
+msgstr "Nimen vaihto epäonnistui: {error} {0}"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "nick!user@host (e.g., spam*!*@*, *!*@badhost.com)"
+msgstr "nick!käyttäjä@isäntä (esim. spam*!*@*, *!*@badhost.com)"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Nickname"
+msgstr "Nimimerkki"
+
+#: src/store/handlers/users.ts
+msgid "Nickname '{nick}' already in use, retrying with '{newNick}'"
+msgstr "Nimimerkki '{nick}' on jo käytössä, yritetään uudelleen nimellä '{newNick}'"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Nickname is required"
+msgstr "Nimimerkki on pakollinen"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "No additional data"
+msgstr "Ei lisätietoja"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No ban exceptions found"
+msgstr "Porttikieltopoikkeuksia ei löydetty"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No bans found"
+msgstr "Estoja ei löydetty"
+
+#: src/components/ui/UserSettings.tsx
+msgid "No Central Server:"
+msgstr "Ei keskuspalvelinta:"
+
+#: src/components/ui/UserSettings.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "No Changes"
+msgstr "Ei muutoksia"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "No channels found."
+msgstr "Kanavia ei löydetty."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "No comments yet. Be the first!"
+msgstr "Ei vielä kommentteja. Ole ensimmäinen!"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No External Messages (+n)"
+msgstr "Ei ulkoisia viestejä (+n)"
+
+#: src/components/ui/settings/SettingRenderer.tsx
+msgid "No file chosen"
+msgstr "Ei valittua tiedostoa"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No flood profile"
+msgstr "Ei tulvasuojausprofiilia"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No invitations found"
+msgstr "Kutsuja ei löydetty"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No key"
+msgstr "Ei avainta"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No limit"
+msgstr "Ei rajaa"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "No media in this channel"
+msgstr "Tällä kanavalla ei ole mediaa"
+
+#: src/components/ui/UserSettings.tsx
+msgid "No media previews are loaded."
+msgstr "Median esikatseluja ei ladata."
+
+#: src/components/ui/EditServerModal.tsx
+msgid "No oper credentials configured"
+msgstr "Oper-tunnustietoja ei ole asetettu"
+
+#: src/components/ui/QuickActions.tsx
+msgid "No results found"
+msgstr "Tuloksia ei löydetty"
+
+#: src/components/ui/HomeScreen.tsx
+msgid "No servers found."
+msgstr "Palvelimia ei löydetty."
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "No topic"
+msgstr "Ei aihetta"
+
+#: src/components/ui/TopicModal.tsx
+msgid "No topic set"
+msgstr "Aihetta ei ole asetettu"
+
+#: src/components/ui/QuickActions.tsx
+msgid "No unread mentions or messages"
+msgstr "Ei lukemattomia mainintoja tai viestejä"
+
+#: src/components/ui/AddPrivateChatModal.tsx
+msgid "No users available"
+msgstr "Ei käyttäjiä saatavilla"
+
+#: src/components/ui/AddPrivateChatModal.tsx
+msgid "No users found matching your search"
+msgstr "Hakua vastaavia käyttäjiä ei löydetty"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "No WHOIS data available"
+msgstr "WHOIS-tietoja ei saatavilla"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Normal"
+msgstr "Normaali"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Normal - Standard protection"
+msgstr "Normaali – tavallinen suojaus"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Notification Sound"
+msgstr "Ilmoitusääni"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Notifications"
+msgstr "Ilmoitukset"
+
+#: src/components/PrivacyPolicy.tsx
+msgid "ObsidianIRC"
+msgstr "ObsidianIRC"
+
+#: src/components/ui/UserSettings.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "ObsidianIRC - Bringing IRC to the future"
+msgstr "ObsidianIRC – IRC:n tulevaisuuteen"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Off"
+msgstr "Pois"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Offline"
+msgstr "Poissa verkosta"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Online"
+msgstr "Verkossa"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Only connect to servers you choose"
+msgstr "Yhdistä vain valitsemiisi palvelimiin"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Only operators can change the channel topic"
+msgstr "Vain operaattorit voivat muuttaa kanavan aihetta"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Only secure websockets are supported"
+msgstr "Vain suojatut WebSocket-yhteydet ovat tuettuja"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Only users with voice or higher can speak"
+msgstr "Vain käyttäjät, joilla on voice tai korkeampi, voivat puhua"
+
+#: src/store/handlers/batches.ts
+msgid "Oops! The net split! ⚠️"
+msgstr "Hups! Verkon jako! ⚠️"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Op"
+msgstr "Op"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Open channel configuration settings"
+msgstr "Avaa kanavan asetukset"
+
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Open in browser"
+msgstr "Avaa selaimessa"
+
+#: src/components/message/MediaPreview.tsx
+#: src/components/message/MessageActions.tsx
+#: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+msgid "Open in viewer"
+msgstr "Avaa katseluohjelmassa"
+
+#: src/components/ui/ExternalLinkWarningModal.tsx
+msgid "Open Link"
+msgstr "Avaa linkki"
+
+#: src/components/ui/EditServerModal.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Oper Name"
+msgstr "Oper-nimi"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Oper name and password are required"
+msgstr "Oper-nimi ja salasana ovat pakollisia"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Oper on connect"
+msgstr "Oper yhdistäessä"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Oper on Connect"
+msgstr "Oper yhdistäessä"
+
+#: src/components/ui/EditServerModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Oper Password"
+msgstr "Oper-salasana"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Oper Up"
+msgstr "Ota oper käyttöön"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Oper Username"
+msgstr "Oper-käyttäjänimi"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Operator password"
+msgstr "Operaattorin salasana"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Operator username"
+msgstr "Operaattorin käyttäjänimi"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Optional crash reports to improve the app"
+msgstr "Valinnaiset kaatumisraportit sovelluksen parantamiseksi"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Owner"
+msgstr "Omistaja"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Password"
+msgstr "Salasana"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Password required to join the channel. Leave empty to remove the key."
+msgstr "Salasana vaaditaan kanavalle liittymiseen. Jätä tyhjäksi poistaaksesi avaimen."
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Pattern already exists"
+msgstr "Malli on jo olemassa"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Pattern cannot be empty"
+msgstr "Malli ei voi olla tyhjä"
+
+#: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+msgid "Pause"
+msgstr "Tauko"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "PDF"
+msgstr "PDF"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Permanent"
+msgstr "Pysyvä"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Pin"
+msgstr "Kiinnitä"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Pin Private Chat"
+msgstr "Kiinnitä yksityiskeskustelu"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Pin this private message conversation"
+msgstr "Kiinnitä tämä yksityisviesteistä"
+
+#: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+msgid "Play"
+msgstr "Toista"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Play sounds for mentions and messages"
+msgstr "Toista ääniä maininnoista ja viesteistä"
+
+#: src/components/ui/InviteUserModal.tsx
+msgid "Please enter a username"
+msgstr "Syötä käyttäjänimi"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Please wait..."
+msgstr "Odota hetki..."
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "PM User"
+msgstr "Lähetä viesti käyttäjälle"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Port"
+msgstr "Portti"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Preferences"
+msgstr "Asetukset"
+
+#: src/components/ui/ImagePreviewModal.tsx
+msgid "Preview"
+msgstr "Esikatselu"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Preview (not yet uploaded)"
+msgstr "Esikatselu (ei vielä lähetetty)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Preview:"
+msgstr "Esikatselu:"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Previous image"
+msgstr "Edellinen kuva"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Previous page"
+msgstr "Edellinen sivu"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Privacy"
+msgstr "Yksityisyys"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Privacy Policy"
+msgstr "Tietosuojakäytäntö"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Private Messages"
+msgstr "Yksityisviestit"
+
+#: src/components/ui/FloodSettingsModal.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Profile"
+msgstr "Profiili"
+
+#: src/components/ui/UserProfileModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Pronouns"
+msgstr "Pronominit"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Protected Topic (+t)"
+msgstr "Suojattu aihe (+t)"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Questions about privacy? Contact us:"
+msgstr "Yksityisyyteen liittyviä kysymyksiä? Ota yhteyttä:"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "quit"
+msgstr "poistui"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "quit ({reason})"
+msgstr "poistui ({reason})"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Quit Message"
+msgstr "Lähtöviesti"
+
+#: src/components/message/EventMessage.tsx
+msgid "Quit the server"
+msgstr "Poistui palvelimelta"
+
+#: src/components/mobile/MessageBottomSheet.tsx
+msgid "React"
+msgstr "Reagoi"
+
+#: src/components/message/MessageReactions.tsx
+msgid "reacted to this message"
+msgstr "reagoi tähän viestiin"
+
+#: src/components/message/CollapsibleMessage.tsx
+msgid "Read more"
+msgstr "Lue lisää"
+
+#: src/components/ui/UserProfileModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Real Name"
+msgstr "Oikea nimi"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Reason"
+msgstr "Syy"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Reason (optional)"
+msgstr "Syy (valinnainen)"
+
+#: src/components/layout/ServerList.tsx
+msgid "Reconnect to server"
+msgstr "Yhdistä uudelleen palvelimeen"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Register for an account"
+msgstr "Rekisteröidy tilille"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Relaxed"
+msgstr "Löysä"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Relaxed - Less aggressive protection"
+msgstr "Löysä – vähemmän aggressiivinen suojaus"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Remove"
+msgstr "Poista"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Remove {username} from the channel"
+msgstr "Poista {username} kanavalta"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Remove pattern"
+msgstr "Poista malli"
+
+#: src/components/message/MessageReactions.tsx
+msgid "Remove reaction {emoji}"
+msgstr "Poista reaktio {emoji}"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Remove Rule"
+msgstr "Poista sääntö"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Rename Channel"
+msgstr "Nimeä kanava uudelleen"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Rename this channel on the server. All users will see the new name."
+msgstr "Nimeä tämä kanava uudelleen palvelimella. Kaikki käyttäjät näkevät uuden nimen."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Render markdown formatting in messages"
+msgstr "Näytä Markdown-muotoilu viesteissä"
+
+#: src/components/message/MessageActions.tsx
+#: src/components/mobile/MessageBottomSheet.tsx
+msgid "Reply"
+msgstr "Vastaa"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Rules"
+msgstr "Säännöt"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Safe"
+msgstr "Turvallinen"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "SASL Account Name"
+msgstr "SASL-tilin nimi"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/TopicModal.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "Save"
+msgstr "Tallenna"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Save Changes"
+msgstr "Tallenna muutokset"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Save Settings"
+msgstr "Tallenna asetukset"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Saving..."
+msgstr "Tallennetaan..."
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+#: src/components/ui/ScrollToBottomButton.tsx
+msgid "Scroll to bottom"
+msgstr "Siirry loppuun"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/GifSelector.tsx
+msgid "Search"
+msgstr "Hae"
+
+#: src/components/ui/GifSelector.tsx
+msgid "Search for GIFs to get started"
+msgstr "Hae GIF-kuvia aloittaaksesi"
+
+#: src/components/ui/GifSelector.tsx
+msgid "Search GIFs..."
+msgstr "Hae GIF-kuvia..."
+
+#: src/components/layout/ChatHeader.tsx
+msgid "Search messages…"
+msgstr "Hae viestejä…"
+
+#: src/components/ui/HomeScreen.tsx
+msgid "Search servers..."
+msgstr "Hae palvelimia..."
+
+#: src/components/ui/QuickActions.tsx
+msgid "Search settings, channels, servers..."
+msgstr "Hae asetuksia, kanavia, palvelimia..."
+
+#: src/components/ui/AddPrivateChatModal.tsx
+msgid "Search users..."
+msgstr "Hae käyttäjiä..."
+
+#: src/components/ui/GifSelector.tsx
+msgid "Searching..."
+msgstr "Haetaan..."
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Secret (+s)"
+msgstr "Salainen (+s)"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Secret channel"
+msgstr "Salainen kanava"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Secure Connection"
+msgstr "Suojattu yhteys"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Security Warning"
+msgstr "Tietoturvavaroitus"
+
+#: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Seek"
+msgstr "Selaa"
+
+#: src/components/layout/ChatHeader.tsx
+msgid "Select a channel"
+msgstr "Valitse kanava"
+
+#: src/components/ui/AutocompleteDropdown.tsx
+msgid "Select Member"
+msgstr "Valitse jäsen"
+
+#: src/components/ui/BlankPage.tsx
+msgid "Select or add a channel to get started."
+msgstr "Valitse kanava tai lisää uusi päästäksesi alkuun."
+
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/GifSelector.tsx
+msgid "Send a GIF"
+msgstr "Lähetä GIF"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Send a warning message to {username}"
+msgstr "Lähetä varoitusviesti käyttäjälle {username}"
+
+#: src/components/ui/InviteUserModal.tsx
+msgid "Send Invite"
+msgstr "Lähetä kutsu"
+
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Send Message"
+msgstr "Lähetä viesti"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Send private message"
+msgstr "Lähetä yksityisviesti"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Send Typing Notifications"
+msgstr "Lähetä kirjoitusilmoituksia"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/ui/QuickActions.tsx
+msgid "Server"
+msgstr "Palvelin"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/BlankPage.tsx
+#: src/components/ui/BlankPage.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Server Channels"
+msgstr "Palvelimen kanavat"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Server doesn't support advanced LIST filtering"
+msgstr "Palvelin ei tue kehittynyttä LIST-suodatusta"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Server Host"
+msgstr "Palvelimen osoite"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Server host is required"
+msgstr "Palvelimen osoite on pakollinen"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Server name is required"
+msgstr "Palvelimen nimi on pakollinen"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatArea.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/message/ServerNoticesPopup.tsx
+#: src/components/message/ServerNoticesPopup.tsx
+msgid "Server Notices"
+msgstr "Palvelintiedotteet"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Server operators on the network could potentially read your messages"
+msgstr "Verkon palvelinoperaattorit voisivat mahdollisesti lukea viestisi"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Server Password"
+msgstr "Palvelimen salasana"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Server-to-server communication may use unencrypted connections"
+msgstr "Palvelimien välinen viestintä voi käyttää salaamattomia yhteyksiä"
+
+#: src/components/ui/TopicModal.tsx
+msgid "Set a topic…"
+msgstr "Aseta aihe…"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Set Away"
+msgstr "Aseta poissa"
+
+#. placeholder {0}: mode.setter
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "set by {0}"
+msgstr "asettaja: {0}"
+
+#: src/components/ui/QuickActions.tsx
+msgid "Setting"
+msgstr "Asetus"
+
+#: src/lib/settings/registry.ts
+msgid "Setting not found"
+msgstr "Asetusta ei löydetty"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Settings"
+msgstr "Asetukset"
+
+#. placeholder {0}: extraKnownEntries.length
+#: src/components/message/MessageItem.tsx
+msgid "Show {0} more items"
+msgstr "Näytä {0} lisää"
+
+#: src/components/message/MessageItem.tsx
+msgid "Show 1 more item"
+msgstr "Näytä 1 lisää"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show All Events"
+msgstr "Näytä kaikki tapahtumat"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Joins/Parts"
+msgstr "Näytä liittymiset/poistumiset"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Kicks"
+msgstr "Näytä poistamiset"
+
+#: src/components/message/CollapsibleMessage.tsx
+#: src/components/message/MessageItem.tsx
+msgid "Show less"
+msgstr "Näytä vähemmän"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Nick Changes"
+msgstr "Näytä nimimerkinvaihdot"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Show or hide the channel list sidebar"
+msgstr "Näytä tai piilota kanavaluettelon sivupalkki"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Show or hide the member list sidebar"
+msgstr "Näytä tai piilota jäsenlistan sivupalkki"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Quits"
+msgstr "Näytä poistumisviestit"
+
+#. placeholder {0}: filteredChannels.length
+#: src/components/ui/ChannelListModal.tsx
+msgid "Showing {displayedChannelsCount} of {0} channels"
+msgstr "Näytetään {displayedChannelsCount}/{0} kanavaa"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Shows all external media. Any URL may cause a request to an unknown server."
+msgstr "Näyttää kaiken ulkoisen median. Mikä tahansa URL voi aiheuttaa yhteyspyynnön tuntemattomalle palvelimelle."
+
+#: src/components/ui/UserSettings.tsx
+msgid "Shows media from your server's trusted file host. No requests are made to external services."
+msgstr "Näyttää mediaa palvelimesi luotetusta tiedostoisännästä. Ulkoisille palveluille ei lähetetä pyyntöjä."
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Signed On"
+msgstr "Kirjautunut"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Sort by Name"
+msgstr "Lajittele nimen mukaan"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Sort by Users"
+msgstr "Lajittele käyttäjämäärän mukaan"
+
+#: src/components/ui/AddPrivateChatModal.tsx
+msgid "Start Private Message"
+msgstr "Aloita yksityiskeskustelu"
+
+#: src/components/ui/UserProfileModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Status"
+msgstr "Tila"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Status Messages"
+msgstr "Tilaviestit"
+
+#: src/components/message/MediaPreview.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+msgid "Stop"
+msgstr "Pysäytä"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Strict"
+msgstr "Tiukka"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Strict - More aggressive protection"
+msgstr "Tiukka – aggressiivisempi suojaus"
+
+#: src/components/message/ActionMessage.tsx
+msgid "System"
+msgstr "Järjestelmä"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Text Channels"
+msgstr "Tekstikanavat"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "The connection to <0>{serverName}</0> has the following security concerns:"
+msgstr "Yhteydessä palvelimeen <0>{serverName}</0> on seuraavia tietoturvaongelmia:"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "The IRC server has reported that its server-to-server links have a low security level. This means that when your messages are relayed between IRC servers in the network, they may not be properly encrypted or the SSL/TLS certificates may not be validated correctly."
+msgstr "IRC-palvelin on ilmoittanut, että sen palvelimien väliset linkit ovat heikosti suojattuja. Tämä tarkoittaa, että verkossa välitettäviä viestejäsi ei välttämättä salata asianmukaisesti tai SSL/TLS-sertifikaatteja ei tarkisteta oikein."
+
+#: src/store/handlers/batches.ts
+msgid "The network split and rejoined. ✅"
+msgstr "Verkko jakautui ja yhdistyi uudelleen. ✅"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "The topic that will be displayed for this channel. All users can see the topic."
+msgstr "Aihe, joka näytetään tälle kanavalle. Kaikki käyttäjät voivat nähdä aiheen."
+
+#: src/components/ui/InviteUserModal.tsx
+msgid "The user will receive an invitation to join {channelName}."
+msgstr "Käyttäjä saa kutsun liittyä kanavalle {channelName}."
+
+#: src/lib/settings/registry.ts
+msgid "This field is required"
+msgstr "Tämä kenttä on pakollinen"
+
+#: src/components/message/MediaPreview.tsx
+msgid "This image has expired"
+msgstr "Tämä kuva on vanhentunut"
+
+#: src/components/ui/UserSettings.tsx
+msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
+msgstr "Tämä palvelin ei tue laajennettua profiilimetadataa (IRCv3 METADATA -laajennus). Lisäkentät kuten avatar, näyttönimi ja tila eivät ole käytettävissä."
+
+#: src/components/ui/AddServerModal.tsx
+msgid "This server only supports one connection type"
+msgstr "Tämä palvelin tukee vain yhtä yhteystyyppiä"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Time (min)"
+msgstr "Aika (min)"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Time Window (seconds)"
+msgstr "Aikaikkuna (sekuntia)"
+
+#: src/components/message/WhisperMessage.tsx
+#: src/components/message/WhisperMessage.tsx
+msgid "to"
+msgstr "vastaanottaja"
+
+#: src/components/ui/QuickActions.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Toggle"
+msgstr "Vaihda"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Toggle Channel List"
+msgstr "Näytä/piilota kanavaluettelo"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Toggle Member List"
+msgstr "Näytä/piilota jäsenlista"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Toggle Notifications"
+msgstr "Näytä/piilota ilmoitukset"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Toggle search"
+msgstr "Näytä/piilota haku"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Topic Set After (min ago)"
+msgstr "Aihe asetettu myöhemmin kuin (min sitten)"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Topic Set Before (min ago)"
+msgstr "Aihe asetettu aiemmin kuin (min sitten)"
+
+#. placeholder {0}: filteredChannels.length
+#: src/components/ui/ChannelListModal.tsx
+msgid "Total: {0}"
+msgstr "Yhteensä: {0}"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Trusted Sources"
+msgstr "Luotetut lähteet"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Type"
+msgstr "Tyyppi"
+
+#: src/components/layout/ChatArea.tsx
+msgid "Type a message..."
+msgstr "Kirjoita viesti..."
+
+#: src/components/ui/UserContextMenu.tsx
+msgid "Unignore User"
+msgstr "Poista esto käyttäjältä"
+
+#: src/components/message/MediaPreview.tsx
+msgid "Unmute"
+msgstr "Poista mykistys"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+msgid "Unpin"
+msgstr "Irrota kiinnitys"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Unpin Private Chat"
+msgstr "Irrota yksityiskeskustelu"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "Unpin this private message conversation"
+msgstr "Irrota tämä yksityisviestiketju"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Update Server"
+msgstr "Päivitä palvelin"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Updating..."
+msgstr "Päivitetään..."
+
+#: src/components/ui/ImagePreviewModal.tsx
+msgid "Upload"
+msgstr "Lähetä"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Upload an image or provide a URL with optional {size} substitution for dynamic sizing"
+msgstr "Lataa kuva tai anna URL, jossa voi käyttää valinnaista {size}-muuttujaa dynaamiseen kokoon"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Upload Avatar"
+msgstr "Lataa avatar"
+
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/ImagePreviewModal.tsx
+msgid "Upload Image"
+msgstr "Lataa kuva"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Uploading..."
+msgstr "Ladataan..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "URL to your avatar image"
+msgstr "URL avatar-kuvaasi"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "URL with optional {size} substitution for dynamic sizing. Example: https://example.com/avatar/{size}/channel.jpg"
+msgstr "URL, jossa valinnainen {size}-muuttuja dynaamista kokoa varten. Esimerkki: https://example.com/avatar/{size}/channel.jpg"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Use * for wildcards. Examples: baduser!*@*, *!*@spammer.com, troll*!*@*"
+msgstr "Käytä * jokerimerkkinä. Esimerkkejä: baduser!*@*, *!*@spammer.com, troll*!*@*"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Use server password"
+msgstr "Käytä palvelimen salasanaa"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Use Shift+Enter for new lines (Enter sends)"
+msgstr "Käytä Shift+Enter uudelle riville (Enter lähettää)"
+
+#: src/components/ui/AddServerModal.tsx
+msgid "Use WebSocket instead of raw TCP"
+msgstr "Käytä WebSocket-yhteyttä TCP:n sijaan"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
+msgstr "Käytä jokerimerkkejä: * vastaa mitä tahansa merkkijonoa, ? vastaa yhtä merkkiä. Esimerkkejä: nick!*@*, *!*@host.com, *!*user@*"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "User Information"
+msgstr "Käyttäjätiedot"
+
+#: src/components/message/MessageHeader.tsx
+#: src/components/ui/UserProfileModal.tsx
+#: src/components/ui/UserProfileModal.tsx
+msgid "User is authenticated"
+msgstr "Käyttäjä on tunnistautunut"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "User is away"
+msgstr "Käyttäjä on poissa"
+
+#: src/components/layout/ChatHeader.tsx
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "User Profile"
+msgstr "Käyttäjäprofiili"
+
+#: src/components/ui/UserSettings.tsx
+msgid "User Settings"
+msgstr "Käyttäjäasetukset"
+
+#: src/components/ui/InviteUserModal.tsx
+#: src/components/ui/ModerationModal.tsx
+msgid "Username"
+msgstr "Käyttäjänimi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Users and patterns to ignore"
+msgstr "Estettävät käyttäjät ja mallit"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Users must be invited to join the channel"
+msgstr "Käyttäjät täytyy kutsua kanavalle"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Users outside the channel cannot send messages to it"
+msgstr "Kanavan ulkopuoliset käyttäjät eivät voi lähettää viestejä sille"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "Valid server port is required"
+msgstr "Kelvollinen palvelinportti on pakollinen"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
+#: src/components/layout/MemberList.tsx
+#: src/components/layout/MemberList.tsx
+msgid "Verified account"
+msgstr "Vahvistettu tili"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Very Relaxed"
+msgstr "Hyvin löysä"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Very Strict"
+msgstr "Hyvin tiukka"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Video"
+msgstr "Video"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "View Channel Topic"
+msgstr "Näytä kanavan aihe"
+
+#: src/components/ui/UserSettings.tsx
+msgid "View Full Privacy Policy"
+msgstr "Lue koko tietosuojakäytäntö"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "View or edit the channel topic"
+msgstr "Näytä tai muokkaa kanavan aihetta"
+
+#: src/components/ui/UserSettings.tsx
+msgid "View our privacy policy and data practices"
+msgstr "Lue tietosuojakäytäntömme ja tiedonkäsittelytapamme"
+
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "View Profile"
+msgstr "Näytä profiili"
+
+#: src/components/ui/QuickActions/uiActionConfig.tsx
+msgid "View user profile information"
+msgstr "Näytä käyttäjäprofiilitiedot"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Voice"
+msgstr "Voice"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Voice Channels coming soon!"
+msgstr "Äänikanavat tulossa pian!"
+
+#: src/components/layout/MemberList.tsx
+msgid "Voiced User"
+msgstr "Voice-käyttäjä"
+
+#: src/components/message/MediaPreview.tsx
+msgid "Volume"
+msgstr "Äänenvoimakkuus"
+
+#: src/components/ui/ModerationModal.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Warn User"
+msgstr "Varoita käyttäjää"
+
+#: src/store/handlers/users.ts
+msgid "was kicked from {channelName} by {username}"
+msgstr "potkittiin kanavalta {channelName} käyttäjän {username} toimesta"
+
+#: src/store/handlers/users.ts
+msgid "was kicked from {channelName} by {username} ({reason})"
+msgstr "potkittiin kanavalta {channelName} käyttäjän {username} toimesta ({reason})"
+
+#: src/components/message/EventMessage.tsx
+msgid "Was kicked from the channel"
+msgstr "Poistettiin kanavalta"
+
+#: src/components/ui/UserSettings.tsx
+msgid "We don't store your IRC communications on our servers"
+msgstr "Emme tallenna IRC-viestintääsi palvelimillemme"
+
+#: src/components/ui/HomeScreen.tsx
+msgid "Welcome to {__DEFAULT_IRC_SERVER_NAME__}!"
+msgstr "Tervetuloa palvelimeen {__DEFAULT_IRC_SERVER_NAME__}!"
+
+#. placeholder {0}: server?.name || "the unknown"
+#: src/components/ui/BlankPage.tsx
+msgid "Welcome to {0}!"
+msgstr "Tervetuloa palvelimeen {0}!"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Welcome to the channel!"
+msgstr "Tervetuloa kanavalle!"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "What this means:"
+msgstr "Mitä tämä tarkoittaa:"
+
+#: src/components/ui/UserSettings.tsx
+msgid "What's on your mind?"
+msgstr "Mitä ajattelet?"
+
+#: src/components/message/WhisperMessage.tsx
+msgid "WHISPER"
+msgstr "WHISPER"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Wide - Broader protection scope"
+msgstr "Laaja – laajempi suojauslaajuus"
+
+#: src/components/ui/ModerationModal.tsx
+msgid "Will default to 'no reason' if left empty"
+msgstr "Oletusarvo on 'ei syytä', jos jätetään tyhjäksi"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "Will Forget"
+msgstr "Unohdetaan"
+
+#: src/components/message/CollapsedEventMessage.tsx
+#: src/components/message/EventMessage.tsx
+msgid "You"
+msgstr "Sinä"
+
+#: src/components/ui/ExternalLinkWarningModal.tsx
+msgid "You are about to open an external link:"
+msgstr "Olet avaamassa ulkoista linkkiä:"
+
+#: src/components/layout/ChannelList.tsx
+#: src/store/handlers/channels.ts
+msgid "You are an IRC Operator"
+msgstr "Olet IRC-operaattori"
+
+#: src/components/ui/UserSettings.tsx
+msgid "You have unsaved changes. Are you sure you want to close without saving?"
+msgstr "Sinulla on tallentamattomia muutoksia. Haluatko varmasti sulkea tallentamatta?"
+
+#: src/store/handlers/users.ts
+msgid "You invited {target} to join {channel}"
+msgstr "Kutsuit {target} liittymään kanavalle {channel}"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your account password for authentication"
+msgstr "Tilin salasana tunnistautumista varten"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your account username for authentication"
+msgstr "Tilin käyttäjänimi tunnistautumista varten"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your default nickname for all servers"
+msgstr "Oletusnimimerkkisi kaikille palvelimille"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Your messages and settings are stored locally on your device"
+msgstr "Viestisi ja asetuksesi tallennetaan paikallisesti laitteellesi"
+
+#: src/components/ui/LinkSecurityWarningModal.tsx
+msgid "Your messages could be intercepted when relayed between servers"
+msgstr "Viestisi voidaan siepata palvelimien välillä välitettäessä"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your personal website"
+msgstr "Henkilökohtainen verkkosivustosi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your preferred color code"
+msgstr "Suosikki värikoodisi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your preferred display name"
+msgstr "Suosikki näyttönimesi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your pronouns, shown in your profile"
+msgstr "Pronominisi, näytetään profiilissasi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your real or full name"
+msgstr "Oikea nimesi tai koko nimesi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your status message"
+msgstr "Tilaviestisi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your unique identifier on this server"
+msgstr "Yksilöllinen tunnuksesi tällä palvelimella"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "your@email.com"
+msgstr "sinun@sahkoposti.fi"
+
+#: src/components/ui/EditServerModal.tsx
+msgid "YourNickname"
+msgstr "SinunNimimerkkisi"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Zoom in"
+msgstr "Lähennä"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Zoom level"
+msgstr "Zoomaustaso"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Zoom out"
+msgstr "Loitonna"

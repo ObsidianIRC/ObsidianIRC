@@ -13,6 +13,15 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. js-lingui-explicit-id
+#: src/lib/irc/IRCClient.ts
+msgid "ObsidianIRC - Bringing IRC to the future"
+msgstr "ObsidianIRC - Amener IRC vers le futur"
+
+#: src/components/message/MediaPreview.tsx
+msgid "— open in viewer"
+msgstr "— ouvrir dans le visualiseur"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #: src/components/layout/ChatArea.tsx
@@ -23,6 +32,11 @@ msgstr "{0} et {1} sont en train d'écrire..."
 #: src/components/layout/ChatArea.tsx
 msgid "{0} is typing..."
 msgstr "{0} est en train d'écrire..."
+
+#. placeholder {0}: filteredMessages.length - displayedMessages.length
+#: src/components/layout/ChannelMessageList.tsx
+msgid "{0} older messages"
+msgstr "{0} anciens messages"
 
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
@@ -38,6 +52,14 @@ msgstr "{0}, {1} et {2} sont en train d'écrire..."
 #: src/components/layout/ChatArea.tsx
 msgid "{0}, {1}, {2} and {3} others are typing..."
 msgstr "{0}, {1}, {2} et {3} autres sont en train d'écrire..."
+
+#: src/store/handlers/users.ts
+msgid "{inviter} has invited {target} to join {channel}"
+msgstr "{inviter} a invité {target} à rejoindre {channel}"
+
+#: src/store/handlers/users.ts
+msgid "{inviter} has invited you to join {channel}"
+msgstr "{inviter} vous a invité à rejoindre {channel}"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "*channel*"
@@ -99,18 +121,42 @@ msgstr "Détails du compte"
 msgid "Account Email"
 msgstr "E-mail du compte"
 
+#: src/components/ui/AddServerModal.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Account Name"
+msgstr "Nom de compte"
+
 #: src/components/ui/EditServerModal.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Account Password"
 msgstr "Mot de passe du compte"
 
+#: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Action"
 msgstr "Action"
 
 #: src/components/ui/settings/CustomMentionsField.tsx
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Add"
+msgstr "Ajouter"
+
+#: src/components/ui/settings/CustomMentionsField.tsx
 msgid "Add a word or phrase..."
 msgstr "Ajouter un mot ou une expression..."
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Add ban mask (e.g., nick!*@*, *!*@host.com)"
+msgstr "Ajouter un masque de bannissement (ex. nick!*@*, *!*@host.com)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Add exception mask (e.g., nick!*@*, *!*@host.com)"
+msgstr "Ajouter un masque d'exception (ex. nick!*@*, *!*@host.com)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Add invitation mask (e.g., nick!*@*, *!*@host.com)"
+msgstr "Ajouter un masque d'invitation (ex. nick!*@*, *!*@host.com)"
 
 #: src/components/ui/AddServerModal.tsx
 msgid "Add IRC Server"
@@ -126,17 +172,46 @@ msgstr "Ajouter une réaction"
 msgid "Add reaction {emoji}"
 msgstr "Ajouter la réaction {emoji}"
 
+#: src/components/ui/FloodSettingsModal.tsx
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Add Rule"
+msgstr "Ajouter une règle"
+
 #: src/components/layout/ServerList.tsx
 msgid "Add Server"
 msgstr "Ajouter un serveur"
 
 #: src/components/ui/UserProfileModal.tsx
+msgid "Additional Information"
+msgstr "Informations supplémentaires"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Additional words or phrases to highlight"
+msgstr "Mots ou phrases supplémentaires à surligner"
+
+#: src/components/ui/UserProfileModal.tsx
 msgid "Admin"
 msgstr "Admin"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Advanced"
+msgstr "Avancé"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Advanced Filters"
+msgstr "Filtres avancés"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Album"
+msgstr "Album"
 
 #: src/components/ui/UserSettings.tsx
 msgid "All Content"
 msgstr "Tout le contenu"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Allow entering multiple lines of text"
+msgstr "Permettre la saisie sur plusieurs lignes"
 
 #: src/components/message/InviteMessage.tsx
 msgid "Already in"
@@ -146,15 +221,77 @@ msgstr "Déjà dans"
 msgid "Also shows previews from YouTube, Vimeo, SoundCloud, and similar known services."
 msgstr "Affiche également des aperçus de YouTube, Vimeo, SoundCloud et autres services connus."
 
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Alternative name for display in the UI. May contain spaces, emoji, and special characters. The real channel name ({channelName}) will still be used for IRC commands."
+msgstr "Nom alternatif pour l'affichage. Peut contenir des espaces, emojis et caractères spéciaux. Le vrai nom ({channelName}) sera toujours utilisé pour les commandes IRC."
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Amount"
+msgstr "Quantité"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Anonymous Analytics:"
+msgstr "Analyses anonymes :"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Apply"
+msgstr "Appliquer"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Apply Filters & Refresh"
+msgstr "Appliquer les filtres & Actualiser"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Applying..."
+msgstr "Application en cours..."
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "are now known as **{newNick}**"
+msgstr "est maintenant connu sous le nom de **{newNick}**"
+
+#: src/components/layout/ChatArea.tsx
+msgid "Are you sure you want to delete this message? This action cannot be undone."
+msgstr "Êtes-vous sûr de vouloir supprimer ce message ? Cette action est irréversible."
+
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
 msgstr "Options de pièce jointe"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Audio"
+msgstr "Audio"
 
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Audio position"
 msgstr "Position audio"
 
 #: src/components/ui/UserSettings.tsx
+msgid "Authenticate as an IRC Operator for administrative access"
+msgstr "S'authentifier en tant qu'opérateur IRC pour l'accès administratif"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Authenticated Account"
+msgstr "Compte authentifié"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Auto Fallback to Single Line"
+msgstr "Retour automatique à une seule ligne"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Automatically authenticate as operator on connect"
+msgstr "S'authentifier automatiquement comme opérateur à la connexion"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Automatically switch to single line for short messages"
+msgstr "Passer automatiquement en mode ligne unique pour les messages courts"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Avatar"
 msgstr "Avatar"
 
@@ -165,6 +302,7 @@ msgstr "Aperçu de l'avatar"
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChatHeader.tsx
+#: src/components/ui/UserProfileModal.tsx
 msgid "Away"
 msgstr "Absent"
 
@@ -173,6 +311,7 @@ msgid "Away from keyboard"
 msgstr "Absent du clavier"
 
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Away Message"
 msgstr "Message d'absence"
 
@@ -193,6 +332,20 @@ msgstr "Bannir {username} par hostmask (l'empêche de rejoindre depuis la même 
 msgid "Ban {username} by nickname (prevents them from rejoining with the same nick)"
 msgstr "Bannir {username} par pseudo (l'empêche de rejoindre avec le même pseudo)"
 
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ban by Hostmask"
+msgstr "Bannir par masque d'hôte"
+
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ban by Nickname"
+msgstr "Bannir par pseudo"
+
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ban User"
+msgstr "Bannir l'utilisateur"
+
 #: src/components/ui/ModerationModal.tsx
 msgid "Ban User (by Hostmask)"
 msgstr "Bannir l'utilisateur (par hostmask)"
@@ -201,8 +354,14 @@ msgstr "Bannir l'utilisateur (par hostmask)"
 msgid "Ban User (by Nickname)"
 msgstr "Bannir l'utilisateur (par pseudo)"
 
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Bans"
+msgstr "Bannissements"
+
 #: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Bot"
 msgstr "Bot"
 
@@ -211,10 +370,16 @@ msgid "Browse all channels on the server"
 msgstr "Parcourir tous les canaux du serveur"
 
 #: src/components/ui/AddPrivateChatModal.tsx
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/EditServerModal.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
+#: src/components/ui/FloodSettingsModal.tsx
+#: src/components/ui/ImagePreviewModal.tsx
+#: src/components/ui/InviteUserModal.tsx
 #: src/components/ui/ModerationModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/components/ui/UserSettings.tsx
 msgid "Cancel"
 msgstr "Annuler"
 
@@ -238,9 +403,58 @@ msgstr "Modes du canal modifiés"
 msgid "Changed nickname"
 msgstr "Pseudo modifié"
 
+#: src/store/handlers/channels.ts
+msgid "changed the topic to: {topic}"
+msgstr "a changé le sujet en : {topic}"
+
+#: src/components/ui/QuickActions.tsx
+msgid "Channel"
+msgstr "Canal"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Admin"
+msgstr "Administrateur du canal"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Avatar"
+msgstr "Avatar du salon"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel avatar preview"
 msgstr "Aperçu de l'avatar du canal"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Display Name"
+msgstr "Nom d'affichage du salon"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Half Operator"
+msgstr "Semi-opérateur du canal"
+
+#. placeholder {0}: reason ? ` (${reason})` : ""
+#: src/store/handlers/users.ts
+msgid "Channel has been renamed from {oldName} to {newName} by {user}{0}"
+msgstr "Le canal a été renommé de {oldName} en {newName} par {user}{0}"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Key (+k)"
+msgstr "Clé du salon (+k)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Name"
+msgstr "Nom du salon"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Channel Name Mask"
+msgstr "Masque du nom de salon"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Operator"
+msgstr "Opérateur du canal"
+
+#: src/components/layout/MemberList.tsx
+msgid "Channel Owner"
+msgstr "Propriétaire du canal"
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
@@ -249,14 +463,60 @@ msgstr "Aperçu de l'avatar du canal"
 msgid "Channel Settings"
 msgstr "Paramètres du canal"
 
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel Topic"
+msgstr "Sujet du salon"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Channel won't appear in LIST or NAMES commands"
+msgstr "Le salon n'apparaîtra pas dans les commandes LIST ou NAMES"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Channels"
+msgstr "Canaux"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Channels on {networkName}"
+msgstr "Canaux sur {networkName}"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Choose a predefined flood protection profile. These profiles provide balanced protection settings for different use cases."
+msgstr "Choisissez un profil de protection contre le flood prédéfini. Ces profils offrent des paramètres de protection équilibrés pour différents cas d'usage."
+
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Choose a secure password"
 msgstr "Choisissez un mot de passe sécurisé"
 
+#: src/components/ui/settings/SettingRenderer.tsx
+msgid "Choose file"
+msgstr "Choisir un fichier"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Clear"
+msgstr "Effacer"
+
+#: src/components/layout/ChannelMessageList.tsx
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
 msgid "Clear search"
 msgstr "Effacer la recherche"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Click to copy"
+msgstr "Cliquer pour copier"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Click to join {channel}"
+msgstr "Cliquez pour rejoindre {channel}"
 
 #: src/components/message/MessageReply.tsx
 msgid "Click to jump to message"
@@ -266,12 +526,17 @@ msgstr "Cliquez pour aller au message"
 msgid "Click to set topic"
 msgstr "Cliquez pour définir le sujet"
 
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Client Limit (+l)"
+msgstr "Limite de clients (+l)"
+
 #: src/components/layout/ChannelList.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/ReactionModal.tsx
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
@@ -281,6 +546,10 @@ msgstr "Fermer"
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Close comments"
 msgstr "Fermer les commentaires"
+
+#: src/lib/modal/BaseModal.tsx
+msgid "Close modal"
+msgstr "Fermer la fenêtre"
 
 #: src/components/layout/ChatArea.tsx
 msgid "Close popped out server notices"
@@ -295,6 +564,7 @@ msgid "Collapse member list"
 msgstr "Réduire la liste des membres"
 
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Color"
 msgstr "Couleur"
 
@@ -302,17 +572,50 @@ msgstr "Couleur"
 msgid "Color & Formatting"
 msgstr "Couleur et mise en forme"
 
+#: src/components/ui/MediaCommentsSidebar.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Comments"
+msgstr "Commentaires"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Configure detailed flood protection rules. Each rule specifies what type of activity to monitor and what action to take when thresholds are exceeded."
+msgstr "Configurez des règles détaillées de protection contre le flood. Chaque règle précise le type d'activité à surveiller et l'action à prendre lorsque les seuils sont dépassés."
+
 #: src/components/ui/UserSettings.tsx
 msgid "Configure notification sounds and highlights"
 msgstr "Configurer les sons de notification et les mises en évidence"
+
+#: src/components/ui/AddServerModal.tsx
+msgid "Connect"
+msgstr "Connecter"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Connected To"
+msgstr "Connecté à"
 
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Connecting"
 msgstr "Connexion en cours"
 
+#: src/components/ui/AddServerModal.tsx
+msgid "Connecting..."
+msgstr "Connexion en cours..."
+
+#: src/components/ui/UserSettings.tsx
+msgid "Contact"
+msgstr "Contact"
+
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Continue Anyway"
 msgstr "Continuer quand même"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Control how much external media is loaded in chat."
+msgstr "Contrôle la quantité de médias externes chargés dans le chat."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Control how much external media is loaded. Off / Safe / Trusted Sources / All Content."
+msgstr "Contrôle la quantité de médias externes chargés. Désactivé / Sûr / Sources fiables / Tout le contenu."
 
 #: src/components/ui/UserSettings.tsx
 msgid "Control media display and external content"
@@ -326,13 +629,57 @@ msgstr "Copié"
 msgid "Copy URL"
 msgstr "Copier l'URL"
 
+#: src/components/ui/ChannelListModal.tsx
+msgid "Created After (min ago)"
+msgstr "Créé après (min)"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Created Before (min ago)"
+msgstr "Créé avant (min)"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Current avatar"
+msgstr "Avatar actuel"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Custom Flood Rules (+f)"
+msgstr "Règles de flood personnalisées (+f)"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Custom Mentions"
+msgstr "Mentions personnalisées"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Custom notification sound file"
+msgstr "Fichier son de notification personnalisé"
+
 #: src/components/ui/UserSettings.tsx
 msgid "Customize your IRC client experience"
 msgstr "Personnalisez votre expérience du client IRC"
 
+#: src/components/ui/UserSettings.tsx
+msgid "Data Collection"
+msgstr "Collecte de données"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Deep dive"
+msgstr "Analyse approfondie"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Default"
 msgstr "Par défaut"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Default (no profile)"
+msgstr "Par défaut (aucun profil)"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Default message when marking yourself as away"
+msgstr "Message par défaut pour le statut absent"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Default Nickname"
+msgstr "Pseudo par défaut"
 
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Delete"
@@ -350,9 +697,18 @@ msgstr "Supprimer le message"
 msgid "Delete Private Chat"
 msgstr "Supprimer la conversation privée"
 
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete this message? This cannot be undone."
+msgstr "Supprimer ce message ? Cette action est irréversible."
+
 #: src/components/layout/ServerList.tsx
+#: src/components/mobile/ServerBottomSheet.tsx
 msgid "Disconnect"
 msgstr "Déconnecter"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Discover"
+msgstr "Découvrir"
 
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
@@ -363,8 +719,33 @@ msgid "Dismiss notification"
 msgstr "Ignorer la notification"
 
 #: src/components/ui/UserSettings.tsx
+msgid "Display"
+msgstr "Affichage"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display all server events in chat"
+msgstr "Afficher tous les événements serveur dans le chat"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Display Name"
 msgstr "Nom d'affichage"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users are kicked from channels"
+msgstr "Afficher quand des utilisateurs sont expulsés des salons"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users change their nickname"
+msgstr "Afficher quand des utilisateurs changent de pseudo"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users disconnect from server"
+msgstr "Afficher quand des utilisateurs se déconnectent du serveur"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Display when users join or leave channels"
+msgstr "Afficher quand des utilisateurs rejoignent ou quittent des salons"
 
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Do you want to open this link in a new tab?"
@@ -387,10 +768,39 @@ msgstr "ex. : 100:1440"
 msgid "Edit"
 msgstr "Modifier"
 
+#: src/components/ui/UserProfileModal.tsx
+msgid "Edit Profile"
+msgstr "Modifier le profil"
+
 #: src/components/layout/ServerList.tsx
+#: src/components/mobile/ServerBottomSheet.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Edit Server"
 msgstr "Modifier le serveur"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Email:"
+msgstr "E-mail :"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Embed"
+msgstr "Intégrer"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Highlights"
+msgstr "Activer les surlignages"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Markdown"
+msgstr "Activer le Markdown"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Multiline Input"
+msgstr "Activer la saisie multiligne"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enable Notification Sounds"
+msgstr "Activer les sons de notification"
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
@@ -423,6 +833,14 @@ msgstr "Saisir une raison (facultatif)"
 msgid "Enter username to invite"
 msgstr "Saisir le nom d'utilisateur à inviter"
 
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Exceptions"
+msgstr "Exceptions"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Exclude Channel Name Mask"
+msgstr "Exclure le masque de nom de salon"
+
 #: src/components/ui/EditServerModal.tsx
 msgid "Existing credentials will be preserved"
 msgstr "Les identifiants existants seront conservés"
@@ -438,10 +856,15 @@ msgstr "Développer la liste des canaux"
 msgid "Expand member list"
 msgstr "Développer la liste des membres"
 
+#: src/components/ui/UserSettings.tsx
+msgid "Extended Profile"
+msgstr "Profil étendu"
+
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "External Link Warning"
 msgstr "Avertissement de lien externe"
 
+#: src/components/ui/MediaViewerModal.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Failed to load audio"
 msgstr "Échec du chargement audio"
@@ -454,9 +877,23 @@ msgstr "Filtrer les canaux..."
 msgid "Filter members…"
 msgstr "Filtrer les membres…"
 
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Flood Profile (+F)"
+msgstr "Profil de flood (+F)"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Flood Protection Settings"
+msgstr "Paramètres de protection contre le flood"
+
 #: src/components/ui/EditServerModal.tsx
 msgid "Forget Credentials"
 msgstr "Oublier les identifiants"
+
+#. placeholder {0}: filteredMessages.length
+#. placeholder {1}: filteredMessages.length === 1 ? "message" : "messages"
+#: src/components/layout/ChannelMessageList.tsx
+msgid "Found {0} {1} matching \"{searchQuery}\""
+msgstr "{0} {1} trouvé(s) pour « {searchQuery} »"
 
 #: src/components/message/WhisperMessage.tsx
 #: src/components/message/WhisperMessage.tsx
@@ -464,12 +901,28 @@ msgid "from"
 msgstr "de"
 
 #: src/components/ui/ChannelSettingsModal.tsx
+msgid "General"
+msgstr "Général"
+
+#: src/components/ui/ChannelSettingsModal.tsx
 msgid "General Support Channel"
 msgstr "Canal d'assistance générale"
+
+#: src/components/layout/ChannelMessageList.tsx
+msgid "Getting more messages..."
+msgstr "Chargement des messages..."
+
+#: src/components/ui/UserSettings.tsx
+msgid "GitHub:"
+msgstr "GitHub :"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Halfop"
 msgstr "Halfop"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Highlight messages that mention you"
+msgstr "Surligner les messages qui vous mentionnent"
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ServerList.tsx
@@ -477,13 +930,46 @@ msgstr "Halfop"
 msgid "Home"
 msgstr "Accueil"
 
+#: src/components/layout/ChannelList.tsx
+msgid "HOME"
+msgstr "ACCUEIL"
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Homepage"
 msgstr "Page d'accueil"
 
 #: src/components/ui/UserProfileModal.tsx
+msgid "Host"
+msgstr "Hôte"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "How many seconds to monitor for flood activity before resetting counters"
+msgstr "Nombre de secondes de surveillance de l'activité de flood avant la réinitialisation des compteurs"
+
+#: src/components/ui/UserProfileModal.tsx
 msgid "I'm Back"
 msgstr "Je suis de retour"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Idle"
+msgstr "Inactif"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Ignore List"
+msgstr "Liste d'ignorés"
+
+#: src/components/ui/UserContextMenu.tsx
+msgid "Ignore User"
+msgstr "Ignorer l'utilisateur"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Ignored patterns:"
+msgstr "Modèles ignorés :"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Image"
+msgstr "Image"
 
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
@@ -492,6 +978,22 @@ msgstr "Aperçu de l'image"
 #: src/components/ui/InputToolbar.tsx
 msgid "Insert emoji"
 msgstr "Insérer un emoji"
+
+#: src/lib/settings/registry.ts
+msgid "Invalid format"
+msgstr "Format invalide"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Invalid pattern format. Use nick!user@host format (wildcards * allowed)"
+msgstr "Format de modèle invalide. Utilisez le format nick!user@host (jokers * autorisés)"
+
+#: src/lib/settings/registry.ts
+msgid "Invalid value"
+msgstr "Valeur invalide"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Invitations"
+msgstr "Invitations"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Invite a user to the current channel"
@@ -503,24 +1005,58 @@ msgstr "Inviter un utilisateur dans le canal actuel"
 msgid "Invite User"
 msgstr "Inviter un utilisateur"
 
+#: src/components/ui/InviteUserModal.tsx
+msgid "Invite User to {channelName}"
+msgstr "Inviter un utilisateur dans {channelName}"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Invite-Only (+i)"
+msgstr "Sur invitation uniquement (+i)"
+
 #: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
 #: src/components/layout/MemberList.tsx
 #: src/components/layout/MemberList.tsx
 #: src/components/layout/MemberList.tsx
 #: src/components/message/MessageHeader.tsx
 #: src/components/ui/EditServerModal.tsx
+#: src/components/ui/UserSettings.tsx
 msgid "IRC Operator"
 msgstr "IRC Operator"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "IRC operator password"
+msgstr "Mot de passe opérateur IRC"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "IRC operator username"
+msgstr "Nom d'utilisateur opérateur IRC"
+
+#: src/components/ui/UserSettings.tsx
+msgid "IRC Servers:"
+msgstr "Serveurs IRC :"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "is now known as **{newNick}**"
+msgstr "est maintenant connu sous le nom de **{newNick}**"
+
 #: src/components/message/InviteMessage.tsx
+#: src/components/ui/QuickActions.tsx
 msgid "Join"
 msgstr "Rejoindre"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "joined {channelName}"
+msgstr "a rejoint {channelName}"
 
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "A rejoint le canal"
 
 #: src/components/ui/ModerationModal.tsx
+#: src/components/ui/UserContextMenu.tsx
 msgid "Kick User"
 msgstr "Expulser l'utilisateur"
 
@@ -529,18 +1065,73 @@ msgstr "Expulser l'utilisateur"
 msgid "Language"
 msgstr "Langue"
 
+#: src/components/ui/UserSettings.tsx
+msgid "Learn how we handle your data and protect your privacy."
+msgstr "Découvrez comment nous gérons vos données et protégeons votre vie privée."
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Learn more about custom rules →"
+msgstr "En savoir plus sur les règles personnalisées →"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Learn more about profiles →"
+msgstr "En savoir plus sur les profils →"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Leave channel"
 msgstr "Quitter le canal"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "left {channelName}"
+msgstr "a quitté {channelName}"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "left {channelName} ({reason})"
+msgstr "a quitté {channelName} ({reason})"
 
 #: src/components/message/EventMessage.tsx
 msgid "Left the channel"
 msgstr "A quitté le canal"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Let others know when you are typing"
+msgstr "Informer les autres que vous écrivez"
+
 #: src/components/message/LinkPreview.tsx
 msgid "Link preview"
 msgstr "Aperçu du lien"
 
+#: src/components/layout/ChannelMessageList.tsx
+msgid "Load older messages"
+msgstr "Charger les anciens messages"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Loading channel modes..."
+msgstr "Chargement des modes du salon..."
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Loading channels..."
+msgstr "Chargement des canaux..."
+
+#: src/components/ui/GifSelector.tsx
+msgid "Loading GIFs..."
+msgstr "Chargement des GIFs..."
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Loading more channels..."
+msgstr "Chargement de canaux supplémentaires..."
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Loading WHOIS data..."
+msgstr "Chargement des données WHOIS..."
+
+#: src/components/ui/UserSettings.tsx
+msgid "Local Storage:"
+msgstr "Stockage local :"
+
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Login to an account"
 msgstr "Se connecter à un compte"
@@ -565,9 +1156,31 @@ msgstr "Gérez votre compte et l'authentification"
 msgid "Manage your profile information and metadata"
 msgstr "Gérez les informations de votre profil et vos métadonnées"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Mark as bot - usually 'on' or empty"
+msgstr "Marquer comme bot, généralement 'on' ou vide"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Max Users"
+msgstr "Utilisateurs max."
+
 #: src/components/message/ServerNoticesPopup.tsx
 msgid "Maximize"
 msgstr "Agrandir"
+
+#. placeholder {0}: validation.maxLength
+#: src/lib/settings/registry.ts
+msgid "Maximum length is {0}"
+msgstr "La longueur maximale est {0}"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Maximum number of users allowed in the channel. Leave empty for no limit."
+msgstr "Nombre maximum d'utilisateurs autorisés. Laissez vide pour aucune limite."
+
+#. placeholder {0}: validation.max
+#: src/lib/settings/registry.ts
+msgid "Maximum value is {0}"
+msgstr "La valeur maximale est {0}"
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
@@ -575,6 +1188,11 @@ msgstr "Agrandir"
 #: src/components/ui/UserSettings.tsx
 msgid "Media"
 msgstr "Médias"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Media Previews"
+msgstr "Aperçus des médias"
 
 #. placeholder {0}: sortedUsers?.length || 0
 #: src/components/layout/MemberList.tsx
@@ -616,9 +1234,27 @@ msgstr "Message dans #{0} (Maj+Entrée pour nouvelle ligne)"
 msgid "Message <0>{0}</0>"
 msgstr "Message <0>{0}</0>"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Message shown when you disconnect from the server"
+msgstr "Message affiché lors de la déconnexion du serveur"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Min Users"
+msgstr "Utilisateurs min."
+
 #: src/components/message/ServerNoticesPopup.tsx
 msgid "Minimize"
 msgstr "Réduire"
+
+#. placeholder {0}: validation.minLength
+#: src/lib/settings/registry.ts
+msgid "Minimum length is {0}"
+msgstr "La longueur minimale est {0}"
+
+#. placeholder {0}: validation.min
+#: src/lib/settings/registry.ts
+msgid "Minimum value is {0}"
+msgstr "La valeur minimale est {0}"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
@@ -633,6 +1269,10 @@ msgstr "Modal"
 msgid "Moderate User"
 msgstr "Modérer l'utilisateur"
 
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Moderated (+m)"
+msgstr "Modéré (+m)"
+
 #: src/components/layout/ChatHeader.tsx
 msgid "More"
 msgstr "Plus"
@@ -640,6 +1280,14 @@ msgstr "Plus"
 #: src/components/layout/ChatHeader.tsx
 msgid "More actions"
 msgstr "Plus d'actions"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Multiline on Shift+Enter"
+msgstr "Multiligne avec Shift+Entrée"
+
+#: src/components/message/MediaPreview.tsx
+msgid "Mute"
+msgstr "Couper le son"
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
@@ -657,6 +1305,10 @@ msgstr "Activer ou désactiver les sons de notification"
 msgid "Network Name"
 msgstr "Nom du réseau"
 
+#: src/components/ui/QuickActions.tsx
+msgid "New DM"
+msgstr "Nouveau message privé"
+
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Next image"
 msgstr "Image suivante"
@@ -665,28 +1317,75 @@ msgstr "Image suivante"
 msgid "Next page"
 msgstr "Page suivante"
 
+#. placeholder {0}: nick ? `(${nick})` : ""
+#: src/store/handlers/users.ts
+msgid "Nick change failed: {error} {0}"
+msgstr "Échec du changement de pseudo: {error} {0}"
+
 #: src/components/ui/settings/IgnoreListField.tsx
 msgid "nick!user@host (e.g., spam*!*@*, *!*@badhost.com)"
 msgstr "nick!user@host (ex. : spam*!*@*, *!*@badhost.com)"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Nickname"
 msgstr "Pseudo"
+
+#: src/store/handlers/users.ts
+msgid "Nickname '{nick}' already in use, retrying with '{newNick}'"
+msgstr "Le pseudo '{nick}' est déjà utilisé, nouvel essai avec '{newNick}'"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Nickname is required"
 msgstr "Le pseudo est requis"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "No additional data"
+msgstr "Aucune donnée supplémentaire"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No ban exceptions found"
+msgstr "Aucune exception de bannissement trouvée"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No bans found"
+msgstr "Aucun bannissement trouvé"
+
+#: src/components/ui/UserSettings.tsx
+msgid "No Central Server:"
+msgstr "Pas de serveur central :"
+
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "No Changes"
 msgstr "Aucune modification"
 
+#: src/components/ui/ChannelListModal.tsx
+msgid "No channels found."
+msgstr "Aucun canal trouvé."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "No comments yet. Be the first!"
+msgstr "Pas encore de commentaires. Soyez le premier !"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No External Messages (+n)"
+msgstr "Pas de messages externes (+n)"
+
+#: src/components/ui/settings/SettingRenderer.tsx
+msgid "No file chosen"
+msgstr "Aucun fichier choisi"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "No flood profile"
 msgstr "Aucun profil anti-flood"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "No invitations found"
+msgstr "Aucune invitation trouvée"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "No key"
@@ -696,6 +1395,10 @@ msgstr "Aucune clé"
 msgid "No limit"
 msgstr "Aucune limite"
 
+#: src/components/ui/MediaViewerModal.tsx
+msgid "No media in this channel"
+msgstr "Aucun média dans ce salon"
+
 #: src/components/ui/UserSettings.tsx
 msgid "No media previews are loaded."
 msgstr "Aucun aperçu de média n'est chargé."
@@ -704,13 +1407,25 @@ msgstr "Aucun aperçu de média n'est chargé."
 msgid "No oper credentials configured"
 msgstr "Aucun identifiant oper configuré"
 
+#: src/components/ui/QuickActions.tsx
+msgid "No results found"
+msgstr "Aucun résultat trouvé"
+
 #: src/components/ui/HomeScreen.tsx
 msgid "No servers found."
 msgstr "Aucun serveur trouvé."
 
+#: src/components/ui/ChannelListModal.tsx
+msgid "No topic"
+msgstr "Pas de sujet"
+
 #: src/components/ui/TopicModal.tsx
 msgid "No topic set"
 msgstr "Aucun sujet défini"
+
+#: src/components/ui/QuickActions.tsx
+msgid "No unread mentions or messages"
+msgstr "Aucune mention ou message non lu"
 
 #: src/components/ui/AddPrivateChatModal.tsx
 msgid "No users available"
@@ -720,9 +1435,21 @@ msgstr "Aucun utilisateur disponible"
 msgid "No users found matching your search"
 msgstr "Aucun utilisateur ne correspond à votre recherche"
 
+#: src/components/ui/UserProfileModal.tsx
+msgid "No WHOIS data available"
+msgstr "Aucune donnée WHOIS disponible"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Normal"
 msgstr "Normal"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Normal - Standard protection"
+msgstr "Normal – Protection standard"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Notification Sound"
+msgstr "Son de notification"
 
 #: src/components/ui/UserSettings.tsx
 msgid "Notifications"
@@ -753,9 +1480,26 @@ msgstr "Hors ligne"
 msgid "Online"
 msgstr "En ligne"
 
+#: src/components/ui/UserSettings.tsx
+msgid "Only connect to servers you choose"
+msgstr "Se connecter uniquement aux serveurs choisis"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Only operators can change the channel topic"
+msgstr "Seuls les opérateurs peuvent modifier le sujet"
+
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Only secure websockets are supported"
 msgstr "Seuls les websockets sécurisés sont pris en charge"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Only users with voice or higher can speak"
+msgstr "Seuls les utilisateurs avec voice ou plus peuvent parler"
+
+#: src/store/handlers/batches.ts
+msgid "Oops! The net split! ⚠️"
+msgstr "Oups ! La réseau s'est divisé ! ⚠️"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Op"
@@ -770,6 +1514,7 @@ msgstr "Ouvrir les paramètres de configuration du canal"
 msgid "Open in browser"
 msgstr "Ouvrir dans le navigateur"
 
+#: src/components/message/MediaPreview.tsx
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
@@ -784,6 +1529,7 @@ msgid "Open Link"
 msgstr "Ouvrir le lien"
 
 #: src/components/ui/EditServerModal.tsx
+#: src/components/ui/UserSettings.tsx
 msgid "Oper Name"
 msgstr "Nom Oper"
 
@@ -795,13 +1541,23 @@ msgstr "Le nom oper et le mot de passe sont requis"
 msgid "Oper on connect"
 msgstr "Oper à la connexion"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Oper on Connect"
+msgstr "Oper à la connexion"
+
 #: src/components/ui/EditServerModal.tsx
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Oper Password"
 msgstr "Mot de passe Oper"
 
 #: src/components/ui/EditServerModal.tsx
 msgid "Oper Up"
 msgstr "Activer Oper"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Oper Username"
+msgstr "Nom d'utilisateur opérateur"
 
 #: src/components/ui/EditServerModal.tsx
 msgid "Operator password"
@@ -811,22 +1567,50 @@ msgstr "Mot de passe opérateur"
 msgid "Operator username"
 msgstr "Nom d'utilisateur opérateur"
 
+#: src/components/ui/UserSettings.tsx
+msgid "Optional crash reports to improve the app"
+msgstr "Rapports de plantage optionnels pour améliorer l'application"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Propriétaire"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Password"
 msgstr "Mot de passe"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Password required to join the channel. Leave empty to remove the key."
+msgstr "Mot de passe requis pour rejoindre le salon. Laissez vide pour supprimer la clé."
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Pattern already exists"
+msgstr "Le modèle existe déjà"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Pattern cannot be empty"
+msgstr "Le modèle ne peut pas être vide"
+
+#: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+msgid "Pause"
+msgstr "Pause"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "PDF"
+msgstr "PDF"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Permanent"
 msgstr "Permanent"
 
+#: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChatHeader.tsx
 msgid "Pin"
 msgstr "Épingler"
 
+#: src/components/layout/ChannelList.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Pin Private Chat"
 msgstr "Épingler la conversation privée"
@@ -834,6 +1618,20 @@ msgstr "Épingler la conversation privée"
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Pin this private message conversation"
 msgstr "Épingler cette conversation privée"
+
+#: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+msgid "Play"
+msgstr "Lire"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Play sounds for mentions and messages"
+msgstr "Jouer des sons pour les mentions et messages"
+
+#: src/components/ui/InviteUserModal.tsx
+msgid "Please enter a username"
+msgstr "Veuillez saisir un nom d'utilisateur"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Please wait..."
@@ -843,6 +1641,7 @@ msgstr "Veuillez patienter..."
 msgid "PM User"
 msgstr "MP à l'utilisateur"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Port"
 msgstr "Port"
@@ -854,6 +1653,14 @@ msgstr "Préférences"
 #: src/components/ui/ImagePreviewModal.tsx
 msgid "Preview"
 msgstr "Aperçu"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Preview (not yet uploaded)"
+msgstr "Aperçu (pas encore envoyé)"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Preview:"
+msgstr "Aperçu :"
 
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Previous image"
@@ -868,14 +1675,44 @@ msgid "Privacy"
 msgstr "Confidentialité"
 
 #: src/components/ui/UserSettings.tsx
+msgid "Privacy Policy"
+msgstr "Politique de confidentialité"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Private Messages"
+msgstr "Messages privés"
+
+#: src/components/ui/FloodSettingsModal.tsx
+#: src/components/ui/UserSettings.tsx
 msgid "Profile"
 msgstr "Profil"
 
+#: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Pronouns"
 msgstr "Pronoms"
 
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Protected Topic (+t)"
+msgstr "Sujet protégé (+t)"
+
 #: src/components/ui/UserSettings.tsx
+msgid "Questions about privacy? Contact us:"
+msgstr "Questions sur la confidentialité ? Contactez-nous :"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "quit"
+msgstr "a quitté"
+
+#: src/store/handlers/users.ts
+#: src/store/handlers/users.ts
+msgid "quit ({reason})"
+msgstr "a quitté ({reason})"
+
+#: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Quit Message"
 msgstr "Message de déconnexion"
 
@@ -895,7 +1732,9 @@ msgstr "a réagi à ce message"
 msgid "Read more"
 msgstr "Lire la suite"
 
+#: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Real Name"
 msgstr "Vrai nom"
 
@@ -911,6 +1750,7 @@ msgstr "Raison (facultatif)"
 msgid "Reconnect to server"
 msgstr "Se reconnecter au serveur"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Register for an account"
 msgstr "Créer un compte"
@@ -918,6 +1758,10 @@ msgstr "Créer un compte"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
 msgstr "Détendu"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Relaxed - Less aggressive protection"
+msgstr "Détendu – Protection moins agressive"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Remove"
@@ -935,14 +1779,30 @@ msgstr "Supprimer le motif"
 msgid "Remove reaction {emoji}"
 msgstr "Supprimer la réaction {emoji}"
 
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Remove Rule"
+msgstr "Supprimer la règle"
+
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Rename Channel"
 msgstr "Renommer le canal"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Rename this channel on the server. All users will see the new name."
+msgstr "Renommer ce salon sur le serveur. Tous les utilisateurs verront le nouveau nom."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Render markdown formatting in messages"
+msgstr "Afficher le formatage Markdown dans les messages"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
 msgstr "Répondre"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Rules"
+msgstr "Règles"
 
 #: src/components/ui/UserSettings.tsx
 msgid "Safe"
@@ -962,6 +1822,14 @@ msgstr "Enregistrer"
 msgid "Save Changes"
 msgstr "Enregistrer les modifications"
 
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Save Settings"
+msgstr "Enregistrer les paramètres"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Saving..."
+msgstr "Enregistrement..."
+
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
 msgid "Scroll to bottom"
@@ -971,8 +1839,13 @@ msgstr "Défiler vers le bas"
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
+#: src/components/ui/GifSelector.tsx
 msgid "Search"
 msgstr "Rechercher"
+
+#: src/components/ui/GifSelector.tsx
+msgid "Search for GIFs to get started"
+msgstr "Recherchez des GIFs pour commencer"
 
 #: src/components/ui/GifSelector.tsx
 msgid "Search GIFs..."
@@ -994,14 +1867,27 @@ msgstr "Rechercher des paramètres, canaux, serveurs..."
 msgid "Search users..."
 msgstr "Rechercher des utilisateurs..."
 
+#: src/components/ui/GifSelector.tsx
+msgid "Searching..."
+msgstr "Recherche..."
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Secret (+s)"
+msgstr "Secret (+s)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Secret channel"
 msgstr "Canal secret"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "Secure Connection"
+msgstr "Connexion sécurisée"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Security Warning"
 msgstr "Avertissement de sécurité"
 
+#: src/components/message/MediaPreview.tsx
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Seek"
 msgstr "Avancer"
@@ -1019,6 +1905,7 @@ msgid "Select or add a channel to get started."
 msgstr "Sélectionnez ou ajoutez un canal pour commencer."
 
 #: src/components/layout/ChatArea.tsx
+#: src/components/ui/GifSelector.tsx
 msgid "Send a GIF"
 msgstr "Envoyer un GIF"
 
@@ -1026,9 +1913,27 @@ msgstr "Envoyer un GIF"
 msgid "Send a warning message to {username}"
 msgstr "Envoyer un message d'avertissement à {username}"
 
+#: src/components/ui/InviteUserModal.tsx
+msgid "Send Invite"
+msgstr "Envoyer l'invitation"
+
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+msgid "Send Message"
+msgstr "Envoyer un message"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Send private message"
 msgstr "Envoyer un message privé"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Send Typing Notifications"
+msgstr "Envoyer des notifications de frappe"
+
+#: src/components/layout/ChannelList.tsx
+#: src/components/ui/QuickActions.tsx
+msgid "Server"
+msgstr "Serveur"
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
@@ -1038,6 +1943,11 @@ msgstr "Envoyer un message privé"
 msgid "Server Channels"
 msgstr "Canaux du serveur"
 
+#: src/components/ui/ChannelListModal.tsx
+msgid "Server doesn't support advanced LIST filtering"
+msgstr "Le serveur ne supporte pas le filtrage LIST avancé"
+
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Server Host"
 msgstr "Hôte du serveur"
@@ -1052,6 +1962,7 @@ msgstr "L'hôte du serveur est requis"
 msgid "Server name is required"
 msgstr "Le nom du serveur est requis"
 
+#: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChatArea.tsx
 #: src/components/layout/ChatHeader.tsx
 #: src/components/message/ServerNoticesPopup.tsx
@@ -1063,6 +1974,7 @@ msgstr "Avis du serveur"
 msgid "Server operators on the network could potentially read your messages"
 msgstr "Les opérateurs du réseau pourraient potentiellement lire vos messages"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Server Password"
@@ -1080,6 +1992,23 @@ msgstr "Définir un sujet…"
 msgid "Set Away"
 msgstr "Se mettre absent"
 
+#. placeholder {0}: mode.setter
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "set by {0}"
+msgstr "défini par {0}"
+
+#: src/components/ui/QuickActions.tsx
+msgid "Setting"
+msgstr "Paramètre"
+
+#: src/lib/settings/registry.ts
+msgid "Setting not found"
+msgstr "Paramètre introuvable"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Settings"
+msgstr "Paramètres"
+
 #. placeholder {0}: extraKnownEntries.length
 #: src/components/message/MessageItem.tsx
 msgid "Show {0} more items"
@@ -1089,10 +2018,26 @@ msgstr "Afficher {0} éléments de plus"
 msgid "Show 1 more item"
 msgstr "Afficher 1 élément de plus"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show All Events"
+msgstr "Afficher tous les événements"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Joins/Parts"
+msgstr "Afficher les entrées/sorties"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Kicks"
+msgstr "Afficher les expulsions"
+
 #: src/components/message/CollapsibleMessage.tsx
 #: src/components/message/MessageItem.tsx
 msgid "Show less"
 msgstr "Afficher moins"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Nick Changes"
+msgstr "Afficher les changements de pseudo"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Show or hide the channel list sidebar"
@@ -1102,6 +2047,15 @@ msgstr "Afficher ou masquer la barre latérale de la liste des canaux"
 msgid "Show or hide the member list sidebar"
 msgstr "Afficher ou masquer la barre latérale de la liste des membres"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Show Quits"
+msgstr "Afficher les déconnexions"
+
+#. placeholder {0}: filteredChannels.length
+#: src/components/ui/ChannelListModal.tsx
+msgid "Showing {displayedChannelsCount} of {0} channels"
+msgstr "Affichage de {displayedChannelsCount} sur {0} canaux"
+
 #: src/components/ui/UserSettings.tsx
 msgid "Shows all external media. Any URL may cause a request to an unknown server."
 msgstr "Affiche tous les médias externes. Toute URL peut déclencher une requête vers un serveur inconnu."
@@ -1110,11 +2064,25 @@ msgstr "Affiche tous les médias externes. Toute URL peut déclencher une requê
 msgid "Shows media from your server's trusted file host. No requests are made to external services."
 msgstr "Affiche les médias provenant de l'hébergeur de fichiers de confiance de votre serveur. Aucune requête n'est envoyée à des services externes."
 
+#: src/components/ui/UserProfileModal.tsx
+msgid "Signed On"
+msgstr "Connecté depuis"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Sort by Name"
+msgstr "Trier par nom"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Sort by Users"
+msgstr "Trier par utilisateurs"
+
 #: src/components/ui/AddPrivateChatModal.tsx
 msgid "Start Private Message"
 msgstr "Démarrer un message privé"
 
+#: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Status"
 msgstr "Statut"
 
@@ -1122,6 +2090,7 @@ msgstr "Statut"
 msgid "Status Messages"
 msgstr "Messages de statut"
 
+#: src/components/message/MediaPreview.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Arrêter"
@@ -1130,9 +2099,17 @@ msgstr "Arrêter"
 msgid "Strict"
 msgstr "Strict"
 
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Strict - More aggressive protection"
+msgstr "Strict – Protection plus agressive"
+
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Système"
+
+#: src/components/layout/ChannelList.tsx
+msgid "Text Channels"
+msgstr "Salons textuels"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "The connection to <0>{serverName}</0> has the following security concerns:"
@@ -1142,15 +2119,48 @@ msgstr "La connexion à <0>{serverName}</0> présente les problèmes de sécurit
 msgid "The IRC server has reported that its server-to-server links have a low security level. This means that when your messages are relayed between IRC servers in the network, they may not be properly encrypted or the SSL/TLS certificates may not be validated correctly."
 msgstr "Le serveur IRC a signalé que ses liens entre serveurs ont un faible niveau de sécurité. Cela signifie que lorsque vos messages sont relayés entre les serveurs IRC du réseau, ils peuvent ne pas être correctement chiffrés ou les certificats SSL/TLS peuvent ne pas être validés correctement."
 
+#: src/store/handlers/batches.ts
+msgid "The network split and rejoined. ✅"
+msgstr "Le réseau s'est divisé et reconnecté. ✅"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "The topic that will be displayed for this channel. All users can see the topic."
+msgstr "Le sujet affiché pour ce salon. Tous les utilisateurs peuvent le voir."
+
+#: src/components/ui/InviteUserModal.tsx
+msgid "The user will receive an invitation to join {channelName}."
+msgstr "L'utilisateur recevra une invitation à rejoindre {channelName}."
+
+#: src/lib/settings/registry.ts
+msgid "This field is required"
+msgstr "Ce champ est obligatoire"
+
 #: src/components/message/MediaPreview.tsx
 msgid "This image has expired"
 msgstr "Cette image a expiré"
+
+#: src/components/ui/UserSettings.tsx
+msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
+msgstr "Ce serveur ne supporte pas les métadonnées de profil étendues (extension IRCv3 METADATA). Les champs comme l'avatar, le nom d'affichage et le statut ne sont pas disponibles."
+
+#: src/components/ui/AddServerModal.tsx
+msgid "This server only supports one connection type"
+msgstr "Ce serveur ne prend en charge qu'un seul type de connexion"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Time (min)"
+msgstr "Temps (min)"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Time Window (seconds)"
+msgstr "Fenêtre temporelle (secondes)"
 
 #: src/components/message/WhisperMessage.tsx
 #: src/components/message/WhisperMessage.tsx
 msgid "to"
 msgstr "à"
 
+#: src/components/ui/QuickActions.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
@@ -1176,18 +2186,45 @@ msgstr "Activer/désactiver les notifications"
 msgid "Toggle search"
 msgstr "Activer/désactiver la recherche"
 
+#: src/components/ui/ChannelListModal.tsx
+msgid "Topic Set After (min ago)"
+msgstr "Sujet défini après (min)"
+
+#: src/components/ui/ChannelListModal.tsx
+msgid "Topic Set Before (min ago)"
+msgstr "Sujet défini avant (min)"
+
+#. placeholder {0}: filteredChannels.length
+#: src/components/ui/ChannelListModal.tsx
+msgid "Total: {0}"
+msgstr "Total : {0}"
+
 #: src/components/ui/UserSettings.tsx
 msgid "Trusted Sources"
 msgstr "Sources de confiance"
+
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Type"
+msgstr "Type"
 
 #: src/components/layout/ChatArea.tsx
 msgid "Type a message..."
 msgstr "Saisir un message..."
 
+#: src/components/ui/UserContextMenu.tsx
+msgid "Unignore User"
+msgstr "Ne plus ignorer l'utilisateur"
+
+#: src/components/message/MediaPreview.tsx
+msgid "Unmute"
+msgstr "Rétablir le son"
+
+#: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChatHeader.tsx
 msgid "Unpin"
 msgstr "Désépingler"
 
+#: src/components/layout/ChannelList.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Unpin Private Chat"
 msgstr "Désépingler la conversation privée"
@@ -1204,14 +2241,59 @@ msgstr "Mettre à jour le serveur"
 msgid "Updating..."
 msgstr "Mise à jour en cours..."
 
+#: src/components/ui/ImagePreviewModal.tsx
+msgid "Upload"
+msgstr "Téléverser"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Upload an image or provide a URL with optional {size} substitution for dynamic sizing"
+msgstr "Téléverser une image ou fournir une URL avec substitution optionnelle {size}"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "Upload Avatar"
+msgstr "Téléverser un avatar"
+
 #: src/components/layout/ChatArea.tsx
 #: src/components/ui/ImagePreviewModal.tsx
 msgid "Upload Image"
 msgstr "Téléverser une image"
 
+#: src/components/ui/AvatarUpload.tsx
+msgid "Uploading..."
+msgstr "Téléversement..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "URL to your avatar image"
+msgstr "URL de votre image d'avatar"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "URL with optional {size} substitution for dynamic sizing. Example: https://example.com/avatar/{size}/channel.jpg"
+msgstr "URL avec substitution optionnelle {size}. Exemple : https://example.com/avatar/{size}/channel.jpg"
+
+#: src/components/ui/settings/IgnoreListField.tsx
+msgid "Use * for wildcards. Examples: baduser!*@*, *!*@spammer.com, troll*!*@*"
+msgstr "Utilisez * comme joker. Exemples : baduser!*@*, *!*@spammer.com, troll*!*@*"
+
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Use server password"
 msgstr "Utiliser le mot de passe du serveur"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Use Shift+Enter for new lines (Enter sends)"
+msgstr "Shift+Entrée pour les nouvelles lignes (Entrée envoie)"
+
+#: src/components/ui/AddServerModal.tsx
+msgid "Use WebSocket instead of raw TCP"
+msgstr "Utiliser WebSocket au lieu de TCP brut"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
+msgstr "Jokers : * correspond à toute séquence, ? à un seul caractère. Exemples : nick!*@*, *!*@host.com, *!*user@*"
+
+#: src/components/ui/UserProfileModal.tsx
+msgid "User Information"
+msgstr "Informations utilisateur"
 
 #: src/components/message/MessageHeader.tsx
 #: src/components/ui/UserProfileModal.tsx
@@ -1219,14 +2301,35 @@ msgstr "Utiliser le mot de passe du serveur"
 msgid "User is authenticated"
 msgstr "L'utilisateur est authentifié"
 
+#: src/components/ui/UserProfileModal.tsx
+msgid "User is away"
+msgstr "L'utilisateur est absent"
+
 #: src/components/layout/ChatHeader.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "User Profile"
 msgstr "Profil de l'utilisateur"
 
+#: src/components/ui/UserSettings.tsx
+msgid "User Settings"
+msgstr "Paramètres utilisateur"
+
+#: src/components/ui/InviteUserModal.tsx
 #: src/components/ui/ModerationModal.tsx
 msgid "Username"
 msgstr "Nom d'utilisateur"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Users and patterns to ignore"
+msgstr "Utilisateurs et modèles à ignorer"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Users must be invited to join the channel"
+msgstr "Les utilisateurs doivent être invités pour rejoindre le salon"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "Users outside the channel cannot send messages to it"
+msgstr "Les utilisateurs extérieurs ne peuvent pas envoyer de messages"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1234,6 +2337,7 @@ msgid "Valid server port is required"
 msgstr "Un port de serveur valide est requis"
 
 #: src/components/layout/ChannelList.tsx
+#: src/components/layout/ChatHeader.tsx
 #: src/components/layout/MemberList.tsx
 #: src/components/layout/MemberList.tsx
 msgid "Verified account"
@@ -1247,9 +2351,17 @@ msgstr "Très détendu"
 msgid "Very Strict"
 msgstr "Très strict"
 
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Video"
+msgstr "Vidéo"
+
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "View Channel Topic"
 msgstr "Voir le sujet du canal"
+
+#: src/components/ui/UserSettings.tsx
+msgid "View Full Privacy Policy"
+msgstr "Voir la politique de confidentialité complète"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "View or edit the channel topic"
@@ -1259,6 +2371,12 @@ msgstr "Voir ou modifier le sujet du canal"
 msgid "View our privacy policy and data practices"
 msgstr "Consulter notre politique de confidentialité et nos pratiques en matière de données"
 
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserSettings.tsx
+msgid "View Profile"
+msgstr "Voir le profil"
+
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "View user profile information"
 msgstr "Voir les informations du profil utilisateur"
@@ -1267,13 +2385,38 @@ msgstr "Voir les informations du profil utilisateur"
 msgid "Voice"
 msgstr "Voice"
 
+#: src/components/layout/ChannelList.tsx
+msgid "Voice Channels coming soon!"
+msgstr "Salons vocaux bientôt disponibles !"
+
+#: src/components/layout/MemberList.tsx
+msgid "Voiced User"
+msgstr "Utilisateur avec droit de parole"
+
+#: src/components/message/MediaPreview.tsx
+msgid "Volume"
+msgstr "Volume"
+
 #: src/components/ui/ModerationModal.tsx
+#: src/components/ui/UserContextMenu.tsx
 msgid "Warn User"
 msgstr "Avertir l'utilisateur"
+
+#: src/store/handlers/users.ts
+msgid "was kicked from {channelName} by {username}"
+msgstr "a été expulsé de {channelName} par {username}"
+
+#: src/store/handlers/users.ts
+msgid "was kicked from {channelName} by {username} ({reason})"
+msgstr "a été expulsé de {channelName} par {username} ({reason})"
 
 #: src/components/message/EventMessage.tsx
 msgid "Was kicked from the channel"
 msgstr "A été expulsé du canal"
+
+#: src/components/ui/UserSettings.tsx
+msgid "We don't store your IRC communications on our servers"
+msgstr "Nous ne stockons pas vos communications IRC sur nos serveurs"
 
 #: src/components/ui/HomeScreen.tsx
 msgid "Welcome to {__DEFAULT_IRC_SERVER_NAME__}!"
@@ -1300,6 +2443,10 @@ msgstr "À quoi pensez-vous ?"
 msgid "WHISPER"
 msgstr "WHISPER"
 
+#: src/components/ui/FloodSettingsModal.tsx
+msgid "Wide - Broader protection scope"
+msgstr "Large – Portée de protection étendue"
+
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Par défaut « aucune raison » si laissé vide"
@@ -1309,6 +2456,7 @@ msgid "Will Forget"
 msgstr "Sera oublié"
 
 #: src/components/message/CollapsedEventMessage.tsx
+#: src/components/message/EventMessage.tsx
 msgid "You"
 msgstr "Vous"
 
@@ -1317,6 +2465,7 @@ msgid "You are about to open an external link:"
 msgstr "Vous êtes sur le point d'ouvrir un lien externe :"
 
 #: src/components/layout/ChannelList.tsx
+#: src/store/handlers/channels.ts
 msgid "You are an IRC Operator"
 msgstr "Vous êtes un IRC Operator"
 
@@ -1324,10 +2473,59 @@ msgstr "Vous êtes un IRC Operator"
 msgid "You have unsaved changes. Are you sure you want to close without saving?"
 msgstr "Vous avez des modifications non enregistrées. Voulez-vous vraiment fermer sans enregistrer ?"
 
+#: src/store/handlers/users.ts
+msgid "You invited {target} to join {channel}"
+msgstr "Vous avez invité {target} à rejoindre {channel}"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your account password for authentication"
+msgstr "Votre mot de passe de compte pour l'authentification"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your account username for authentication"
+msgstr "Votre nom d'utilisateur de compte pour l'authentification"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your default nickname for all servers"
+msgstr "Votre pseudo par défaut pour tous les serveurs"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Your messages and settings are stored locally on your device"
+msgstr "Vos messages et paramètres sont stockés localement sur votre appareil"
+
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Your messages could be intercepted when relayed between servers"
 msgstr "Vos messages pourraient être interceptés lors du relais entre serveurs"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your personal website"
+msgstr "Votre site web personnel"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your preferred color code"
+msgstr "Votre code couleur préféré"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your preferred display name"
+msgstr "Votre nom d'affichage préféré"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your pronouns, shown in your profile"
+msgstr "Vos pronoms, affichés dans votre profil"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your real or full name"
+msgstr "Votre nom réel ou complet"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your status message"
+msgstr "Votre message de statut"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Your unique identifier on this server"
+msgstr "Votre identifiant unique sur ce serveur"
+
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "your@email.com"
 msgstr "votre@email.com"

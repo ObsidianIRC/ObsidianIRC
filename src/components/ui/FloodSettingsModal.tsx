@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { Trans, t } from "@lingui/macro";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -260,11 +260,11 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
 
   // Common flood profiles based on UnrealIRCd documentation
   const floodProfiles = [
-    { value: "", label: "Default (no profile)" },
-    { value: "normal", label: "Normal - Standard protection" },
-    { value: "strict", label: "Strict - More aggressive protection" },
-    { value: "wide", label: "Wide - Broader protection scope" },
-    { value: "relaxed", label: "Relaxed - Less aggressive protection" },
+    { value: "", label: t`Default (no profile)` },
+    { value: "normal", label: t`Normal - Standard protection` },
+    { value: "strict", label: t`Strict - More aggressive protection` },
+    { value: "wide", label: t`Wide - Broader protection scope` },
+    { value: "relaxed", label: t`Relaxed - Less aggressive protection` },
   ];
 
   if (!isOpen) return null;
@@ -277,7 +277,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-discord-dark-500 flex-shrink-0">
           <h2 className="text-xl font-semibold text-white">
-            Flood Protection Settings
+            <Trans>Flood Protection Settings</Trans>
           </h2>
           <button
             onClick={onClose}
@@ -296,25 +296,27 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
           <div className="space-y-3">
             <div>
               <h3 className="text-lg font-medium text-white mb-2">
-                Flood Profile (+F)
+                <Trans>Flood Profile (+F)</Trans>
               </h3>
               <p className="text-sm text-discord-text-muted mb-4">
-                Choose a predefined flood protection profile. These profiles
-                provide balanced protection settings for different use cases.
+                <Trans>
+                  Choose a predefined flood protection profile. These profiles
+                  provide balanced protection settings for different use cases.
+                </Trans>
                 <a
                   href="https://www.unrealircd.org/docs/Channel_anti-flood_settings#flood-profiles"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-discord-blue hover:underline ml-1"
                 >
-                  Learn more about profiles →
+                  <Trans>Learn more about profiles →</Trans>
                 </a>
               </p>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-white block">
-                Profile
+                <Trans>Profile</Trans>
               </label>
               <select
                 value={floodProfile}
@@ -334,19 +336,21 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
           <div className="space-y-3">
             <div>
               <h3 className="text-lg font-medium text-white mb-2">
-                Custom Flood Rules (+f)
+                <Trans>Custom Flood Rules (+f)</Trans>
               </h3>
               <p className="text-sm text-discord-text-muted mb-4">
-                Configure detailed flood protection rules. Each rule specifies
-                what type of activity to monitor and what action to take when
-                thresholds are exceeded.
+                <Trans>
+                  Configure detailed flood protection rules. Each rule specifies
+                  what type of activity to monitor and what action to take when
+                  thresholds are exceeded.
+                </Trans>
                 <a
                   href="https://www.unrealircd.org/docs/Channel_anti-flood_settings#Channel_mode_f"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-discord-blue hover:underline ml-1"
                 >
-                  Learn more about custom rules →
+                  <Trans>Learn more about custom rules →</Trans>
                 </a>
               </p>
             </div>
@@ -354,11 +358,13 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
             {/* Global Settings */}
             <div className="p-4 bg-discord-dark rounded-lg">
               <label className="text-sm font-medium text-white block mb-2">
-                Time Window (seconds)
+                <Trans>Time Window (seconds)</Trans>
               </label>
               <p className="text-xs text-discord-text-muted mb-3">
-                How many seconds to monitor for flood activity before resetting
-                counters
+                <Trans>
+                  How many seconds to monitor for flood activity before
+                  resetting counters
+                </Trans>
               </p>
               <input
                 type="number"
@@ -375,7 +381,9 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
             {/* Rules List */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-md font-medium text-white">Rules</h4>
+                <h4 className="text-md font-medium text-white">
+                  <Trans>Rules</Trans>
+                </h4>
               </div>
 
               {floodRules.length === 0 ? (
@@ -385,7 +393,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                     className="px-4 py-2 bg-discord-blue text-white rounded-md hover:bg-discord-blue-hover text-sm flex items-center gap-2"
                   >
                     <FaPlus size={14} />
-                    Add Rule
+                    <Trans>Add Rule</Trans>
                   </button>
                 </div>
               ) : (
@@ -399,7 +407,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                         {/* Amount */}
                         <div>
                           <label className="text-xs font-medium text-discord-text-muted block mb-1">
-                            Amount
+                            <Trans>Amount</Trans>
                           </label>
                           <input
                             type="number"
@@ -418,7 +426,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                         {/* Type */}
                         <div>
                           <label className="text-xs font-medium text-discord-text-muted block mb-1">
-                            Type
+                            <Trans>Type</Trans>
                           </label>
                           <select
                             value={rule.type}
@@ -456,7 +464,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                         {/* Action */}
                         <div>
                           <label className="text-xs font-medium text-discord-text-muted block mb-1">
-                            Action
+                            <Trans>Action</Trans>
                           </label>
                           <select
                             value={rule.action || getDefaultAction(rule.type)}
@@ -486,7 +494,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                         {/* Time */}
                         <div>
                           <label className="text-xs font-medium text-discord-text-muted block mb-1">
-                            Time (min)
+                            <Trans>Time (min)</Trans>
                           </label>
                           <input
                             type="number"
@@ -512,7 +520,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                           className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1"
                         >
                           <FaTrash size={12} />
-                          Remove Rule
+                          <Trans>Remove Rule</Trans>
                         </button>
                       </div>
                     </div>
@@ -528,7 +536,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
                     className="px-4 py-2 bg-discord-blue text-white rounded-md hover:bg-discord-blue-hover text-sm flex items-center gap-2"
                   >
                     <FaPlus size={14} />
-                    Add Rule
+                    <Trans>Add Rule</Trans>
                   </button>
                 </div>
               )}
@@ -542,7 +550,7 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 text-discord-text-muted hover:text-white"
           >
-            Cancel
+            <Trans>Cancel</Trans>
           </button>
           <button
             onClick={handleSave}
@@ -552,10 +560,10 @@ const FloodSettingsModal: React.FC<FloodSettingsModalProps> = ({
             {isSaving ? (
               <>
                 <FaSpinner className="animate-spin" size={14} />
-                Saving...
+                <Trans>Saving...</Trans>
               </>
             ) : (
-              "Save Settings"
+              <Trans>Save Settings</Trans>
             )}
           </button>
         </div>

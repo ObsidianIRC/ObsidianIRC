@@ -1726,7 +1726,7 @@ export const ChatArea: React.FC<{
     (message: MessageType) => {
       if (message.msgid && selectedServerId) {
         const confirmed = window.confirm(
-          "Are you sure you want to delete this message? This action cannot be undone.",
+          t`Are you sure you want to delete this message? This action cannot be undone.`,
         );
         if (confirmed) {
           const { servers: currentServers } = useStore.getState();
@@ -1753,7 +1753,7 @@ export const ChatArea: React.FC<{
         }
       }
     },
-    [selectedServerId, redactMessage],
+    [selectedServerId, redactMessage, t],
   );
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {

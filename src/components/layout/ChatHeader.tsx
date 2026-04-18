@@ -210,14 +210,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <FaCheckCircle
             className="inline ml-0.5 text-green-500"
             style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
-            title="Verified account"
+            title={t`Verified account`}
           />
         )}
         {isBot && (
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="Bot"
+            title={t`Bot`}
           >
             🤖
           </span>
@@ -226,7 +226,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="IRC Operator"
+            title={t`IRC Operator`}
           >
             🔑
           </span>

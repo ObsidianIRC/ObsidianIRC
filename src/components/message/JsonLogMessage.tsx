@@ -1,3 +1,4 @@
+import { Trans, t } from "@lingui/macro";
 import type React from "react";
 import { useState } from "react";
 import {
@@ -146,7 +147,7 @@ const renderStructuredData = (
               e.stopPropagation();
               copyToClipboard("null");
             }}
-            title="Click to copy"
+            title={t`Click to copy`}
           >
             null
           </span>
@@ -162,7 +163,7 @@ const renderStructuredData = (
               e.stopPropagation();
               copyToClipboard(value.toString());
             }}
-            title="Click to copy"
+            title={t`Click to copy`}
           >
             {value.toString()}
           </span>
@@ -178,7 +179,7 @@ const renderStructuredData = (
               e.stopPropagation();
               copyToClipboard(value.toString());
             }}
-            title="Click to copy"
+            title={t`Click to copy`}
           >
             {value.toString()}
           </span>
@@ -201,7 +202,7 @@ const renderStructuredData = (
               e.stopPropagation();
               copyToClipboard(value);
             }}
-            title="Click to copy"
+            title={t`Click to copy`}
           >
             {new Date(value).toLocaleString()}
           </span>
@@ -217,7 +218,7 @@ const renderStructuredData = (
                 e.stopPropagation();
                 copyToClipboard(value);
               }}
-              title="Click to copy"
+              title={t`Click to copy`}
             >
               {value}
               <button
@@ -243,7 +244,7 @@ const renderStructuredData = (
               e.stopPropagation();
               copyToClipboard(value);
             }}
-            title="Click to copy"
+            title={t`Click to copy`}
           >
             {value}
           </span>
@@ -260,7 +261,7 @@ const renderStructuredData = (
                 e.stopPropagation();
                 copyToClipboard("[]");
               }}
-              title="Click to copy"
+              title={t`Click to copy`}
             >
               None
             </span>
@@ -300,7 +301,7 @@ const renderStructuredData = (
                 e.stopPropagation();
                 copyToClipboard("{}");
               }}
-              title="Click to copy"
+              title={t`Click to copy`}
             >
               No data
             </span>
@@ -335,7 +336,7 @@ const renderStructuredData = (
           e.stopPropagation();
           copyToClipboard(String(value));
         }}
-        title="Click to copy"
+        title={t`Click to copy`}
       >
         {String(value)}
       </span>
@@ -348,7 +349,11 @@ const renderStructuredData = (
   );
 
   if (filteredEntries.length === 0) {
-    return <span className="text-gray-500 italic">No additional data</span>;
+    return (
+      <span className="text-gray-500 italic">
+        <Trans>No additional data</Trans>
+      </span>
+    );
   }
 
   return (
@@ -721,7 +726,9 @@ export const JsonLogMessage: React.FC<JsonLogMessageProps> = ({
             }}
             className="ml-4 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded flex items-center gap-1 flex-shrink-0"
           >
-            <span>Deep dive</span>
+            <span>
+              <Trans>Deep dive</Trans>
+            </span>
             {isDeepDiveOpen ? (
               <FaChevronDown className="text-gray-400 text-xs" />
             ) : (

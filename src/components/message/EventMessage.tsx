@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/macro";
+import { Trans, useLingui } from "@lingui/macro";
 import type React from "react";
 import { useEffect, useState } from "react";
 import ircClient from "../../lib/ircClient";
@@ -22,10 +22,10 @@ export const EventMessage: React.FC<EventMessageProps> = ({
   messageUser,
   onUsernameContextMenu,
 }) => {
+  const { t, i18n } = useLingui();
   const [showTooltip, setShowTooltip] = useState(false);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
-  // Get server-specific current user instead of global currentUser
   const currentUser = ircClient.getCurrentUser(message.serverId);
 
   // Reset image load failed state when avatar URL changes
@@ -34,7 +34,7 @@ export const EventMessage: React.FC<EventMessageProps> = ({
   }, []);
 
   const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
+    return new Intl.DateTimeFormat(i18n.locale, {
       hour: "2-digit",
       minute: "2-digit",
     }).format(date);
@@ -64,7 +64,7 @@ export const EventMessage: React.FC<EventMessageProps> = ({
     messageUser?.metadata?.["display-name"]?.value || username;
   const userColor = messageUser?.metadata?.color?.value || "#888888";
   const isCurrentUser = currentUser?.username === username;
-  const displayText = isCurrentUser ? "You" : displayName;
+  const displayText = isCurrentUser ? t`You` : displayName;
 
   return (
     <div

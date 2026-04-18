@@ -57,43 +57,35 @@ const getStatusPriority = (status?: string): number => {
   return maxPriority;
 };
 
-// getStatusTitle is called outside React components, so string literals here
-// are not wrapped — they are fed into title= props inside UserItem which uses useLingui.
-const getStatusTitle = (status?: string): string => {
+const getStatusChar = (status?: string): string => {
   if (!status) return "";
   let highestPriority = 0;
-  let title = "";
+  let topChar = "";
   for (const char of status) {
     let priority = 0;
-    let charTitle = "";
     switch (char) {
       case "~":
         priority = 6;
-        charTitle = "Channel Owner";
         break;
       case "&":
         priority = 5;
-        charTitle = "Channel Admin";
         break;
       case "@":
         priority = 4;
-        charTitle = "Channel Operator";
         break;
       case "%":
         priority = 3;
-        charTitle = "Channel Half Operator";
         break;
       case "+":
         priority = 2;
-        charTitle = "Voiced User";
         break;
     }
     if (priority > highestPriority) {
       highestPriority = priority;
-      title = charTitle;
+      topChar = char;
     }
   }
-  return title;
+  return topChar;
 };
 
 const UserItem: React.FC<{
@@ -111,6 +103,23 @@ const UserItem: React.FC<{
 }> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
   const { t } = useLingui();
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
+  const statusTitle = (() => {
+    switch (getStatusChar(user.status)) {
+      case "~":
+        return t`Channel Owner`;
+      case "&":
+        return t`Channel Admin`;
+      case "@":
+        return t`Channel Operator`;
+      case "%":
+        return t`Channel Half Operator`;
+      case "+":
+        return t`Voiced User`;
+      default:
+        return "";
+    }
+  })();
 
   const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
     useStore((state) => state.globalSettings.mediaVisibilityLevel),
@@ -201,7 +210,7 @@ const UserItem: React.FC<{
           {user.status && (
             <span
               className="shrink-0 bg-blue-600 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-sm"
-              title={getStatusTitle(user.status)}
+              title={statusTitle}
             >
               {user.status}
             </span>

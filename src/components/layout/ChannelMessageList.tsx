@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/macro";
 import type * as React from "react";
 import {
   forwardRef,
@@ -101,6 +102,7 @@ export const ChannelMessageList = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useLingui();
     const [visibleMessageCount, setVisibleMessageCount] = useState(
       initialScrollState?.visibleCount ?? DEFAULT_VISIBLE_MESSAGE_COUNT,
     );
@@ -472,25 +474,27 @@ export const ChannelMessageList = forwardRef<
                       </svg>
                     )}
                     {isFetchingMore
-                      ? "Getting more messages..."
+                      ? t`Getting more messages...`
                       : locallyHidden
-                        ? `${filteredMessages.length - displayedMessages.length} older messages`
-                        : "Load older messages"}
+                        ? t`${filteredMessages.length - displayedMessages.length} older messages`
+                        : t`Load older messages`}
                   </button>
                 </div>
               )}
               {searchQuery && (
                 <div className="flex justify-center items-center gap-2 py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
                   <span>
-                    Found {filteredMessages.length} message
-                    {filteredMessages.length === 1 ? "" : "s"} matching "
-                    {searchQuery}"
+                    <Trans>
+                      Found {filteredMessages.length}{" "}
+                      {filteredMessages.length === 1 ? "message" : "messages"}{" "}
+                      matching "{searchQuery}"
+                    </Trans>
                   </span>
                   <button
                     type="button"
                     onClick={onClearSearch}
                     className="text-red-400 hover:text-red-300"
-                    title="Clear search"
+                    title={t`Clear search`}
                   >
                     ✕
                   </button>

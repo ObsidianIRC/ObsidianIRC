@@ -1,4 +1,4 @@
-import { Trans, t } from "@lingui/macro";
+import { Trans, t, useLingui } from "@lingui/macro";
 import React, {
   useCallback,
   useEffect,
@@ -149,6 +149,7 @@ export const UserSettings: React.FC = React.memo(() => {
   );
   const isMobile = useMediaQuery("(max-width: 768px)");
 
+  const { i18n } = useLingui();
   const categories: CategoryInfo[] = [
     {
       id: "profile",
@@ -789,13 +790,13 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-6">
         <div>
           <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-discord-text-muted">
-            Display
+            <Trans>Display</Trans>
           </p>
 
           {/* Title row */}
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium text-discord-text-normal">
-              Media Previews
+              <Trans>Media Previews</Trans>
             </span>
             <span
               className={`text-xs font-semibold ${current.warning ? "text-yellow-400" : "text-discord-primary"}`}
@@ -804,7 +805,7 @@ export const UserSettings: React.FC = React.memo(() => {
             </span>
           </div>
           <p className="mb-5 text-xs text-discord-text-muted">
-            Control how much external media is loaded in chat.
+            <Trans>Control how much external media is loaded in chat.</Trans>
           </p>
 
           {/* Slider track */}
@@ -867,10 +868,12 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-4">
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
           <h3 className="text-discord-text-normal font-medium">
-            Privacy Policy
+            <Trans>Privacy Policy</Trans>
           </h3>
           <p className="text-discord-text-muted text-sm">
-            Learn how we handle your data and protect your privacy.
+            <Trans>
+              Learn how we handle your data and protect your privacy.
+            </Trans>
           </p>
 
           <div className="space-y-3">
@@ -886,7 +889,7 @@ export const UserSettings: React.FC = React.memo(() => {
               className="flex items-center justify-between w-full p-3 bg-discord-dark-500 rounded hover:bg-discord-dark-300 transition-colors"
             >
               <span className="text-discord-text-normal">
-                View Full Privacy Policy
+                <Trans>View Full Privacy Policy</Trans>
               </span>
               <svg
                 className="w-4 h-4 text-discord-text-muted"
@@ -907,33 +910,57 @@ export const UserSettings: React.FC = React.memo(() => {
 
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
           <h3 className="text-discord-text-normal font-medium">
-            Data Collection
+            <Trans>Data Collection</Trans>
           </h3>
           <div className="space-y-2 text-discord-text-muted text-sm">
             <p>
-              • <strong>Local Storage:</strong> Your messages and settings are
-              stored locally on your device
+              •{" "}
+              <strong>
+                <Trans>Local Storage:</Trans>
+              </strong>{" "}
+              <Trans>
+                Your messages and settings are stored locally on your device
+              </Trans>
             </p>
             <p>
-              • <strong>No Central Server:</strong> We don't store your IRC
-              communications on our servers
+              •{" "}
+              <strong>
+                <Trans>No Central Server:</Trans>
+              </strong>{" "}
+              <Trans>
+                We don't store your IRC communications on our servers
+              </Trans>
             </p>
             <p>
-              • <strong>IRC Servers:</strong> Only connect to servers you choose
+              •{" "}
+              <strong>
+                <Trans>IRC Servers:</Trans>
+              </strong>{" "}
+              <Trans>Only connect to servers you choose</Trans>
             </p>
             <p>
-              • <strong>Anonymous Analytics:</strong> Optional crash reports to
-              improve the app
+              •{" "}
+              <strong>
+                <Trans>Anonymous Analytics:</Trans>
+              </strong>{" "}
+              <Trans>Optional crash reports to improve the app</Trans>
             </p>
           </div>
         </div>
 
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
-          <h3 className="text-discord-text-normal font-medium">Contact</h3>
+          <h3 className="text-discord-text-normal font-medium">
+            <Trans>Contact</Trans>
+          </h3>
           <div className="space-y-2 text-discord-text-muted text-sm">
-            <p>Questions about privacy? Contact us:</p>
             <p>
-              • <strong>Email:</strong>{" "}
+              <Trans>Questions about privacy? Contact us:</Trans>
+            </p>
+            <p>
+              •{" "}
+              <strong>
+                <Trans>Email:</Trans>
+              </strong>{" "}
               <a
                 href="mailto:obsidianirc@gmail.com"
                 className="text-discord-primary hover:text-discord-primary-light"
@@ -942,7 +969,10 @@ export const UserSettings: React.FC = React.memo(() => {
               </a>
             </p>
             <p>
-              • <strong>GitHub:</strong>{" "}
+              •{" "}
+              <strong>
+                <Trans>GitHub:</Trans>
+              </strong>{" "}
               <a
                 href="https://github.com/ObsidianIRC/ObsidianIRC"
                 target="_blank"
@@ -990,10 +1020,11 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="block text-discord-text-normal text-sm font-medium">
-            {nicknameSetting?.title || t`Nickname`}
+            {nicknameSetting ? i18n._(nicknameSetting.title) : t`Nickname`}
           </label>
           <p className="text-discord-text-muted text-xs">
-            {nicknameSetting?.description}
+            {nicknameSetting?.description &&
+              i18n._(nicknameSetting.description)}
           </p>
           <TextInput
             ref={nicknameInputRef}
@@ -1005,10 +1036,11 @@ export const UserSettings: React.FC = React.memo(() => {
 
         <div className="space-y-2">
           <label className="block text-discord-text-normal text-sm font-medium">
-            {realnameSetting?.title || t`Real Name`}
+            {realnameSetting ? i18n._(realnameSetting.title) : t`Real Name`}
           </label>
           <p className="text-discord-text-muted text-xs">
-            {realnameSetting?.description}
+            {realnameSetting?.description &&
+              i18n._(realnameSetting.description)}
           </p>
           <TextInput
             ref={realnameInputRef}
@@ -1021,15 +1053,17 @@ export const UserSettings: React.FC = React.memo(() => {
 
         <div className="space-y-4 mt-6 pt-6 border-t border-discord-dark-400">
           <h3 className="text-sm font-semibold text-discord-text-normal uppercase">
-            Extended Profile
+            <Trans>Extended Profile</Trans>
           </h3>
 
           {!supportsMetadata && (
             <div className="p-4 bg-discord-dark-400 rounded">
               <p className="text-discord-text-muted text-sm">
-                This server does not support extended profile metadata (IRCv3
-                METADATA extension). Additional fields like avatar, display
-                name, and status are not available.
+                <Trans>
+                  This server does not support extended profile metadata (IRCv3
+                  METADATA extension). Additional fields like avatar, display
+                  name, and status are not available.
+                </Trans>
               </p>
             </div>
           )}
@@ -1045,10 +1079,13 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {displayNameSetting?.title || t`Display Name`}
+                  {displayNameSetting
+                    ? i18n._(displayNameSetting.title)
+                    : t`Display Name`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {displayNameSetting?.description}
+                  {displayNameSetting?.description &&
+                    i18n._(displayNameSetting.description)}
                 </p>
                 <TextInput
                   ref={displayNameInputRef}
@@ -1070,10 +1107,11 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {avatarSetting?.title || t`Avatar`}
+                  {avatarSetting ? i18n._(avatarSetting.title) : t`Avatar`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {avatarSetting?.description}
+                  {avatarSetting?.description &&
+                    i18n._(avatarSetting.description)}
                 </p>
                 <TextInput
                   ref={avatarInputRef}
@@ -1103,10 +1141,13 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {homepageSetting?.title || t`Homepage`}
+                  {homepageSetting
+                    ? i18n._(homepageSetting.title)
+                    : t`Homepage`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {homepageSetting?.description}
+                  {homepageSetting?.description &&
+                    i18n._(homepageSetting.description)}
                 </p>
                 <TextInput
                   value={homepage}
@@ -1127,10 +1168,11 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {statusSetting?.title || t`Status`}
+                  {statusSetting ? i18n._(statusSetting.title) : t`Status`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {statusSetting?.description}
+                  {statusSetting?.description &&
+                    i18n._(statusSetting.description)}
                 </p>
                 <TextInput
                   ref={statusInputRef}
@@ -1150,10 +1192,11 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {colorSetting?.title || t`Color`}
+                  {colorSetting ? i18n._(colorSetting.title) : t`Color`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {colorSetting?.description}
+                  {colorSetting?.description &&
+                    i18n._(colorSetting.description)}
                 </p>
                 <div className="flex space-x-2">
                   <input
@@ -1181,10 +1224,10 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {botSetting?.title || t`Bot`}
+                  {botSetting ? i18n._(botSetting.title) : t`Bot`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {botSetting?.description}
+                  {botSetting?.description && i18n._(botSetting.description)}
                 </p>
                 <TextInput
                   ref={botInputRef}
@@ -1204,10 +1247,13 @@ export const UserSettings: React.FC = React.memo(() => {
                 }`}
               >
                 <label className="block text-discord-text-normal text-sm font-medium">
-                  {pronounsSetting?.title || t`Pronouns`}
+                  {pronounsSetting
+                    ? i18n._(pronounsSetting.title)
+                    : t`Pronouns`}
                 </label>
                 <p className="text-discord-text-muted text-xs">
-                  {pronounsSetting?.description}
+                  {pronounsSetting?.description &&
+                    i18n._(pronounsSetting.description)}
                 </p>
                 <TextInput
                   ref={pronounsInputRef}
@@ -1241,10 +1287,13 @@ export const UserSettings: React.FC = React.memo(() => {
             }`}
           >
             <label className="block text-discord-text-normal text-sm font-medium">
-              {awayMessageSetting?.title || t`Away Message`}
+              {awayMessageSetting
+                ? i18n._(awayMessageSetting.title)
+                : t`Away Message`}
             </label>
             <p className="text-discord-text-muted text-xs">
-              {awayMessageSetting?.description}
+              {awayMessageSetting?.description &&
+                i18n._(awayMessageSetting.description)}
             </p>
             <TextInput
               ref={awayMessageInputRef}
@@ -1266,10 +1315,13 @@ export const UserSettings: React.FC = React.memo(() => {
             }`}
           >
             <label className="block text-discord-text-normal text-sm font-medium">
-              {quitMessageSetting?.title || t`Quit Message`}
+              {quitMessageSetting
+                ? i18n._(quitMessageSetting.title)
+                : t`Quit Message`}
             </label>
             <p className="text-discord-text-muted text-xs">
-              {quitMessageSetting?.description}
+              {quitMessageSetting?.description &&
+                i18n._(quitMessageSetting.description)}
             </p>
             <TextInput
               ref={quitMessageInputRef}
@@ -1301,14 +1353,18 @@ export const UserSettings: React.FC = React.memo(() => {
       <div className="space-y-4">
         {/* IRC Operator Authentication */}
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
-          <h3 className="text-discord-text-normal font-medium">IRC Operator</h3>
+          <h3 className="text-discord-text-normal font-medium">
+            <Trans>IRC Operator</Trans>
+          </h3>
           <p className="text-discord-text-muted text-sm">
-            Authenticate as an IRC Operator for administrative access
+            <Trans>
+              Authenticate as an IRC Operator for administrative access
+            </Trans>
           </p>
 
           <div className="space-y-2">
             <label className="block text-discord-text-normal text-sm font-medium">
-              Oper Name
+              <Trans>Oper Name</Trans>
             </label>
             <TextInput
               value={operName}
@@ -1320,7 +1376,7 @@ export const UserSettings: React.FC = React.memo(() => {
 
           <div className="space-y-2">
             <label className="block text-discord-text-normal text-sm font-medium">
-              Oper Password
+              <Trans>Oper Password</Trans>
             </label>
             <TextInput
               type="password"
@@ -1459,20 +1515,38 @@ export const UserSettings: React.FC = React.memo(() => {
                         </label>
                         <select
                           className="bg-discord-dark-400 text-white rounded px-3 py-2 text-sm border border-discord-dark-300 focus:outline-none focus:border-discord-primary"
-                          value={localStorage.getItem("locale") ?? "en"}
+                          value={i18n.locale}
                           onChange={(e) => {
-                            localStorage.setItem("locale", e.target.value);
-                            window.location.reload();
+                            const next = e.target.value;
+                            localStorage.setItem("locale", next);
+                            const url = new URL(window.location.href);
+                            if (url.searchParams.has("lang")) {
+                              url.searchParams.set("lang", next);
+                              window.location.href = url.toString();
+                            } else {
+                              window.location.reload();
+                            }
                           }}
                         >
                           <option value="en">English</option>
                           <option value="es">Español</option>
                           <option value="fr">Français</option>
-                          <option value="zh">中文</option>
+                          <option value="zh">中文 (简体)</option>
+                          <option value="zh-TW">中文 (繁體)</option>
                           <option value="pt">Português</option>
                           <option value="de">Deutsch</option>
                           <option value="it">Italiano</option>
                           <option value="ro">Română</option>
+                          <option value="ru">Русский</option>
+                          <option value="fi">Suomi</option>
+                          <option value="ja">日本語</option>
+                          <option value="pl">Polski</option>
+                          <option value="nl">Nederlands</option>
+                          <option value="ko">한국어</option>
+                          <option value="tr">Türkçe</option>
+                          <option value="uk">Українська</option>
+                          <option value="sv">Svenska</option>
+                          <option value="cs">Čeština</option>
                         </select>
                       </div>
                     )}
@@ -1498,14 +1572,14 @@ export const UserSettings: React.FC = React.memo(() => {
                   className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-normal rounded font-medium flex items-center gap-2"
                 >
                   <FaUser size={12} />
-                  View Profile
+                  <Trans>View Profile</Trans>
                 </button>
               )}
               <button
                 onClick={handleClose}
                 className="flex-1 px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
               >
-                Cancel
+                <Trans>Cancel</Trans>
               </button>
               <button
                 onClick={handleSave}
@@ -1556,7 +1630,9 @@ export const UserSettings: React.FC = React.memo(() => {
             {isMobile ? (
               <FaCog className="text-white text-xl" />
             ) : (
-              <h2 className="text-white text-xl font-bold">User Settings</h2>
+              <h2 className="text-white text-xl font-bold">
+                <Trans>User Settings</Trans>
+              </h2>
             )}
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -1623,20 +1699,33 @@ export const UserSettings: React.FC = React.memo(() => {
                       </label>
                       <select
                         className="bg-discord-dark-400 text-white rounded px-3 py-2 text-sm border border-discord-dark-300 focus:outline-none focus:border-discord-primary"
-                        value={localStorage.getItem("locale") ?? "en"}
+                        value={i18n.locale}
                         onChange={(e) => {
-                          localStorage.setItem("locale", e.target.value);
-                          window.location.reload();
+                          const next = e.target.value;
+                          localStorage.setItem("locale", next);
+                          const url = new URL(window.location.href);
+                          if (url.searchParams.has("lang")) {
+                            url.searchParams.set("lang", next);
+                            window.location.href = url.toString();
+                          } else {
+                            window.location.reload();
+                          }
                         }}
                       >
                         <option value="en">English</option>
                         <option value="es">Español</option>
                         <option value="fr">Français</option>
-                        <option value="zh">中文</option>
+                        <option value="zh">中文 (简体)</option>
+                        <option value="zh-TW">中文 (繁體)</option>
                         <option value="pt">Português</option>
                         <option value="de">Deutsch</option>
                         <option value="it">Italiano</option>
                         <option value="ro">Română</option>
+                        <option value="ru">Русский</option>
+                        <option value="fi">Suomi</option>
+                        <option value="ja">日本語</option>
+                        <option value="pl">Polski</option>
+                        <option value="nl">Nederlands</option>
                       </select>
                     </div>
                   )}
@@ -1670,7 +1759,7 @@ export const UserSettings: React.FC = React.memo(() => {
                 onClick={handleClose}
                 className="px-4 py-2 bg-discord-dark-400 text-discord-text-normal rounded font-medium hover:bg-discord-dark-300"
               >
-                Cancel
+                <Trans>Cancel</Trans>
               </button>
               <button
                 onClick={handleSave}

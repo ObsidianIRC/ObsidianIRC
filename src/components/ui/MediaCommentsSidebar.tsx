@@ -1,5 +1,5 @@
 import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/solid";
-import { t } from "@lingui/macro";
+import { Trans, t } from "@lingui/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import {
   useCallback,
@@ -332,7 +332,7 @@ export function MediaCommentsSidebar({
               <ArrowLeftIcon className="w-4 h-4" />
             </button>
             <span className="flex-1 text-sm font-semibold text-discord-text-normal truncate">
-              Comments
+              <Trans>Comments</Trans>
               {commentCount > 0 && (
                 <span className="ml-1.5 text-discord-text-muted font-normal">
                   ({commentCount})
@@ -356,7 +356,7 @@ export function MediaCommentsSidebar({
         ) : (
           <>
             <span className="flex-1 text-sm font-semibold text-discord-text-normal truncate">
-              Comments
+              <Trans>Comments</Trans>
               {commentCount > 0 && (
                 <span className="ml-1.5 text-discord-text-muted font-normal">
                   ({commentCount})
@@ -429,14 +429,14 @@ export function MediaCommentsSidebar({
         <div className="min-w-0 flex-1">
           <p className="text-xs text-discord-text-muted leading-tight">
             {isAlbum
-              ? "Album"
+              ? t`Album`
               : (() => {
-                  const t = detectMediaType(currentImageUrl);
-                  if (t === "video") return "Video";
-                  if (t === "audio") return "Audio";
-                  if (t === "pdf") return "PDF";
-                  if (t === "embed") return "Embed";
-                  return "Image";
+                  const mt = detectMediaType(currentImageUrl);
+                  if (mt === "video") return t`Video`;
+                  if (mt === "audio") return t`Audio`;
+                  if (mt === "pdf") return t`PDF`;
+                  if (mt === "embed") return t`Embed`;
+                  return t`Image`;
                 })()}{" "}
             · @{liveSourceMessage.userId}
           </p>
@@ -476,7 +476,7 @@ export function MediaCommentsSidebar({
       >
         {comments.length === 0 ? (
           <p className="text-center text-xs text-discord-text-muted px-4 py-6">
-            No comments yet. Be the first!
+            <Trans>No comments yet. Be the first!</Trans>
           </p>
         ) : (
           comments.map((comment) => (
@@ -498,7 +498,7 @@ export function MediaCommentsSidebar({
               onRedactMessage={(msg) => {
                 if (!msg.msgid || !channelName) return;
                 if (
-                  window.confirm("Delete this message? This cannot be undone.")
+                  window.confirm(t`Delete this message? This cannot be undone.`)
                 ) {
                   redactMessage(serverId, channelName, msg.msgid);
                 }

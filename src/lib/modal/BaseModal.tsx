@@ -1,4 +1,5 @@
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { t } from "@lingui/macro";
 import type React from "react";
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -96,7 +97,7 @@ export const BaseModal: React.FC<BaseModalProps> = ({
         <button
           onClick={onClose}
           className="p-1 rounded-lg hover:bg-discord-dark-400 transition-colors text-discord-text-muted hover:text-white"
-          aria-label="Close modal"
+          aria-label={t`Close modal`}
         >
           <XMarkIcon className="w-5 h-5" />
         </button>

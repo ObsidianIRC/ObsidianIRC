@@ -1,10 +1,55 @@
+import { Trans, useLingui } from "@lingui/macro";
 import type React from "react";
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import type {
   SettingDefinition,
   SettingValue,
 } from "../../../lib/settings/types";
 import { TextArea, TextInput } from "../TextInput";
+
+// Defined at module level so React sees a stable component identity across renders.
+// Native <input type="file"> labels ("Choose file" / "No file chosen") render in the
+// browser's language, not the app's — this custom wrapper translates them.
+const FileInputField: React.FC<{
+  setting: SettingDefinition;
+  disabled: boolean;
+  onChange: (value: SettingValue) => void;
+}> = ({ setting, disabled, onChange }) => {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  return (
+    <div className="flex items-center gap-3">
+      <input
+        ref={fileRef}
+        type="file"
+        accept={setting.accept}
+        multiple={setting.multiple}
+        disabled={disabled}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            setFileName(file.name);
+            const reader = new FileReader();
+            reader.onload = () => onChange(reader.result as string);
+            reader.readAsDataURL(file);
+          }
+        }}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => fileRef.current?.click()}
+        className="py-2 px-4 rounded border-0 bg-discord-primary text-white hover:bg-discord-primary-hover disabled:opacity-50 text-sm"
+      >
+        <Trans>Choose file</Trans>
+      </button>
+      <span className="text-sm text-discord-text-muted">
+        {fileName ?? <Trans>No file chosen</Trans>}
+      </span>
+    </div>
+  );
+};
 
 export interface SettingRendererProps {
   setting: SettingDefinition;
@@ -26,6 +71,7 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
   disabled = false,
   isHighlighted = false,
 }) => {
+  const { i18n } = useLingui();
   const handleChange = useCallback(
     (newValue: SettingValue) => {
       onChange(newValue);
@@ -59,7 +105,9 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
             disabled={disabled}
             className="mr-3 accent-discord-primary disabled:opacity-50"
           />
-          <span className="text-discord-text-normal">{setting.title}</span>
+          <span className="text-discord-text-normal">
+            {i18n._(setting.title)}
+          </span>
         </label>
       );
 
@@ -200,20 +248,10 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
 
     case "file":
       return (
-        <input
-          type="file"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = () => handleChange(reader.result as string);
-              reader.readAsDataURL(file);
-            }
-          }}
-          accept={setting.accept}
-          multiple={setting.multiple}
+        <FileInputField
+          setting={setting}
           disabled={disabled}
-          className="w-full text-discord-text-normal file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-discord-primary file:text-white hover:file:bg-discord-primary-hover disabled:opacity-50"
+          onChange={handleChange}
         />
       );
 
@@ -253,6 +291,7 @@ export const SettingField: React.FC<{
   isHighlighted,
   showLabel = true,
 }) => {
+  const { i18n } = useLingui();
   return (
     <div
       id={`setting-${setting.id}`}
@@ -270,11 +309,11 @@ export const SettingField: React.FC<{
       {showLabel && (
         <div>
           <label className="block text-discord-text-normal text-sm font-medium">
-            {setting.title}
+            {i18n._(setting.title)}
           </label>
           {setting.description && (
             <p className="text-discord-text-muted text-xs mt-1">
-              {setting.description}
+              {i18n._(setting.description)}
             </p>
           )}
           {setting.tooltip && (
