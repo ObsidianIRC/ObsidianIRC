@@ -1,4 +1,4 @@
-import { Trans, useLingui } from "@lingui/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1836,17 +1836,14 @@ export const ChatArea: React.FC<{
         onOpenChannelSettings={() => setChannelSettingsModalOpen(true)}
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
-
       <TopicMediaStrip />
       <MiniMediaPlayer />
-
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}
       {showMemberListOverlay && (
         <div className="flex-grow overflow-hidden bg-discord-dark-100">
           <MemberList />
         </div>
       )}
-
       {/* Messages area */}
       {!showMemberListOverlay && (
         <>
@@ -2173,7 +2170,6 @@ export const ChatArea: React.FC<{
           )}
         </>
       )}
-
       <UserContextMenu
         isOpen={userContextMenu.isOpen}
         x={userContextMenu.x}
@@ -2196,7 +2192,6 @@ export const ChatArea: React.FC<{
           });
         }}
       />
-
       {isNarrowView ? (
         <ReactionModal
           isOpen={reactionModal.isOpen}
@@ -2213,7 +2208,6 @@ export const ChatArea: React.FC<{
           reactedEmojis={reactedEmojis}
         />
       )}
-
       <ModerationModal
         isOpen={moderationModal.isOpen}
         onClose={handleCloseModerationModal}
@@ -2221,7 +2215,6 @@ export const ChatArea: React.FC<{
         username={moderationModal.username}
         action={moderationModal.action}
       />
-
       {selectedChannel && (
         <ChannelSettingsModal
           isOpen={channelSettingsModalOpen}
@@ -2230,7 +2223,6 @@ export const ChatArea: React.FC<{
           channelName={selectedChannel.name}
         />
       )}
-
       {selectedChannel && selectedServerId && (
         <InviteUserModal
           isOpen={inviteUserModalOpen}
@@ -2239,7 +2231,6 @@ export const ChatArea: React.FC<{
           channelName={selectedChannel.name}
         />
       )}
-
       {selectedServerId && (
         <UserProfileModal
           isOpen={userProfileModalOpen}
@@ -2248,7 +2239,6 @@ export const ChatArea: React.FC<{
           username={selectedProfileUsername}
         />
       )}
-
       {/* Image Preview Dialog */}
       <ImagePreviewModal
         isOpen={imagePreview.isOpen}
@@ -2280,7 +2270,6 @@ export const ChatArea: React.FC<{
           });
         }}
       />
-
       {/* Popped out server notices window */}
       {isServerNoticesPoppedOut &&
         createPortal(

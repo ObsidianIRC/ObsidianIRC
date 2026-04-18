@@ -1,4 +1,4 @@
-import { msg } from "@lingui/macro";
+import { msg } from "@lingui/core/macro";
 import { CustomMentionsField } from "../../../components/ui/settings/CustomMentionsField";
 import { IgnoreListField } from "../../../components/ui/settings/IgnoreListField";
 import settingsRegistry from "../registry";

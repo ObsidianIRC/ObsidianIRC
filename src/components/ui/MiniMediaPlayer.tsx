@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
 import type * as React from "react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { FaSoundcloud, FaSpotify, FaVimeoV, FaYoutube } from "react-icons/fa";
@@ -395,7 +395,6 @@ export const MiniMediaPlayer: React.FC = () => {
           <CloseButton onClick={stopActiveMedia} />
         </>
       )}
-
       {type === "video" && (
         <>
           {/* Hidden <video> — always rendered when a video is active so the browser pre-loads the
@@ -479,7 +478,6 @@ export const MiniMediaPlayer: React.FC = () => {
           <CloseButton onClick={stopActiveMedia} />
         </>
       )}
-
       {type === "embed" && (
         <>
           {!isInlineVisible && (

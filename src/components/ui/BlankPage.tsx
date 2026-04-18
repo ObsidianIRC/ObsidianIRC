@@ -1,4 +1,4 @@
-import { Trans, useLingui } from "@lingui/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type * as React from "react";
 import { FaList } from "react-icons/fa";
 import useStore from "../../store";

@@ -1,4 +1,5 @@
-import { Trans, useLingui } from "@lingui/macro";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import type * as React from "react";
 import {
   forwardRef,
@@ -484,11 +485,10 @@ export const ChannelMessageList = forwardRef<
               {searchQuery && (
                 <div className="flex justify-center items-center gap-2 py-2 bg-discord-dark-300 text-discord-text-muted text-sm">
                   <span>
-                    <Trans>
-                      Found {filteredMessages.length}{" "}
-                      {filteredMessages.length === 1 ? "message" : "messages"}{" "}
-                      matching "{searchQuery}"
-                    </Trans>
+                    {plural(filteredMessages.length, {
+                      one: t`Found 1 message matching "${searchQuery}"`,
+                      other: t`Found ${filteredMessages.length} messages matching "${searchQuery}"`,
+                    })}
                   </span>
                   <button
                     type="button"

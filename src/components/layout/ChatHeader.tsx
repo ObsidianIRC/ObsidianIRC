@@ -1,5 +1,5 @@
 import { UsersIcon } from "@heroicons/react/24/solid";
-import { Trans, useLingui } from "@lingui/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {

@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import type { Message } from "../../types";

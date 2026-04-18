@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
 import type React from "react";
 import ircClient from "../../lib/ircClient";
 import type { MessageType, User } from "../../types";

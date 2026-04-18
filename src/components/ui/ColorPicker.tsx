@@ -1,4 +1,4 @@
-import { t } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { FaTimes } from "react-icons/fa";

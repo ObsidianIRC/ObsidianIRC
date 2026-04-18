@@ -1,4 +1,4 @@
-import { Trans, useLingui } from "@lingui/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa";
 import { isTauri } from "../../lib/platformUtils";

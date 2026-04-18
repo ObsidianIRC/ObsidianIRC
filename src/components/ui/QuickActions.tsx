@@ -1,4 +1,5 @@
-import { t, useLingui } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {

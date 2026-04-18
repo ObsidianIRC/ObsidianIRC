@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/macro";
+import { Trans } from "@lingui/react/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import type React from "react";
 import { createPortal } from "react-dom";

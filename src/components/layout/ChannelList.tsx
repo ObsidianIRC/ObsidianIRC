@@ -1,4 +1,5 @@
-import { Trans, t } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -428,7 +429,6 @@ export const ChannelList: React.FC<{
           <FaChevronLeft />
         </button>
       </div>
-
       {/* Channel list */}
       <div className="flex-grow overflow-y-auto overflow-x-hidden px-2 pt-4 max-w-full">
         {/* Home/Direct Messages view */}
@@ -1411,7 +1411,6 @@ export const ChannelList: React.FC<{
           </div>
         </div>
       </div>
-
       {/* Add Private Chat Modal */}
       {selectedServerId && (
         <AddPrivateChatModal

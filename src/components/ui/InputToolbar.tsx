@@ -1,8 +1,4 @@
-/**
- * Toolbar component for input formatting controls
- */
-
-import { t } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
 import { FaArrowUp, FaAt, FaGrinAlt } from "react-icons/fa";
 
 interface InputToolbarProps {

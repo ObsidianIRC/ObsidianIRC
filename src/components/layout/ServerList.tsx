@@ -1,4 +1,4 @@
-import { useLingui } from "@lingui/macro";
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { FaPencilAlt, FaPlus, FaRedo, FaTrash } from "react-icons/fa";

@@ -1,4 +1,4 @@
-import { Trans, useLingui } from "@lingui/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { FaSearch, FaUser } from "react-icons/fa";

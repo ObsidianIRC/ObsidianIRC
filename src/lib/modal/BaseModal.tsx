@@ -1,5 +1,5 @@
 import { XMarkIcon } from "@heroicons/react/24/solid";
-import { t } from "@lingui/macro";
+import { t } from "@lingui/core/macro";
 import type React from "react";
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";

@@ -1,4 +1,4 @@
-import { useLingui } from "@lingui/macro";
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect } from "react";
 import { FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";

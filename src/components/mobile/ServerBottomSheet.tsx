@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/macro";
+import { Trans } from "@lingui/react/macro";
 import type React from "react";
 import { FaPencilAlt, FaSignOutAlt } from "react-icons/fa";
 import BottomSheet from "./BottomSheet";

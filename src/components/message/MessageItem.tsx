@@ -1,5 +1,4 @@
-import { Trans } from "@lingui/macro";
-import { useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type * as React from "react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
@@ -661,7 +660,6 @@ export const MessageItem = memo((props: MessageItemProps) => {
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
       )}
-
       <div className="flex">
         <MessageAvatar
           userId={message.userId}
@@ -825,9 +823,11 @@ export const MessageItem = memo((props: MessageItemProps) => {
                           className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
                           onClick={() => setShowAllImages(true)}
                         >
-                          {extraKnownEntries.length > 1
-                            ? t`Show ${extraKnownEntries.length} more items`
-                            : t`Show 1 more item`}
+                          <Plural
+                            value={extraKnownEntries.length}
+                            one="Show 1 more item"
+                            other={`Show ${extraKnownEntries.length} more items`}
+                          />
                         </button>
                       ))}
                   </div>
@@ -864,7 +864,6 @@ export const MessageItem = memo((props: MessageItemProps) => {
           />
         </div>
       </div>
-
       {isTouchDevice && (
         <MessageBottomSheet
           isOpen={sheetOpen}
