@@ -152,7 +152,7 @@ export const ChannelList: React.FC<{
 
   // Get user status based on server connection and away status
   const userStatus = useMemo(() => {
-    if (!selectedServer || !selectedServer.isConnected) {
+    if (!selectedServer?.isConnected) {
       return "offline";
     }
     if (selectedServer.isAway) {

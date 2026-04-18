@@ -431,10 +431,7 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
             currentUserInChannel.status.includes("@") ||
             currentUserInChannel.status.includes("~") ||
             currentUserInChannel.status.includes("&");
-          if (
-            hasOperatorStatus &&
-            (!currentUser.modes || !currentUser.modes.includes("o"))
-          ) {
+          if (hasOperatorStatus && !currentUser.modes?.includes("o")) {
             // Update currentUser with operator modes
             return {
               servers: updatedServers,

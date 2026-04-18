@@ -1022,6 +1022,7 @@ const PdfPreview: React.FC<{
     >
       <LazyDocument
         file={url}
+        options={{ isEvalSupported: false }}
         loading={null}
         onLoadError={() => setPdfError(true)}
       >

@@ -132,7 +132,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     // Only request WHOIS once per modal opening
     if (
       !whoisRequestedRef.current &&
-      (!whoisData || !whoisData.isComplete || whoisAge > WHOIS_CACHE_TTL)
+      (!whoisData?.isComplete || whoisAge > WHOIS_CACHE_TTL)
     ) {
       whoisRequestedRef.current = true;
       setIsLoadingWhois(true);

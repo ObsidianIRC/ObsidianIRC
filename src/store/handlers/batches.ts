@@ -220,7 +220,7 @@ export function registerBatchHandlers(store: StoreApi<AppState>): void {
 
     store.setState((state) => {
       const serverBatches = state.activeBatches[serverId];
-      if (!serverBatches || !serverBatches[batchId]) {
+      if (!serverBatches?.[batchId]) {
         return state;
       }
 
