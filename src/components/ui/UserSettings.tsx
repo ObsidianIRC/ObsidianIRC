@@ -1046,7 +1046,11 @@ export const UserSettings: React.FC = React.memo(() => {
             ref={realnameInputRef}
             value={realname}
             onChange={handleRealnameChange}
-            placeholder={realnameSetting?.placeholder || t`Enter real name`}
+            placeholder={
+              realnameSetting?.placeholder
+                ? i18n._(realnameSetting.placeholder)
+                : t`Enter real name`
+            }
             className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
           />
         </div>
@@ -1092,7 +1096,9 @@ export const UserSettings: React.FC = React.memo(() => {
                   value={displayName}
                   onChange={handleDisplayNameChange}
                   placeholder={
-                    displayNameSetting?.placeholder || t`Enter display name`
+                    displayNameSetting?.placeholder
+                      ? i18n._(displayNameSetting.placeholder)
+                      : t`Enter display name`
                   }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
@@ -1118,8 +1124,9 @@ export const UserSettings: React.FC = React.memo(() => {
                   value={avatar}
                   onChange={handleAvatarChange}
                   placeholder={
-                    avatarSetting?.placeholder ||
-                    "https://example.com/avatar.png"
+                    avatarSetting?.placeholder
+                      ? i18n._(avatarSetting.placeholder)
+                      : "https://example.com/avatar.png"
                   }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
@@ -1153,7 +1160,9 @@ export const UserSettings: React.FC = React.memo(() => {
                   value={homepage}
                   onChange={handleHomepageChange}
                   placeholder={
-                    homepageSetting?.placeholder || "https://example.com"
+                    homepageSetting?.placeholder
+                      ? i18n._(homepageSetting.placeholder)
+                      : "https://example.com"
                   }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
@@ -1233,7 +1242,11 @@ export const UserSettings: React.FC = React.memo(() => {
                   ref={botInputRef}
                   value={bot}
                   onChange={handleBotChange}
-                  placeholder={botSetting?.placeholder || "on"}
+                  placeholder={
+                    botSetting?.placeholder
+                      ? i18n._(botSetting.placeholder)
+                      : "on"
+                  }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
               </div>
@@ -1260,7 +1273,11 @@ export const UserSettings: React.FC = React.memo(() => {
                   list="pronouns-suggestions"
                   value={pronouns}
                   onChange={handlePronounsChange}
-                  placeholder={pronounsSetting?.placeholder || "she/her"}
+                  placeholder={
+                    pronounsSetting?.placeholder
+                      ? i18n._(pronounsSetting.placeholder)
+                      : "she/her"
+                  }
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
                 />
                 <datalist id="pronouns-suggestions">
@@ -1300,7 +1317,9 @@ export const UserSettings: React.FC = React.memo(() => {
               value={awayMessage}
               onChange={handleAwayMessageChange}
               placeholder={
-                awayMessageSetting?.placeholder || t`Away from keyboard`
+                awayMessageSetting?.placeholder
+                  ? i18n._(awayMessageSetting.placeholder)
+                  : t`Away from keyboard`
               }
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
@@ -1328,8 +1347,9 @@ export const UserSettings: React.FC = React.memo(() => {
               value={quitMessage}
               onChange={handleQuitMessageChange}
               placeholder={
-                quitMessageSetting?.placeholder ||
-                t`ObsidianIRC - Bringing IRC to the future`
+                quitMessageSetting?.placeholder
+                  ? i18n._(quitMessageSetting.placeholder)
+                  : t`ObsidianIRC - Bringing IRC to the future`
               }
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
             />
@@ -1751,7 +1771,7 @@ export const UserSettings: React.FC = React.memo(() => {
                 className="px-4 py-2 bg-discord-dark-400 hover:bg-discord-dark-300 text-discord-text-normal rounded font-medium flex items-center gap-2"
               >
                 <FaUser size={12} />
-                View Profile
+                <Trans>View Profile</Trans>
               </button>
             )}
             <div className="flex gap-3 ml-auto">

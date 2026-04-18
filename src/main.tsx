@@ -1,4 +1,4 @@
-import { i18n } from "@lingui/core";
+import { i18n, type Messages } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { locale as tauriLocale } from "@tauri-apps/plugin-os";
 import React from "react";
@@ -15,35 +15,21 @@ if (!rootElement) {
   throw new Error("Failed to find root element");
 }
 
-const SUPPORTED = [
-  "en",
-  "es",
-  "fr",
-  "zh",
-  "zh-TW",
-  "pt",
-  "de",
-  "it",
-  "ro",
-  "ru",
-  "fi",
-  "ja",
-  "pl",
-  "nl",
-  "ko",
-  "tr",
-  "uk",
-  "sv",
-  "cs",
-];
+// Derived at build time from the compiled locale directories — no manual list to maintain.
+// When a new locale is added to lingui.config.ts and catalogs are compiled, it appears here automatically.
+const catalogs = import.meta.glob("./locales/*/messages.mjs");
+const SUPPORTED = Object.keys(catalogs).map((p) =>
+  p.replace("./locales/", "").replace("/messages.mjs", ""),
+);
 
 function matchLocale(raw: string | null | undefined): string {
   if (!raw) return "en";
   const normalized = raw.toLowerCase().replace("_", "-");
-  // Check full locale first (e.g. zh-TW before zh)
-  if (SUPPORTED.includes(normalized)) return normalized;
+  // Case-insensitive full match first so e.g. zh-TW beats zh
+  const full = SUPPORTED.find((s) => s.toLowerCase() === normalized);
+  if (full) return full;
   const lang = normalized.split("-")[0];
-  return SUPPORTED.includes(lang) ? lang : "en";
+  return SUPPORTED.find((s) => s.toLowerCase() === lang) ?? "en";
 }
 
 async function resolveLocale(): Promise<string> {
@@ -78,15 +64,16 @@ async function resolveLocale(): Promise<string> {
 }
 
 async function loadCatalog(locale: string) {
+  const key = `./locales/${locale}/messages.mjs`;
   try {
-    // lingui compile emits .mjs when package.json has "type":"module"
-    const { messages } = await import(`./locales/${locale}/messages.mjs`);
+    const { messages } = (await catalogs[key]()) as { messages: Messages };
     i18n.load(locale, messages);
     i18n.activate(locale);
   } catch {
-    // Catalog not yet compiled for this locale — fall back to English
+    // Catalog missing or failed — fall back to English
     if (locale !== "en") {
-      const { messages } = await import("./locales/en/messages.mjs");
+      const enKey = "./locales/en/messages.mjs";
+      const { messages } = (await catalogs[enKey]()) as { messages: Messages };
       i18n.load("en", messages);
       i18n.activate("en");
     }

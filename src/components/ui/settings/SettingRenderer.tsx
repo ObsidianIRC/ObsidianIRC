@@ -116,7 +116,9 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
         <TextInput
           value={value as string}
           onChange={(e) => handleChange(e.target.value)}
-          placeholder={setting.placeholder}
+          placeholder={
+            setting.placeholder ? i18n._(setting.placeholder) : undefined
+          }
           disabled={disabled}
           className={`w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary disabled:opacity-50 ${
             error ? "border-2 border-red-500" : ""
@@ -130,7 +132,9 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
           type="number"
           value={value as number}
           onChange={(e) => handleChange(Number(e.target.value))}
-          placeholder={setting.placeholder}
+          placeholder={
+            setting.placeholder ? i18n._(setting.placeholder) : undefined
+          }
           min={setting.min}
           max={setting.max}
           step={setting.step}
@@ -146,7 +150,9 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
         <TextArea
           value={value as string}
           onChange={(e) => handleChange(e.target.value)}
-          placeholder={setting.placeholder}
+          placeholder={
+            setting.placeholder ? i18n._(setting.placeholder) : undefined
+          }
           disabled={disabled}
           rows={4}
           className={`w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary disabled:opacity-50 ${
@@ -217,7 +223,9 @@ export const SettingRenderer: React.FC<SettingRendererProps> = ({
           <TextInput
             value={value as string}
             onChange={(e) => handleChange(e.target.value)}
-            placeholder={setting.placeholder || "#000000"}
+            placeholder={
+              setting.placeholder ? i18n._(setting.placeholder) : "#000000"
+            }
             disabled={disabled}
             className="flex-1 bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary disabled:opacity-50"
           />

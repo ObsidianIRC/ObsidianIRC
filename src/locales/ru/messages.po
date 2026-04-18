@@ -61,6 +61,18 @@ msgstr "{inviter} пригласил {target} присоединиться к {c
 msgid "{inviter} has invited you to join {channel}"
 msgstr "{inviter} пригласил вас присоединиться к {channel}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "{title} Client"
+msgstr "клиент {title}"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} {count} times"
+msgstr "{word} {count} раз"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} multiple times"
+msgstr "{word} несколько раз"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "*channel*"
 msgstr "*channel*"
@@ -131,6 +143,22 @@ msgstr "Имя аккаунта"
 msgid "Account Password"
 msgstr "Пароль аккаунта"
 
+#: src/store/handlers/auth.ts
+msgid "Account registration for {account} requires verification: {message}"
+msgstr "Регистрация аккаунта {account} требует подтверждения: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account registration successful for {account}: {message}"
+msgstr "Регистрация аккаунта {account} успешна: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account verification successful for {account}: {message}"
+msgstr "Верификация аккаунта {account} успешна: {message}"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Account:"
+msgstr "Аккаунт:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
@@ -180,6 +208,10 @@ msgstr "Добавить правило"
 #: src/components/layout/ServerList.tsx
 msgid "Add Server"
 msgstr "Добавить сервер"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Additional Details"
+msgstr "Подробности"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Additional Information"
@@ -307,6 +339,7 @@ msgid "Away"
 msgstr "Отсутствую"
 
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Away from keyboard"
 msgstr "Отошёл от клавиатуры"
 
@@ -314,6 +347,10 @@ msgstr "Отошёл от клавиатуры"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Away Message"
 msgstr "Сообщение об отсутствии"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Away:"
+msgstr "Отсутствие:"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/UserSettings.tsx
@@ -436,6 +473,10 @@ msgstr "Полуоператор канала"
 msgid "Channel has been renamed from {oldName} to {newName} by {user}{0}"
 msgstr "Канал был переименован с {oldName} на {newName} пользователем {user}{0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Channel Information"
+msgstr "Информация о канале"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel Key (+k)"
 msgstr "Ключ канала (+k)"
@@ -470,6 +511,10 @@ msgstr "Тема канала"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel won't appear in LIST or NAMES commands"
 msgstr "Канал не будет отображаться в командах LIST и NAMES"
+
+#: src/components/layout/ChannelList.tsx
+msgid "channel-name"
+msgstr "имя-канала"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Channels"
@@ -514,6 +559,11 @@ msgstr "Очистить поиск"
 msgid "Click to copy"
 msgstr "Нажмите, чтобы скопировать"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Click to copy as JSON"
+msgstr "Нажмите для копирования как JSON"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Click to join {channel}"
 msgstr "Нажмите, чтобы войти в {channel}"
@@ -525,6 +575,10 @@ msgstr "Нажмите, чтобы перейти к сообщению"
 #: src/components/layout/ChatHeader.tsx
 msgid "Click to set topic"
 msgstr "Нажмите, чтобы задать тему"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Client"
+msgstr "Клиент"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Client Limit (+l)"
@@ -574,8 +628,13 @@ msgstr "Цвет и форматирование"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 #: src/components/ui/MediaCommentsSidebar.tsx
+#: src/components/ui/MediaViewerModal.tsx
 msgid "Comments"
 msgstr "Комментарии"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Comments ({commentCount})"
+msgstr "Комментарии ({commentCount})"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Configure detailed flood protection rules. Each rule specifies what type of activity to monitor and what action to take when thresholds are exceeded."
@@ -624,6 +683,18 @@ msgstr "Управление отображением медиа и внешне
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copied"
 msgstr "Скопировано"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy entire JSON"
+msgstr "Копировать весь JSON"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy formatted output"
+msgstr "Копировать форматированный вывод"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy JSON"
+msgstr "Копировать JSON"
 
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copy URL"
@@ -809,19 +880,45 @@ msgstr "Включить звуки уведомлений"
 msgid "Enable notifications"
 msgstr "Включить уведомления"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter account name..."
+msgstr "Введите имя аккаунта..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter default nickname..."
+msgstr "Введите ник по умолчанию..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter display name"
 msgstr "Введите отображаемое имя"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter nickname..."
+msgstr "Введите ник..."
 
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper password"
 msgstr "Введите пароль оператора"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper password..."
+msgstr "Введите пароль опера..."
+
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper username"
 msgstr "Введите имя пользователя оператора"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper username..."
+msgstr "Введите имя пользователя опера..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter password..."
+msgstr "Введите пароль..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter real name"
 msgstr "Введите настоящее имя"
 
@@ -832,6 +929,11 @@ msgstr "Укажите причину (необязательно)"
 #: src/components/ui/InviteUserModal.tsx
 msgid "Enter username to invite"
 msgstr "Введите имя пользователя для приглашения"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "ExampleNET"
+msgstr "ПримерНЕТ"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Exceptions"
@@ -869,6 +971,10 @@ msgstr "Предупреждение о внешней ссылке"
 msgid "Failed to load audio"
 msgstr "Не удалось загрузить аудио"
 
+#: src/components/message/MediaPreview.tsx
+msgid "Filehost image"
+msgstr "Изображение с файлового хостинга"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Filter channels..."
 msgstr "Фильтр каналов..."
@@ -900,6 +1006,14 @@ msgstr "Найдено {0} {1} по запросу «{searchQuery}»"
 msgid "from"
 msgstr "от"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line"
+msgstr "G-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line (Global Ban)"
+msgstr "G-Line (глобальный бан)"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "General"
 msgstr "Основное"
@@ -912,13 +1026,29 @@ msgstr "Канал общей поддержки"
 msgid "Getting more messages..."
 msgstr "Загрузка сообщений..."
 
+#: src/components/message/MediaPreview.tsx
+msgid "GIF"
+msgstr "GIF"
+
 #: src/components/ui/UserSettings.tsx
 msgid "GitHub:"
 msgstr "GitHub:"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line"
+msgstr "GZ-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line (Global Z-Line)"
+msgstr "GZ-Line (глобальная Z-Line)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Halfop"
 msgstr "Halfop"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Hide comments"
+msgstr "Скрыть комментарии"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Highlight messages that mention you"
@@ -943,9 +1073,29 @@ msgstr "Сайт"
 msgid "Host"
 msgstr "Хост"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Hostname:"
+msgstr "Хост:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "How many seconds to monitor for flood activity before resetting counters"
 msgstr "Сколько секунд отслеживать флуд-активность до сброса счётчиков"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com"
+msgstr "https://example.com"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "https://example.com/avatar.jpg"
+msgstr "https://example.com/avatar.jpg"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com/avatar.png"
+msgstr "https://example.com/avatar.png"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "https://example.com/avatar/{size}/channel.jpg"
+msgstr "https://example.com/avatar/{size}/channel.jpg"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "I'm Back"
@@ -971,9 +1121,19 @@ msgstr "Игнорируемые шаблоны:"
 msgid "Image"
 msgstr "Изображение"
 
+#. placeholder {0}: thumbIndex + 1
+#. placeholder {1}: imageList.length
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Image {0} of {1}"
+msgstr "Изображение {0} из {1}"
+
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Предпросмотр изображения"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Info:"
+msgstr "Инфо:"
 
 #: src/components/ui/InputToolbar.tsx
 msgid "Insert emoji"
@@ -1042,14 +1202,27 @@ msgid "is now known as **{newNick}**"
 msgstr "теперь известен как **{newNick}**"
 
 #: src/components/message/InviteMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/QuickActions.tsx
 msgid "Join"
 msgstr "Войти"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Join {value}"
+msgstr "Войти в {value}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined"
+msgstr "подключился"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "joined {channelName}"
 msgstr "присоединился к {channelName}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined and quit"
+msgstr "подключился и отключился"
 
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
@@ -1059,6 +1232,14 @@ msgstr "Присоединился к каналу"
 #: src/components/ui/UserContextMenu.tsx
 msgid "Kick User"
 msgstr "Исключить пользователя"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill"
+msgstr "Kill"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill User"
+msgstr "Отключить пользователя"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
@@ -1080,6 +1261,10 @@ msgstr "Подробнее о профилях →"
 #: src/components/layout/ChannelList.tsx
 msgid "Leave channel"
 msgstr "Покинуть канал"
+
+#: src/lib/eventGrouping.ts
+msgid "left"
+msgstr "вышел"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
@@ -1106,6 +1291,10 @@ msgstr "Предпросмотр ссылки"
 #: src/components/layout/ChannelMessageList.tsx
 msgid "Load older messages"
 msgstr "Загрузить старые сообщения"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Loading"
+msgstr "Загрузка"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Loading channel modes..."
@@ -1273,6 +1462,11 @@ msgstr "Модерировать пользователя"
 msgid "Moderated (+m)"
 msgstr "Модерируемый (+m)"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Modes:"
+msgstr "Режимы:"
+
 #: src/components/layout/ChatHeader.tsx
 msgid "More"
 msgstr "Ещё"
@@ -1299,6 +1493,11 @@ msgstr "Отключить уведомления"
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Mute or unmute notification sounds"
 msgstr "Включить или отключить звуки уведомлений"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Name:"
+msgstr "Имя:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1371,6 +1570,10 @@ msgstr "Каналы не найдены."
 msgid "No comments yet. Be the first!"
 msgstr "Комментариев пока нет. Будьте первым!"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "No data"
+msgstr "Нет данных"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "No External Messages (+n)"
 msgstr "Без внешних сообщений (+n)"
@@ -1439,6 +1642,10 @@ msgstr "Пользователи по вашему запросу не найд�
 msgid "No WHOIS data available"
 msgstr "Данные WHOIS недоступны"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "None"
+msgstr "Нет"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Normal"
 msgstr "Обычный"
@@ -1461,6 +1668,7 @@ msgstr "ObsidianIRC"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "ObsidianIRC - Bringing IRC to the future"
 msgstr "ObsidianIRC — IRC будущего"
 
@@ -1473,6 +1681,10 @@ msgstr "Выкл."
 #: src/components/layout/ChatHeader.tsx
 msgid "Offline"
 msgstr "Не в сети"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "on"
+msgstr "вкл"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChannelList.tsx
@@ -1594,12 +1806,20 @@ msgstr "Шаблон не может быть пустым"
 
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Pause"
 msgstr "Пауза"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "PDF"
 msgstr "PDF"
+
+#: src/components/message/MediaPreview.tsx
+msgid "PDF preview"
+msgstr "Предпросмотр PDF"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Permanent"
@@ -1622,6 +1842,11 @@ msgstr "Закрепить эту личную переписку"
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Play"
 msgstr "Воспроизвести"
 
@@ -1701,6 +1926,8 @@ msgstr "Защищённая тема (+t)"
 msgid "Questions about privacy? Contact us:"
 msgstr "Вопросы о конфиденциальности? Свяжитесь с нами:"
 
+#: src/lib/eventGrouping.ts
+#: src/lib/eventGrouping.ts
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "quit"
@@ -1738,6 +1965,10 @@ msgstr "Читать далее"
 msgid "Real Name"
 msgstr "Настоящее имя"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Realname:"
+msgstr "Имя:"
+
 #: src/components/ui/ModerationModal.tsx
 msgid "Reason"
 msgstr "Причина"
@@ -1749,6 +1980,10 @@ msgstr "Причина (необязательно)"
 #: src/components/layout/ServerList.tsx
 msgid "Reconnect to server"
 msgstr "Переподключиться к серверу"
+
+#: src/lib/eventGrouping.ts
+msgid "reconnected"
+msgstr "переподключился"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1822,9 +2057,17 @@ msgstr "Сохранить"
 msgid "Save Changes"
 msgstr "Сохранить изменения"
 
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Save failed: {msg}"
+msgstr "Ошибка сохранения: {msg}"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Save Settings"
 msgstr "Сохранить настройки"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Saved"
+msgstr "Сохранено"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
@@ -1957,6 +2200,10 @@ msgstr "Хост сервера"
 msgid "Server host is required"
 msgstr "Необходимо указать хост сервера"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Server Information"
+msgstr "Информация о сервере"
+
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Server name is required"
@@ -1997,6 +2244,15 @@ msgstr "Отметиться как отсутствующий"
 msgid "set by {0}"
 msgstr "установил {0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Set by:"
+msgstr "Установлено:"
+
+#. placeholder {0}: modeParts.join(" ")
+#: src/protocol/mode.ts
+msgid "sets mode: {0}"
+msgstr "устанавливает режим: {0}"
+
 #: src/components/ui/QuickActions.tsx
 msgid "Setting"
 msgstr "Настройка"
@@ -2008,6 +2264,10 @@ msgstr "Настройка не найдена"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Settings"
 msgstr "Настройки"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "she/her"
+msgstr "она/её"
 
 #. placeholder {0}: extraKnownEntries.length
 #: src/components/message/MessageItem.tsx
@@ -2021,6 +2281,14 @@ msgstr "Показать ещё 1 элемент"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show All Events"
 msgstr "Показывать все события"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments"
+msgstr "Показать комментарии"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments ({commentCount})"
+msgstr "Показать комментарии ({commentCount})"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show Joins/Parts"
@@ -2068,6 +2336,10 @@ msgstr "Показывает медиафайлы с доверенного фа
 msgid "Signed On"
 msgstr "В сети с"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Software:"
+msgstr "Программа:"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Name"
 msgstr "Сортировать по имени"
@@ -2075,6 +2347,10 @@ msgstr "Сортировать по имени"
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Users"
 msgstr "Сортировать по пользователям"
+
+#: src/components/message/MediaPreview.tsx
+msgid "SoundCloud player"
+msgstr "Плеер SoundCloud"
 
 #: src/components/ui/AddPrivateChatModal.tsx
 msgid "Start Private Message"
@@ -2194,6 +2470,10 @@ msgstr "Тема установлена после (мин назад)"
 msgid "Topic Set Before (min ago)"
 msgstr "Тема установлена до (мин назад)"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Topic:"
+msgstr "Тема:"
+
 #. placeholder {0}: filteredChannels.length
 #: src/components/ui/ChannelListModal.tsx
 msgid "Total: {0}"
@@ -2291,6 +2571,7 @@ msgstr "Использовать WebSocket вместо обычного TCP"
 msgid "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
 msgstr "Используйте маски: * соответствует любой последовательности, ? — любому одному символу. Примеры: nick!*@*, *!*@host.com, *!*user@*"
 
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/UserProfileModal.tsx
 msgid "User Information"
 msgstr "Информация о пользователе"
@@ -2319,6 +2600,10 @@ msgstr "Настройки пользователя"
 msgid "Username"
 msgstr "Имя пользователя"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Username:"
+msgstr "Имя пользователя:"
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Users and patterns to ignore"
 msgstr "Пользователи и шаблоны для игнорирования"
@@ -2330,6 +2615,11 @@ msgstr "Для входа в канал необходимо приглашен�
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Users outside the channel cannot send messages to it"
 msgstr "Пользователи вне канала не могут отправлять в него сообщения"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Users:"
+msgstr "Пользователи:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -2373,6 +2663,7 @@ msgstr "Ознакомьтесь с нашей политикой конфиде
 
 #: src/components/ui/UserContextMenu.tsx
 #: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "View Profile"
 msgstr "Просмотреть профиль"
@@ -2431,6 +2722,10 @@ msgstr "Добро пожаловать на {0}!"
 msgid "Welcome to the channel!"
 msgstr "Добро пожаловать в канал!"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "What are you up to?"
+msgstr "Чем ты занимаешься?"
+
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "What this means:"
 msgstr "Что это означает:"
@@ -2458,7 +2753,7 @@ msgstr "Будет забыто"
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx
 msgid "You"
-msgstr "Вы"
+msgstr "ты"
 
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "You are about to open an external link:"
@@ -2530,6 +2825,7 @@ msgstr "Ваш уникальный идентификатор на этом с�
 msgid "your@email.com"
 msgstr "your@email.com"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "YourNickname"
 msgstr "YourNickname"

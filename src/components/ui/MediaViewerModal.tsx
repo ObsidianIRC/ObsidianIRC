@@ -197,7 +197,7 @@ const AudioViewerPlayer: React.FC<{ url: string }> = ({ url }) => {
         type="button"
         onClick={togglePlay}
         disabled={hasError}
-        aria-label={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"}
+        aria-label={isLoading ? t`Loading` : isPlaying ? t`Pause` : t`Play`}
         className="w-16 h-16 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isLoading ? (
@@ -1056,12 +1056,12 @@ export function MediaViewerModal({
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const msg = await invoke<string>("download_image", { url: currentUrl });
-      const toast = msg || "Saved";
+      const toast = msg || t`Saved`;
       setSavedMessage(toast);
       setTimeout(() => setSavedMessage(""), 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setSavedMessage(`Save failed: ${msg}`);
+      setSavedMessage(t`Save failed: ${msg}`);
       setTimeout(() => setSavedMessage(""), 6000);
     } finally {
       setIsDownloading(false);
@@ -1286,13 +1286,15 @@ export function MediaViewerModal({
                         onClick={() => setShowComments((v) => !v)}
                         title={
                           commentCount > 0
-                            ? `Comments (${commentCount})`
-                            : "Comments"
+                            ? t`Comments (${commentCount})`
+                            : t`Comments`
                         }
                         aria-label={
                           showComments
-                            ? "Hide comments"
-                            : `Show comments${commentCount > 0 ? ` (${commentCount})` : ""}`
+                            ? t`Hide comments`
+                            : commentCount > 0
+                              ? t`Show comments (${commentCount})`
+                              : t`Show comments`
                         }
                         aria-pressed={showComments}
                         className={`relative p-1.5 rounded-full transition-colors ${
@@ -1484,7 +1486,7 @@ export function MediaViewerModal({
                             thumbRefs.current[thumbIndex] = el;
                           }}
                           type="button"
-                          aria-label={`Image ${thumbIndex + 1} of ${imageList.length}`}
+                          aria-label={t`Image ${thumbIndex + 1} of ${imageList.length}`}
                           aria-current={
                             thumbIndex === currentIndex ? "true" : undefined
                           }

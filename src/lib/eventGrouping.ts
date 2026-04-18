@@ -1,3 +1,4 @@
+import { t } from "@lingui/macro";
 import type { Message } from "../types";
 
 export interface UserEventSummary {
@@ -19,10 +20,10 @@ export interface EventGroup {
 
 const COLLAPSIBLE_EVENT_TYPES = ["join", "part", "quit"];
 
-function formatCount(word: string, count: number, suffix = "times"): string {
+function formatCount(word: string, count: number): string {
   if (count === 1) return word;
-  if (count > 9) return `${word} multiple times`;
-  return `${word} ${count} ${suffix}`;
+  if (count > 9) return t`${word} multiple times`;
+  return t`${word} ${count} times`;
 }
 
 function computeUserSummary(types: string[]): string {
@@ -30,21 +31,21 @@ function computeUserSummary(types: string[]): string {
   const last = types[types.length - 1];
   if (last === "quit")
     return types.length === 2 && types[0] === "join"
-      ? "joined and quit"
-      : "quit";
-  if (last === "part") return "left";
+      ? t`joined and quit`
+      : t`quit`;
+  if (last === "part") return t`left`;
 
   // Last event is join — check for quit→join reconnect cycles.
   let reconnectCount = 0;
   for (let i = 0; i < types.length - 1; i++) {
     if (types[i] === "quit" && types[i + 1] === "join") reconnectCount++;
   }
-  if (reconnectCount > 0) return formatCount("reconnected", reconnectCount);
+  if (reconnectCount > 0) return formatCount(t`reconnected`, reconnectCount);
 
-  const joinCount = types.filter((t) => t === "join").length;
-  if (joinCount > 0) return formatCount("joined", joinCount);
+  const joinCount = types.filter((type) => type === "join").length;
+  if (joinCount > 0) return formatCount(t`joined`, joinCount);
 
-  return "quit";
+  return t`quit`;
 }
 
 /**

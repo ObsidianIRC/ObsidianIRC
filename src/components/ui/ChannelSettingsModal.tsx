@@ -1205,7 +1205,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       type="text"
                       value={channelAvatar}
                       onChange={(e) => setChannelAvatar(e.target.value)}
-                      placeholder="https://example.com/avatar/{size}/channel.jpg"
+                      placeholder={t`https://example.com/avatar/{size}/channel.jpg`}
                       className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                     />
                     {channelAvatar && (

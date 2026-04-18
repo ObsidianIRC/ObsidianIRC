@@ -22,7 +22,7 @@ export const CollapsedEventMessage: React.FC<CollapsedEventMessageProps> = ({
   users,
   onUsernameContextMenu,
 }) => {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [showTooltip, setShowTooltip] = useState(false);
   const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const serverId = eventGroup.messages[0]?.serverId || "";
@@ -32,7 +32,7 @@ export const CollapsedEventMessage: React.FC<CollapsedEventMessageProps> = ({
   if (eventGroup.type !== "eventGroup") return null;
 
   const formatTime = (date: Date) =>
-    new Intl.DateTimeFormat("en-US", {
+    new Intl.DateTimeFormat(i18n.locale, {
       hour: "2-digit",
       minute: "2-digit",
     }).format(date);

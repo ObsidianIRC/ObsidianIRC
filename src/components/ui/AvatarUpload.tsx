@@ -176,7 +176,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         type="url"
         value={currentAvatarUrl || ""}
         onChange={(e) => onAvatarUrlChange(e.target.value)}
-        placeholder="https://example.com/avatar.jpg"
+        placeholder={t`https://example.com/avatar.jpg`}
         className={`w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary ${className}`}
       />
     );

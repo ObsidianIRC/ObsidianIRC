@@ -60,6 +60,18 @@ msgstr "{inviter} has invited {target} to join {channel}"
 msgid "{inviter} has invited you to join {channel}"
 msgstr "{inviter} has invited you to join {channel}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "{title} Client"
+msgstr "{title} Client"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} {count} times"
+msgstr "{word} {count} times"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} multiple times"
+msgstr "{word} multiple times"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "*channel*"
 msgstr "*channel*"
@@ -130,6 +142,22 @@ msgstr "Account Name"
 msgid "Account Password"
 msgstr "Account Password"
 
+#: src/store/handlers/auth.ts
+msgid "Account registration for {account} requires verification: {message}"
+msgstr "Account registration for {account} requires verification: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account registration successful for {account}: {message}"
+msgstr "Account registration successful for {account}: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account verification successful for {account}: {message}"
+msgstr "Account verification successful for {account}: {message}"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Account:"
+msgstr "Account:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
@@ -179,6 +207,10 @@ msgstr "Add Rule"
 #: src/components/layout/ServerList.tsx
 msgid "Add Server"
 msgstr "Add Server"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Additional Details"
+msgstr "Additional Details"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Additional Information"
@@ -306,6 +338,7 @@ msgid "Away"
 msgstr "Away"
 
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Away from keyboard"
 msgstr "Away from keyboard"
 
@@ -313,6 +346,10 @@ msgstr "Away from keyboard"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Away Message"
 msgstr "Away Message"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Away:"
+msgstr "Away:"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/UserSettings.tsx
@@ -435,6 +472,10 @@ msgstr "Channel Half Operator"
 msgid "Channel has been renamed from {oldName} to {newName} by {user}{0}"
 msgstr "Channel has been renamed from {oldName} to {newName} by {user}{0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Channel Information"
+msgstr "Channel Information"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel Key (+k)"
 msgstr "Channel Key (+k)"
@@ -469,6 +510,10 @@ msgstr "Channel Topic"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel won't appear in LIST or NAMES commands"
 msgstr "Channel won't appear in LIST or NAMES commands"
+
+#: src/components/layout/ChannelList.tsx
+msgid "channel-name"
+msgstr "channel-name"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Channels"
@@ -513,6 +558,11 @@ msgstr "Clear search"
 msgid "Click to copy"
 msgstr "Click to copy"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Click to copy as JSON"
+msgstr "Click to copy as JSON"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Click to join {channel}"
 msgstr "Click to join {channel}"
@@ -524,6 +574,10 @@ msgstr "Click to jump to message"
 #: src/components/layout/ChatHeader.tsx
 msgid "Click to set topic"
 msgstr "Click to set topic"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Client"
+msgstr "Client"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Client Limit (+l)"
@@ -573,8 +627,13 @@ msgstr "Color & Formatting"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 #: src/components/ui/MediaCommentsSidebar.tsx
+#: src/components/ui/MediaViewerModal.tsx
 msgid "Comments"
 msgstr "Comments"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Comments ({commentCount})"
+msgstr "Comments ({commentCount})"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Configure detailed flood protection rules. Each rule specifies what type of activity to monitor and what action to take when thresholds are exceeded."
@@ -623,6 +682,18 @@ msgstr "Control media display and external content"
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copied"
 msgstr "Copied"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy entire JSON"
+msgstr "Copy entire JSON"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy formatted output"
+msgstr "Copy formatted output"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy JSON"
+msgstr "Copy JSON"
 
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copy URL"
@@ -808,19 +879,45 @@ msgstr "Enable Notification Sounds"
 msgid "Enable notifications"
 msgstr "Enable notifications"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter account name..."
+msgstr "Enter account name..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter default nickname..."
+msgstr "Enter default nickname..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter display name"
 msgstr "Enter display name"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter nickname..."
+msgstr "Enter nickname..."
 
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper password"
 msgstr "Enter oper password"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper password..."
+msgstr "Enter oper password..."
+
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper username"
 msgstr "Enter oper username"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper username..."
+msgstr "Enter oper username..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter password..."
+msgstr "Enter password..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter real name"
 msgstr "Enter real name"
 
@@ -831,6 +928,11 @@ msgstr "Enter reason (optional)"
 #: src/components/ui/InviteUserModal.tsx
 msgid "Enter username to invite"
 msgstr "Enter username to invite"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "ExampleNET"
+msgstr "ExampleNET"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Exceptions"
@@ -868,6 +970,10 @@ msgstr "External Link Warning"
 msgid "Failed to load audio"
 msgstr "Failed to load audio"
 
+#: src/components/message/MediaPreview.tsx
+msgid "Filehost image"
+msgstr "Filehost image"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Filter channels..."
 msgstr "Filter channels..."
@@ -899,6 +1005,14 @@ msgstr "Found {0} {1} matching \"{searchQuery}\""
 msgid "from"
 msgstr "from"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line"
+msgstr "G-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line (Global Ban)"
+msgstr "G-Line (Global Ban)"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "General"
 msgstr "General"
@@ -911,13 +1025,29 @@ msgstr "General Support Channel"
 msgid "Getting more messages..."
 msgstr "Getting more messages..."
 
+#: src/components/message/MediaPreview.tsx
+msgid "GIF"
+msgstr "GIF"
+
 #: src/components/ui/UserSettings.tsx
 msgid "GitHub:"
 msgstr "GitHub:"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line"
+msgstr "GZ-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line (Global Z-Line)"
+msgstr "GZ-Line (Global Z-Line)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Halfop"
 msgstr "Halfop"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Hide comments"
+msgstr "Hide comments"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Highlight messages that mention you"
@@ -942,9 +1072,29 @@ msgstr "Homepage"
 msgid "Host"
 msgstr "Host"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Hostname:"
+msgstr "Hostname:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "How many seconds to monitor for flood activity before resetting counters"
 msgstr "How many seconds to monitor for flood activity before resetting counters"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com"
+msgstr "https://example.com"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "https://example.com/avatar.jpg"
+msgstr "https://example.com/avatar.jpg"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com/avatar.png"
+msgstr "https://example.com/avatar.png"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "https://example.com/avatar/{size}/channel.jpg"
+msgstr "https://example.com/avatar/{size}/channel.jpg"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "I'm Back"
@@ -970,9 +1120,19 @@ msgstr "Ignored patterns:"
 msgid "Image"
 msgstr "Image"
 
+#. placeholder {0}: thumbIndex + 1
+#. placeholder {1}: imageList.length
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Image {0} of {1}"
+msgstr "Image {0} of {1}"
+
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Image preview"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Info:"
+msgstr "Info:"
 
 #: src/components/ui/InputToolbar.tsx
 msgid "Insert emoji"
@@ -1041,14 +1201,27 @@ msgid "is now known as **{newNick}**"
 msgstr "is now known as **{newNick}**"
 
 #: src/components/message/InviteMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/QuickActions.tsx
 msgid "Join"
 msgstr "Join"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Join {value}"
+msgstr "Join {value}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined"
+msgstr "joined"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "joined {channelName}"
 msgstr "joined {channelName}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined and quit"
+msgstr "joined and quit"
 
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
@@ -1058,6 +1231,14 @@ msgstr "Joined the channel"
 #: src/components/ui/UserContextMenu.tsx
 msgid "Kick User"
 msgstr "Kick User"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill"
+msgstr "Kill"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill User"
+msgstr "Kill User"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
@@ -1079,6 +1260,10 @@ msgstr "Learn more about profiles →"
 #: src/components/layout/ChannelList.tsx
 msgid "Leave channel"
 msgstr "Leave channel"
+
+#: src/lib/eventGrouping.ts
+msgid "left"
+msgstr "left"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
@@ -1105,6 +1290,10 @@ msgstr "Link preview"
 #: src/components/layout/ChannelMessageList.tsx
 msgid "Load older messages"
 msgstr "Load older messages"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Loading"
+msgstr "Loading"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Loading channel modes..."
@@ -1272,6 +1461,11 @@ msgstr "Moderate User"
 msgid "Moderated (+m)"
 msgstr "Moderated (+m)"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Modes:"
+msgstr "Modes:"
+
 #: src/components/layout/ChatHeader.tsx
 msgid "More"
 msgstr "More"
@@ -1298,6 +1492,11 @@ msgstr "Mute notifications"
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Mute or unmute notification sounds"
 msgstr "Mute or unmute notification sounds"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Name:"
+msgstr "Name:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1370,6 +1569,10 @@ msgstr "No channels found."
 msgid "No comments yet. Be the first!"
 msgstr "No comments yet. Be the first!"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "No data"
+msgstr "No data"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "No External Messages (+n)"
 msgstr "No External Messages (+n)"
@@ -1438,6 +1641,10 @@ msgstr "No users found matching your search"
 msgid "No WHOIS data available"
 msgstr "No WHOIS data available"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "None"
+msgstr "None"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Normal"
 msgstr "Normal"
@@ -1460,6 +1667,7 @@ msgstr "ObsidianIRC"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "ObsidianIRC - Bringing IRC to the future"
 msgstr "ObsidianIRC - Bringing IRC to the future"
 
@@ -1472,6 +1680,10 @@ msgstr "Off"
 #: src/components/layout/ChatHeader.tsx
 msgid "Offline"
 msgstr "Offline"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "on"
+msgstr "on"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChannelList.tsx
@@ -1593,12 +1805,20 @@ msgstr "Pattern cannot be empty"
 
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Pause"
 msgstr "Pause"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "PDF"
 msgstr "PDF"
+
+#: src/components/message/MediaPreview.tsx
+msgid "PDF preview"
+msgstr "PDF preview"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Permanent"
@@ -1621,6 +1841,11 @@ msgstr "Pin this private message conversation"
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Play"
 msgstr "Play"
 
@@ -1700,6 +1925,8 @@ msgstr "Protected Topic (+t)"
 msgid "Questions about privacy? Contact us:"
 msgstr "Questions about privacy? Contact us:"
 
+#: src/lib/eventGrouping.ts
+#: src/lib/eventGrouping.ts
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "quit"
@@ -1737,6 +1964,10 @@ msgstr "Read more"
 msgid "Real Name"
 msgstr "Real Name"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Realname:"
+msgstr "Realname:"
+
 #: src/components/ui/ModerationModal.tsx
 msgid "Reason"
 msgstr "Reason"
@@ -1748,6 +1979,10 @@ msgstr "Reason (optional)"
 #: src/components/layout/ServerList.tsx
 msgid "Reconnect to server"
 msgstr "Reconnect to server"
+
+#: src/lib/eventGrouping.ts
+msgid "reconnected"
+msgstr "reconnected"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1821,9 +2056,17 @@ msgstr "Save"
 msgid "Save Changes"
 msgstr "Save Changes"
 
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Save failed: {msg}"
+msgstr "Save failed: {msg}"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Save Settings"
 msgstr "Save Settings"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Saved"
+msgstr "Saved"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
@@ -1956,6 +2199,10 @@ msgstr "Server Host"
 msgid "Server host is required"
 msgstr "Server host is required"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Server Information"
+msgstr "Server Information"
+
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Server name is required"
@@ -1996,6 +2243,15 @@ msgstr "Set Away"
 msgid "set by {0}"
 msgstr "set by {0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Set by:"
+msgstr "Set by:"
+
+#. placeholder {0}: modeParts.join(" ")
+#: src/protocol/mode.ts
+msgid "sets mode: {0}"
+msgstr "sets mode: {0}"
+
 #: src/components/ui/QuickActions.tsx
 msgid "Setting"
 msgstr "Setting"
@@ -2007,6 +2263,10 @@ msgstr "Setting not found"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Settings"
 msgstr "Settings"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "she/her"
+msgstr "she/her"
 
 #. placeholder {0}: extraKnownEntries.length
 #: src/components/message/MessageItem.tsx
@@ -2020,6 +2280,14 @@ msgstr "Show 1 more item"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show All Events"
 msgstr "Show All Events"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments"
+msgstr "Show comments"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments ({commentCount})"
+msgstr "Show comments ({commentCount})"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show Joins/Parts"
@@ -2067,6 +2335,10 @@ msgstr "Shows media from your server's trusted file host. No requests are made t
 msgid "Signed On"
 msgstr "Signed On"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Software:"
+msgstr "Software:"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Name"
 msgstr "Sort by Name"
@@ -2074,6 +2346,10 @@ msgstr "Sort by Name"
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Users"
 msgstr "Sort by Users"
+
+#: src/components/message/MediaPreview.tsx
+msgid "SoundCloud player"
+msgstr "SoundCloud player"
 
 #: src/components/ui/AddPrivateChatModal.tsx
 msgid "Start Private Message"
@@ -2193,6 +2469,10 @@ msgstr "Topic Set After (min ago)"
 msgid "Topic Set Before (min ago)"
 msgstr "Topic Set Before (min ago)"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Topic:"
+msgstr "Topic:"
+
 #. placeholder {0}: filteredChannels.length
 #: src/components/ui/ChannelListModal.tsx
 msgid "Total: {0}"
@@ -2290,6 +2570,7 @@ msgstr "Use WebSocket instead of raw TCP"
 msgid "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
 msgstr "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
 
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/UserProfileModal.tsx
 msgid "User Information"
 msgstr "User Information"
@@ -2318,6 +2599,10 @@ msgstr "User Settings"
 msgid "Username"
 msgstr "Username"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Username:"
+msgstr "Username:"
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Users and patterns to ignore"
 msgstr "Users and patterns to ignore"
@@ -2329,6 +2614,11 @@ msgstr "Users must be invited to join the channel"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Users outside the channel cannot send messages to it"
 msgstr "Users outside the channel cannot send messages to it"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Users:"
+msgstr "Users:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -2372,6 +2662,7 @@ msgstr "View our privacy policy and data practices"
 
 #: src/components/ui/UserContextMenu.tsx
 #: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "View Profile"
 msgstr "View Profile"
@@ -2429,6 +2720,10 @@ msgstr "Welcome to {0}!"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Welcome to the channel!"
 msgstr "Welcome to the channel!"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "What are you up to?"
+msgstr "What are you up to?"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "What this means:"
@@ -2529,6 +2824,7 @@ msgstr "Your unique identifier on this server"
 msgid "your@email.com"
 msgstr "your@email.com"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "YourNickname"
 msgstr "YourNickname"

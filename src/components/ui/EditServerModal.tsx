@@ -153,7 +153,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             <TextInput
               value={serverName}
               onChange={(e) => setServerName(e.target.value)}
-              placeholder="ExampleNET"
+              placeholder={t`ExampleNET`}
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
             />
           </div>

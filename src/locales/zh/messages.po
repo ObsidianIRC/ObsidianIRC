@@ -61,6 +61,18 @@ msgstr "{inviter} 邀请了 {target} 加入 {channel}"
 msgid "{inviter} has invited you to join {channel}"
 msgstr "{inviter} 邀请您加入 {channel}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "{title} Client"
+msgstr "{title} 客户端"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} {count} times"
+msgstr "{word} {count} 次"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} multiple times"
+msgstr "{word} 多次"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "*channel*"
 msgstr "*channel*"
@@ -131,6 +143,22 @@ msgstr "账户名称"
 msgid "Account Password"
 msgstr "账户密码"
 
+#: src/store/handlers/auth.ts
+msgid "Account registration for {account} requires verification: {message}"
+msgstr "账户 {account} 注册需要验证：{message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account registration successful for {account}: {message}"
+msgstr "账户 {account} 注册成功：{message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account verification successful for {account}: {message}"
+msgstr "账户 {account} 验证成功：{message}"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Account:"
+msgstr "账户："
+
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
@@ -180,6 +208,10 @@ msgstr "添加规则"
 #: src/components/layout/ServerList.tsx
 msgid "Add Server"
 msgstr "添加服务器"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Additional Details"
+msgstr "更多详情"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Additional Information"
@@ -307,6 +339,7 @@ msgid "Away"
 msgstr "离开"
 
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Away from keyboard"
 msgstr "暂时离开"
 
@@ -314,6 +347,10 @@ msgstr "暂时离开"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Away Message"
 msgstr "离开消息"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Away:"
+msgstr "离开："
 
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/UserSettings.tsx
@@ -436,6 +473,10 @@ msgstr "频道半操作员"
 msgid "Channel has been renamed from {oldName} to {newName} by {user}{0}"
 msgstr "频道已由 {user} 从 {oldName} 重命名为 {newName}{0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Channel Information"
+msgstr "频道信息"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel Key (+k)"
 msgstr "频道密钥 (+k)"
@@ -470,6 +511,10 @@ msgstr "频道主题"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel won't appear in LIST or NAMES commands"
 msgstr "频道不会出现在 LIST 或 NAMES 命令中"
+
+#: src/components/layout/ChannelList.tsx
+msgid "channel-name"
+msgstr "频道名称"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Channels"
@@ -514,6 +559,11 @@ msgstr "清除搜索"
 msgid "Click to copy"
 msgstr "点击复制"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Click to copy as JSON"
+msgstr "点击以 JSON 格式复制"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Click to join {channel}"
 msgstr "点击加入 {channel}"
@@ -525,6 +575,10 @@ msgstr "点击跳转到消息"
 #: src/components/layout/ChatHeader.tsx
 msgid "Click to set topic"
 msgstr "点击设置主题"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Client"
+msgstr "客户端"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Client Limit (+l)"
@@ -574,8 +628,13 @@ msgstr "颜色与格式"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 #: src/components/ui/MediaCommentsSidebar.tsx
+#: src/components/ui/MediaViewerModal.tsx
 msgid "Comments"
 msgstr "评论"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Comments ({commentCount})"
+msgstr "评论 ({commentCount})"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Configure detailed flood protection rules. Each rule specifies what type of activity to monitor and what action to take when thresholds are exceeded."
@@ -624,6 +683,18 @@ msgstr "控制媒体显示和外部内容"
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copied"
 msgstr "已复制"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy entire JSON"
+msgstr "复制完整 JSON"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy formatted output"
+msgstr "复制格式化输出"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy JSON"
+msgstr "复制 JSON"
 
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copy URL"
@@ -809,19 +880,45 @@ msgstr "启用通知声音"
 msgid "Enable notifications"
 msgstr "启用通知"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter account name..."
+msgstr "输入账户名称..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter default nickname..."
+msgstr "输入默认昵称..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter display name"
 msgstr "输入显示名称"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter nickname..."
+msgstr "输入昵称..."
 
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper password"
 msgstr "输入 oper 密码"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper password..."
+msgstr "输入 oper 密码..."
+
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper username"
 msgstr "输入 oper 用户名"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper username..."
+msgstr "输入 oper 用户名..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter password..."
+msgstr "输入密码..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter real name"
 msgstr "输入真实姓名"
 
@@ -832,6 +929,11 @@ msgstr "输入原因（可选）"
 #: src/components/ui/InviteUserModal.tsx
 msgid "Enter username to invite"
 msgstr "输入要邀请的用户名"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "ExampleNET"
+msgstr "示例网络"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Exceptions"
@@ -869,6 +971,10 @@ msgstr "外部链接警告"
 msgid "Failed to load audio"
 msgstr "音频加载失败"
 
+#: src/components/message/MediaPreview.tsx
+msgid "Filehost image"
+msgstr "文件托管图片"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Filter channels..."
 msgstr "筛选频道..."
@@ -900,6 +1006,14 @@ msgstr "找到 {0} 条匹配\"{searchQuery}\"的{1}"
 msgid "from"
 msgstr "来自"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line"
+msgstr "G-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line (Global Ban)"
+msgstr "G-Line（全局封禁）"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "General"
 msgstr "常规"
@@ -912,13 +1026,29 @@ msgstr "通用支持频道"
 msgid "Getting more messages..."
 msgstr "正在加载更多消息..."
 
+#: src/components/message/MediaPreview.tsx
+msgid "GIF"
+msgstr "GIF"
+
 #: src/components/ui/UserSettings.tsx
 msgid "GitHub:"
 msgstr "GitHub："
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line"
+msgstr "GZ-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line (Global Z-Line)"
+msgstr "GZ-Line（全局 Z-Line）"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Halfop"
 msgstr "半管理员"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Hide comments"
+msgstr "隐藏评论"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Highlight messages that mention you"
@@ -943,9 +1073,29 @@ msgstr "主页"
 msgid "Host"
 msgstr "主机"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Hostname:"
+msgstr "主机名："
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "How many seconds to monitor for flood activity before resetting counters"
 msgstr "在重置计数器之前监控洪水活动的秒数"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com"
+msgstr "https://example.com"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "https://example.com/avatar.jpg"
+msgstr "https://example.com/avatar.jpg"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com/avatar.png"
+msgstr "https://example.com/avatar.png"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "https://example.com/avatar/{size}/channel.jpg"
+msgstr "https://example.com/avatar/{size}/channel.jpg"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "I'm Back"
@@ -971,9 +1121,19 @@ msgstr "已忽略的模式："
 msgid "Image"
 msgstr "图片"
 
+#. placeholder {0}: thumbIndex + 1
+#. placeholder {1}: imageList.length
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Image {0} of {1}"
+msgstr "第 {0} 张，共 {1} 张"
+
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "图片预览"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Info:"
+msgstr "信息："
 
 #: src/components/ui/InputToolbar.tsx
 msgid "Insert emoji"
@@ -1042,14 +1202,27 @@ msgid "is now known as **{newNick}**"
 msgstr "现在称为 **{newNick}**"
 
 #: src/components/message/InviteMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/QuickActions.tsx
 msgid "Join"
 msgstr "加入"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Join {value}"
+msgstr "加入 {value}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined"
+msgstr "已加入"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "joined {channelName}"
 msgstr "加入了 {channelName}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined and quit"
+msgstr "已加入并退出"
 
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
@@ -1058,6 +1231,14 @@ msgstr "已加入频道"
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
 msgid "Kick User"
+msgstr "踢出用户"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill"
+msgstr "踢出"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill User"
 msgstr "踢出用户"
 
 #: src/components/ui/UserSettings.tsx
@@ -1080,6 +1261,10 @@ msgstr "了解更多配置文件 →"
 #: src/components/layout/ChannelList.tsx
 msgid "Leave channel"
 msgstr "离开频道"
+
+#: src/lib/eventGrouping.ts
+msgid "left"
+msgstr "已离开"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
@@ -1106,6 +1291,10 @@ msgstr "链接预览"
 #: src/components/layout/ChannelMessageList.tsx
 msgid "Load older messages"
 msgstr "加载旧消息"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Loading"
+msgstr "加载中"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Loading channel modes..."
@@ -1273,6 +1462,11 @@ msgstr "管理用户"
 msgid "Moderated (+m)"
 msgstr "受管理 (+m)"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Modes:"
+msgstr "模式："
+
 #: src/components/layout/ChatHeader.tsx
 msgid "More"
 msgstr "更多"
@@ -1299,6 +1493,11 @@ msgstr "静音通知"
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Mute or unmute notification sounds"
 msgstr "开启或关闭通知声音"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Name:"
+msgstr "名称："
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1371,6 +1570,10 @@ msgstr "未找到频道。"
 msgid "No comments yet. Be the first!"
 msgstr "暂无评论，成为第一个吧！"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "No data"
+msgstr "无数据"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "No External Messages (+n)"
 msgstr "禁止外部消息 (+n)"
@@ -1439,6 +1642,10 @@ msgstr "未找到与搜索条件匹配的用户"
 msgid "No WHOIS data available"
 msgstr "无可用 WHOIS 数据"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "None"
+msgstr "无"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Normal"
 msgstr "普通"
@@ -1461,6 +1668,7 @@ msgstr "ObsidianIRC"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "ObsidianIRC - Bringing IRC to the future"
 msgstr "ObsidianIRC - 将 IRC 带入未来"
 
@@ -1473,6 +1681,10 @@ msgstr "关"
 #: src/components/layout/ChatHeader.tsx
 msgid "Offline"
 msgstr "离线"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "on"
+msgstr "开启"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChannelList.tsx
@@ -1594,12 +1806,20 @@ msgstr "模式不能为空"
 
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Pause"
 msgstr "暂停"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "PDF"
 msgstr "PDF"
+
+#: src/components/message/MediaPreview.tsx
+msgid "PDF preview"
+msgstr "PDF 预览"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Permanent"
@@ -1622,6 +1842,11 @@ msgstr "置顶此私信对话"
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Play"
 msgstr "播放"
 
@@ -1701,6 +1926,8 @@ msgstr "受保护主题 (+t)"
 msgid "Questions about privacy? Contact us:"
 msgstr "有隐私问题？联系我们："
 
+#: src/lib/eventGrouping.ts
+#: src/lib/eventGrouping.ts
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "quit"
@@ -1738,6 +1965,10 @@ msgstr "阅读更多"
 msgid "Real Name"
 msgstr "真实姓名"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Realname:"
+msgstr "真实姓名："
+
 #: src/components/ui/ModerationModal.tsx
 msgid "Reason"
 msgstr "原因"
@@ -1749,6 +1980,10 @@ msgstr "原因（可选）"
 #: src/components/layout/ServerList.tsx
 msgid "Reconnect to server"
 msgstr "重新连接服务器"
+
+#: src/lib/eventGrouping.ts
+msgid "reconnected"
+msgstr "已重新连接"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1822,9 +2057,17 @@ msgstr "保存"
 msgid "Save Changes"
 msgstr "保存更改"
 
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Save failed: {msg}"
+msgstr "保存失败：{msg}"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Save Settings"
 msgstr "保存设置"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Saved"
+msgstr "已保存"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
@@ -1957,6 +2200,10 @@ msgstr "服务器地址"
 msgid "Server host is required"
 msgstr "服务器地址为必填项"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Server Information"
+msgstr "服务器信息"
+
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Server name is required"
@@ -1997,6 +2244,15 @@ msgstr "设置为离开"
 msgid "set by {0}"
 msgstr "由 {0} 设置"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Set by:"
+msgstr "设置者："
+
+#. placeholder {0}: modeParts.join(" ")
+#: src/protocol/mode.ts
+msgid "sets mode: {0}"
+msgstr "设置模式：{0}"
+
 #: src/components/ui/QuickActions.tsx
 msgid "Setting"
 msgstr "设置"
@@ -2008,6 +2264,10 @@ msgstr "未找到设置"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Settings"
 msgstr "设置"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "she/her"
+msgstr "她/她的"
 
 #. placeholder {0}: extraKnownEntries.length
 #: src/components/message/MessageItem.tsx
@@ -2021,6 +2281,14 @@ msgstr "显示另外 1 项"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show All Events"
 msgstr "显示所有事件"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments"
+msgstr "显示评论"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments ({commentCount})"
+msgstr "显示评论 ({commentCount})"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show Joins/Parts"
@@ -2068,6 +2336,10 @@ msgstr "显示来自服务器受信任文件主机的媒体。不会向外部服
 msgid "Signed On"
 msgstr "登录时间"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Software:"
+msgstr "软件："
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Name"
 msgstr "按名称排序"
@@ -2075,6 +2347,10 @@ msgstr "按名称排序"
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Users"
 msgstr "按用户数排序"
+
+#: src/components/message/MediaPreview.tsx
+msgid "SoundCloud player"
+msgstr "SoundCloud 播放器"
 
 #: src/components/ui/AddPrivateChatModal.tsx
 msgid "Start Private Message"
@@ -2194,6 +2470,10 @@ msgstr "主题设置时间晚于（分钟前）"
 msgid "Topic Set Before (min ago)"
 msgstr "主题设置时间早于（分钟前）"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Topic:"
+msgstr "话题："
+
 #. placeholder {0}: filteredChannels.length
 #: src/components/ui/ChannelListModal.tsx
 msgid "Total: {0}"
@@ -2291,6 +2571,7 @@ msgstr "使用 WebSocket 而非原始 TCP"
 msgid "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
 msgstr "通配符：* 匹配任意字符，? 匹配单个字符。示例：nick!*@*, *!*@host.com, *!*user@*"
 
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/UserProfileModal.tsx
 msgid "User Information"
 msgstr "用户信息"
@@ -2319,6 +2600,10 @@ msgstr "用户设置"
 msgid "Username"
 msgstr "用户名"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Username:"
+msgstr "用户名："
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Users and patterns to ignore"
 msgstr "要忽略的用户和模式"
@@ -2330,6 +2615,11 @@ msgstr "用户必须受邀才能加入频道"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Users outside the channel cannot send messages to it"
 msgstr "频道外的用户无法发送消息"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Users:"
+msgstr "用户："
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -2373,6 +2663,7 @@ msgstr "查看我们的隐私政策和数据使用规范"
 
 #: src/components/ui/UserContextMenu.tsx
 #: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "View Profile"
 msgstr "查看资料"
@@ -2430,6 +2721,10 @@ msgstr "欢迎来到 {0}！"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Welcome to the channel!"
 msgstr "欢迎来到本频道！"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "What are you up to?"
+msgstr "你在做什么?"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "What this means:"
@@ -2530,6 +2825,7 @@ msgstr "您在此服务器上的唯一标识符"
 msgid "your@email.com"
 msgstr "your@email.com"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "YourNickname"
 msgstr "YourNickname"

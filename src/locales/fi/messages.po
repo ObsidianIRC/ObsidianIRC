@@ -61,6 +61,18 @@ msgstr "{inviter} kutsui {target} liittymään kanavalle {channel}"
 msgid "{inviter} has invited you to join {channel}"
 msgstr "{inviter} kutsui sinut liittymään kanavalle {channel}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "{title} Client"
+msgstr "{title} asiakasohjelma"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} {count} times"
+msgstr "{word} {count} kertaa"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} multiple times"
+msgstr "{word} useita kertoja"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "*channel*"
 msgstr "*kanava*"
@@ -131,6 +143,22 @@ msgstr "Tilin nimi"
 msgid "Account Password"
 msgstr "Tilin salasana"
 
+#: src/store/handlers/auth.ts
+msgid "Account registration for {account} requires verification: {message}"
+msgstr "Tilin {account} rekisteröinti vaatii vahvistuksen: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account registration successful for {account}: {message}"
+msgstr "Tilin {account} rekisteröinti onnistui: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account verification successful for {account}: {message}"
+msgstr "Tilin {account} vahvistus onnistui: {message}"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Account:"
+msgstr "Tili:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
@@ -180,6 +208,10 @@ msgstr "Lisää sääntö"
 #: src/components/layout/ServerList.tsx
 msgid "Add Server"
 msgstr "Lisää palvelin"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Additional Details"
+msgstr "Lisätiedot"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Additional Information"
@@ -307,6 +339,7 @@ msgid "Away"
 msgstr "Poissa"
 
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Away from keyboard"
 msgstr "Poissa näppäimistöltä"
 
@@ -314,6 +347,10 @@ msgstr "Poissa näppäimistöltä"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Away Message"
 msgstr "Poissaoloviesti"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Away:"
+msgstr "Poissa:"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/UserSettings.tsx
@@ -436,6 +473,10 @@ msgstr "Kanavan puolioperaattori"
 msgid "Channel has been renamed from {oldName} to {newName} by {user}{0}"
 msgstr "Kanava on nimetty uudelleen nimestä {oldName} nimeen {newName} käyttäjän {user} toimesta{0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Channel Information"
+msgstr "Kanavan tiedot"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel Key (+k)"
 msgstr "Kanavan avain (+k)"
@@ -470,6 +511,10 @@ msgstr "Kanavan aihe"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel won't appear in LIST or NAMES commands"
 msgstr "Kanava ei näy LIST- tai NAMES-komennoissa"
+
+#: src/components/layout/ChannelList.tsx
+msgid "channel-name"
+msgstr "kanavan-nimi"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Channels"
@@ -514,6 +559,11 @@ msgstr "Tyhjennä haku"
 msgid "Click to copy"
 msgstr "Kopioi napsauttamalla"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Click to copy as JSON"
+msgstr "Napsauta kopioidaksesi JSON-muodossa"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Click to join {channel}"
 msgstr "Liity kanavalle {channel} napsauttamalla"
@@ -525,6 +575,10 @@ msgstr "Siirry viestiin napsauttamalla"
 #: src/components/layout/ChatHeader.tsx
 msgid "Click to set topic"
 msgstr "Aseta aihe napsauttamalla"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Client"
+msgstr "Asiakasohjelma"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Client Limit (+l)"
@@ -574,8 +628,13 @@ msgstr "Väri ja muotoilu"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 #: src/components/ui/MediaCommentsSidebar.tsx
+#: src/components/ui/MediaViewerModal.tsx
 msgid "Comments"
 msgstr "Kommentit"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Comments ({commentCount})"
+msgstr "Kommentit ({commentCount})"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Configure detailed flood protection rules. Each rule specifies what type of activity to monitor and what action to take when thresholds are exceeded."
@@ -624,6 +683,18 @@ msgstr "Hallinnoi median näyttöä ja ulkoista sisältöä"
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copied"
 msgstr "Kopioitu"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy entire JSON"
+msgstr "Kopioi koko JSON"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy formatted output"
+msgstr "Kopioi muotoiltu tuloste"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy JSON"
+msgstr "Kopioi JSON"
 
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copy URL"
@@ -809,19 +880,45 @@ msgstr "Ota ilmoitusäänet käyttöön"
 msgid "Enable notifications"
 msgstr "Ota ilmoitukset käyttöön"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter account name..."
+msgstr "Syötä tilin nimi..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter default nickname..."
+msgstr "Syötä oletusnimimerkki..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter display name"
 msgstr "Syötä näyttönimi"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter nickname..."
+msgstr "Syötä nimimerkki..."
 
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper password"
 msgstr "Syötä oper-salasana"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper password..."
+msgstr "Syötä oper-salasana..."
+
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper username"
 msgstr "Syötä oper-käyttäjänimi"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper username..."
+msgstr "Syötä oper-käyttäjätunnus..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter password..."
+msgstr "Syötä salasana..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter real name"
 msgstr "Syötä oikea nimi"
 
@@ -832,6 +929,11 @@ msgstr "Syötä syy (valinnainen)"
 #: src/components/ui/InviteUserModal.tsx
 msgid "Enter username to invite"
 msgstr "Syötä kutsuttavan käyttäjänimi"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "ExampleNET"
+msgstr "EsimerkKi"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Exceptions"
@@ -869,6 +971,10 @@ msgstr "Ulkoisen linkin varoitus"
 msgid "Failed to load audio"
 msgstr "Äänen lataaminen epäonnistui"
 
+#: src/components/message/MediaPreview.tsx
+msgid "Filehost image"
+msgstr "Tiedostopalvelimen kuva"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Filter channels..."
 msgstr "Suodata kanavia..."
@@ -900,6 +1006,14 @@ msgstr "Löydettiin {0} {1} hakusanalle \"{searchQuery}\""
 msgid "from"
 msgstr "lähettäjä"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line"
+msgstr "G-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line (Global Ban)"
+msgstr "G-Line (maailmanlaajuinen esto)"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "General"
 msgstr "Yleiset"
@@ -912,13 +1026,29 @@ msgstr "Yleinen tukikanava"
 msgid "Getting more messages..."
 msgstr "Haetaan lisää viestejä..."
 
+#: src/components/message/MediaPreview.tsx
+msgid "GIF"
+msgstr "GIF"
+
 #: src/components/ui/UserSettings.tsx
 msgid "GitHub:"
 msgstr "GitHub:"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line"
+msgstr "GZ-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line (Global Z-Line)"
+msgstr "GZ-Line (maailmanlaajuinen Z-Line)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Halfop"
 msgstr "Halfop"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Hide comments"
+msgstr "Piilota kommentit"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Highlight messages that mention you"
@@ -943,9 +1073,29 @@ msgstr "Kotisivu"
 msgid "Host"
 msgstr "Isäntä"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Hostname:"
+msgstr "Isäntänimi:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "How many seconds to monitor for flood activity before resetting counters"
 msgstr "Kuinka monta sekuntia tulvatoimintaa seurataan ennen laskurien nollaamista"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com"
+msgstr "https://example.com"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "https://example.com/avatar.jpg"
+msgstr "https://example.com/avatar.jpg"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com/avatar.png"
+msgstr "https://example.com/avatar.png"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "https://example.com/avatar/{size}/channel.jpg"
+msgstr "https://example.com/avatar/{size}/channel.jpg"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "I'm Back"
@@ -971,9 +1121,19 @@ msgstr "Estetyt mallit:"
 msgid "Image"
 msgstr "Kuva"
 
+#. placeholder {0}: thumbIndex + 1
+#. placeholder {1}: imageList.length
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Image {0} of {1}"
+msgstr "Kuva {0}/{1}"
+
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Kuvan esikatselu"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Info:"
+msgstr "Tiedot:"
 
 #: src/components/ui/InputToolbar.tsx
 msgid "Insert emoji"
@@ -1042,14 +1202,27 @@ msgid "is now known as **{newNick}**"
 msgstr "on nyt tunnettu nimellä **{newNick}**"
 
 #: src/components/message/InviteMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/QuickActions.tsx
 msgid "Join"
 msgstr "Liity"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Join {value}"
+msgstr "Liity kanavaan {value}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined"
+msgstr "liittyi"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "joined {channelName}"
 msgstr "liittyi kanavalle {channelName}"
+
+#: src/lib/eventGrouping.ts
+msgid "joined and quit"
+msgstr "liittyi ja poistui"
 
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
@@ -1059,6 +1232,14 @@ msgstr "Liittyi kanavalle"
 #: src/components/ui/UserContextMenu.tsx
 msgid "Kick User"
 msgstr "Poista käyttäjä"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill"
+msgstr "Kill"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill User"
+msgstr "Katkaise yhteys"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
@@ -1080,6 +1261,10 @@ msgstr "Lue lisää profiileista →"
 #: src/components/layout/ChannelList.tsx
 msgid "Leave channel"
 msgstr "Poistu kanavalta"
+
+#: src/lib/eventGrouping.ts
+msgid "left"
+msgstr "poistui"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
@@ -1106,6 +1291,10 @@ msgstr "Linkin esikatselu"
 #: src/components/layout/ChannelMessageList.tsx
 msgid "Load older messages"
 msgstr "Lataa vanhempia viestejä"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Loading"
+msgstr "Ladataan"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Loading channel modes..."
@@ -1273,6 +1462,11 @@ msgstr "Moderoi käyttäjää"
 msgid "Moderated (+m)"
 msgstr "Moderoitu (+m)"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Modes:"
+msgstr "Tilat:"
+
 #: src/components/layout/ChatHeader.tsx
 msgid "More"
 msgstr "Lisää"
@@ -1299,6 +1493,11 @@ msgstr "Mykistä ilmoitukset"
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Mute or unmute notification sounds"
 msgstr "Mykistä tai poista mykistys ilmoitusäänistä"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Name:"
+msgstr "Nimi:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1371,6 +1570,10 @@ msgstr "Kanavia ei löydetty."
 msgid "No comments yet. Be the first!"
 msgstr "Ei vielä kommentteja. Ole ensimmäinen!"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "No data"
+msgstr "Ei tietoja"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "No External Messages (+n)"
 msgstr "Ei ulkoisia viestejä (+n)"
@@ -1439,6 +1642,10 @@ msgstr "Hakua vastaavia käyttäjiä ei löydetty"
 msgid "No WHOIS data available"
 msgstr "WHOIS-tietoja ei saatavilla"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "None"
+msgstr "Ei mitään"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Normal"
 msgstr "Normaali"
@@ -1461,6 +1668,7 @@ msgstr "ObsidianIRC"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "ObsidianIRC - Bringing IRC to the future"
 msgstr "ObsidianIRC – IRC:n tulevaisuuteen"
 
@@ -1473,6 +1681,10 @@ msgstr "Pois"
 #: src/components/layout/ChatHeader.tsx
 msgid "Offline"
 msgstr "Poissa verkosta"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "on"
+msgstr "päälle"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChannelList.tsx
@@ -1594,12 +1806,20 @@ msgstr "Malli ei voi olla tyhjä"
 
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Pause"
 msgstr "Tauko"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "PDF"
 msgstr "PDF"
+
+#: src/components/message/MediaPreview.tsx
+msgid "PDF preview"
+msgstr "PDF-esikatselu"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Permanent"
@@ -1622,6 +1842,11 @@ msgstr "Kiinnitä tämä yksityisviesteistä"
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Play"
 msgstr "Toista"
 
@@ -1701,6 +1926,8 @@ msgstr "Suojattu aihe (+t)"
 msgid "Questions about privacy? Contact us:"
 msgstr "Yksityisyyteen liittyviä kysymyksiä? Ota yhteyttä:"
 
+#: src/lib/eventGrouping.ts
+#: src/lib/eventGrouping.ts
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "quit"
@@ -1738,6 +1965,10 @@ msgstr "Lue lisää"
 msgid "Real Name"
 msgstr "Oikea nimi"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Realname:"
+msgstr "Oikea nimi:"
+
 #: src/components/ui/ModerationModal.tsx
 msgid "Reason"
 msgstr "Syy"
@@ -1749,6 +1980,10 @@ msgstr "Syy (valinnainen)"
 #: src/components/layout/ServerList.tsx
 msgid "Reconnect to server"
 msgstr "Yhdistä uudelleen palvelimeen"
+
+#: src/lib/eventGrouping.ts
+msgid "reconnected"
+msgstr "yhdisti uudelleen"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1822,9 +2057,17 @@ msgstr "Tallenna"
 msgid "Save Changes"
 msgstr "Tallenna muutokset"
 
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Save failed: {msg}"
+msgstr "Tallennus epäonnistui: {msg}"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Save Settings"
 msgstr "Tallenna asetukset"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Saved"
+msgstr "Tallennettu"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
@@ -1957,6 +2200,10 @@ msgstr "Palvelimen osoite"
 msgid "Server host is required"
 msgstr "Palvelimen osoite on pakollinen"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Server Information"
+msgstr "Palvelimen tiedot"
+
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Server name is required"
@@ -1997,6 +2244,15 @@ msgstr "Aseta poissa"
 msgid "set by {0}"
 msgstr "asettaja: {0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Set by:"
+msgstr "Asettanut:"
+
+#. placeholder {0}: modeParts.join(" ")
+#: src/protocol/mode.ts
+msgid "sets mode: {0}"
+msgstr "asettaa tilan: {0}"
+
 #: src/components/ui/QuickActions.tsx
 msgid "Setting"
 msgstr "Asetus"
@@ -2008,6 +2264,10 @@ msgstr "Asetusta ei löydetty"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Settings"
 msgstr "Asetukset"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "she/her"
+msgstr "hän/hänen"
 
 #. placeholder {0}: extraKnownEntries.length
 #: src/components/message/MessageItem.tsx
@@ -2021,6 +2281,14 @@ msgstr "Näytä 1 lisää"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show All Events"
 msgstr "Näytä kaikki tapahtumat"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments"
+msgstr "Näytä kommentit"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments ({commentCount})"
+msgstr "Näytä kommentit ({commentCount})"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show Joins/Parts"
@@ -2068,6 +2336,10 @@ msgstr "Näyttää mediaa palvelimesi luotetusta tiedostoisännästä. Ulkoisill
 msgid "Signed On"
 msgstr "Kirjautunut"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Software:"
+msgstr "Ohjelmisto:"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Name"
 msgstr "Lajittele nimen mukaan"
@@ -2075,6 +2347,10 @@ msgstr "Lajittele nimen mukaan"
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Users"
 msgstr "Lajittele käyttäjämäärän mukaan"
+
+#: src/components/message/MediaPreview.tsx
+msgid "SoundCloud player"
+msgstr "SoundCloud-soitin"
 
 #: src/components/ui/AddPrivateChatModal.tsx
 msgid "Start Private Message"
@@ -2194,6 +2470,10 @@ msgstr "Aihe asetettu myöhemmin kuin (min sitten)"
 msgid "Topic Set Before (min ago)"
 msgstr "Aihe asetettu aiemmin kuin (min sitten)"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Topic:"
+msgstr "Aihe:"
+
 #. placeholder {0}: filteredChannels.length
 #: src/components/ui/ChannelListModal.tsx
 msgid "Total: {0}"
@@ -2291,6 +2571,7 @@ msgstr "Käytä WebSocket-yhteyttä TCP:n sijaan"
 msgid "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
 msgstr "Käytä jokerimerkkejä: * vastaa mitä tahansa merkkijonoa, ? vastaa yhtä merkkiä. Esimerkkejä: nick!*@*, *!*@host.com, *!*user@*"
 
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/UserProfileModal.tsx
 msgid "User Information"
 msgstr "Käyttäjätiedot"
@@ -2319,6 +2600,10 @@ msgstr "Käyttäjäasetukset"
 msgid "Username"
 msgstr "Käyttäjänimi"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Username:"
+msgstr "Käyttäjätunnus:"
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Users and patterns to ignore"
 msgstr "Estettävät käyttäjät ja mallit"
@@ -2330,6 +2615,11 @@ msgstr "Käyttäjät täytyy kutsua kanavalle"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Users outside the channel cannot send messages to it"
 msgstr "Kanavan ulkopuoliset käyttäjät eivät voi lähettää viestejä sille"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Users:"
+msgstr "Käyttäjät:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -2373,6 +2663,7 @@ msgstr "Lue tietosuojakäytäntömme ja tiedonkäsittelytapamme"
 
 #: src/components/ui/UserContextMenu.tsx
 #: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "View Profile"
 msgstr "Näytä profiili"
@@ -2430,6 +2721,10 @@ msgstr "Tervetuloa palvelimeen {0}!"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Welcome to the channel!"
 msgstr "Tervetuloa kanavalle!"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "What are you up to?"
+msgstr "Mitä olet tekemässä?"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "What this means:"
@@ -2530,6 +2825,7 @@ msgstr "Yksilöllinen tunnuksesi tällä palvelimella"
 msgid "your@email.com"
 msgstr "sinun@sahkoposti.fi"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "YourNickname"
 msgstr "SinunNimimerkkisi"

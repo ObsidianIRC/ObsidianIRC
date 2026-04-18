@@ -58,8 +58,10 @@ jobs:
           echo "### Translation coverage" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           TOTAL=$(grep -c '^msgid ' src/locales/en/messages.po || true)
-          for locale in es fr zh pt de it ro; do
-            MISSING=$(grep -c '^msgstr ""$' src/locales/${locale}/messages.po 2>/dev/null || echo "file missing")
+          for po in src/locales/*/messages.po; do
+            locale=$(basename "$(dirname "$po")")
+            [ "$locale" = "en" ] && continue
+            MISSING=$(grep -c '^msgstr ""$' "$po" 2>/dev/null || echo "file missing")
             if [ "$MISSING" = "file missing" ]; then
               echo "- **${locale}**: catalog missing" >> $GITHUB_STEP_SUMMARY
             else

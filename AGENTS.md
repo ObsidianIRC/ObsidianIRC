@@ -229,7 +229,8 @@ All user-visible text **must** be wrapped with LinguiJS macros so it can be tran
 | JSX props: `placeholder=`, `aria-label=`, `title=` | `` t`…` `` via `useLingui` | `import { useLingui } from "@lingui/macro"` then `const { t } = useLingui()` inside the component |
 | Simple `t` outside JSX (inside a render function) | `` t`…` `` | `import { t } from "@lingui/macro"` |
 | Variables/interpolation | `` t`Hello ${name}` `` | same — placeholders become `{0}` in the PO file |
-| Module-level / outside component | **Do not use** `t` at module scope | `t` evaluates before `i18n.activate()` runs. Move the string inside the component body or use a function that returns the array/object. |
+| Non-React `.ts` files (store handlers, event callbacks) | `` t`…` `` | `import { t } from "@lingui/macro"` — safe inside callbacks that fire after `i18n.activate()` |
+| Module-level constants | **Do not use** `t` at module scope | `t` evaluates before `i18n.activate()` runs. Move the string inside the function body. |
 
 ### Correct patterns
 

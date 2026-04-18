@@ -484,7 +484,7 @@ export const ChannelList: React.FC<{
                     </span>
                     <TextInput
                       className="bg-transparent border-none outline-none py-1 w-full text-discord-channels-active"
-                      placeholder="channel-name"
+                      placeholder={t`channel-name`}
                       value={
                         newChannelName.startsWith("#")
                           ? newChannelName.slice(1)

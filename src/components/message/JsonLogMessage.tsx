@@ -227,9 +227,9 @@ const renderStructuredData = (
                   joinChannel(message.serverId, value);
                 }}
                 className="absolute -right-12 top-0 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded flex items-center gap-1"
-                title={`Join ${value}`}
+                title={t`Join ${value}`}
               >
-                Join
+                <Trans>Join</Trans>
               </button>
             </span>
           </div>
@@ -263,7 +263,7 @@ const renderStructuredData = (
               }}
               title={t`Click to copy`}
             >
-              None
+              <Trans>None</Trans>
             </span>
           </div>
         );
@@ -272,7 +272,7 @@ const renderStructuredData = (
         <div
           className="space-y-1 hover:bg-gray-800 p-2 rounded cursor-pointer"
           onClick={() => copyToClipboard(JSON.stringify(value, null, 2))}
-          title="Click to copy as JSON"
+          title={t`Click to copy as JSON`}
         >
           <div className="ml-4 space-y-1">
             {Array.from(value, (item, i) => ({ item, i })).map(
@@ -303,7 +303,7 @@ const renderStructuredData = (
               }}
               title={t`Click to copy`}
             >
-              No data
+              <Trans>No data</Trans>
             </span>
           </div>
         );
@@ -312,7 +312,7 @@ const renderStructuredData = (
         <div
           className="space-y-1 hover:bg-gray-800 p-2 rounded cursor-pointer"
           onClick={() => copyToClipboard(JSON.stringify(value, null, 2))}
-          title="Click to copy as JSON"
+          title={t`Click to copy as JSON`}
         >
           <div className="ml-4 space-y-1">
             {entries.map(([key, val]) => (
@@ -412,11 +412,13 @@ const formatClientObject = (
   return (
     <div className="space-y-2">
       <div className="text-cyan-400 font-medium text-sm">
-        {title ? `${title} Client` : "Client"}
+        {title ? t`${title} Client` : t`Client`}
       </div>
       <div className="ml-2 space-y-1">
         <div className="flex items-center">
-          <span className="text-cyan-400 font-medium mr-2 text-sm">Name:</span>
+          <span className="text-cyan-400 font-medium mr-2 text-sm">
+            <Trans>Name:</Trans>
+          </span>
           <span className="text-white text-sm">{client.name}</span>
           {client.id && (
             <span className="text-gray-400 ml-2 text-sm">({client.id})</span>
@@ -425,7 +427,9 @@ const formatClientObject = (
 
         {client.hostname && (
           <div className="flex items-center">
-            <span className="text-cyan-400 mr-2 text-sm">Hostname:</span>
+            <span className="text-cyan-400 mr-2 text-sm">
+              <Trans>Hostname:</Trans>
+            </span>
             <span className="text-gray-300 text-sm">{client.hostname}</span>
           </div>
         )}
@@ -440,12 +444,14 @@ const formatClientObject = (
         {client.user && (
           <div className="ml-2">
             <div className="text-cyan-400 font-medium text-sm mb-1">
-              User Information
+              <Trans>User Information</Trans>
             </div>
             <div className="ml-2 space-y-1">
               {client.user.username && (
                 <div className="flex items-center">
-                  <span className="text-cyan-400 mr-2 text-sm">Username:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Username:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.user.username}
                   </span>
@@ -453,7 +459,9 @@ const formatClientObject = (
               )}
               {client.user.realname && (
                 <div className="flex items-center">
-                  <span className="text-cyan-400 mr-2 text-sm">Realname:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Realname:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.user.realname}
                   </span>
@@ -461,7 +469,9 @@ const formatClientObject = (
               )}
               {client.user.account && (
                 <div className="flex items-center">
-                  <span className="text-cyan-400 mr-2 text-sm">Account:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Account:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.user.account}
                   </span>
@@ -469,7 +479,9 @@ const formatClientObject = (
               )}
               {client.user.modes && (
                 <div className="flex items-center">
-                  <span className="text-cyan-400 mr-2 text-sm">Modes:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Modes:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.user.modes}
                   </span>
@@ -477,7 +489,9 @@ const formatClientObject = (
               )}
               {client.user.away_reason && (
                 <div className="flex items-start">
-                  <span className="text-cyan-400 mr-2 text-sm">Away:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Away:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.user.away_reason}
                   </span>
@@ -490,12 +504,14 @@ const formatClientObject = (
         {client.server && (
           <div className="ml-2">
             <div className="text-cyan-400 font-medium text-sm mb-1">
-              Server Information
+              <Trans>Server Information</Trans>
             </div>
             <div className="ml-2 space-y-1">
               {client.server.info && (
                 <div className="flex items-start">
-                  <span className="text-cyan-400 mr-2 text-sm">Info:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Info:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.server.info}
                   </span>
@@ -503,7 +519,9 @@ const formatClientObject = (
               )}
               {client.server.num_users && (
                 <div className="flex items-center">
-                  <span className="text-cyan-400 mr-2 text-sm">Users:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Users:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.server.num_users}
                   </span>
@@ -511,7 +529,9 @@ const formatClientObject = (
               )}
               {client.server.features?.software && (
                 <div className="flex items-center">
-                  <span className="text-cyan-400 mr-2 text-sm">Software:</span>
+                  <span className="text-cyan-400 mr-2 text-sm">
+                    <Trans>Software:</Trans>
+                  </span>
                   <span className="text-gray-300 text-sm">
                     {client.server.features.software}
                   </span>
@@ -528,30 +548,30 @@ const formatClientObject = (
               <button
                 onClick={handleGLine}
                 className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded flex items-center gap-1"
-                title="G-Line (Global Ban)"
+                title={t`G-Line (Global Ban)`}
               >
                 <FaBan className="text-xs" />
-                G-Line
+                <Trans>G-Line</Trans>
               </button>
             )}
             {client.ip && (
               <button
                 onClick={handleGZLine}
                 className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded flex items-center gap-1"
-                title="GZ-Line (Global Z-Line)"
+                title={t`GZ-Line (Global Z-Line)`}
               >
                 <FaBan className="text-xs" />
-                GZ-Line
+                <Trans>GZ-Line</Trans>
               </button>
             )}
             {client.name && (
               <button
                 onClick={handleKill}
                 className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded flex items-center gap-1"
-                title="Kill User"
+                title={t`Kill User`}
               >
                 <FaSkull className="text-xs" />
-                Kill
+                <Trans>Kill</Trans>
               </button>
             )}
           </div>
@@ -570,31 +590,39 @@ const formatChannelObject = (
   return (
     <div className="space-y-2">
       <div className="text-cyan-400 font-medium text-sm">
-        Channel Information
+        <Trans>Channel Information</Trans>
       </div>
       <div className="ml-2 space-y-1">
         <div className="flex items-center">
-          <span className="text-cyan-400 font-medium mr-2 text-sm">Name:</span>
+          <span className="text-cyan-400 font-medium mr-2 text-sm">
+            <Trans>Name:</Trans>
+          </span>
           <span className="text-white font-medium text-sm">{channel.name}</span>
         </div>
 
         {channel.num_users && (
           <div className="flex items-center">
-            <span className="text-cyan-400 mr-2 text-sm">Users:</span>
+            <span className="text-cyan-400 mr-2 text-sm">
+              <Trans>Users:</Trans>
+            </span>
             <span className="text-gray-300 text-sm">{channel.num_users}</span>
           </div>
         )}
 
         {channel.topic && (
           <div className="flex items-start">
-            <span className="text-cyan-400 mr-2 text-sm">Topic:</span>
+            <span className="text-cyan-400 mr-2 text-sm">
+              <Trans>Topic:</Trans>
+            </span>
             <span className="text-gray-300 text-sm">"{channel.topic}"</span>
           </div>
         )}
 
         {channel.topic_set_by && (
           <div className="flex items-center">
-            <span className="text-cyan-400 mr-2 text-sm">Set by:</span>
+            <span className="text-cyan-400 mr-2 text-sm">
+              <Trans>Set by:</Trans>
+            </span>
             <span className="text-gray-300 text-sm">
               {channel.topic_set_by}
             </span>
@@ -603,7 +631,9 @@ const formatChannelObject = (
 
         {channel.modes && (
           <div className="flex items-start">
-            <span className="text-cyan-400 mr-2 text-sm">Modes:</span>
+            <span className="text-cyan-400 mr-2 text-sm">
+              <Trans>Modes:</Trans>
+            </span>
             <span className="text-gray-300 font-mono text-sm">
               {channel.modes}
             </span>
@@ -745,7 +775,7 @@ export const JsonLogMessage: React.FC<JsonLogMessageProps> = ({
           >
             <div className="flex items-center justify-between mb-3">
               <div className="text-cyan-400 font-medium text-sm">
-                Additional Details
+                <Trans>Additional Details</Trans>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -754,9 +784,9 @@ export const JsonLogMessage: React.FC<JsonLogMessageProps> = ({
                     copyToClipboard(JSON.stringify(typedJsonData, null, 2));
                   }}
                   className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                  title="Copy entire JSON"
+                  title={t`Copy entire JSON`}
                 >
-                  Copy JSON
+                  <Trans>Copy JSON</Trans>
                 </button>
                 <button
                   onClick={(e) => {
@@ -766,7 +796,7 @@ export const JsonLogMessage: React.FC<JsonLogMessageProps> = ({
                     copyToClipboard(formattedText);
                   }}
                   className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
-                  title="Copy formatted output"
+                  title={t`Copy formatted output`}
                 >
                   <FaCopy className="text-xs" />
                 </button>

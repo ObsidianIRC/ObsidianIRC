@@ -65,7 +65,7 @@ export interface SettingDefinition {
   title: MessageDescriptor;
   description?: MessageDescriptor;
   icon?: ReactNode;
-  placeholder?: string;
+  placeholder?: MessageDescriptor;
   tooltip?: string;
 
   // Type and control

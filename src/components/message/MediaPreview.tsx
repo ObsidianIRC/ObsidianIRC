@@ -285,7 +285,7 @@ const ImagePreview: React.FC<{
         )}
         <img
           src={displayUrl}
-          alt={isFilehostImage ? "Filehost image" : "GIF"}
+          alt={isFilehostImage ? t`Filehost image` : t`GIF`}
           className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${imageCanHaveTransparency(displayUrl) ? "transparency-grid" : "bg-white"} ${imageLoaded ? "block" : "hidden"}`}
           onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
           onLoad={() => setImageLoaded(true)}
@@ -767,7 +767,7 @@ const AudioPreview: React.FC<{
       ) : (
         <button
           type="button"
-          aria-label="Play"
+          aria-label={t`Play`}
           className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal"
           onClick={play}
         >
@@ -861,7 +861,7 @@ const SoundCloudEmbed: React.FC<{
         scrolling="no"
         frameBorder="0"
         allow="autoplay"
-        title="SoundCloud player"
+        title={t`SoundCloud player`}
         tabIndex={-1}
         style={{ borderRadius: 4, display: "block" }}
         onError={() => setEmbedError(true)}
@@ -990,7 +990,7 @@ const PdfPreview: React.FC<{
       return wrapper(
         <img
           src={url}
-          alt="PDF preview"
+          alt={t`PDF preview`}
           style={{ width: PDF_THUMB_W, maxHeight: PDF_THUMB_H }}
           className="object-cover object-top block"
           onError={() => setImgError(true)}

@@ -365,7 +365,7 @@ export const MiniMediaPlayer: React.FC = () => {
               )}
               <button
                 type="button"
-                aria-label={isPlaying ? "Pause" : "Play"}
+                aria-label={isPlaying ? t`Pause` : t`Play`}
                 className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal shrink-0"
                 onClick={() =>
                   isPlaying ? pauseActiveMedia() : playMedia(url, "audio")
@@ -460,7 +460,7 @@ export const MiniMediaPlayer: React.FC = () => {
           </span>
           <button
             type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t`Pause` : t`Play`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal shrink-0"
             onClick={() =>
               isPlaying ? pauseActiveMedia() : playMedia(url, "video")
@@ -568,7 +568,7 @@ export const MiniMediaPlayer: React.FC = () => {
           </span>
           <button
             type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t`Pause` : t`Play`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal shrink-0"
             onClick={() =>
               isPlaying ? pauseActiveMedia() : playMedia(url, "embed")

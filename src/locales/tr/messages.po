@@ -61,6 +61,18 @@ msgstr "{inviter}, {target} kişisini {channel} kanalına davet etti"
 msgid "{inviter} has invited you to join {channel}"
 msgstr "{inviter}, sizi {channel} kanalına davet etti"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "{title} Client"
+msgstr "{title} istemcisi"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} {count} times"
+msgstr "{word} {count} kez"
+
+#: src/lib/eventGrouping.ts
+msgid "{word} multiple times"
+msgstr "{word} birçok kez"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "*channel*"
 msgstr "*kanal*"
@@ -131,6 +143,22 @@ msgstr "Hesap Adı"
 msgid "Account Password"
 msgstr "Hesap Şifresi"
 
+#: src/store/handlers/auth.ts
+msgid "Account registration for {account} requires verification: {message}"
+msgstr "{account} hesap kaydı doğrulama gerektiriyor: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account registration successful for {account}: {message}"
+msgstr "{account} hesap kaydı başarılı: {message}"
+
+#: src/store/handlers/auth.ts
+msgid "Account verification successful for {account}: {message}"
+msgstr "{account} hesap doğrulaması başarılı: {message}"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Account:"
+msgstr "Hesap:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/QuickActions/uiActionConfig.tsx
@@ -180,6 +208,10 @@ msgstr "Kural Ekle"
 #: src/components/layout/ServerList.tsx
 msgid "Add Server"
 msgstr "Sunucu Ekle"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Additional Details"
+msgstr "Ek ayrıntılar"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Additional Information"
@@ -307,6 +339,7 @@ msgid "Away"
 msgstr "Uzakta"
 
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Away from keyboard"
 msgstr "Klavyeden uzakta"
 
@@ -314,6 +347,10 @@ msgstr "Klavyeden uzakta"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Away Message"
 msgstr "Uzakta Mesajı"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Away:"
+msgstr "Uzakta:"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/UserSettings.tsx
@@ -436,6 +473,10 @@ msgstr "Kanal Yarı Operatörü"
 msgid "Channel has been renamed from {oldName} to {newName} by {user}{0}"
 msgstr "Kanal, {user} tarafından {oldName} yerine {newName} olarak yeniden adlandırıldı{0}"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Channel Information"
+msgstr "Kanal bilgisi"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel Key (+k)"
 msgstr "Kanal Anahtarı (+k)"
@@ -470,6 +511,10 @@ msgstr "Kanal Konusu"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Channel won't appear in LIST or NAMES commands"
 msgstr "Kanal LIST veya NAMES komutlarında görünmeyecek"
+
+#: src/components/layout/ChannelList.tsx
+msgid "channel-name"
+msgstr "kanal-adı"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "Channels"
@@ -514,6 +559,11 @@ msgstr "Aramayı temizle"
 msgid "Click to copy"
 msgstr "Kopyalamak için tıklayın"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Click to copy as JSON"
+msgstr "JSON olarak kopyalamak için tıklayın"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Click to join {channel}"
 msgstr "{channel} kanalına katılmak için tıklayın"
@@ -525,6 +575,10 @@ msgstr "Mesaja gitmek için tıklayın"
 #: src/components/layout/ChatHeader.tsx
 msgid "Click to set topic"
 msgstr "Konu belirlemek için tıklayın"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Client"
+msgstr "İstemci"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Client Limit (+l)"
@@ -574,8 +628,13 @@ msgstr "Renk ve Biçimlendirme"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 #: src/components/ui/MediaCommentsSidebar.tsx
+#: src/components/ui/MediaViewerModal.tsx
 msgid "Comments"
 msgstr "Yorumlar"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Comments ({commentCount})"
+msgstr "Yorumlar ({commentCount})"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Configure detailed flood protection rules. Each rule specifies what type of activity to monitor and what action to take when thresholds are exceeded."
@@ -624,6 +683,18 @@ msgstr "Medya gösterimini ve harici içeriği denetleyin"
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copied"
 msgstr "Kopyalandı"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy entire JSON"
+msgstr "Tüm JSON'u kopyala"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy formatted output"
+msgstr "Biçimlendirilmiş çıktıyı kopyala"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Copy JSON"
+msgstr "JSON kopyala"
 
 #: src/components/ui/ExternalLinkWarningModal.tsx
 msgid "Copy URL"
@@ -809,19 +880,45 @@ msgstr "Bildirim Seslerini Etkinleştir"
 msgid "Enable notifications"
 msgstr "Bildirimleri etkinleştir"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter account name..."
+msgstr "Hesap adını girin..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter default nickname..."
+msgstr "Varsayılan takma adı girin..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter display name"
 msgstr "Görünen adı girin"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter nickname..."
+msgstr "Takma adı girin..."
 
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper password"
 msgstr "Oper şifresini girin"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper password..."
+msgstr "Oper şifresini girin..."
+
 #: src/components/ui/UserSettings.tsx
 msgid "Enter oper username"
 msgstr "Oper kullanıcı adını girin"
 
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter oper username..."
+msgstr "Oper kullanıcı adını girin..."
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "Enter password..."
+msgstr "Şifreyi girin..."
+
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "Enter real name"
 msgstr "Gerçek adı girin"
 
@@ -832,6 +929,11 @@ msgstr "Neden girin (isteğe bağlı)"
 #: src/components/ui/InviteUserModal.tsx
 msgid "Enter username to invite"
 msgstr "Davet edilecek kullanıcı adını girin"
+
+#: src/components/ui/AddServerModal.tsx
+#: src/components/ui/EditServerModal.tsx
+msgid "ExampleNET"
+msgstr "ÖrnekAĞ"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Exceptions"
@@ -869,6 +971,10 @@ msgstr "Harici Bağlantı Uyarısı"
 msgid "Failed to load audio"
 msgstr "Ses yüklenemedi"
 
+#: src/components/message/MediaPreview.tsx
+msgid "Filehost image"
+msgstr "Dosya sunucu görseli"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Filter channels..."
 msgstr "Kanalları filtrele..."
@@ -900,6 +1006,14 @@ msgstr "\"{searchQuery}\" için {0} {1} bulundu"
 msgid "from"
 msgstr "kimden"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line"
+msgstr "G-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "G-Line (Global Ban)"
+msgstr "G-Line (global yasak)"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "General"
 msgstr "Genel"
@@ -912,13 +1026,29 @@ msgstr "Genel Destek Kanalı"
 msgid "Getting more messages..."
 msgstr "Daha fazla mesaj alınıyor..."
 
+#: src/components/message/MediaPreview.tsx
+msgid "GIF"
+msgstr "GIF"
+
 #: src/components/ui/UserSettings.tsx
 msgid "GitHub:"
 msgstr "GitHub:"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line"
+msgstr "GZ-Line"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "GZ-Line (Global Z-Line)"
+msgstr "GZ-Line (global Z-Line)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Halfop"
 msgstr "Halfop"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Hide comments"
+msgstr "Yorumları gizle"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Highlight messages that mention you"
@@ -943,9 +1073,29 @@ msgstr "Ana Sayfa"
 msgid "Host"
 msgstr "Host"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Hostname:"
+msgstr "Ana makine adı:"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "How many seconds to monitor for flood activity before resetting counters"
 msgstr "Sayaçları sıfırlamadan önce flood etkinliğinin kaç saniye izleneceği"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com"
+msgstr "https://example.com"
+
+#: src/components/ui/AvatarUpload.tsx
+msgid "https://example.com/avatar.jpg"
+msgstr "https://example.com/avatar.jpg"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "https://example.com/avatar.png"
+msgstr "https://example.com/avatar.png"
+
+#: src/components/ui/ChannelSettingsModal.tsx
+msgid "https://example.com/avatar/{size}/channel.jpg"
+msgstr "https://example.com/avatar/{size}/channel.jpg"
 
 #: src/components/ui/UserProfileModal.tsx
 msgid "I'm Back"
@@ -971,9 +1121,19 @@ msgstr "Engellenen desenler:"
 msgid "Image"
 msgstr "Görüntü"
 
+#. placeholder {0}: thumbIndex + 1
+#. placeholder {1}: imageList.length
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Image {0} of {1}"
+msgstr "{1} görselinden {0}. görsel"
+
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Görüntü önizlemesi"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Info:"
+msgstr "Bilgi:"
 
 #: src/components/ui/InputToolbar.tsx
 msgid "Insert emoji"
@@ -1042,14 +1202,27 @@ msgid "is now known as **{newNick}**"
 msgstr "artık **{newNick}** olarak bilinmektedir"
 
 #: src/components/message/InviteMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/QuickActions.tsx
 msgid "Join"
 msgstr "Katıl"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Join {value}"
+msgstr "{value} kanalına katıl"
+
+#: src/lib/eventGrouping.ts
+msgid "joined"
+msgstr "katıldı"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "joined {channelName}"
 msgstr "{channelName} kanalına katıldı"
+
+#: src/lib/eventGrouping.ts
+msgid "joined and quit"
+msgstr "katıldı ve ayrıldı"
 
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
@@ -1059,6 +1232,14 @@ msgstr "Kanala katıldı"
 #: src/components/ui/UserContextMenu.tsx
 msgid "Kick User"
 msgstr "Kullanıcıyı At"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill"
+msgstr "Kill"
+
+#: src/components/message/JsonLogMessage.tsx
+msgid "Kill User"
+msgstr "Kullanıcıyı at"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
@@ -1080,6 +1261,10 @@ msgstr "Profiller hakkında daha fazla bilgi →"
 #: src/components/layout/ChannelList.tsx
 msgid "Leave channel"
 msgstr "Kanaldan ayrıl"
+
+#: src/lib/eventGrouping.ts
+msgid "left"
+msgstr "ayrıldı"
 
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
@@ -1106,6 +1291,10 @@ msgstr "Bağlantı önizlemesi"
 #: src/components/layout/ChannelMessageList.tsx
 msgid "Load older messages"
 msgstr "Eski mesajları yükle"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Loading"
+msgstr "Yükleniyor"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Loading channel modes..."
@@ -1273,6 +1462,11 @@ msgstr "Kullanıcıyı Yönet"
 msgid "Moderated (+m)"
 msgstr "Moderasyonlu (+m)"
 
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Modes:"
+msgstr "Modlar:"
+
 #: src/components/layout/ChatHeader.tsx
 msgid "More"
 msgstr "Daha fazla"
@@ -1299,6 +1493,11 @@ msgstr "Bildirimleri sessize al"
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Mute or unmute notification sounds"
 msgstr "Bildirim seslerini sessize al veya aç"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Name:"
+msgstr "Ad:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1371,6 +1570,10 @@ msgstr "Kanal bulunamadı."
 msgid "No comments yet. Be the first!"
 msgstr "Henüz yorum yok. İlk sen ol!"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "No data"
+msgstr "Veri yok"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "No External Messages (+n)"
 msgstr "Harici Mesaj Yok (+n)"
@@ -1439,6 +1642,10 @@ msgstr "Aramanızla eşleşen kullanıcı bulunamadı"
 msgid "No WHOIS data available"
 msgstr "WHOIS verisi mevcut değil"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "None"
+msgstr "Yok"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Normal"
 msgstr "Normal"
@@ -1461,6 +1668,7 @@ msgstr "ObsidianIRC"
 
 #: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
+#: src/lib/settings/definitions/allSettings.ts
 msgid "ObsidianIRC - Bringing IRC to the future"
 msgstr "ObsidianIRC - IRC'yi geleceğe taşıyor"
 
@@ -1473,6 +1681,10 @@ msgstr "Kapalı"
 #: src/components/layout/ChatHeader.tsx
 msgid "Offline"
 msgstr "Çevrimdışı"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "on"
+msgstr "açık"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChannelList.tsx
@@ -1594,12 +1806,20 @@ msgstr "Desen boş olamaz"
 
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Pause"
 msgstr "Duraklat"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "PDF"
 msgstr "PDF"
+
+#: src/components/message/MediaPreview.tsx
+msgid "PDF preview"
+msgstr "PDF önizleme"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Permanent"
@@ -1622,6 +1842,11 @@ msgstr "Bu özel mesaj konuşmasını sabitle"
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
 #: src/components/message/MediaPreview.tsx
+#: src/components/message/MediaPreview.tsx
+#: src/components/ui/MediaViewerModal.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
+#: src/components/ui/MiniMediaPlayer.tsx
 msgid "Play"
 msgstr "Oynat"
 
@@ -1701,6 +1926,8 @@ msgstr "Korumalı Konu (+t)"
 msgid "Questions about privacy? Contact us:"
 msgstr "Gizlilik hakkında sorularınız mı var? Bize ulaşın:"
 
+#: src/lib/eventGrouping.ts
+#: src/lib/eventGrouping.ts
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "quit"
@@ -1738,6 +1965,10 @@ msgstr "Devamını oku"
 msgid "Real Name"
 msgstr "Gerçek Ad"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Realname:"
+msgstr "Gerçek ad:"
+
 #: src/components/ui/ModerationModal.tsx
 msgid "Reason"
 msgstr "Neden"
@@ -1749,6 +1980,10 @@ msgstr "Neden (isteğe bağlı)"
 #: src/components/layout/ServerList.tsx
 msgid "Reconnect to server"
 msgstr "Sunucuya yeniden bağlan"
+
+#: src/lib/eventGrouping.ts
+msgid "reconnected"
+msgstr "yeniden bağlandı"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -1822,9 +2057,17 @@ msgstr "Kaydet"
 msgid "Save Changes"
 msgstr "Değişiklikleri Kaydet"
 
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Save failed: {msg}"
+msgstr "Kaydetme başarısız: {msg}"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Save Settings"
 msgstr "Ayarları Kaydet"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Saved"
+msgstr "Kaydedildi"
 
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
@@ -1957,6 +2200,10 @@ msgstr "Sunucu Hostu"
 msgid "Server host is required"
 msgstr "Sunucu hostu gereklidir"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Server Information"
+msgstr "Sunucu bilgisi"
+
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "Server name is required"
@@ -1997,6 +2244,15 @@ msgstr "Uzakta Olarak İşaretle"
 msgid "set by {0}"
 msgstr "{0} tarafından ayarlandı"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Set by:"
+msgstr "Ayarlayan:"
+
+#. placeholder {0}: modeParts.join(" ")
+#: src/protocol/mode.ts
+msgid "sets mode: {0}"
+msgstr "modu ayarlar: {0}"
+
 #: src/components/ui/QuickActions.tsx
 msgid "Setting"
 msgstr "Ayar"
@@ -2008,6 +2264,10 @@ msgstr "Ayar bulunamadı"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Settings"
 msgstr "Ayarlar"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "she/her"
+msgstr "o/onun"
 
 #. placeholder {0}: extraKnownEntries.length
 #: src/components/message/MessageItem.tsx
@@ -2021,6 +2281,14 @@ msgstr "1 öğe daha göster"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show All Events"
 msgstr "Tüm Olayları Göster"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments"
+msgstr "Yorumları göster"
+
+#: src/components/ui/MediaViewerModal.tsx
+msgid "Show comments ({commentCount})"
+msgstr "Yorumları göster ({commentCount})"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Show Joins/Parts"
@@ -2068,6 +2336,10 @@ msgstr "Sunucunuzun güvenilir dosya hostundan medya gösterir. Harici hizmetler
 msgid "Signed On"
 msgstr "Giriş Yapıldı"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Software:"
+msgstr "Yazılım:"
+
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Name"
 msgstr "Ada Göre Sırala"
@@ -2075,6 +2347,10 @@ msgstr "Ada Göre Sırala"
 #: src/components/ui/ChannelListModal.tsx
 msgid "Sort by Users"
 msgstr "Kullanıcıya Göre Sırala"
+
+#: src/components/message/MediaPreview.tsx
+msgid "SoundCloud player"
+msgstr "SoundCloud oynatıcı"
 
 #: src/components/ui/AddPrivateChatModal.tsx
 msgid "Start Private Message"
@@ -2194,6 +2470,10 @@ msgstr "Şu kadar dakika önce sonra konu belirlenen"
 msgid "Topic Set Before (min ago)"
 msgstr "Şu kadar dakika önce önce konu belirlenen"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Topic:"
+msgstr "Konu:"
+
 #. placeholder {0}: filteredChannels.length
 #: src/components/ui/ChannelListModal.tsx
 msgid "Total: {0}"
@@ -2291,6 +2571,7 @@ msgstr "Ham TCP yerine WebSocket kullan"
 msgid "Use wildcards: * matches any sequence, ? matches any single character. Examples: nick!*@*, *!*@host.com, *!*user@*"
 msgstr "Joker karakter kullanın: * herhangi bir diziyle eşleşir, ? herhangi bir tek karakterle eşleşir. Örnekler: nick!*@*, *!*@host.com, *!*user@*"
 
+#: src/components/message/JsonLogMessage.tsx
 #: src/components/ui/UserProfileModal.tsx
 msgid "User Information"
 msgstr "Kullanıcı Bilgileri"
@@ -2319,6 +2600,10 @@ msgstr "Kullanıcı Ayarları"
 msgid "Username"
 msgstr "Kullanıcı Adı"
 
+#: src/components/message/JsonLogMessage.tsx
+msgid "Username:"
+msgstr "Kullanıcı adı:"
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Users and patterns to ignore"
 msgstr "Engellenecek kullanıcılar ve desenler"
@@ -2330,6 +2615,11 @@ msgstr "Kullanıcıların kanala katılmak için davet edilmesi gerekir"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Users outside the channel cannot send messages to it"
 msgstr "Kanal dışındaki kullanıcılar kanala mesaj gönderemez"
+
+#: src/components/message/JsonLogMessage.tsx
+#: src/components/message/JsonLogMessage.tsx
+msgid "Users:"
+msgstr "Kullanıcılar:"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
@@ -2373,6 +2663,7 @@ msgstr "Gizlilik politikamızı ve veri uygulamalarımızı görüntüleyin"
 
 #: src/components/ui/UserContextMenu.tsx
 #: src/components/ui/UserContextMenu.tsx
+#: src/components/ui/UserSettings.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "View Profile"
 msgstr "Profili Görüntüle"
@@ -2430,6 +2721,10 @@ msgstr "{0}'a hoş geldiniz!"
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Welcome to the channel!"
 msgstr "Kanala hoş geldiniz!"
+
+#: src/lib/settings/definitions/allSettings.ts
+msgid "What are you up to?"
+msgstr "Ne yapıyorsun?"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "What this means:"
@@ -2530,6 +2825,7 @@ msgstr "Bu sunucudaki benzersiz tanımlayıcınız"
 msgid "your@email.com"
 msgstr "eposta@adresiniz.com"
 
+#: src/components/ui/AddServerModal.tsx
 #: src/components/ui/EditServerModal.tsx
 msgid "YourNickname"
 msgstr "TakmaAdınız"

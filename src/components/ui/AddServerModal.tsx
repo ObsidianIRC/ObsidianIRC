@@ -158,7 +158,7 @@ export const AddServerModal: React.FC = () => {
                 <TextInput
                   value={serverName || serverHost || ""}
                   onChange={(e) => setServerName(e.target.value)}
-                  placeholder="ExampleNET"
+                  placeholder={t`ExampleNET`}
                   className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
                 />
               </div>
@@ -247,7 +247,7 @@ export const AddServerModal: React.FC = () => {
             <TextInput
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="YourNickname"
+              placeholder={t`YourNickname`}
               className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
             />
           </div>
