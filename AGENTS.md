@@ -268,6 +268,8 @@ git add src/locales/   # stages the catalog changes into the same commit
 
 New strings fall back to the English key at runtime until a translator fills in `msgstr`. This is safe — the app is always functional.
 
+**Agent responsibility:** when you add new user-visible strings, you must also translate them before committing. Run `npm run i18n:extract` to see which locales have missing strings (the table shows count per locale), then fill in all empty `msgstr ""` entries across every non-English `.po` file. Do not leave `msgstr ""` in a committed state.
+
 ### Translating new strings
 
 When a PR introduces new strings, the non-English `.po` files will have new entries with `msgstr ""`. To translate them:
