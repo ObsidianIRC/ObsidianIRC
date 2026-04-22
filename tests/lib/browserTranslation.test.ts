@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   canUseBrowserTranslation,
+  detectMessageSourceLanguage,
   getBrowserTranslationAvailability,
   getMessageSourceLanguage,
   getPreferredTranslationTargetLanguage,
@@ -9,6 +10,11 @@ import {
   translateWithBrowser,
 } from "../../src/lib/browserTranslation";
 
+const originalNavigatorDescriptor = Object.getOwnPropertyDescriptor(
+  window,
+  "navigator",
+);
+
 function setSecureContext(value: boolean) {
   Object.defineProperty(window, "isSecureContext", {
     configurable: true,
@@ -16,52 +22,80 @@ function setSecureContext(value: boolean) {
   });
 }
 
+function setNavigatorLanguages(language: string, languages: string[]) {
+  Object.defineProperty(window, "navigator", {
+    configurable: true,
+    value: {
+      ...window.navigator,
+      language,
+      languages,
+    },
+  });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   setSecureContext(true);
+  if (originalNavigatorDescriptor) {
+    Object.defineProperty(window, "navigator", originalNavigatorDescriptor);
+  }
 });
 
 describe("browserTranslation", () => {
-  test("normalizes translation language tags to primary subtags", () => {
-    expect(normalizeTranslationLanguageTag("en-US")).toBe("en");
-    expect(normalizeTranslationLanguageTag(" ES ")).toBe("es");
+  test("preserves and canonicalizes full BCP 47 language tags", () => {
+    expect(normalizeTranslationLanguageTag("en-US")).toBe("en-US");
+    expect(normalizeTranslationLanguageTag("zh-hant")).toBe("zh-Hant");
     expect(normalizeTranslationLanguageTag(undefined)).toBeNull();
   });
 
   test("derives preferred target language from navigator", () => {
-    Object.defineProperty(window, "navigator", {
-      configurable: true,
-      value: {
-        language: "pt-BR",
-        languages: ["pt-BR", "en-US"],
-      },
-    });
+    setNavigatorLanguages("pt-BR", ["pt-BR", "en-US"]);
 
-    expect(getPreferredTranslationTargetLanguage()).toBe("pt");
+    expect(getPreferredTranslationTargetLanguage()).toBe("pt-BR");
   });
 
   test("prefers an explicit target language setting over navigator", () => {
-    Object.defineProperty(window, "navigator", {
-      configurable: true,
-      value: {
-        language: "pt-BR",
-        languages: ["pt-BR", "en-US"],
-      },
-    });
+    setNavigatorLanguages("pt-BR", ["pt-BR", "en-US"]);
 
     expect(getPreferredTranslationTargetLanguageFromSetting("es-MX")).toBe(
-      "es",
+      "es-MX",
     );
   });
 
-  test("derives source language from message tags with english fallback", () => {
+  test("falls back to the browser language when the setting is empty", () => {
+    setNavigatorLanguages("pt-BR", ["pt-BR", "en-US"]);
+
+    expect(getPreferredTranslationTargetLanguageFromSetting("")).toBe("pt-BR");
+  });
+
+  test("derives source language from message tags without forcing english", () => {
     expect(
       getMessageSourceLanguage({
         "+draft/language": "fr-CA",
       }),
-    ).toBe("fr");
-    expect(getMessageSourceLanguage()).toBe("en");
+    ).toBe("fr-CA");
+    expect(getMessageSourceLanguage()).toBeNull();
+  });
+
+  test("detects source language with the browser language detector", async () => {
+    const detect = vi.fn().mockResolvedValue([{ detectedLanguage: "pt-BR" }]);
+    const destroy = vi.fn();
+
+    vi.stubGlobal("LanguageDetector", {
+      create: vi.fn().mockResolvedValue({ detect, destroy }),
+    });
+
+    await expect(
+      detectMessageSourceLanguage({ text: "ola mundo" }),
+    ).resolves.toBe("pt-BR");
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test("returns null when language detection is unavailable", async () => {
+    await expect(
+      detectMessageSourceLanguage({ text: "hola mundo" }),
+    ).resolves.toBeNull();
   });
 
   test("reports unsupported when Translator is missing", async () => {

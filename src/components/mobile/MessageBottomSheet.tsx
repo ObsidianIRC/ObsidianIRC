@@ -44,6 +44,7 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
     icon: React.ReactNode;
     onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
     className?: string;
+    disabled?: boolean;
   }[] = [];
 
   if (canReply && onReply) {
@@ -73,10 +74,12 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
       label: isTranslating ? "Translating" : "Translate",
       icon: <FaLanguage />,
       onClick: () => {
+        if (isTranslating) return;
         onTranslate();
         onClose();
       },
       className: isTranslating ? "text-sky-300/70" : undefined,
+      disabled: isTranslating,
     });
   }
 
@@ -114,6 +117,7 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg active:bg-discord-dark-400 text-left ${action.className || "text-white"}`}
             style={{ minHeight: "48px" }}
             onClick={action.onClick}
+            disabled={action.disabled}
           >
             <span className="text-lg">{action.icon}</span>
             <span className="text-sm font-medium">{action.label}</span>

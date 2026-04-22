@@ -260,6 +260,18 @@ const preferenceSettings: SettingDefinition[] = [
     type: "text",
     defaultValue: "",
     placeholder: "e.g. en, es, ja",
+    validation: {
+      custom: (value) => {
+        const text = String(value).trim();
+        if (!text) return true;
+
+        try {
+          return Intl.getCanonicalLocales(text).length > 0;
+        } catch {
+          return "Enter a valid BCP 47 language tag such as en, es-MX, or zh-Hant.";
+        }
+      },
+    },
     searchKeywords: ["translate", "translation", "language", "locale"],
     priority: 3,
   },

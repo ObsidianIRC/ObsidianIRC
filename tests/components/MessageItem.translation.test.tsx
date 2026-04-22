@@ -21,6 +21,8 @@ const mockState = {
 };
 
 const mockAvailability = vi.fn();
+const mockDetectLanguage = vi.fn();
+const mockSourceLanguage = vi.fn();
 const mockTranslate = vi.fn();
 const mockTargetLanguage = vi.fn();
 
@@ -39,9 +41,11 @@ vi.mock("../../src/hooks/useMediaQuery", () => ({
 
 vi.mock("../../src/lib/browserTranslation", () => ({
   canUseBrowserTranslation: () => true,
+  detectMessageSourceLanguage: (...args: unknown[]) =>
+    mockDetectLanguage(...args),
   getBrowserTranslationAvailability: (...args: unknown[]) =>
     mockAvailability(...args),
-  getMessageSourceLanguage: () => "en",
+  getMessageSourceLanguage: (...args: unknown[]) => mockSourceLanguage(...args),
   getPreferredTranslationTargetLanguageFromSetting: (...args: unknown[]) =>
     mockTargetLanguage(...args),
   translateWithBrowser: (...args: unknown[]) => mockTranslate(...args),
@@ -154,10 +158,14 @@ const message: MessageType = {
 describe("MessageItem translation", () => {
   beforeEach(() => {
     mockAvailability.mockReset();
+    mockDetectLanguage.mockReset();
+    mockSourceLanguage.mockReset();
     mockTranslate.mockReset();
     mockTargetLanguage.mockReset();
     mockState.globalSettings.translationTargetLanguage = "es";
     mockAvailability.mockResolvedValue("available");
+    mockDetectLanguage.mockResolvedValue("fr-CA");
+    mockSourceLanguage.mockReturnValue("en");
     mockTranslate.mockResolvedValue("hola mundo");
     mockTargetLanguage.mockReturnValue("es");
   });
@@ -193,6 +201,42 @@ describe("MessageItem translation", () => {
         sourceLanguage: "en",
         targetLanguage: "es",
         text: "hello world",
+      }),
+    );
+  });
+
+  test("detects the source language when the message has no language tag", async () => {
+    mockState.globalSettings.translationTargetLanguage = "";
+    mockSourceLanguage.mockReturnValue(null);
+    mockTargetLanguage.mockReturnValue("pt-BR");
+
+    render(
+      <MessageItem
+        message={message}
+        showDate={false}
+        showHeader={false}
+        setReplyTo={vi.fn()}
+        onUsernameContextMenu={vi.fn()}
+        onReactClick={vi.fn()}
+        onReactionUnreact={vi.fn()}
+        onOpenReactionModal={vi.fn()}
+        onDirectReaction={vi.fn()}
+        serverId="server-1"
+        channelId="channel-1"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /translate from actions/i }),
+    );
+
+    await waitFor(() => {
+      expect(mockDetectLanguage).toHaveBeenCalledWith({ text: "hello world" });
+    });
+    expect(mockTranslate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceLanguage: "fr-CA",
+        targetLanguage: "pt-BR",
       }),
     );
   });

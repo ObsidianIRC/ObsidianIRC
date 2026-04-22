@@ -20,51 +20,10 @@ export interface BrowserTranslationRequest extends TranslationLanguagePair {
   onDownloadProgress?: (progress: number) => void;
 }
 
-export function normalizeTranslationLanguageTag(
-  language: string | null | undefined,
-): string | null {
-  const trimmed = language?.trim();
-  if (!trimmed) return null;
-
-  const [primarySubtag] = trimmed.split("-");
-  const normalized = primarySubtag?.toLowerCase();
-  return normalized || null;
-}
-
-export function getPreferredTranslationTargetLanguage(): string {
-  return getPreferredTranslationTargetLanguageFromSetting();
-}
-
-export function getPreferredTranslationTargetLanguageFromSetting(
-  explicitLanguage?: string | null,
-): string {
-  const explicit = normalizeTranslationLanguageTag(explicitLanguage);
-  if (explicit) return explicit;
-
-  const languages =
-    typeof navigator === "undefined"
-      ? []
-      : [navigator.language, ...(navigator.languages ?? [])];
-
-  for (const language of languages) {
-    const normalized = normalizeTranslationLanguageTag(language);
-    if (normalized) return normalized;
-  }
-
-  return "en";
-}
-
-export function getMessageSourceLanguage(
-  tags?: Record<string, string>,
-): string {
-  return (
-    normalizeTranslationLanguageTag(
-      tags?.["+draft/language"] ??
-        tags?.["draft/language"] ??
-        tags?.["+language"] ??
-        tags?.language,
-    ) ?? "en"
-  );
+export interface BrowserLanguageDetectionRequest {
+  text: string;
+  signal?: AbortSignal;
+  onDownloadProgress?: (progress: number) => void;
 }
 
 interface CreateMonitorLike {
@@ -72,6 +31,22 @@ interface CreateMonitorLike {
     type: "downloadprogress",
     listener: (event: Event) => void,
   ): void;
+}
+
+interface BrowserLanguageDetectionResult {
+  detectedLanguage?: string;
+}
+
+interface BrowserLanguageDetectorInstance {
+  detect(input: string): Promise<BrowserLanguageDetectionResult[]>;
+  destroy(): void;
+}
+
+interface BrowserLanguageDetectorStatic {
+  create(options?: {
+    signal?: AbortSignal;
+    monitor?: (monitor: CreateMonitorLike) => void;
+  }): Promise<BrowserLanguageDetectorInstance>;
 }
 
 interface BrowserTranslatorInstance {
@@ -91,6 +66,15 @@ interface BrowserTranslatorStatic {
   }): Promise<BrowserTranslatorInstance>;
 }
 
+function getLanguageDetectorApi(): BrowserLanguageDetectorStatic | null {
+  const maybeLanguageDetector = (
+    globalThis as typeof globalThis & {
+      LanguageDetector?: BrowserLanguageDetectorStatic;
+    }
+  ).LanguageDetector;
+  return maybeLanguageDetector ?? null;
+}
+
 function getTranslatorApi(): BrowserTranslatorStatic | null {
   const maybeTranslator = (
     globalThis as typeof globalThis & {
@@ -100,10 +84,108 @@ function getTranslatorApi(): BrowserTranslatorStatic | null {
   return maybeTranslator ?? null;
 }
 
+/**
+ * Canonicalizes a BCP 47 language tag without discarding script or region subtags.
+ */
+export function normalizeTranslationLanguageTag(
+  language: string | null | undefined,
+): string | null {
+  const trimmed = language?.trim();
+  if (!trimmed) return null;
+
+  try {
+    return Intl.getCanonicalLocales(trimmed)[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves the preferred target language, falling back to the browser locale.
+ */
+export function getPreferredTranslationTargetLanguage(): string {
+  return getPreferredTranslationTargetLanguageFromSetting();
+}
+
+/**
+ * Resolves the preferred target language using an explicit setting when present.
+ */
+export function getPreferredTranslationTargetLanguageFromSetting(
+  explicitLanguage?: string | null,
+): string {
+  const explicit = normalizeTranslationLanguageTag(explicitLanguage);
+  if (explicit) return explicit;
+
+  const languages =
+    typeof navigator === "undefined"
+      ? []
+      : [navigator.language, ...(navigator.languages ?? [])];
+
+  for (const language of languages) {
+    const normalized = normalizeTranslationLanguageTag(language);
+    if (normalized) return normalized;
+  }
+
+  return "en";
+}
+
+/**
+ * Reads the source language from IRC message metadata when one is available.
+ */
+export function getMessageSourceLanguage(
+  tags?: Record<string, string>,
+): string | null {
+  return normalizeTranslationLanguageTag(
+    tags?.["+draft/language"] ??
+      tags?.["draft/language"] ??
+      tags?.["+language"] ??
+      tags?.language,
+  );
+}
+
 export function canUseBrowserTranslation(): boolean {
   return window.isSecureContext && getTranslatorApi() !== null;
 }
 
+/**
+ * Detects the source language for untagged messages using the browser detector API.
+ */
+export async function detectMessageSourceLanguage({
+  text,
+  signal,
+  onDownloadProgress,
+}: BrowserLanguageDetectionRequest): Promise<string | null> {
+  if (!window.isSecureContext) return null;
+
+  const languageDetectorApi = getLanguageDetectorApi();
+  if (!languageDetectorApi) return null;
+
+  try {
+    const detector = await languageDetectorApi.create({
+      signal,
+      monitor: onDownloadProgress
+        ? (monitor) => {
+            monitor.addEventListener("downloadprogress", (event) => {
+              onDownloadProgress((event as ProgressEvent).loaded);
+            });
+          }
+        : undefined,
+    });
+
+    try {
+      const results = await detector.detect(text);
+      return normalizeTranslationLanguageTag(results[0]?.detectedLanguage);
+    } finally {
+      detector.destroy();
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Checks whether the runtime supports a requested translation pair.
+ */
 export async function getBrowserTranslationAvailability({
   sourceLanguage,
   targetLanguage,
@@ -127,6 +209,9 @@ export async function getBrowserTranslationAvailability({
   }
 }
 
+/**
+ * Creates a translator, runs a translation, and disposes the translator instance.
+ */
 export async function translateWithBrowser({
   sourceLanguage,
   targetLanguage,

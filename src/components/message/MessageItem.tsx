@@ -11,6 +11,7 @@ import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import {
   canUseBrowserTranslation,
+  detectMessageSourceLanguage,
   getBrowserTranslationAvailability,
   getMessageSourceLanguage,
   getPreferredTranslationTargetLanguageFromSetting,
@@ -478,7 +479,18 @@ export const MessageItem = memo((props: MessageItemProps) => {
     const targetLanguage = getPreferredTranslationTargetLanguageFromSetting(
       translationTargetLanguage,
     );
-    const sourceLanguage = getMessageSourceLanguage(message.tags);
+    const sourceLanguage =
+      getMessageSourceLanguage(message.tags) ??
+      (await detectMessageSourceLanguage({ text: messageContent }));
+
+    if (!sourceLanguage) {
+      setTranslationState({
+        status: "error",
+        targetLanguage,
+        message: "Could not determine the message language for translation.",
+      });
+      return;
+    }
 
     if (sourceLanguage === targetLanguage) {
       setTranslationState({
@@ -980,9 +992,11 @@ export const MessageItem = memo((props: MessageItemProps) => {
                 </div>
                 {translationState.status === "translated" &&
                   translatedHtmlContent && (
-                    <div className="mt-1 overflow-hidden break-words whitespace-pre-wrap">
-                      {translatedHtmlContent}
-                    </div>
+                    <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
+                      <div className="mt-1 overflow-hidden break-words whitespace-pre-wrap">
+                        {translatedHtmlContent}
+                      </div>
+                    </EnhancedLinkWrapper>
                   )}
                 {translationState.status === "downloading" && (
                   <div className="mt-1 text-sky-100/80">
