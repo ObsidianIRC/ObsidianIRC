@@ -35,7 +35,11 @@ interface CreateMonitorLike {
 
 interface BrowserLanguageDetectionResult {
   detectedLanguage?: string;
+  confidence?: number;
 }
+
+const MIN_BROWSER_LANGUAGE_DETECTION_TEXT_LENGTH = 20;
+const MIN_BROWSER_LANGUAGE_DETECTION_CONFIDENCE = 0.5;
 
 interface BrowserLanguageDetectorInstance {
   detect(input: string): Promise<BrowserLanguageDetectionResult[]>;
@@ -156,6 +160,9 @@ export async function detectMessageSourceLanguage({
   onDownloadProgress,
 }: BrowserLanguageDetectionRequest): Promise<string | null> {
   if (!window.isSecureContext) return null;
+  if (text.trim().length < MIN_BROWSER_LANGUAGE_DETECTION_TEXT_LENGTH) {
+    return null;
+  }
 
   const languageDetectorApi = getLanguageDetectorApi();
   if (!languageDetectorApi) return null;
@@ -174,7 +181,24 @@ export async function detectMessageSourceLanguage({
 
     try {
       const results = await detector.detect(text);
-      return normalizeTranslationLanguageTag(results[0]?.detectedLanguage);
+
+      for (const result of results) {
+        const normalizedLanguage = normalizeTranslationLanguageTag(
+          result.detectedLanguage,
+        );
+
+        if (!normalizedLanguage || normalizedLanguage === "und") continue;
+        if (
+          typeof result.confidence === "number" &&
+          result.confidence < MIN_BROWSER_LANGUAGE_DETECTION_CONFIDENCE
+        ) {
+          continue;
+        }
+
+        return normalizedLanguage;
+      }
+
+      return null;
     } finally {
       detector.destroy();
     }

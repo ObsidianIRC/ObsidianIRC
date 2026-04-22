@@ -141,6 +141,18 @@ vi.mock("../../src/components/message/index", async () => {
 import { MessageItem } from "../../src/components/message/MessageItem";
 import type { MessageType } from "../../src/types";
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 const message: MessageType = {
   id: "msg-1",
   msgid: "abc123",
@@ -231,7 +243,9 @@ describe("MessageItem translation", () => {
     );
 
     await waitFor(() => {
-      expect(mockDetectLanguage).toHaveBeenCalledWith({ text: "hello world" });
+      expect(mockDetectLanguage).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "hello world" }),
+      );
     });
     expect(mockTranslate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -239,5 +253,60 @@ describe("MessageItem translation", () => {
         targetLanguage: "pt-BR",
       }),
     );
+  });
+
+  test("ignores stale translation results when a newer request starts", async () => {
+    const firstTranslation = createDeferred<string>();
+    const secondTranslation = createDeferred<string>();
+
+    mockTranslate
+      .mockReturnValueOnce(firstTranslation.promise)
+      .mockReturnValueOnce(secondTranslation.promise);
+
+    render(
+      <MessageItem
+        message={message}
+        showDate={false}
+        showHeader={false}
+        setReplyTo={vi.fn()}
+        onUsernameContextMenu={vi.fn()}
+        onReactClick={vi.fn()}
+        onReactionUnreact={vi.fn()}
+        onOpenReactionModal={vi.fn()}
+        onDirectReaction={vi.fn()}
+        serverId="server-1"
+        channelId="channel-1"
+      />,
+    );
+
+    const translateButton = screen.getByRole("button", {
+      name: /translate from actions/i,
+    });
+
+    fireEvent.click(translateButton);
+
+    await waitFor(() => {
+      expect(mockTranslate).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(translateButton);
+
+    await waitFor(() => {
+      expect(mockTranslate).toHaveBeenCalledTimes(2);
+    });
+
+    firstTranslation.resolve("hola viejo");
+
+    await waitFor(() => {
+      expect(screen.queryByText("hola viejo")).not.toBeInTheDocument();
+    });
+
+    secondTranslation.resolve("hola nuevo");
+
+    await waitFor(() => {
+      expect(screen.getByText("hola nuevo")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("hola viejo")).not.toBeInTheDocument();
   });
 });

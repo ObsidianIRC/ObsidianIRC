@@ -3,6 +3,7 @@ import {
   memo,
   startTransition,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -186,6 +187,8 @@ export const MessageItem = memo((props: MessageItemProps) => {
   const [translationState, setTranslationState] = useState<TranslationState>({
     status: "idle",
   });
+  const activeTranslationAbortRef = useRef<AbortController | null>(null);
+  const activeTranslationRunRef = useRef(0);
   const longPress = useLongPress({
     onLongPress: () => setSheetOpen(true),
   });
@@ -374,6 +377,43 @@ export const MessageItem = memo((props: MessageItemProps) => {
 
   // message.content is already combined for multiline messages by the IRC client
   const messageContent = message.content;
+  const translationMessageKey = `${message.id ?? ""}:${message.msgid ?? ""}:${messageContent}`;
+  const lastTranslationMessageKeyRef = useRef(translationMessageKey);
+
+  const cancelActiveTranslation = useCallback(() => {
+    activeTranslationRunRef.current += 1;
+    activeTranslationAbortRef.current?.abort();
+    activeTranslationAbortRef.current = null;
+  }, []);
+
+  const beginTranslationRun = useCallback(() => {
+    activeTranslationAbortRef.current?.abort();
+
+    const controller = new AbortController();
+    const runId = activeTranslationRunRef.current + 1;
+
+    activeTranslationRunRef.current = runId;
+    activeTranslationAbortRef.current = controller;
+
+    return { controller, runId };
+  }, []);
+
+  const isActiveTranslationRun = useCallback(
+    (runId: number, signal?: AbortSignal) =>
+      activeTranslationRunRef.current === runId && !(signal?.aborted ?? false),
+    [],
+  );
+
+  useEffect(() => {
+    if (lastTranslationMessageKeyRef.current !== translationMessageKey) {
+      lastTranslationMessageKeyRef.current = translationMessageKey;
+      setTranslationState({ status: "idle" });
+    }
+
+    return () => {
+      cancelActiveTranslation();
+    };
+  }, [cancelActiveTranslation, translationMessageKey]);
 
   const htmlContent = useMemo(
     () =>
@@ -476,71 +516,87 @@ export const MessageItem = memo((props: MessageItemProps) => {
   const handleTranslateMessage = useCallback(async () => {
     if (!messageContent.trim()) return;
 
-    const targetLanguage = getPreferredTranslationTargetLanguageFromSetting(
-      translationTargetLanguage,
-    );
-    const sourceLanguage =
-      getMessageSourceLanguage(message.tags) ??
-      (await detectMessageSourceLanguage({ text: messageContent }));
+    const { controller, runId } = beginTranslationRun();
+    const { signal } = controller;
+    const commitTranslationState = (nextState: TranslationState) => {
+      if (!isActiveTranslationRun(runId, signal)) return false;
 
-    if (!sourceLanguage) {
-      setTranslationState({
-        status: "error",
-        targetLanguage,
-        message: "Could not determine the message language for translation.",
-      });
-      return;
-    }
-
-    if (sourceLanguage === targetLanguage) {
-      setTranslationState({
-        status: "error",
-        targetLanguage,
-        message: "Message already matches your preferred language.",
-      });
-      return;
-    }
-
-    const availability = await getBrowserTranslationAvailability({
-      sourceLanguage,
-      targetLanguage,
-    });
-
-    if (
-      availability === "unsupported" ||
-      availability === "insecure-context" ||
-      availability === "unavailable"
-    ) {
-      const errorMessage =
-        availability === "unsupported"
-          ? "Translation is not supported in this browser."
-          : availability === "insecure-context"
-            ? "Translation requires a secure context."
-            : "This language pair is unavailable.";
-      setTranslationState({
-        status: "error",
-        targetLanguage,
-        message: errorMessage,
-      });
-      return;
-    }
-
-    setTranslationState(
-      availability === "available"
-        ? { status: "translating", targetLanguage }
-        : { status: "downloading", progress: 0, targetLanguage },
-    );
+      setTranslationState(nextState);
+      return true;
+    };
 
     try {
+      const targetLanguage = getPreferredTranslationTargetLanguageFromSetting(
+        translationTargetLanguage,
+      );
+      const sourceLanguage =
+        getMessageSourceLanguage(message.tags) ??
+        (await detectMessageSourceLanguage({ text: messageContent, signal }));
+
+      if (!sourceLanguage) {
+        commitTranslationState({
+          status: "error",
+          targetLanguage,
+          message: "Could not determine the message language for translation.",
+        });
+        return;
+      }
+
+      if (sourceLanguage === targetLanguage) {
+        commitTranslationState({
+          status: "error",
+          targetLanguage,
+          message: "Message already matches your preferred language.",
+        });
+        return;
+      }
+
+      const availability = await getBrowserTranslationAvailability({
+        sourceLanguage,
+        targetLanguage,
+      });
+
+      if (!isActiveTranslationRun(runId, signal)) return;
+
+      if (
+        availability === "unsupported" ||
+        availability === "insecure-context" ||
+        availability === "unavailable"
+      ) {
+        const errorMessage =
+          availability === "unsupported"
+            ? "Translation is not supported in this browser."
+            : availability === "insecure-context"
+              ? "Translation requires a secure context."
+              : "This language pair is unavailable.";
+        commitTranslationState({
+          status: "error",
+          targetLanguage,
+          message: errorMessage,
+        });
+        return;
+      }
+
+      if (
+        !commitTranslationState(
+          availability === "available"
+            ? { status: "translating", targetLanguage }
+            : { status: "downloading", progress: 0, targetLanguage },
+        )
+      ) {
+        return;
+      }
+
       const translatedText = await translateWithBrowser({
         sourceLanguage,
         targetLanguage,
         text: messageContent,
+        signal,
         onDownloadProgress:
           availability === "available"
             ? undefined
             : (progress) => {
-                setTranslationState({
+                commitTranslationState({
                   status: "downloading",
                   progress,
                   targetLanguage,
@@ -548,7 +604,11 @@ export const MessageItem = memo((props: MessageItemProps) => {
               },
       });
 
+      if (!isActiveTranslationRun(runId, signal)) return;
+
       startTransition(() => {
+        if (!isActiveTranslationRun(runId, signal)) return;
+
         setTranslationState({
           status: "translated",
           targetLanguage,
@@ -556,15 +616,29 @@ export const MessageItem = memo((props: MessageItemProps) => {
         });
       });
     } catch (error) {
+      if (!isActiveTranslationRun(runId, signal)) return;
+      if (signal.aborted) return;
+      if (error instanceof Error && error.name === "AbortError") return;
+
       const errorMessage =
         error instanceof Error ? error.message : "Translation failed.";
-      setTranslationState({
+      commitTranslationState({
         status: "error",
         targetLanguage,
         message: errorMessage,
       });
+    } finally {
+      if (isActiveTranslationRun(runId, signal)) {
+        activeTranslationAbortRef.current = null;
+      }
     }
-  }, [message.tags, messageContent, translationTargetLanguage]);
+  }, [
+    beginTranslationRun,
+    isActiveTranslationRun,
+    message.tags,
+    messageContent,
+    translationTargetLanguage,
+  ]);
 
   // Handle system messages
   if (isSystem) {

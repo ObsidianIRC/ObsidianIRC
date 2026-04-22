@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   canUseBrowserTranslation,
   detectMessageSourceLanguage,
@@ -42,6 +42,10 @@ afterEach(() => {
   }
 });
 
+beforeEach(() => {
+  setSecureContext(true);
+});
+
 describe("browserTranslation", () => {
   test("preserves and canonicalizes full BCP 47 language tags", () => {
     expect(normalizeTranslationLanguageTag("en-US")).toBe("en-US");
@@ -79,7 +83,9 @@ describe("browserTranslation", () => {
   });
 
   test("detects source language with the browser language detector", async () => {
-    const detect = vi.fn().mockResolvedValue([{ detectedLanguage: "pt-BR" }]);
+    const detect = vi
+      .fn()
+      .mockResolvedValue([{ detectedLanguage: "pt-BR", confidence: 0.91 }]);
     const destroy = vi.fn();
 
     vi.stubGlobal("LanguageDetector", {
@@ -87,14 +93,61 @@ describe("browserTranslation", () => {
     });
 
     await expect(
-      detectMessageSourceLanguage({ text: "ola mundo" }),
+      detectMessageSourceLanguage({ text: "ola mundo como voce esta hoje" }),
     ).resolves.toBe("pt-BR");
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test("returns null for short text because language detection would be unreliable", async () => {
+    const detect = vi.fn();
+
+    vi.stubGlobal("LanguageDetector", {
+      create: vi.fn().mockResolvedValue({ detect, destroy: vi.fn() }),
+    });
+
+    await expect(
+      detectMessageSourceLanguage({ text: "hola mundo" }),
+    ).resolves.toBe(null);
+    expect(detect).not.toHaveBeenCalled();
+  });
+
+  test("returns null for low-confidence language detection results", async () => {
+    const detect = vi
+      .fn()
+      .mockResolvedValue([{ detectedLanguage: "pt-BR", confidence: 0.2 }]);
+    const destroy = vi.fn();
+
+    vi.stubGlobal("LanguageDetector", {
+      create: vi.fn().mockResolvedValue({ detect, destroy }),
+    });
+
+    await expect(
+      detectMessageSourceLanguage({ text: "ola mundo como voce esta hoje" }),
+    ).resolves.toBeNull();
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test("returns null for undetermined language detection results", async () => {
+    const detect = vi
+      .fn()
+      .mockResolvedValue([{ detectedLanguage: "und", confidence: 0.99 }]);
+    const destroy = vi.fn();
+
+    vi.stubGlobal("LanguageDetector", {
+      create: vi.fn().mockResolvedValue({ detect, destroy }),
+    });
+
+    await expect(
+      detectMessageSourceLanguage({ text: "ola mundo como voce esta hoje" }),
+    ).resolves.toBeNull();
     expect(destroy).toHaveBeenCalledOnce();
   });
 
   test("returns null when language detection is unavailable", async () => {
     await expect(
-      detectMessageSourceLanguage({ text: "hola mundo" }),
+      detectMessageSourceLanguage({
+        text: "hola mundo desde una prueba larga",
+      }),
     ).resolves.toBeNull();
   });
 
