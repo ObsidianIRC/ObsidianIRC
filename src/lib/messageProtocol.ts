@@ -2,6 +2,37 @@
  * IRC protocol utilities for message handling
  */
 
+const utf8Encoder = new TextEncoder();
+
+function getUtf8ByteLength(value: string): number {
+  return utf8Encoder.encode(value).length;
+}
+
+function splitTokenByUtf8Bytes(token: string, maxBytes: number): string[] {
+  const chunks: string[] = [];
+  let currentChunk = "";
+
+  for (const character of token) {
+    const candidateChunk = `${currentChunk}${character}`;
+
+    if (getUtf8ByteLength(candidateChunk) > maxBytes) {
+      if (currentChunk) {
+        chunks.push(currentChunk);
+      }
+      currentChunk = character;
+      continue;
+    }
+
+    currentChunk = candidateChunk;
+  }
+
+  if (currentChunk) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
+}
+
 /**
  * Helper function to split long messages while respecting IRC protocol limits
  * @param message - The message to split
@@ -17,7 +48,7 @@ export const splitLongMessage = (
   // Available space for the actual message content
   const maxMessageLength = 512 - protocolOverhead;
 
-  if (message.length <= maxMessageLength) {
+  if (getUtf8ByteLength(message) <= maxMessageLength) {
     return [message];
   }
 
@@ -26,7 +57,7 @@ export const splitLongMessage = (
   const words = message.split(" ");
 
   for (const word of words) {
-    if (word.length > maxMessageLength) {
+    if (getUtf8ByteLength(word) > maxMessageLength) {
       // If a single word is too long, we have to break it
       if (currentLine) {
         lines.push(currentLine);
@@ -34,10 +65,11 @@ export const splitLongMessage = (
       }
 
       // Split the long word
-      for (let i = 0; i < word.length; i += maxMessageLength) {
-        lines.push(word.slice(i, i + maxMessageLength));
-      }
-    } else if (`${currentLine} ${word}`.length > maxMessageLength) {
+      lines.push(...splitTokenByUtf8Bytes(word, maxMessageLength));
+    } else if (
+      getUtf8ByteLength(currentLine ? `${currentLine} ${word}` : word) >
+      maxMessageLength
+    ) {
       // Adding this word would exceed the limit
       if (currentLine) {
         lines.push(currentLine);
@@ -87,5 +119,5 @@ export const calculateProtocolOverhead = (target: string): number => {
  * @returns A unique batch identifier
  */
 export const createBatchId = (): string => {
-  return `ml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `ml-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 };
