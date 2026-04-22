@@ -144,6 +144,8 @@ describe("browserTranslation", () => {
   });
 
   test("returns null when language detection is unavailable", async () => {
+    vi.stubGlobal("LanguageDetector", undefined);
+
     await expect(
       detectMessageSourceLanguage({
         text: "hola mundo desde una prueba larga",
@@ -153,6 +155,7 @@ describe("browserTranslation", () => {
 
   test("reports unsupported when Translator is missing", async () => {
     setSecureContext(true);
+    vi.stubGlobal("Translator", undefined);
 
     expect(canUseBrowserTranslation()).toBe(false);
     await expect(

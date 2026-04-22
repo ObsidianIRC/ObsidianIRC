@@ -26,7 +26,7 @@ const mockSourceLanguage = vi.fn();
 const mockTranslate = vi.fn();
 const mockTargetLanguage = vi.fn();
 
-vi.mock("../../src/hooks/useLongPress", () => ({
+vi.mock("../../../src/hooks/useLongPress", () => ({
   useLongPress: () => ({
     onTouchStart: vi.fn(),
     onTouchMove: vi.fn(),
@@ -35,11 +35,11 @@ vi.mock("../../src/hooks/useLongPress", () => ({
   }),
 }));
 
-vi.mock("../../src/hooks/useMediaQuery", () => ({
+vi.mock("../../../src/hooks/useMediaQuery", () => ({
   useMediaQuery: () => false,
 }));
 
-vi.mock("../../src/lib/browserTranslation", () => ({
+vi.mock("../../../src/lib/browserTranslation", () => ({
   canUseBrowserTranslation: () => true,
   detectMessageSourceLanguage: (...args: unknown[]) =>
     mockDetectLanguage(...args),
@@ -51,19 +51,19 @@ vi.mock("../../src/lib/browserTranslation", () => ({
   translateWithBrowser: (...args: unknown[]) => mockTranslate(...args),
 }));
 
-vi.mock("../../src/lib/ircClient", () => ({
+vi.mock("../../../src/lib/ircClient", () => ({
   default: {
     getCurrentUser: () => ({ username: "bob" }),
   },
 }));
 
-vi.mock("../../src/lib/ircUtils", () => ({
+vi.mock("../../../src/lib/ircUtils", () => ({
   isUrlFromFilehost: () => false,
   isUserVerified: () => false,
   processMarkdownInText: (content: string) => content,
 }));
 
-vi.mock("../../src/lib/mediaUtils", () => ({
+vi.mock("../../../src/lib/mediaUtils", () => ({
   canShowMedia: () => false,
   extractMediaFromMessage: () => [],
   mediaLevelToSettings: () => ({
@@ -73,11 +73,11 @@ vi.mock("../../src/lib/mediaUtils", () => ({
   }),
 }));
 
-vi.mock("../../src/lib/messageFormatter", () => ({
+vi.mock("../../../src/lib/messageFormatter", () => ({
   stripIrcFormatting: (content: string) => content,
 }));
 
-vi.mock("../../src/store", () => {
+vi.mock("../../../src/store", () => {
   const useStore = Object.assign(
     (selector: (state: typeof mockState) => unknown) => selector(mockState),
     { getState: () => mockState },
@@ -90,25 +90,25 @@ vi.mock("../../src/store", () => {
   };
 });
 
-vi.mock("../../src/components/mobile/MessageBottomSheet", () => ({
+vi.mock("../../../src/components/mobile/MessageBottomSheet", () => ({
   default: () => null,
 }));
 
-vi.mock("../../src/components/ui/LinkWrapper", () => ({
+vi.mock("../../../src/components/ui/LinkWrapper", () => ({
   EnhancedLinkWrapper: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
 }));
 
-vi.mock("../../src/components/message/InviteMessage", () => ({
+vi.mock("../../../src/components/message/InviteMessage", () => ({
   InviteMessage: () => null,
 }));
 
-vi.mock("../../src/components/message/MediaPreview", () => ({
+vi.mock("../../../src/components/message/MediaPreview", () => ({
   MediaPreview: () => null,
 }));
 
-vi.mock("../../src/components/message/index", async () => {
+vi.mock("../../../src/components/message/index", async () => {
   const ReactModule = await import("react");
 
   return {
@@ -138,8 +138,8 @@ vi.mock("../../src/components/message/index", async () => {
   };
 });
 
-import { MessageItem } from "../../src/components/message/MessageItem";
-import type { MessageType } from "../../src/types";
+import { MessageItem } from "../../../src/components/message/MessageItem";
+import type { MessageType } from "../../../src/types";
 
 function createDeferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
