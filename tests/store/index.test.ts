@@ -58,6 +58,15 @@ describe("Store", () => {
       const newTheme = useStore.getState().ui.isDarkMode;
       expect(newTheme).not.toBe(initialTheme);
     });
+
+    test("should update translation target language", () => {
+      const { updateGlobalSettings } = useStore.getState();
+
+      updateGlobalSettings({ translationTargetLanguage: "es" });
+      expect(useStore.getState().globalSettings.translationTargetLanguage).toBe(
+        "es",
+      );
+    });
   });
 
   describe("server selection", () => {

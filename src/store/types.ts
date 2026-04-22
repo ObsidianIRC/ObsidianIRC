@@ -52,6 +52,7 @@ export interface GlobalSettings {
   autoFallbackToSingleLine: boolean;
   mediaVisibilityLevel: MediaVisibilityLevel;
   enableMarkdownRendering: boolean;
+  translationTargetLanguage: string;
   awayMessage: string;
   quitMessage: string;
 }

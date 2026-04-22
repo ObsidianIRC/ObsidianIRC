@@ -1,7 +1,21 @@
 import type * as React from "react";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import {
+  canUseBrowserTranslation,
+  getBrowserTranslationAvailability,
+  getMessageSourceLanguage,
+  getPreferredTranslationTargetLanguageFromSetting,
+  translateWithBrowser,
+} from "../../lib/browserTranslation";
 import ircClient from "../../lib/ircClient";
 import {
   isUrlFromFilehost,
@@ -127,6 +141,13 @@ export function partitionMediaEntries(entries: MediaEntry[]) {
   return { extraNullEntries, firstKnownNotAtZero, extraKnownEntries };
 }
 
+type TranslationState =
+  | { status: "idle" }
+  | { status: "downloading"; progress: number; targetLanguage: string }
+  | { status: "translating"; targetLanguage: string }
+  | { status: "translated"; targetLanguage: string; text: string }
+  | { status: "error"; targetLanguage: string; message: string };
+
 // Theme is set once at startup and does not change while the app is running.
 // Reading it per-render via localStorage.getItem is unnecessary synchronous I/O.
 const CURRENT_THEME = localStorage.getItem("theme") || "discord";
@@ -161,6 +182,9 @@ export const MessageItem = memo((props: MessageItemProps) => {
   const [messageNeedsCollapsing, setMessageNeedsCollapsing] = useState(false);
   const messageRowRef = useRef<HTMLDivElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [translationState, setTranslationState] = useState<TranslationState>({
+    status: "idle",
+  });
   const longPress = useLongPress({
     onLongPress: () => setSheetOpen(true),
   });
@@ -168,22 +192,19 @@ export const MessageItem = memo((props: MessageItemProps) => {
   const handleMessageMouseEnter = () => {
     const el = messageRowRef.current;
     if (!el) return;
-    const msgRect = el.getBoundingClientRect();
-    // Toolbar: bottom-1 (4px from bottom), right-4 (16px from right), ~90px wide, ~32px tall
-    const toolbarTop = msgRect.bottom - 4 - 32;
-    const toolbarLeft = msgRect.right - 16 - 90;
-    const toolbarRight = msgRect.right - 16;
-    const toolbarBottom = msgRect.bottom - 4;
+    const toolbar = el.querySelector<HTMLElement>(".message-actions-container");
+    if (!toolbar) return;
+    const toolbarRect = toolbar.getBoundingClientRect();
 
     for (const btn of el.querySelectorAll<HTMLElement>(
       ".copy-button, .inline-copy-button",
     )) {
       const r = btn.getBoundingClientRect();
       const overlaps =
-        r.right > toolbarLeft &&
-        r.left < toolbarRight &&
-        r.bottom > toolbarTop &&
-        r.top < toolbarBottom;
+        r.right > toolbarRect.left &&
+        r.left < toolbarRect.right &&
+        r.bottom > toolbarRect.top &&
+        r.top < toolbarRect.bottom;
       if (overlaps) btn.classList.add("avoid-toolbar");
     }
   };
@@ -336,6 +357,9 @@ export const MessageItem = memo((props: MessageItemProps) => {
   const enableMarkdownRendering = useStore(
     useCallback((state) => state.globalSettings.enableMarkdownRendering, []),
   );
+  const translationTargetLanguage = useStore(
+    useCallback((state) => state.globalSettings.translationTargetLanguage, []),
+  );
   const openMedia = useStore(useCallback((state) => state.openMedia, []));
   const canRedact =
     !isSystem &&
@@ -344,6 +368,8 @@ export const MessageItem = memo((props: MessageItemProps) => {
     !!server?.capabilities?.includes("draft/message-redaction") &&
     !!onRedactMessage;
   const canReply = !hideReply && message.type === "message";
+  const canTranslate =
+    canReply && !!message.content.trim() && canUseBrowserTranslation();
 
   // message.content is already combined for multiline messages by the IRC client
   const messageContent = message.content;
@@ -376,6 +402,22 @@ export const MessageItem = memo((props: MessageItemProps) => {
 
   const theme = CURRENT_THEME;
   const username = message.userId;
+  const translatedHtmlContent = useMemo(() => {
+    if (translationState.status !== "translated") return null;
+
+    return processMarkdownInText(
+      translationState.text,
+      showExternalContent,
+      enableMarkdownRendering,
+      `${message.id || message.msgid || "msg"}-translated`,
+    );
+  }, [
+    translationState,
+    showExternalContent,
+    enableMarkdownRendering,
+    message.id,
+    message.msgid,
+  ]);
 
   // Strip IRC formatting codes so URL/image detection works even when the URL
   // is wrapped in bold, italic, underline, strikethrough, or color codes.
@@ -429,6 +471,88 @@ export const MessageItem = memo((props: MessageItemProps) => {
           mediaChannelId ?? undefined,
         )
     : undefined;
+
+  const handleTranslateMessage = useCallback(async () => {
+    if (!messageContent.trim()) return;
+
+    const targetLanguage = getPreferredTranslationTargetLanguageFromSetting(
+      translationTargetLanguage,
+    );
+    const sourceLanguage = getMessageSourceLanguage(message.tags);
+
+    if (sourceLanguage === targetLanguage) {
+      setTranslationState({
+        status: "error",
+        targetLanguage,
+        message: "Message already matches your preferred language.",
+      });
+      return;
+    }
+
+    const availability = await getBrowserTranslationAvailability({
+      sourceLanguage,
+      targetLanguage,
+    });
+
+    if (
+      availability === "unsupported" ||
+      availability === "insecure-context" ||
+      availability === "unavailable"
+    ) {
+      const errorMessage =
+        availability === "unsupported"
+          ? "Translation is not supported in this browser."
+          : availability === "insecure-context"
+            ? "Translation requires a secure context."
+            : "This language pair is unavailable.";
+      setTranslationState({
+        status: "error",
+        targetLanguage,
+        message: errorMessage,
+      });
+      return;
+    }
+
+    setTranslationState(
+      availability === "available"
+        ? { status: "translating", targetLanguage }
+        : { status: "downloading", progress: 0, targetLanguage },
+    );
+
+    try {
+      const translatedText = await translateWithBrowser({
+        sourceLanguage,
+        targetLanguage,
+        text: messageContent,
+        onDownloadProgress:
+          availability === "available"
+            ? undefined
+            : (progress) => {
+                setTranslationState({
+                  status: "downloading",
+                  progress,
+                  targetLanguage,
+                });
+              },
+      });
+
+      startTransition(() => {
+        setTranslationState({
+          status: "translated",
+          targetLanguage,
+          text: translatedText,
+        });
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Translation failed.";
+      setTranslationState({
+        status: "error",
+        targetLanguage,
+        message: errorMessage,
+      });
+    }
+  }, [message.tags, messageContent, translationTargetLanguage]);
 
   // Handle system messages
   if (isSystem) {
@@ -842,6 +966,42 @@ export const MessageItem = memo((props: MessageItemProps) => {
                 messageContent={message.content}
               />
             )}
+
+            {translationState.status !== "idle" && (
+              <div className="mt-2 rounded-lg border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-sm text-sky-50">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-200/80">
+                  {translationState.status === "translated"
+                    ? `Translated to ${translationState.targetLanguage}`
+                    : translationState.status === "downloading"
+                      ? `Preparing translation model for ${translationState.targetLanguage}`
+                      : translationState.status === "translating"
+                        ? `Translating to ${translationState.targetLanguage}`
+                        : `Translation unavailable for ${translationState.targetLanguage}`}
+                </div>
+                {translationState.status === "translated" &&
+                  translatedHtmlContent && (
+                    <div className="mt-1 overflow-hidden break-words whitespace-pre-wrap">
+                      {translatedHtmlContent}
+                    </div>
+                  )}
+                {translationState.status === "downloading" && (
+                  <div className="mt-1 text-sky-100/80">
+                    Download progress:{" "}
+                    {Math.round(translationState.progress * 100)}%
+                  </div>
+                )}
+                {translationState.status === "translating" && (
+                  <div className="mt-1 text-sky-100/80">
+                    Working on a local translation.
+                  </div>
+                )}
+                {translationState.status === "error" && (
+                  <div className="mt-1 text-amber-100">
+                    {translationState.message}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <ReactionsWithActions
@@ -850,13 +1010,19 @@ export const MessageItem = memo((props: MessageItemProps) => {
             onReactionClick={handleReactionClick}
             onReactClick={(el) => onReactClick(message, el)}
             onReplyClick={() => setReplyTo(message)}
+            onTranslateClick={handleTranslateMessage}
             onRedactClick={
               canRedact ? () => onRedactMessage?.(message) : undefined
             }
             canRedact={canRedact}
             canReply={canReply}
+            canTranslate={canTranslate}
             onOpenMedia={handleOpenMedia}
             canOpenMedia={canOpenMedia}
+            isTranslating={
+              translationState.status === "downloading" ||
+              translationState.status === "translating"
+            }
           />
         </div>
       </div>
@@ -878,6 +1044,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
               ? (el: Element) => onReactClick(message, el)
               : undefined
           }
+          onTranslate={canTranslate ? handleTranslateMessage : undefined}
           onDelete={
             canRedact
               ? () => {
@@ -896,8 +1063,13 @@ export const MessageItem = memo((props: MessageItemProps) => {
           }
           canReply={canReply}
           canReact={!!message.msgid}
+          canTranslate={canTranslate}
           canDelete={canRedact}
           canOpenMedia={canOpenMedia}
+          isTranslating={
+            translationState.status === "downloading" ||
+            translationState.status === "translating"
+          }
         />
       )}
     </div>

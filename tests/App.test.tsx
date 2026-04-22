@@ -62,6 +62,7 @@ const mockStoreState = {
     showNickChanges: true,
     showJoinsParts: true,
     showQuits: true,
+    translationTargetLanguage: "",
   },
   updateGlobalSettings: vi.fn(),
   metadataSet: vi.fn(),

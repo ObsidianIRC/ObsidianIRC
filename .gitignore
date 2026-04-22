@@ -25,3 +25,6 @@ yarn-error.log*
 # Pre commit
 /.husky
 tsconfig.tsbuildinfo
+
+# private fork-only notes
+/.fork-local

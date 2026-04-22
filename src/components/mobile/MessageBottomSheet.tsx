@@ -1,5 +1,11 @@
 import type React from "react";
-import { FaExpand, FaGrinAlt, FaReply, FaTimes } from "react-icons/fa";
+import {
+  FaExpand,
+  FaGrinAlt,
+  FaLanguage,
+  FaReply,
+  FaTimes,
+} from "react-icons/fa";
 import BottomSheet from "./BottomSheet";
 
 interface MessageBottomSheetProps {
@@ -7,12 +13,15 @@ interface MessageBottomSheetProps {
   onClose: () => void;
   onReply?: () => void;
   onReact?: (buttonElement: Element) => void;
+  onTranslate?: () => void;
   onDelete?: () => void;
   onOpenMedia?: () => void;
   canReply: boolean;
   canReact: boolean;
+  canTranslate: boolean;
   canDelete: boolean;
   canOpenMedia?: boolean;
+  isTranslating?: boolean;
 }
 
 const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
@@ -20,12 +29,15 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
   onClose,
   onReply,
   onReact,
+  onTranslate,
   onDelete,
   onOpenMedia,
   canReply,
   canReact,
+  canTranslate,
   canDelete,
   canOpenMedia = false,
+  isTranslating = false,
 }) => {
   const actions: {
     label: string;
@@ -53,6 +65,18 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
         onReact(e.currentTarget);
         onClose();
       },
+    });
+  }
+
+  if (canTranslate && onTranslate) {
+    actions.push({
+      label: isTranslating ? "Translating" : "Translate",
+      icon: <FaLanguage />,
+      onClick: () => {
+        onTranslate();
+        onClose();
+      },
+      className: isTranslating ? "text-sky-300/70" : undefined,
     });
   }
 

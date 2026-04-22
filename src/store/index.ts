@@ -938,6 +938,8 @@ const useStore = create<AppState>((set, get) => ({
     mediaVisibilityLevel: 1 as MediaVisibilityLevel,
     // Markdown settings
     enableMarkdownRendering: false,
+    // Translation settings
+    translationTargetLanguage: "",
     // Status messages
     awayMessage: "",
     quitMessage: "ObsidianIRC - Bringing IRC to the future",

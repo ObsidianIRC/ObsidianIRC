@@ -10,11 +10,14 @@ interface ReactionsWithActionsProps {
   onReactionClick: (emoji: string, currentUserReacted: boolean) => void;
   onReactClick: (buttonElement: Element) => void;
   onReplyClick: () => void;
+  onTranslateClick?: () => void;
   onRedactClick?: () => void;
   onOpenMedia?: () => void;
   canRedact?: boolean;
   canReply?: boolean;
+  canTranslate?: boolean;
   canOpenMedia?: boolean;
+  isTranslating?: boolean;
 }
 
 export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
@@ -23,11 +26,14 @@ export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
   onReactionClick,
   onReactClick,
   onReplyClick,
+  onTranslateClick,
   onRedactClick,
   onOpenMedia,
   canRedact = false,
   canReply = true,
+  canTranslate = false,
   canOpenMedia = false,
+  isTranslating = false,
 }) => {
   const isTouchDevice = useMediaQuery("(pointer: coarse)");
   const hasReactions = !!message.reactions?.length;
@@ -47,11 +53,14 @@ export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
           message={message}
           onReplyClick={onReplyClick}
           onReactClick={onReactClick}
+          onTranslateClick={onTranslateClick}
           onRedactClick={onRedactClick}
           onOpenMedia={onOpenMedia}
           canRedact={canRedact}
           canReply={canReply}
+          canTranslate={canTranslate}
           canOpenMedia={canOpenMedia}
+          isTranslating={isTranslating}
           inline
         />
       </div>
@@ -71,11 +80,14 @@ export const ReactionsWithActions: React.FC<ReactionsWithActionsProps> = ({
           message={message}
           onReplyClick={onReplyClick}
           onReactClick={onReactClick}
+          onTranslateClick={onTranslateClick}
           onRedactClick={onRedactClick}
           onOpenMedia={onOpenMedia}
           canRedact={canRedact}
           canReply={canReply}
+          canTranslate={canTranslate}
           canOpenMedia={canOpenMedia}
+          isTranslating={isTranslating}
         />
       )}
     </>

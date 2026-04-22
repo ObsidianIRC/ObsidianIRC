@@ -250,6 +250,20 @@ const preferenceSettings: SettingDefinition[] = [
     priority: 2,
   },
   {
+    id: "preferences.translationTargetLanguage",
+    key: "translationTargetLanguage",
+    category: "preferences",
+    subcategory: "Chat",
+    title: "Translation Target Language",
+    description:
+      "Preferred translation target language as a BCP 47 tag. Leave empty to use your browser language.",
+    type: "text",
+    defaultValue: "",
+    placeholder: "e.g. en, es, ja",
+    searchKeywords: ["translate", "translation", "language", "locale"],
+    priority: 3,
+  },
+  {
     id: "preferences.showEvents",
     key: "showEvents",
     category: "preferences",
@@ -259,7 +273,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["events", "messages", "activity"],
-    priority: 3,
+    priority: 4,
   },
   {
     id: "preferences.showNickChanges",
@@ -271,7 +285,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["nick", "change", "rename"],
-    priority: 4,
+    priority: 5,
     dependencies: [
       {
         settingId: "preferences.showEvents",
@@ -289,7 +303,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["join", "part", "leave", "enter"],
-    priority: 5,
+    priority: 6,
     dependencies: [
       {
         settingId: "preferences.showEvents",
@@ -307,7 +321,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["quit", "disconnect", "leave"],
-    priority: 6,
+    priority: 7,
     dependencies: [
       {
         settingId: "preferences.showEvents",
@@ -325,7 +339,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["kick", "ban", "remove"],
-    priority: 7,
+    priority: 8,
     dependencies: [
       {
         settingId: "preferences.showEvents",
@@ -343,7 +357,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["multiline", "input", "text", "enter"],
-    priority: 8,
+    priority: 9,
   },
   {
     id: "preferences.multilineShiftEnter",
@@ -355,7 +369,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: true,
     searchKeywords: ["shift", "enter", "multiline", "keyboard"],
-    priority: 9,
+    priority: 10,
     dependencies: [
       {
         settingId: "preferences.multilineInput",
@@ -373,7 +387,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "toggle",
     defaultValue: false,
     searchKeywords: ["fallback", "single", "line", "auto"],
-    priority: 10,
+    priority: 11,
     dependencies: [
       {
         settingId: "preferences.multilineInput",
@@ -391,7 +405,7 @@ const preferenceSettings: SettingDefinition[] = [
     type: "custom",
     defaultValue: [],
     searchKeywords: ["ignore", "block", "mute", "filter"],
-    priority: 11,
+    priority: 12,
     customComponent: IgnoreListField,
   },
 ];

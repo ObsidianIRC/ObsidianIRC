@@ -189,6 +189,7 @@ describe("Metadata Display Features", () => {
         autoFallbackToSingleLine: true,
         mediaVisibilityLevel: 3,
         enableMarkdownRendering: false,
+        translationTargetLanguage: "",
         awayMessage: "",
         quitMessage: "ObsidianIRC - Bringing IRC to the future",
       },
