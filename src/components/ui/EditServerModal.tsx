@@ -1,6 +1,11 @@
 import type React from "react";
 import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
+import { isTauri } from "../../lib/platformUtils";
+import {
+  buildServerConnectionUrl,
+  getServerConnectionFields,
+} from "../../lib/serverConnectionUrl";
 import useStore, { loadSavedServers } from "../../store";
 import type { ServerConfig } from "../../types";
 import { TextInput } from "./TextInput";
@@ -19,16 +24,22 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const server = servers.find((s) => s.id === serverId);
   const savedServers = loadSavedServers();
   const serverConfig = savedServers.find((s) => s.id === serverId);
+  const initialConnectionFields = getServerConnectionFields(
+    serverConfig?.host || server?.host || "",
+    serverConfig?.port?.toString() ||
+      server?.port?.toString() ||
+      (isTauri() ? "6697" : "443"),
+    false,
+  );
 
   // Initialize state with current server values
   const [serverName, setServerName] = useState(
     serverConfig?.name || server?.name || "",
   );
-  const [serverHost, setServerHost] = useState(
-    serverConfig?.host || server?.host || "",
-  );
-  const [serverPort, setServerPort] = useState(
-    serverConfig?.port?.toString() || server?.port?.toString() || "443",
+  const [serverHost, setServerHost] = useState(initialConnectionFields.host);
+  const [serverPort, setServerPort] = useState(initialConnectionFields.port);
+  const [useWebSocket, setUseWebSocket] = useState(
+    initialConnectionFields.useWebSocket,
   );
   const [nickname, setNickname] = useState(serverConfig?.nickname || "");
   const [password, setPassword] = useState("");
@@ -87,11 +98,16 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     }
 
     try {
+      const parsedPort = Number.parseInt(serverPort, 10);
+
       // Update server configuration
       const updatedConfig: Partial<ServerConfig> = {
         name: finalServerName,
-        host: serverHost.trim(),
-        port: Number.parseInt(serverPort, 10),
+        host: buildServerConnectionUrl(serverHost, parsedPort, {
+          isTauri: isTauri(),
+          useWebSocket,
+        }),
+        port: parsedPort,
         nickname: nickname.trim(),
         password: password.trim() || undefined,
         saslAccountName: finalSaslAccountName || undefined,
@@ -163,6 +179,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                 value={serverHost}
                 onChange={(e) => setServerHost(e.target.value)}
                 placeholder="irc.example.com"
+                inputMode="url"
                 className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
               />
             </div>
@@ -176,6 +193,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                 />
               </label>
               <TextInput
+                inputMode="numeric"
                 value={serverPort}
                 onChange={(e) => setServerPort(e.target.value)}
                 placeholder="443"
@@ -183,6 +201,28 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               />
             </div>
           </div>
+
+          {isTauri() && (
+            <div className="mb-4 flex items-center">
+              <input
+                type="checkbox"
+                id="editUseWebSocket"
+                checked={useWebSocket}
+                onChange={() => setUseWebSocket(!useWebSocket)}
+                className="accent-discord-accent rounded"
+              />
+              <label
+                htmlFor="editUseWebSocket"
+                className="text-discord-text-muted text-sm flex items-center ml-2"
+              >
+                WSS{" "}
+                <FaQuestionCircle
+                  title="Toggle WebSocket instead of direct IRC-over-TLS"
+                  className="inline-block text-discord-text-muted cursor-help text-xs ml-1"
+                />
+              </label>
+            </div>
+          )}
 
           <div className="mb-4">
             <label className="block text-discord-text-muted text-sm font-medium mb-1">

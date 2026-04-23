@@ -1194,10 +1194,15 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
 
-      const clearConnectionState =
-        state.connectingServerId === serverId
-          ? { isConnecting: false, connectingServerId: null }
-          : {};
+      const targetServer = state.servers.find((s) => s.id === serverId);
+      const shouldClearConnectionState =
+        state.connectingServerId === serverId ||
+        targetServer?.connectionState === "connecting" ||
+        targetServer?.connectionState === "reconnecting";
+
+      const clearConnectionState = shouldClearConnectionState
+        ? { isConnecting: false, connectingServerId: null }
+        : {};
 
       return {
         servers: updatedServers,
@@ -2412,6 +2417,8 @@ const useStore = create<AppState>((set, get) => ({
 
     // Update server state to connecting
     set((state) => ({
+      isConnecting: true,
+      connectingServerId: serverId,
       servers: state.servers.map((s) =>
         s.id === serverId
           ? { ...s, connectionState: "connecting" as const }
@@ -2490,10 +2497,14 @@ const useStore = create<AppState>((set, get) => ({
       const newSelectedServerId =
         remainingServers.length > 0 ? remainingServers[0].id : null;
 
-      const clearConnectionState =
-        state.connectingServerId === serverId
-          ? { isConnecting: false, connectingServerId: null }
-          : {};
+      const shouldClearConnectionState =
+        state.connectingServerId === serverId ||
+        serverToDelete?.connectionState === "connecting" ||
+        serverToDelete?.connectionState === "reconnecting";
+
+      const clearConnectionState = shouldClearConnectionState
+        ? { isConnecting: false, connectingServerId: null }
+        : {};
 
       return {
         servers: remainingServers,

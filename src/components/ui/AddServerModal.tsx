@@ -4,6 +4,10 @@ import { FaQuestionCircle } from "react-icons/fa";
 import BaseModal from "../../lib/modal/BaseModal";
 import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
 import { isTauri } from "../../lib/platformUtils";
+import {
+  buildServerConnectionUrl,
+  getServerConnectionFields,
+} from "../../lib/serverConnectionUrl";
 import useStore from "../../store";
 import { TextInput } from "./TextInput";
 
@@ -16,15 +20,17 @@ export const AddServerModal: React.FC = () => {
     ui: { prefillServerDetails, isAddServerModalOpen },
   } = useStore();
 
+  const initialConnectionFields = getServerConnectionFields(
+    prefillServerDetails?.host || "",
+    prefillServerDetails?.port || (isTauri() ? "6697" : "443"),
+    prefillServerDetails?.useWebSocket ?? false,
+  );
+
   const [serverName, setServerName] = useState(
     prefillServerDetails?.name || "",
   );
-  const [serverHost, setServerHost] = useState(
-    prefillServerDetails?.host || "",
-  );
-  const [serverPort, setServerPort] = useState(
-    prefillServerDetails?.port || (isTauri() ? "6697" : "443"),
-  );
+  const [serverHost, setServerHost] = useState(initialConnectionFields.host);
+  const [serverPort, setServerPort] = useState(initialConnectionFields.port);
   const [nickname, setNickname] = useState(
     prefillServerDetails?.nickname || `user${Math.floor(Math.random() * 1000)}`,
   );
@@ -36,7 +42,7 @@ export const AddServerModal: React.FC = () => {
   const [showAccount, setShowAccount] = useState(false);
   const [registerAccount, setRegisterAccount] = useState(false);
   const [useWebSocket, setUseWebSocket] = useState(
-    prefillServerDetails?.useWebSocket ?? false,
+    initialConnectionFields.useWebSocket,
   );
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
@@ -44,14 +50,20 @@ export const AddServerModal: React.FC = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const nextFields = getServerConnectionFields(
+      prefillServerDetails?.host || "",
+      prefillServerDetails?.port || (isTauri() ? "6697" : "443"),
+      prefillServerDetails?.useWebSocket ?? false,
+    );
+
     setServerName(prefillServerDetails?.name || "");
-    setServerHost(prefillServerDetails?.host || "");
-    setServerPort(prefillServerDetails?.port || (isTauri() ? "6697" : "443"));
+    setServerHost(nextFields.host);
+    setServerPort(nextFields.port);
     setNickname(
       prefillServerDetails?.nickname ||
         `user${Math.floor(Math.random() * 1000)}`,
     );
-    setUseWebSocket(prefillServerDetails?.useWebSocket || false);
+    setUseWebSocket(nextFields.useWebSocket);
   }, [prefillServerDetails]);
 
   useEffect(() => {
@@ -96,22 +108,16 @@ export const AddServerModal: React.FC = () => {
     }
 
     try {
-      let finalHost = serverHost;
-      if (isTauri()) {
-        const port = Number.parseInt(serverPort, 10);
-        const cleanHost = serverHost.replace(
-          /^(https?|wss|ircs?|irc):\/\//,
-          "",
-        );
-        finalHost = useWebSocket
-          ? `wss://${cleanHost}:${port}`
-          : `ircs://${cleanHost}:${port}`;
-      }
+      const port = Number.parseInt(serverPort, 10);
+      const finalHost = buildServerConnectionUrl(serverHost, port, {
+        isTauri: isTauri(),
+        useWebSocket,
+      });
 
       await connect(
         finalServerName,
         finalHost,
-        Number.parseInt(serverPort, 10),
+        port,
         nickname,
         !!saslPassword,
         password,
@@ -167,11 +173,7 @@ export const AddServerModal: React.FC = () => {
                 </label>
                 <TextInput
                   inputMode="url"
-                  value={
-                    disableServerConnectionInfo && serverHost.includes("://")
-                      ? new URL(serverHost).hostname
-                      : serverHost || ""
-                  }
+                  value={serverHost || ""}
                   onChange={(e) => setServerHost(e.target.value)}
                   placeholder="irc.example.com"
                   className={`w-full rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary ${
