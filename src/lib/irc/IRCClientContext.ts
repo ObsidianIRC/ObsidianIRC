@@ -7,6 +7,8 @@ export interface IRCClientContext {
   // Data maps accessed within handleMessage branches
   servers: Map<string, Server>;
   nicks: Map<string, string>;
+  myIdents: Map<string, string>;
+  myHosts: Map<string, string>;
   currentUsers: Map<string, User | null>;
   pongTimeouts: Map<string, NodeJS.Timeout>;
   reconnectionTimeouts: Map<string, NodeJS.Timeout>;

@@ -143,7 +143,13 @@ export interface EventMap {
     reason: string;
     user: string;
   };
-  SETNAME: { serverId: string; user: string; realname: string };
+  SETNAME: {
+    serverId: string;
+    user: string;
+    realname: string;
+    ident?: string;
+    host?: string;
+  };
   INVITE: EventWithTags & {
     inviter: string;
     target: string;
@@ -393,6 +399,8 @@ export class IRCClient implements IRCClientContext {
   private sockets: Map<string, ISocket> = new Map();
   servers: Map<string, Server> = new Map();
   nicks: Map<string, string> = new Map();
+  myIdents: Map<string, string> = new Map(); // Our own ident per server, populated by draft/whoami SETNAME burst and CHGHOST
+  myHosts: Map<string, string> = new Map(); // Our own hostname per server, populated by draft/whoami SETNAME burst and CHGHOST
   currentUsers: Map<string, User | null> = new Map(); // Per-server current users
   private saslMechanisms: Map<string, string[]> = new Map();
   private capLsAccumulated: Map<string, Set<string>> = new Map();
@@ -457,6 +465,7 @@ export class IRCClient implements IRCClientContext {
     "extended-join",
     "away-notify",
     "chghost",
+    "draft/whoami",
     "draft/metadata-2",
     "draft/message-redaction",
     "draft/account-registration",
@@ -747,6 +756,8 @@ export class IRCClient implements IRCClientContext {
     this.pendingCapReqs.delete(serverId);
     this.capLsAccumulated.delete(serverId);
     this.saslMechanisms.delete(serverId);
+    this.myIdents.delete(serverId);
+    this.myHosts.delete(serverId);
   }
 
   private startReconnection(
@@ -1358,6 +1369,14 @@ export class IRCClient implements IRCClientContext {
 
   getNick(serverId: string): string | undefined {
     return this.nicks.get(serverId);
+  }
+
+  getMyIdent(serverId: string): string | undefined {
+    return this.myIdents.get(serverId);
+  }
+
+  getMyHost(serverId: string): string | undefined {
+    return this.myHosts.get(serverId);
   }
 
   userOnConnect(serverId: string) {
