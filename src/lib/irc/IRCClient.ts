@@ -391,6 +391,7 @@ type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 
 export class IRCClient implements IRCClientContext {
   private sockets: Map<string, ISocket> = new Map();
+  private intentionalDisconnects: Set<string> = new Set();
   servers: Map<string, Server> = new Map();
   nicks: Map<string, string> = new Map();
   currentUsers: Map<string, User | null> = new Map(); // Per-server current users
@@ -490,6 +491,10 @@ export class IRCClient implements IRCClientContext {
     serverId?: string,
   ): Promise<Server> {
     const connectionKey = `${host}:${port}`;
+
+    if (serverId) {
+      this.intentionalDisconnects.delete(serverId);
+    }
 
     // Check if there's already a pending connection to this server
     const existingConnection = this.pendingConnections.get(connectionKey);
@@ -614,6 +619,7 @@ export class IRCClient implements IRCClientContext {
         status: "online",
       });
       this.nicks.set(server.id, nickname);
+      this.intentionalDisconnects.delete(server.id);
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
@@ -649,6 +655,13 @@ export class IRCClient implements IRCClientContext {
         // to ensure connection is fully established before sending PINGs
 
         socket.onclose = () => {
+          if (this.intentionalDisconnects.has(server.id)) {
+            this.stopWebSocketPing(server.id);
+            this.sockets.delete(server.id);
+            this.pendingConnections.delete(connectionKey);
+            return;
+          }
+
           if (!this.servers.has(server.id)) {
             return;
           }
@@ -712,13 +725,29 @@ export class IRCClient implements IRCClientContext {
 
   disconnect(serverId: string, quitMessage?: string): void {
     const socket = this.sockets.get(serverId);
+    const server = this.servers.get(serverId);
+
     if (socket) {
-      const message = quitMessage || "ObsidianIRC - Bringing IRC to the future";
-      socket.send(`QUIT :${message}`);
-      socket.close();
+      const CONNECTING = 0;
+      const OPEN = 1;
+
+      if (socket.readyState === CONNECTING || socket.readyState === OPEN) {
+        this.intentionalDisconnects.add(serverId);
+      }
+
+      if (socket.readyState === OPEN && server?.isConnected) {
+        const message =
+          quitMessage || "ObsidianIRC - Bringing IRC to the future";
+        socket.send(`QUIT :${message}`);
+      }
+
+      if (socket.readyState === CONNECTING || socket.readyState === OPEN) {
+        socket.close();
+      }
+
       this.sockets.delete(serverId);
     }
-    const server = this.servers.get(serverId);
+
     if (server) {
       server.isConnected = false;
       server.connectionState = "disconnected";
@@ -742,6 +771,7 @@ export class IRCClient implements IRCClientContext {
 
   removeServer(serverId: string): void {
     this.disconnect(serverId);
+    this.intentionalDisconnects.delete(serverId);
     this.servers.delete(serverId);
     this.capNegotiationComplete.delete(serverId);
     this.pendingCapReqs.delete(serverId);

@@ -166,6 +166,63 @@ describe("IRCClient", () => {
     });
   });
 
+  describe("disconnect", () => {
+    test("does not send QUIT while socket is still connecting", () => {
+      const mockSocket = new MockWebSocket("wss://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+        undefined,
+        undefined,
+        undefined,
+        "server-1",
+      );
+
+      client.disconnect("server-1");
+
+      expect(mockSocket.sentMessages).toEqual([]);
+      expect(mockSocket.readyState).toBe(WebSocket.CLOSED);
+    });
+
+    test("does not start reconnection after an intentional disconnect", async () => {
+      vi.useFakeTimers();
+
+      const mockSocket = new MockWebSocket("wss://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const states: string[] = [];
+      client.on("connectionStateChange", ({ connectionState }) => {
+        states.push(connectionState);
+      });
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+        undefined,
+        undefined,
+        undefined,
+        "server-2",
+      );
+
+      mockSocket.simulateOpen();
+      await connectionPromise;
+
+      client.disconnect("server-2");
+      vi.runOnlyPendingTimers();
+
+      expect(states).toEqual(["connected", "disconnected"]);
+      expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
+
+      vi.useRealTimers();
+    });
+  });
+
   describe("message handling", () => {
     test("should handle PRIVMSG correctly", async () => {
       const mockSocket = new MockWebSocket("ws://irc.example.com:443");
