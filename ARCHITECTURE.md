@@ -1,7 +1,7 @@
 # ObsidianIRC Architecture
 
 > **Modern IRC Client** - React + TypeScript + TailwindCSS + Tauri
-> Next-generation IRC client supporting websockets only
+> Next-generation IRC client with WebSocket support in web builds and native TCP/TLS transport in Tauri builds
 
 ## 🏗️ Project Structure
 
@@ -75,14 +75,30 @@ interface AppState {
 - Optimistic UI updates
 
 ### IRC Protocol Layer
-**Location:** `src/lib/ircClient.ts`
+**Location:** `src/lib/irc/IRCClient.ts`
 
 Event-driven IRC client supporting:
-- WebSocket-only connections (no raw TCP)
+- WebSocket connections for browser-compatible paths
+- Native TCP/TLS connections through the Tauri backend on desktop builds
 - SASL authentication
 - IRC v3 message tags
 - Capability negotiation
 - Multi-server management
+
+### Transport Layer
+**Locations:** `src/lib/socket.ts`, `src-tauri/src/socket.rs`
+
+ObsidianIRC has a split transport model:
+
+- `wss://` routes through `WebSocketWrapper` in the frontend.
+- `irc://` and `ircs://` route through `TCPSocket` in the frontend.
+- `TCPSocket` bridges to Tauri commands (`connect`, `listen`, `send`, `disconnect`) implemented in Rust.
+- The Rust backend owns the real TCP/TLS socket lifecycle, reads and writes IRC lines, and emits `tcp-message` events back to the frontend.
+
+This means transport hardening work usually belongs in two places:
+
+- frontend lifecycle and state transitions in `IRCClient` / `socket.ts`
+- native socket behavior and shutdown semantics in `src-tauri/src/socket.rs`
 
 **Event System:**
 ```typescript
