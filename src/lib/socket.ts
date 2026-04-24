@@ -3,6 +3,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
+type SocketProtocol = "wss" | "irc" | "ircs";
+
 export interface ISocket {
   onopen: (() => void) | null;
   onmessage: ((event: { data: string }) => void) | null;
@@ -13,6 +15,13 @@ export interface ISocket {
   close(): void;
   readyState: number;
 }
+
+export interface SocketFactoryContext {
+  url: string;
+  protocol: SocketProtocol;
+}
+
+export type SocketFactory = (context: SocketFactoryContext) => ISocket;
 
 export class TCPSocket implements ISocket {
   private clientId: string;
@@ -210,12 +219,42 @@ export class WebSocketWrapper implements ISocket {
   }
 }
 
-export function createSocket(url: string): ISocket {
+export function resolveSocketProtocol(url: string): SocketProtocol {
   if (url.startsWith("wss://")) {
+    return "wss";
+  }
+
+  if (url.startsWith("irc://")) {
+    return "irc";
+  }
+
+  if (url.startsWith("ircs://")) {
+    return "ircs";
+  }
+
+  throw new Error("Unsupported socket protocol");
+}
+
+const defaultSocketFactory: SocketFactory = ({ url, protocol }) => {
+  if (protocol === "wss") {
     return new WebSocketWrapper(url);
   }
-  if (url.startsWith("irc://") || url.startsWith("ircs://")) {
-    return new TCPSocket(url);
-  }
-  throw new Error("Unsupported socket protocol");
+
+  return new TCPSocket(url);
+};
+
+let socketFactory: SocketFactory = defaultSocketFactory;
+
+export function setSocketFactory(factory: SocketFactory): void {
+  socketFactory = factory;
+}
+
+export function resetSocketFactory(): void {
+  socketFactory = defaultSocketFactory;
+}
+
+export function createSocket(url: string): ISocket {
+  const protocol = resolveSocketProtocol(url);
+
+  return socketFactory({ url, protocol });
 }

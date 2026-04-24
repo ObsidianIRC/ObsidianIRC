@@ -13,7 +13,13 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: listenMock,
 }));
 
-import { TCPSocket } from "../../src/lib/socket";
+import {
+  createSocket,
+  resetSocketFactory,
+  resolveSocketProtocol,
+  setSocketFactory,
+  TCPSocket,
+} from "../../src/lib/socket";
 
 function createDeferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -80,6 +86,80 @@ describe("TCPSocket", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    resetSocketFactory();
+  });
+
+  test("allows a custom socket factory to be injected", () => {
+    const fakeSocket = {
+      onopen: null,
+      onmessage: null,
+      onerror: null,
+      onclose: null,
+      send: vi.fn(),
+      close: vi.fn(),
+      readyState: 1,
+    };
+
+    const factory = vi.fn(() => fakeSocket);
+    setSocketFactory(factory);
+
+    const socket = createSocket("ircs://irc.example.com:6697");
+
+    expect(factory).toHaveBeenCalledWith({
+      url: "ircs://irc.example.com:6697",
+      protocol: "ircs",
+    });
+    expect(socket).toBe(fakeSocket);
+  });
+
+  test("reset restores the default websocket routing", () => {
+    const sentinelFactory = vi.fn(() => {
+      throw new Error("custom factory should have been reset");
+    });
+
+    class MockSocket extends EventTarget {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+
+      readyState = MockSocket.CONNECTING;
+      onopen = null;
+      onmessage = null;
+      onerror = null;
+      onclose = null;
+
+      constructor(public url: string) {
+        super();
+      }
+
+      send() {}
+      close() {}
+    }
+
+    const originalWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = MockSocket as unknown as typeof WebSocket;
+
+    setSocketFactory(sentinelFactory);
+    resetSocketFactory();
+
+    const socket = createSocket("wss://irc.example.com/webirc");
+
+    expect(sentinelFactory).not.toHaveBeenCalled();
+    expect(socket.constructor.name).toBe("WebSocketWrapper");
+
+    if (originalWebSocket) {
+      globalThis.WebSocket = originalWebSocket;
+    }
+  });
+
+  test("resolveSocketProtocol preserves current supported routing", () => {
+    expect(resolveSocketProtocol("wss://irc.example.com/webirc")).toBe("wss");
+    expect(resolveSocketProtocol("irc://irc.example.com:6667")).toBe("irc");
+    expect(resolveSocketProtocol("ircs://irc.example.com:6697")).toBe("ircs");
+    expect(() => resolveSocketProtocol("https://example.com/socket")).toThrow(
+      "Unsupported socket protocol",
+    );
   });
 
   test("close during connect suppresses a later onopen", async () => {
