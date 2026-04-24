@@ -17,6 +17,7 @@ import {
   createSocket,
   resetSocketFactory,
   resolveSocketProtocol,
+  resolveSocketTarget,
   setSocketFactory,
   TCPSocket,
 } from "../../src/lib/socket";
@@ -160,6 +161,39 @@ describe("TCPSocket", () => {
     expect(() => resolveSocketProtocol("https://example.com/socket")).toThrow(
       "Unsupported socket protocol",
     );
+  });
+
+  test("resolveSocketTarget preserves secure websocket paths and query strings", () => {
+    expect(
+      resolveSocketTarget("wss://irc.example.com/webirc?token=abc", 443),
+    ).toEqual({
+      url: "wss://irc.example.com:443/webirc?token=abc",
+      host: "irc.example.com",
+      port: 443,
+      protocol: "wss",
+    });
+  });
+
+  test("resolveSocketTarget upgrades ws urls to the secure websocket transport", () => {
+    expect(resolveSocketTarget("ws://irc.example.com/socket?x=1", 443)).toEqual(
+      {
+        url: "wss://irc.example.com:443/socket?x=1",
+        host: "irc.example.com",
+        port: 443,
+        protocol: "wss",
+      },
+    );
+  });
+
+  test("resolveSocketTarget keeps irc and ircs parsing in the transport seam", () => {
+    expect(
+      resolveSocketTarget("ircs://irc.libera.chat:6697/#chat", 443),
+    ).toEqual({
+      url: "ircs://irc.libera.chat:6697",
+      host: "irc.libera.chat",
+      port: 6697,
+      protocol: "ircs",
+    });
   });
 
   test("close during connect suppresses a later onopen", async () => {

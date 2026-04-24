@@ -2,8 +2,16 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { parseIrcUrl } from "./ircUrlParser";
 
 type SocketProtocol = "wss" | "irc" | "ircs";
+
+export interface ResolvedSocketTarget {
+  url: string;
+  host: string;
+  port: number;
+  protocol: SocketProtocol;
+}
 
 export interface ISocket {
   onopen: (() => void) | null;
@@ -233,6 +241,42 @@ export function resolveSocketProtocol(url: string): SocketProtocol {
   }
 
   throw new Error("Unsupported socket protocol");
+}
+
+export function resolveSocketTarget(
+  rawHost: string,
+  port: number,
+): ResolvedSocketTarget {
+  let protocol: SocketProtocol = "wss";
+  let host = rawHost;
+  let resolvedPort = port;
+  let path = "";
+
+  if (rawHost.startsWith("irc://") || rawHost.startsWith("ircs://")) {
+    const parsed = parseIrcUrl(rawHost);
+    protocol = parsed.scheme;
+    host = parsed.host;
+    resolvedPort = parsed.port;
+  } else if (rawHost.startsWith("wss://") || rawHost.startsWith("ws://")) {
+    try {
+      const parsed = new URL(rawHost);
+      host = parsed.hostname;
+      resolvedPort = parsed.port ? Number.parseInt(parsed.port, 10) : port;
+      path =
+        parsed.pathname !== "/"
+          ? parsed.pathname + parsed.search
+          : parsed.search;
+    } catch {
+      // Keep the original host/port if the explicit websocket URL is malformed.
+    }
+  }
+
+  return {
+    url: `${protocol}://${host}:${resolvedPort}${path}`,
+    host,
+    port: resolvedPort,
+    protocol,
+  };
 }
 
 const defaultSocketFactory: SocketFactory = ({ url, protocol }) => {

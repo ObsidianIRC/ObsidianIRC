@@ -102,6 +102,30 @@ describe("IRCClient", () => {
       expect(mockSocket.sentMessages).toContain("CAP LS 302");
     });
 
+    test("preserves secure websocket paths and query strings through the transport seam", async () => {
+      const mockSocket = new MockWebSocket(
+        "wss://irc.example.com:443/webirc?token=abc",
+      );
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const connectionPromise = client.connect(
+        "WebIRC",
+        "wss://irc.example.com/webirc?token=abc",
+        443,
+        "testuser",
+      );
+
+      mockSocket.simulateOpen();
+      const server = await connectionPromise;
+
+      expect(MockWebSocketSpy).toHaveBeenCalledWith(
+        "wss://irc.example.com:443/webirc?token=abc",
+      );
+      expect(server.host).toBe("irc.example.com");
+      expect(server.port).toBe(443);
+      expect(server.name).toBe("WebIRC");
+    });
+
     test.skip("should handle connection errors", async () => {
       vi.useFakeTimers();
 
