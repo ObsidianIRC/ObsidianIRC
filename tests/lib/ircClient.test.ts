@@ -221,6 +221,45 @@ describe("IRCClient", () => {
 
       vi.useRealTimers();
     });
+
+    test("treats closing sockets as intentional disconnects", async () => {
+      vi.useFakeTimers();
+
+      const mockSocket = new MockWebSocket("wss://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const states: string[] = [];
+      client.on("connectionStateChange", ({ connectionState }) => {
+        states.push(connectionState);
+      });
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+        undefined,
+        undefined,
+        undefined,
+        "server-3",
+      );
+
+      mockSocket.simulateOpen();
+      await connectionPromise;
+
+      mockSocket.readyState = WebSocket.CLOSING;
+      client.disconnect("server-3");
+      mockSocket.onclose?.(new CloseEvent("close"));
+      vi.runOnlyPendingTimers();
+
+      expect(states).toEqual(["connected", "disconnected"]);
+      expect(mockSocket.sentMessages).not.toContain(
+        "QUIT :ObsidianIRC - Bringing IRC to the future",
+      );
+      expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
+
+      vi.useRealTimers();
+    });
   });
 
   describe("message handling", () => {

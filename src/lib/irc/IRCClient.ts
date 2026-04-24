@@ -619,7 +619,6 @@ export class IRCClient implements IRCClientContext {
         status: "online",
       });
       this.nicks.set(server.id, nickname);
-      this.intentionalDisconnects.delete(server.id);
 
       socket.onopen = () => {
         //registerAllProtocolHandlers(this);
@@ -656,6 +655,7 @@ export class IRCClient implements IRCClientContext {
 
         socket.onclose = () => {
           if (this.intentionalDisconnects.has(server.id)) {
+            this.intentionalDisconnects.delete(server.id);
             this.stopWebSocketPing(server.id);
             this.sockets.delete(server.id);
             this.pendingConnections.delete(connectionKey);
@@ -731,9 +731,7 @@ export class IRCClient implements IRCClientContext {
       const CONNECTING = 0;
       const OPEN = 1;
 
-      if (socket.readyState === CONNECTING || socket.readyState === OPEN) {
-        this.intentionalDisconnects.add(serverId);
-      }
+      this.intentionalDisconnects.add(serverId);
 
       if (socket.readyState === OPEN && server?.isConnected) {
         const message =
