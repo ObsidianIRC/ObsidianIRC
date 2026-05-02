@@ -15,6 +15,7 @@ import type {
 } from "../types";
 import { registerAllHandlers } from "./handlers";
 import { readyProcessedServers } from "./handlers/connection";
+import * as tictactoeActions from "./handlers/tictactoeActions";
 import { MAX_MESSAGES_PER_CHANNEL } from "./helpers";
 import * as storage from "./localStorage";
 import { runPendingMigrations } from "./migrations";
@@ -543,6 +544,15 @@ export interface AppState {
     type: string;
     blob: string;
   } | null;
+  // Tic-tac-toe games keyed serverId -> opponent-nick-lower.  Used by both
+  // the TAGMSG handler and the modal UI.
+  tictactoe: {
+    games: Record<
+      string,
+      Record<string, import("../lib/games/tictactoe").GameSnapshot>
+    >;
+    open: { serverId: string; opponent: string } | null;
+  };
   // Channel order persistence
   channelOrder: ChannelOrderMap; // serverId -> ordered array of channel names
   // Message deduplication tracking
@@ -600,6 +610,19 @@ export interface AppState {
   submitTotpStepUp: (serverId: string, code: string) => void;
   cancelTotpStepUp: (serverId: string) => void;
   toggleTwoFactorSettings: (isOpen?: boolean, serverId?: string | null) => void;
+  // Tic-tac-toe actions
+  tictactoeInvite: (serverId: string, opponent: string) => void;
+  tictactoeAccept: (serverId: string, opponent: string) => void;
+  tictactoeDecline: (serverId: string, opponent: string) => void;
+  tictactoeMove: (
+    serverId: string,
+    opponent: string,
+    row: number,
+    col: number,
+  ) => void;
+  tictactoeTerminate: (serverId: string, opponent: string) => void;
+  tictactoeOpenModal: (serverId: string, opponent: string) => void;
+  tictactoeCloseModal: () => void;
   setAway: (serverId: string, message?: string) => void;
   clearAway: (serverId: string) => void;
   warnUser: (
@@ -884,6 +907,7 @@ const useStore = create<AppState>((set, get) => ({
   twofaStatus: {},
   twofaCredentials: {},
   pendingTwofaChallenge: null,
+  tictactoe: { games: {}, open: null },
   channelOrder: loadChannelOrder(),
   processedMessageIds: new Set<string>(),
   hasConnectedToSavedServers: false,
@@ -2613,6 +2637,27 @@ const useStore = create<AppState>((set, get) => ({
         isEditServerModalOpen: isOpen ?? false,
         editServerId: serverId,
       },
+    }));
+  },
+
+  tictactoeInvite: (serverId, opponent) =>
+    tictactoeActions.invite(set, get, serverId, opponent),
+  tictactoeAccept: (serverId, opponent) =>
+    tictactoeActions.accept(set, get, serverId, opponent),
+  tictactoeDecline: (serverId, opponent) =>
+    tictactoeActions.decline(set, get, serverId, opponent),
+  tictactoeMove: (serverId, opponent, row, col) =>
+    tictactoeActions.move(set, get, serverId, opponent, row, col),
+  tictactoeTerminate: (serverId, opponent) =>
+    tictactoeActions.terminate(set, get, serverId, opponent),
+  tictactoeOpenModal: (serverId, opponent) => {
+    set((state) => ({
+      tictactoe: { ...state.tictactoe, open: { serverId, opponent } },
+    }));
+  },
+  tictactoeCloseModal: () => {
+    set((state) => ({
+      tictactoe: { ...state.tictactoe, open: null },
     }));
   },
 

@@ -317,6 +317,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       show: !!selectedChannel,
     },
     {
+      label: "Play Tic-Tac-Toe",
+      icon: <span aria-hidden="true">🎮</span>,
+      onClick: () => {
+        if (selectedServerId && selectedPrivateChat) {
+          useStore
+            .getState()
+            .tictactoeInvite(selectedServerId, selectedPrivateChat.username);
+        }
+      },
+      show: !!selectedPrivateChat,
+    },
+    {
       label: "Server Channels",
       icon: <FaList />,
       onClick: () => toggleChannelListModal(true),

@@ -15,6 +15,7 @@ import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
 import QuickActions from "./components/ui/QuickActions";
+import { TicTacToeModal } from "./components/ui/TicTacToeModal";
 import { TotpStepUpModal } from "./components/ui/TotpStepUpModal";
 import { TwoFactorSettingsModal } from "./components/ui/TwoFactorSettingsModal";
 import UserProfileModal from "./components/ui/UserProfileModal";
@@ -318,6 +319,7 @@ const App: React.FC = () => {
                 />
               )}
               <TotpStepUpModal />
+              <TicTacToeModal />
               {isSettingsModalOpen && <UserSettings />}
               {isQuickActionsOpen && <QuickActions />}
               {isChannelListModalOpen && <ChannelListModal />}
