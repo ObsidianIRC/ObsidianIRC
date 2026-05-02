@@ -72,6 +72,14 @@ export function handleNote(
     target,
     message,
   });
+  if (cmd === "2FA") {
+    ctx.triggerEvent("TWOFA_NOTE", {
+      serverId,
+      mtags,
+      code,
+      args: parv.slice(2),
+    });
+  }
 }
 
 export function handleSuccess(
@@ -133,6 +141,31 @@ export function handleVerify(
   _mtags: Record<string, string> | undefined,
 ): void {
   // original code only handles VERIFY SUCCESS with local variables, fires no event
+}
+
+// `:server 2FA <subcommand> [SUCCESS] [arg ...] :description`
+// Examples:
+//   :server 2FA ADD SUCCESS totp cred-1 :Credential 'Phone' registered.
+//   :server 2FA REMOVE SUCCESS cred-1 :...
+//   :server 2FA ENABLE SUCCESS :...
+//   :server 2FA DISABLE SUCCESS :...
+export function handleTwoFA(
+  ctx: IRCClientContext,
+  serverId: string,
+  _source: string,
+  parv: string[],
+  mtags: Record<string, string> | undefined,
+): void {
+  const subcommand = parv[0];
+  const status = parv[1];
+  const args = parv.slice(2);
+  ctx.triggerEvent("TWOFA", {
+    serverId,
+    mtags,
+    subcommand,
+    status,
+    args,
+  });
 }
 
 export function handleExtjwt(

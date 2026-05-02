@@ -247,29 +247,48 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           )}
 
           {showAccount && (
-            <div className="mb-4 flex gap-4">
-              <div className="mb-4">
-                <label className="block text-discord-text-muted text-sm font-medium mb-1">
-                  Account details
-                </label>
-                <TextInput
-                  value={saslAccountName || nickname}
-                  onChange={(e) => setSaslAccountName(e.target.value)}
-                  placeholder="SASL Account Name"
-                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                />
+            <>
+              <div className="mb-4 flex gap-4">
+                <div className="mb-4">
+                  <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                    Account details
+                  </label>
+                  <TextInput
+                    value={saslAccountName || nickname}
+                    onChange={(e) => setSaslAccountName(e.target.value)}
+                    placeholder="SASL Account Name"
+                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
+                  <TextInput
+                    type="password"
+                    value={saslPassword ? atob(saslPassword) : ""}
+                    onChange={(e) => setSaslPassword(btoa(e.target.value))}
+                    placeholder="Password"
+                    className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+                  />
+                </div>
               </div>
-              <div className="mb-4">
-                <label className="block text-discord-text-muted text-sm font-medium mb-1 mt-6" />
-                <TextInput
-                  type="password"
-                  value={saslPassword ? atob(saslPassword) : ""}
-                  onChange={(e) => setSaslPassword(btoa(e.target.value))}
-                  placeholder="Password"
-                  className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
-                />
-              </div>
-            </div>
+              {server?.capabilities?.some((c) =>
+                c.startsWith("draft/account-2fa"),
+              ) && (
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useStore
+                        .getState()
+                        .toggleTwoFactorSettings(true, serverId);
+                    }}
+                    className="px-3 py-2 rounded bg-discord-dark-400 text-discord-text-normal hover:bg-discord-dark-300 text-sm"
+                  >
+                    Manage two-factor authentication
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {/* IRC Operator Section */}

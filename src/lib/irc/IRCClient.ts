@@ -245,6 +245,15 @@ export interface EventMap {
     serviceName: string;
     jwtToken: string;
   };
+  TWOFA: EventWithTags & {
+    subcommand: string;
+    status: string;
+    args: string[];
+  };
+  TWOFA_NOTE: EventWithTags & {
+    code: string;
+    args: string[];
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -1354,6 +1363,10 @@ export class IRCClient implements IRCClientContext {
 
   isCapNegotiationComplete(serverId: string): boolean {
     return this.capNegotiationComplete.get(serverId) ?? false;
+  }
+
+  getSaslMechanisms(serverId: string): string[] {
+    return this.saslMechanisms.get(serverId) ?? [];
   }
 
   getNick(serverId: string): string | undefined {
