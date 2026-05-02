@@ -832,6 +832,23 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </button>
               )}
               <button
+                className="p-2 md:p-0 hover:text-discord-text-normal"
+                onClick={() => {
+                  if (selectedServerId && selectedPrivateChat) {
+                    useStore
+                      .getState()
+                      .tictactoeInvite(
+                        selectedServerId,
+                        selectedPrivateChat.username,
+                      );
+                  }
+                }}
+                aria-label="Play Tic-Tac-Toe"
+                title="Play Tic-Tac-Toe"
+              >
+                <span aria-hidden="true">🎮</span>
+              </button>
+              <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsSearchExpanded(!isSearchExpanded)}
                 aria-label="Toggle search"
