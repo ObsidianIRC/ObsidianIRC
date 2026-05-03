@@ -17,6 +17,11 @@ import { useTypingNotification } from "../../hooks/useTypingNotification";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
 import {
+  fetchUploadInfo,
+  uploadFile,
+  validateFileAgainstInfo,
+} from "../../lib/mediaUpload";
+import {
   type FormattingType,
   getPreviewStyles,
   isValidFormattingType,
@@ -44,6 +49,10 @@ import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
 import { TextArea } from "../ui/TextInput";
 import { TopicMediaStrip } from "../ui/TopicMediaStrip";
+import {
+  type UploadJob,
+  UploadProgressOverlay,
+} from "../ui/UploadProgressOverlay";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
 import {
@@ -130,6 +139,11 @@ export const ChatArea: React.FC<{
     file: null,
     previewUrl: null,
   });
+  // Multimedia uploads in flight.  Each job tracks one file's
+  // XHR-driven progress; once they all settle we send a single
+  // PRIVMSG with the URLs joined.
+  const [uploadJobs, setUploadJobs] = useState<UploadJob[]>([]);
+  const uploadAbortsRef = useRef<Map<string, AbortController>>(new Map());
   const [isServerNoticesPoppedOut, setIsServerNoticesPoppedOut] =
     useState(false);
   const [serverNoticesPopupPosition, setServerNoticesPopupPosition] = useState({
@@ -964,6 +978,145 @@ export const ChatArea: React.FC<{
       console.error("Image upload failed:", error);
       // TODO: Show error to user
     }
+  };
+
+  // Multi-file upload entry point.  Picks up an auth token (one-shot
+  // per batch -- the backend accepts the same token across many
+  // uploads), kicks off N uploads in parallel, surfaces per-file
+  // progress, and on full success sends a single PRIVMSG containing
+  // all the resulting URLs separated by spaces.
+  const handleFilesUpload = async (files: File[]) => {
+    if (!selectedServer?.filehost || !selectedServerId || files.length === 0) {
+      return;
+    }
+    const filehostUrl = selectedServer.filehost;
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+    if (!target) return;
+
+    // Pre-flight: pull the policy so we can reject obviously-bad
+    // files before pushing bytes.
+    const info = await fetchUploadInfo(filehostUrl);
+
+    // Acquire auth token (reuse existing EXTJWT flow).  The backend
+    // doesn't need a fresh token per file -- the same Bearer is
+    // accepted until expiry, so we mint once.
+    let jwtToken = selectedServer?.jwtToken;
+    if (!jwtToken) {
+      useStore.setState((state) => ({
+        servers: state.servers.map((server) =>
+          server.id === selectedServerId
+            ? { ...server, jwtToken: undefined }
+            : server,
+        ),
+      }));
+      ircClient.requestExtJwt(selectedServerId, "*", "filehost");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const updated = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
+      jwtToken = updated?.jwtToken;
+    }
+    if (!jwtToken) {
+      console.error("Failed to obtain auth token for file upload");
+      return;
+    }
+
+    // Build the job list in one go so the progress strip appears
+    // immediately, before any network roundtrip.
+    const initialJobs: UploadJob[] = files.map((f) => ({
+      id: uuidv4(),
+      file: f,
+      loaded: 0,
+      total: f.size,
+      status: "pending",
+    }));
+    setUploadJobs((prev) => [...prev, ...initialJobs]);
+
+    const updateJob = (id: string, patch: Partial<UploadJob>) =>
+      setUploadJobs((prev) =>
+        prev.map((j) => (j.id === id ? { ...j, ...patch } : j)),
+      );
+
+    // Run all uploads in parallel; collect URLs in original input order.
+    const results = await Promise.all(
+      initialJobs.map(async (job) => {
+        // Cheap client-side validation -- saves a server round-trip
+        // and gives the user immediate feedback.
+        const validationError = validateFileAgainstInfo(job.file, info);
+        if (validationError) {
+          updateJob(job.id, {
+            status: "failed",
+            error: validationError,
+          });
+          return null;
+        }
+        const ac = new AbortController();
+        uploadAbortsRef.current.set(job.id, ac);
+        updateJob(job.id, { status: "uploading" });
+        try {
+          const url = await uploadFile(job.file, {
+            filehostUrl,
+            bearerToken: jwtToken as string,
+            signal: ac.signal,
+            onProgress: (loaded, total) => updateJob(job.id, { loaded, total }),
+          });
+          updateJob(job.id, {
+            status: "done",
+            loaded: job.file.size,
+            total: job.file.size,
+            url,
+          });
+          uploadAbortsRef.current.delete(job.id);
+          return url;
+        } catch (err) {
+          uploadAbortsRef.current.delete(job.id);
+          const msg = typeof err === "string" ? err : String(err);
+          updateJob(job.id, { status: "failed", error: msg });
+          return null;
+        }
+      }),
+    );
+
+    const urls = results.filter((u): u is string => !!u);
+    if (urls.length === 0) {
+      // All failed: leave the strip up so the user sees error reasons.
+      return;
+    }
+
+    // Send a single PRIVMSG carrying all successful URLs space-joined.
+    // Channels echo back; PMs need a local insert so the user sees
+    // their own message immediately.
+    const line = urls.join(" ");
+    ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${line}`);
+    if (selectedPrivateChat && currentUser) {
+      const outgoing = {
+        id: uuidv4(),
+        content: line,
+        timestamp: new Date(),
+        userId: currentUser.username || currentUser.id,
+        channelId: selectedPrivateChat.id,
+        serverId: selectedServerId,
+        type: "message" as const,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+      };
+      useStore.getState().addMessage(outgoing);
+    }
+
+    // Clear the strip after a short pause so the user can see
+    // "done" before it disappears.
+    setTimeout(() => {
+      setUploadJobs((prev) =>
+        prev.filter((j) => !initialJobs.find((i) => i.id === j.id)),
+      );
+    }, 1500);
+  };
+
+  const cancelUploadJob = (id: string) => {
+    const ac = uploadAbortsRef.current.get(id);
+    if (ac) ac.abort();
+    setUploadJobs((prev) => prev.filter((j) => j.id !== id));
   };
 
   const handleGifSend = (gifUrl: string) => {
@@ -2022,29 +2175,44 @@ export const ChatArea: React.FC<{
                     <button
                       className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
                       onClick={() => {
-                        // Handle image selection for preview
+                        // Multi-file picker: images, videos, audio.
+                        // The backend's allowlist is the source of
+                        // truth, but we hint accept= so the OS file
+                        // dialog filters sensibly.
                         const input = document.createElement("input");
                         input.type = "file";
-                        input.accept = "image/*";
+                        input.multiple = true;
+                        input.accept = "image/*,video/*,audio/*";
                         input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement)
-                            .files?.[0];
-                          if (file) {
-                            // Create preview URL
-                            const previewUrl = URL.createObjectURL(file);
+                          const files = Array.from(
+                            (e.target as HTMLInputElement).files ?? [],
+                          );
+                          if (files.length === 0) return;
+                          // For a single image, keep the legacy
+                          // confirm-then-upload preview UX so users
+                          // can see the picture before sending.
+                          if (
+                            files.length === 1 &&
+                            files[0].type.startsWith("image/")
+                          ) {
+                            const previewUrl = URL.createObjectURL(files[0]);
                             setImagePreview({
                               isOpen: true,
-                              file,
+                              file: files[0],
                               previewUrl,
                             });
+                            return;
                           }
+                          // Multi-file or non-image: go straight to
+                          // upload with the progress strip.
+                          handleFilesUpload(files);
                         };
                         input.click();
                         setShowPlusMenu(false);
                       }}
                     >
                       <FaPlus className="mr-2" />
-                      Upload Image
+                      Upload Files
                     </button>
                   )}
                   <button
@@ -2100,6 +2268,12 @@ export const ChatArea: React.FC<{
                   onClose={() => setIsEmojiSelectorOpen(false)}
                 />
               )}
+
+              {/* Multi-file upload progress strip, anchored above input */}
+              <UploadProgressOverlay
+                jobs={uploadJobs}
+                onCancel={cancelUploadJob}
+              />
 
               <AutocompleteDropdown
                 users={
@@ -2268,7 +2442,9 @@ export const ChatArea: React.FC<{
         }}
         onUpload={() => {
           if (imagePreview.file) {
-            handleImageUpload(imagePreview.file);
+            // Route through the new progress-aware path so single-file
+            // uploads also get the "uploading…" overlay.
+            handleFilesUpload([imagePreview.file]);
           }
           // Clean up preview URL
           if (imagePreview.previewUrl) {
