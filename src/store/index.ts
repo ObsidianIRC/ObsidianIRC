@@ -1602,7 +1602,55 @@ const useStore = create<AppState>((set, get) => ({
         server?.privateChats?.find((pc) => pc.id === selectedPrivateChatId)
           ?.username || null;
 
+      // When the user switches *to* a server, the channel or PM that
+      // restores into focus has now been "looked at" -- clear its
+      // unread / mention indicators.  Without this the badge sticks
+      // on the just-foregrounded buffer until the user clicks somewhere
+      // else and back.
+      let updatedServers = state.servers;
+      if (selectedChannelId || selectedPrivateChatId) {
+        updatedServers = state.servers.map((s) => {
+          if (s.id !== serverId) return s;
+          let touched = false;
+          const channels = s.channels.map((ch) => {
+            if (ch.id !== selectedChannelId) return ch;
+            if (
+              ch.unreadCount === 0 &&
+              !ch.isMentioned &&
+              (ch.mentionCount ?? 0) === 0
+            )
+              return ch;
+            touched = true;
+            return {
+              ...ch,
+              unreadCount: 0,
+              mentionCount: 0,
+              isMentioned: false,
+            };
+          });
+          const privateChats = s.privateChats?.map((pc) => {
+            if (pc.id !== selectedPrivateChatId) return pc;
+            if (
+              pc.unreadCount === 0 &&
+              !pc.isMentioned &&
+              (pc.mentionCount ?? 0) === 0
+            )
+              return pc;
+            touched = true;
+            return {
+              ...pc,
+              unreadCount: 0,
+              mentionCount: 0,
+              isMentioned: false,
+            };
+          });
+          if (!touched) return s;
+          return { ...s, channels, privateChats };
+        });
+      }
+
       return {
+        servers: updatedServers,
         ui: {
           ...state.ui,
           selectedServerId: serverId,
@@ -1697,6 +1745,7 @@ const useStore = create<AppState>((set, get) => ({
                 return {
                   ...channel,
                   unreadCount: 0,
+                  mentionCount: 0,
                   isMentioned: false,
                 };
               }
@@ -1784,6 +1833,7 @@ const useStore = create<AppState>((set, get) => ({
               return {
                 ...channel,
                 unreadCount: 0,
+                mentionCount: 0,
                 isMentioned: false,
               };
             }
@@ -1891,6 +1941,7 @@ const useStore = create<AppState>((set, get) => ({
                   return {
                     ...privateChat,
                     unreadCount: 0,
+                    mentionCount: 0,
                     isMentioned: false,
                   };
                 }

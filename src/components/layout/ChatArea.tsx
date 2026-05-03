@@ -42,6 +42,10 @@ import { MiniMediaPlayer } from "../ui/MiniMediaPlayer";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
+import {
+  getActiveSlashQuery,
+  SlashCommandPopover,
+} from "../ui/SlashCommandPopover";
 import { TextArea } from "../ui/TextInput";
 import { TopicMediaStrip } from "../ui/TopicMediaStrip";
 import UserContextMenu from "../ui/UserContextMenu";
@@ -108,6 +112,10 @@ export const ChatArea: React.FC<{
   // autocompleteInputText is updated only when autocomplete dropdowns are visible.
   const [hasText, setHasText] = useState(false);
   const [autocompleteInputText, setAutocompleteInputText] = useState("");
+  // Slash-command popover state.  Only updated when the input starts
+  // with "/" and we're still completing the command name -- otherwise
+  // typing wouldn't trigger a re-render for this popover at all.
+  const [slashInputValue, setSlashInputValue] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -1286,6 +1294,18 @@ export const ChatArea: React.FC<{
     cursorPositionRef.current = newCursorPosition;
     handleUpdatedText(newText);
 
+    // obsidianirc/cmdslist: update slash state only when relevant.
+    // When the input doesn't look like a command (no leading slash,
+    // or already past the command name), re-render only on the
+    // active->inactive transition to clear the popover.
+    const slashActive =
+      getActiveSlashQuery(newText, newCursorPosition) !== null;
+    if (slashActive) {
+      setSlashInputValue(newText);
+    } else if (slashInputValue !== "") {
+      setSlashInputValue("");
+    }
+
     // Exit history mode if user starts typing
     messageHistory.exitHistory();
 
@@ -2137,6 +2157,42 @@ export const ChatArea: React.FC<{
                 onNavigate={handleEmojiAutocompleteNavigate}
                 inputElement={inputRef.current}
               />
+
+              {/* obsidianirc/cmdslist: slash-command suggestion popover */}
+              {(() => {
+                const srv = servers.find((s) => s.id === selectedServerId);
+                const cmds = srv?.cmdsAvailable ?? [];
+                if (cmds.length === 0) return null;
+                const slashActive =
+                  getActiveSlashQuery(
+                    slashInputValue,
+                    cursorPositionRef.current,
+                  ) !== null;
+                return (
+                  <SlashCommandPopover
+                    isVisible={slashActive}
+                    inputValue={slashInputValue}
+                    commands={cmds}
+                    inputElement={inputRef.current}
+                    onSelect={(cmd) => {
+                      // Replace the partial command with /<cmd> + space
+                      // and put the cursor right after the space.
+                      const next = `/${cmd} `;
+                      applyText(next);
+                      cursorPositionRef.current = next.length;
+                      setSlashInputValue("");
+                      inputRef.current?.focus();
+                      inputRef.current?.setSelectionRange(
+                        next.length,
+                        next.length,
+                      );
+                    }}
+                    onClose={() => {
+                      setSlashInputValue("");
+                    }}
+                  />
+                );
+              })()}
 
               {/* Members dropdown triggered by @ button */}
               <AutocompleteDropdown
