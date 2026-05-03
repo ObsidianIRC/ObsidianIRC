@@ -58,6 +58,7 @@ export const TwoFactorSettingsModal: React.FC<Props> = ({
   const [enrollBusy, setEnrollBusy] = useState(false);
   const [disableCode, setDisableCode] = useState("");
   const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: store actions have unstable refs
   useEffect(() => {
@@ -219,27 +220,88 @@ export const TwoFactorSettingsModal: React.FC<Props> = ({
           </p>
         ) : (
           <ul className="mb-4 space-y-2">
-            {credentials.map((c) => (
-              <li
-                key={c.id}
-                className="flex justify-between items-center p-2 rounded bg-discord-dark-300"
-              >
-                <div className="text-sm">
-                  <div className="text-white font-medium">{c.name}</div>
-                  <div className="text-xs text-discord-text-muted">
-                    {TYPE_LABELS[c.type] ?? c.type}
-                    {c.createdAt ? ` · added ${c.createdAt}` : ""}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => twofaRemove(serverId, c.id)}
-                  className="text-xs text-discord-red hover:text-white"
+            {credentials.map((c) => {
+              // Mirror the server-side REMOVE_LAST_CREDENTIAL guard locally
+              // so we never even send the request: with 2FA enforcement on,
+              // removing the last credential would either be rejected by
+              // the server or, worse on a buggy server, lock the account
+              // out of login entirely (see account-2fa.md "Account With No
+              // Registered Credentials").
+              const isLastWhileEnabled =
+                status === "enabled" && credentials.length === 1;
+              const isPendingRemoval = removingId === c.id;
+              return (
+                <li
+                  key={c.id}
+                  className="p-2 rounded bg-discord-dark-300 space-y-2"
                 >
-                  Remove
-                </button>
-              </li>
-            ))}
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm">
+                      <div className="text-white font-medium">{c.name}</div>
+                      <div className="text-xs text-discord-text-muted">
+                        {TYPE_LABELS[c.type] ?? c.type}
+                        {c.createdAt ? ` · added ${c.createdAt}` : ""}
+                      </div>
+                    </div>
+                    {!isPendingRemoval && (
+                      <button
+                        type="button"
+                        onClick={() => setRemovingId(c.id)}
+                        className="text-xs text-discord-red hover:text-white"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {isPendingRemoval && isLastWhileEnabled && (
+                    <div className="text-xs bg-discord-dark-400 p-2 rounded">
+                      <p className="text-discord-yellow font-medium mb-1">
+                        Can't remove your last 2FA credential
+                      </p>
+                      <p className="text-discord-text-muted mb-2">
+                        2FA is currently enforced on this account. Removing the
+                        only registered credential would lock you out of login.
+                        Add another credential first, or disable 2FA below.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setRemovingId(null)}
+                        className="px-2 py-1 rounded bg-discord-dark-100 text-white"
+                      >
+                        OK
+                      </button>
+                    </div>
+                  )}
+                  {isPendingRemoval && !isLastWhileEnabled && (
+                    <div className="text-xs bg-discord-dark-400 p-2 rounded">
+                      <p className="text-white mb-2">
+                        Remove "{c.name}"? You will no longer be able to use it
+                        as a second factor.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            twofaRemove(serverId, c.id);
+                            setRemovingId(null);
+                          }}
+                          className="px-2 py-1 rounded bg-discord-red text-white"
+                        >
+                          Confirm remove
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRemovingId(null)}
+                          className="px-2 py-1 rounded bg-discord-dark-100 text-white"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
 
