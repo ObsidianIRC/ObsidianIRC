@@ -4,6 +4,7 @@ import {
   handleExtjwt,
   handleFail,
   handleNote,
+  handlePersistence,
   handleRegister,
   handleSuccess,
   handleTwoFA,
@@ -291,6 +292,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleTwoFA(ctx, serverId, source, parv, mtags),
   EXTJWT: (ctx, serverId, source, parv, mtags) =>
     handleExtjwt(ctx, serverId, source, parv, mtags),
+  PERSISTENCE: (ctx, serverId, source, parv, mtags) =>
+    handlePersistence(ctx, serverId, source, parv, mtags),
 
   "730": (ctx, serverId, source, parv, mtags) =>
     handleMonOnline(ctx, serverId, source, parv, mtags),

@@ -30,6 +30,7 @@ import useStore, {
   serverSupportsMetadata,
 } from "../../store";
 import AvatarUpload from "./AvatarUpload";
+import PersistenceSettingsPanel from "./PersistenceSettingsPanel";
 import { SettingField } from "./settings/SettingRenderer";
 import { TextInput } from "./TextInput";
 import UserProfileModal from "./UserProfileModal";
@@ -1301,6 +1302,9 @@ export const UserSettings: React.FC = React.memo(() => {
 
     return (
       <div className="space-y-4">
+        {/* draft/persistence: shown only when the server advertises it */}
+        <PersistenceSettingsPanel serverId={currentServer.id} />
+
         {/* IRC Operator Authentication */}
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
           <h3 className="text-discord-text-normal font-medium">IRC Operator</h3>

@@ -531,4 +531,42 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       });
     },
   );
+
+  // draft/persistence: cache the server's reported preference + effective
+  // setting so the UI can render a tri-state toggle without re-querying
+  // the server every time the panel opens.
+  ircClient.on("PERSISTENCE_STATUS", ({ serverId, preference, effective }) => {
+    store.setState((state) => ({
+      servers: state.servers.map((server) =>
+        server.id === serverId
+          ? {
+              ...server,
+              persistencePreference: preference,
+              persistenceEffective: effective,
+            }
+          : server,
+      ),
+    }));
+  });
+
+  // After CAP ACK we know whether the server supports draft/persistence.
+  // Issue an initial PERSISTENCE GET so the settings panel has fresh
+  // state by the time the user opens it.  We only do this once per
+  // (serverId, account) login -- the spec gates the command on
+  // IsLoggedIn, so we wait for the SASL success path to mark the
+  // session complete.
+  ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key }) => {
+    if (key !== "draft/persistence") return;
+    // Defer the GET until a tick later so SASL has had a chance to
+    // complete; the server returns ACCOUNT_REQUIRED otherwise and
+    // we'd just have to retry.  A small delay is fine because the
+    // user can't open the settings panel before the modal is
+    // mounted anyway.
+    setTimeout(() => {
+      const state = store.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server?.isConnected) return;
+      ircClient.persistenceGet(serverId);
+    }, 1500);
+  });
 }

@@ -46,6 +46,12 @@ export interface Server {
   jwtToken?: string; // JWT token for filehost authentication
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // draft/persistence state (populated from PERSISTENCE STATUS replies).
+  // `preference` is what the user has explicitly set on this account
+  // (ON/OFF) or DEFAULT meaning "follow the server-wide default".
+  // `effective` is what the server is actually doing right now.
+  persistencePreference?: "ON" | "OFF" | "DEFAULT";
+  persistenceEffective?: "ON" | "OFF";
 }
 
 export interface ServerConfig {

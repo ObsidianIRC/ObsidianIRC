@@ -262,6 +262,14 @@ export interface EventMap {
   RECOVER_FAIL: EventWithTags & { code: string; message: string };
   SETPASS_NOTE: EventWithTags & { code: string; args: string[] };
   SETPASS_FAIL: EventWithTags & { code: string; message: string };
+  // draft/persistence: server reply
+  // `:server PERSISTENCE STATUS <client-setting> <effective-setting>`
+  // where each is one of ON | OFF | DEFAULT (effective is always ON|OFF).
+  PERSISTENCE_STATUS: BaseIRCEvent & {
+    preference: "ON" | "OFF" | "DEFAULT";
+    effective: "ON" | "OFF";
+  };
+  PERSISTENCE_FAIL: EventWithTags & { code: string; message: string };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -1340,6 +1348,16 @@ export class IRCClient implements IRCClientContext {
   // spaces (for passphrases).  No base64 -- the password is UTF-8.
   setpass(serverId: string, newPassword: string): void {
     this.sendRaw(serverId, `SETPASS :${newPassword}`);
+  }
+
+  // draft/persistence: read or set the per-account ghost-on-disconnect
+  // preference.  Server responds with PERSISTENCE STATUS.
+  persistenceGet(serverId: string): void {
+    this.sendRaw(serverId, "PERSISTENCE GET");
+  }
+
+  persistenceSet(serverId: string, value: "ON" | "OFF" | "DEFAULT"): void {
+    this.sendRaw(serverId, `PERSISTENCE SET ${value}`);
   }
 
   // MONITOR commands
