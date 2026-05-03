@@ -135,25 +135,33 @@ export function handleVerify(
   // original code only handles VERIFY SUCCESS with local variables, fires no event
 }
 
-export function handleExtjwt(
+// draft/authtoken: TOKEN GENERATE / TOKEN SERVICE.  TOKEN VALIDATE/CLAIM
+// is server-internal (only sent by other servers, never to clients) so
+// we don't dispatch on it.
+export function handleToken(
   ctx: IRCClientContext,
   serverId: string,
   _source: string,
   parv: string[],
   _mtags: Record<string, string> | undefined,
 ): void {
-  const requestedTarget = parv[0];
-  const serviceName = parv[1];
-  let jwtToken: string;
-  if (parv[2] === "*") {
-    jwtToken = parv[3];
-  } else {
-    jwtToken = parv[2];
+  const sub = parv[0]?.toUpperCase();
+  if (sub === "GENERATE") {
+    // TOKEN GENERATE <service> <url> :<token>
+    const service = parv[1] ?? "";
+    const url = parv[2] ?? "";
+    const token = (parv[3] ?? "").replace(/^:/, "");
+    ctx.triggerEvent("TOKEN_GENERATE", { serverId, service, url, token });
+    return;
   }
-  ctx.triggerEvent("EXTJWT", {
-    serverId,
-    requestedTarget,
-    serviceName,
-    jwtToken,
-  });
+  if (sub === "SERVICE") {
+    // TOKEN SERVICE <name> <url> :<description> -- batched inside
+    // draft/authtoken; we just emit one event per line.
+    const service = parv[1] ?? "";
+    const url = parv[2] ?? "";
+    const description = (parv[3] ?? "").replace(/^:/, "");
+    ctx.triggerEvent("TOKEN_SERVICE", { serverId, service, url, description });
+    return;
+  }
+  // CLAIM and VALIDATE never reach a client; ignore quietly.
 }

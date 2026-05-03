@@ -1,11 +1,11 @@
 import type { IRCClientContext } from "../IRCClientContext";
 import {
   handleAuthenticate,
-  handleExtjwt,
   handleFail,
   handleNote,
   handleRegister,
   handleSuccess,
+  handleToken,
   handleVerify,
   handleWarn,
 } from "./auth";
@@ -286,8 +286,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleRegister(ctx, serverId, source, parv, mtags),
   VERIFY: (ctx, serverId, source, parv, mtags) =>
     handleVerify(ctx, serverId, source, parv, mtags),
-  EXTJWT: (ctx, serverId, source, parv, mtags) =>
-    handleExtjwt(ctx, serverId, source, parv, mtags),
+  TOKEN: (ctx, serverId, source, parv, mtags) =>
+    handleToken(ctx, serverId, source, parv, mtags),
 
   "730": (ctx, serverId, source, parv, mtags) =>
     handleMonOnline(ctx, serverId, source, parv, mtags),

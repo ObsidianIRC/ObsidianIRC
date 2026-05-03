@@ -43,9 +43,18 @@ export interface Server {
   botMode?: string;
   filehost?: string;
   linkSecurity?: number; // Link security level from unrealircd.org/link-security
-  jwtToken?: string; // JWT token for filehost authentication
+  // Bearer token from draft/authtoken (TOKEN GENERATE).  Used as the
+  // `Authorization: Bearer <token>` header for the per-network filehost.
+  authToken?: string;
+  // URL the token is bound to (returned alongside the token).  Falls
+  // back to `filehost` for older servers.
+  authTokenUrl?: string;
+  // Service the token was minted for, e.g. "filehost".
+  authTokenService?: string;
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // draft/EMOJI ISUPPORT: URL to the network-wide pack document.
+  emojiPackUrl?: string;
 }
 
 export interface ServerConfig {

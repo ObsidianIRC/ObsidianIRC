@@ -21,6 +21,9 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
           "color",
           "display-name",
           "bot",
+          // draft/custom-emoji: channel-scoped pack URL.  Subscribing
+          // here so we get notified when a channel ops sets a new pack.
+          "draft/emoji",
         ];
         store.getState().metadataSub(serverId, defaultKeys);
       }
@@ -317,24 +320,21 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     }
   });
 
-  ircClient.on(
-    "EXTJWT",
-    ({ serverId, requestedTarget, serviceName, jwtToken }) => {
-      console.log("🔑 EXTJWT received:", {
-        serverId,
-        requestedTarget,
-        serviceName,
-        jwtToken: jwtToken ? "present" : "missing",
-      });
-      store.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id === serverId) {
-            return { ...server, jwtToken };
-          }
-          return server;
-        });
-        return { servers: updatedServers };
-      });
-    },
-  );
+  // draft/authtoken: cache the bearer token + bound URL on the server
+  // record.  Components wait on `authToken` to flip from undefined to a
+  // string after they call requestToken().
+  ircClient.on("TOKEN_GENERATE", ({ serverId, service, url, token }) => {
+    store.setState((state) => ({
+      servers: state.servers.map((server) =>
+        server.id === serverId
+          ? {
+              ...server,
+              authToken: token,
+              authTokenUrl: url,
+              authTokenService: service,
+            }
+          : server,
+      ),
+    }));
+  });
 }

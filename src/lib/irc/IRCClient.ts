@@ -240,10 +240,18 @@ export interface EventMap {
     limit: number;
     targets: string[];
   };
-  EXTJWT: BaseIRCEvent & {
-    requestedTarget: string;
-    serviceName: string;
-    jwtToken: string;
+  // draft/authtoken: server reply to TOKEN GENERATE.
+  TOKEN_GENERATE: BaseIRCEvent & {
+    service: string;
+    url: string;
+    token: string;
+  };
+  // draft/authtoken: TOKEN SERVICE entry inside a draft/authtoken BATCH
+  // (sent in reply to TOKEN SERVICELIST). One event per service.
+  TOKEN_SERVICE: BaseIRCEvent & {
+    service: string;
+    url: string;
+    description: string;
   };
   WHOIS_BOT: {
     serverId: string;
@@ -1299,14 +1307,18 @@ export class IRCClient implements IRCClientContext {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
   }
 
-  // EXTJWT commands
-  requestExtJwt(serverId: string, target?: string, serviceName?: string): void {
-    // EXTJWT ( <channel> | * ) [service_name]
-    const targetParam = target || "*";
-    const command = serviceName
-      ? `EXTJWT ${targetParam} ${serviceName}`
-      : `EXTJWT ${targetParam}`;
+  // draft/authtoken: ask the server to mint a bearer token for `service`.
+  // Server reply is `:server TOKEN GENERATE <service> <url> :<token>`.
+  requestToken(serverId: string, service: string, scope?: string): void {
+    const command = scope
+      ? `TOKEN GENERATE ${service} ${scope}`
+      : `TOKEN GENERATE ${service}`;
     this.sendRaw(serverId, command);
+  }
+
+  // draft/authtoken: list services the server can mint tokens for.
+  requestTokenServiceList(serverId: string): void {
+    this.sendRaw(serverId, "TOKEN SERVICELIST");
   }
 
   // MONITOR commands
