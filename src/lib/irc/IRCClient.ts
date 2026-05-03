@@ -470,6 +470,7 @@ export class IRCClient implements IRCClientContext {
     "invite-notify",
     "monitor",
     "extended-monitor",
+    "labeled-response",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 

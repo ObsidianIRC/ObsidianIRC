@@ -647,7 +647,13 @@ export const MessageItem = memo((props: MessageItemProps) => {
       data-message-id={message.id}
       className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-150 ${
         showHeader ? "mt-4" : "py-0.5"
-      }${isHighlighted ? " bg-primary/10 ring-1 ring-primary/30 rounded" : ""}`}
+      }${isHighlighted ? " bg-primary/10 ring-1 ring-primary/30 rounded" : ""}${
+        message.status === "pending"
+          ? " opacity-60 italic"
+          : message.status === "failed"
+            ? " opacity-60 line-through text-discord-red"
+            : ""
+      }`}
       onMouseEnter={handleMessageMouseEnter}
       onMouseLeave={handleMessageMouseLeave}
       onTouchStart={longPress.onTouchStart}

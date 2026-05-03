@@ -168,6 +168,17 @@ export interface Message {
   jsonLogData?: JsonValue;
   // True when the message was replayed from chathistory (not a live event)
   fromHistory?: boolean;
+  // labeled-response: when the user sends a message with the
+  // labeled-response cap acked, we insert a local placeholder
+  // immediately and wait for the server's echo to match it back.
+  // `pendingLabel` is the label tag value we attached on send, set
+  // only on the local placeholder until the echo arrives.
+  pendingLabel?: string;
+  // labeled-response: lifecycle state of an outgoing message.
+  // - "pending": placeholder awaiting server echo
+  // - "failed": no echo / FAIL arrived in the timeout window
+  // undefined => normal received message (no pending lifecycle).
+  status?: "pending" | "failed";
 }
 
 // Alias for backwards compatibility
