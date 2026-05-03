@@ -270,6 +270,18 @@ export interface EventMap {
     effective: "ON" | "OFF";
   };
   PERSISTENCE_FAIL: EventWithTags & { code: string; message: string };
+  // draft/read-marker: server reply
+  // `:server MARKREAD <target> {timestamp=<ts>|*}`.  `timestamp` is null
+  // when the server reports "*" (no marker on file yet).
+  MARKREAD: BaseIRCEvent & {
+    target: string;
+    timestamp: string | null;
+  };
+  MARKREAD_FAIL: EventWithTags & {
+    code: string;
+    target?: string;
+    message: string;
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -495,6 +507,7 @@ export class IRCClient implements IRCClientContext {
     "invite-notify",
     "monitor",
     "extended-monitor",
+    "draft/read-marker",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -1358,6 +1371,20 @@ export class IRCClient implements IRCClientContext {
 
   persistenceSet(serverId: string, value: "ON" | "OFF" | "DEFAULT"): void {
     this.sendRaw(serverId, `PERSISTENCE SET ${value}`);
+  }
+
+  // draft/read-marker: ask the server for the stored marker for a
+  // target.  Channels are auto-pushed on JOIN, so this is mostly used
+  // when a PM buffer is opened for the first time.
+  markreadGet(serverId: string, target: string): void {
+    this.sendRaw(serverId, `MARKREAD ${target}`);
+  }
+
+  // draft/read-marker: tell the server the user has read up to
+  // `timestamp` in `target`.  Server clamps to monotonically-increasing
+  // values and replies with MARKREAD echoing whatever it stored.
+  markreadSet(serverId: string, target: string, timestamp: string): void {
+    this.sendRaw(serverId, `MARKREAD ${target} timestamp=${timestamp}`);
   }
 
   // MONITOR commands

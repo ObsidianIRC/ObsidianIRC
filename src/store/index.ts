@@ -113,6 +113,35 @@ export const getChannelMessages = (serverId: string, channelId: string) => {
   return state.messages[key] || [];
 };
 
+// draft/read-marker: find the latest message timestamp (across normal
+// chat messages -- system / event rows are ignored so reading a "X
+// joined" line doesn't move the marker).  Returns an ISO 8601 string
+// in the spec's format, or null if there's nothing to mark.
+const ISO_DROP_END_RX = /Z?$/;
+function _toMarkreadIso(d: Date): string {
+  // The spec mandates "YYYY-MM-DDThh:mm:ss.sssZ" -- exactly the form
+  // toISOString() emits.
+  return d.toISOString().replace(ISO_DROP_END_RX, "Z");
+}
+
+export function getLatestMessageTimestampIso(
+  serverId: string,
+  bufferId: string,
+): string | null {
+  const state = useStore.getState();
+  const key = `${serverId}-${bufferId}`;
+  const messages = state.messages[key];
+  if (!messages || messages.length === 0) return null;
+  let latest: number | null = null;
+  for (const msg of messages) {
+    if (msg.type !== "message" && msg.type !== undefined) continue;
+    const t = msg.timestamp ? new Date(msg.timestamp).getTime() : Number.NaN;
+    if (Number.isNaN(t)) continue;
+    if (latest === null || t > latest) latest = t;
+  }
+  return latest === null ? null : _toMarkreadIso(new Date(latest));
+}
+
 export const findChannelMessageById = (
   serverId: string,
   channelId: string,
@@ -1789,6 +1818,16 @@ const useStore = create<AppState>((set, get) => ({
         const channelName =
           server?.channels.find((c) => c.id === channelId)?.name || null;
 
+        // draft/read-marker: tell the server how far we've read so
+        // our other sessions clear their unread state too.
+        if (
+          channelName &&
+          server?.capabilities?.includes("draft/read-marker")
+        ) {
+          const ts = getLatestMessageTimestampIso(serverId, channelId);
+          if (ts) ircClient.markreadSet(serverId, channelName, ts);
+        }
+
         // Update unread state in store
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
@@ -1979,9 +2018,21 @@ const useStore = create<AppState>((set, get) => ({
       // Mark private chat as read
       if (serverId && privateChatId) {
         const server = state.servers.find((s) => s.id === serverId);
-        const pcUsername =
-          server?.privateChats?.find((pc) => pc.id === privateChatId)
-            ?.username || null;
+        const pc = server?.privateChats?.find((pc) => pc.id === privateChatId);
+        const pcUsername = pc?.username || null;
+
+        // draft/read-marker: PMs aren't auto-pushed by the server,
+        // so the first time we open one ask for its stored marker
+        // (so the unread badge can clear if another device already
+        // read past it).  After that, push the latest timestamp like
+        // we do for channels.
+        if (pcUsername && server?.capabilities?.includes("draft/read-marker")) {
+          if (!pc?.readMarkerFetched) {
+            ircClient.markreadGet(serverId, pcUsername);
+          }
+          const ts = getLatestMessageTimestampIso(serverId, privateChatId);
+          if (ts) ircClient.markreadSet(serverId, pcUsername, ts);
+        }
 
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
@@ -1992,6 +2043,10 @@ const useStore = create<AppState>((set, get) => ({
                     ...privateChat,
                     unreadCount: 0,
                     isMentioned: false,
+                    // Mark as fetched so we don't spam GETs on every
+                    // re-selection of the same PM.  The reply will
+                    // overwrite this with the actual marker.
+                    readMarkerFetched: true,
                   };
                 }
                 return privateChat;

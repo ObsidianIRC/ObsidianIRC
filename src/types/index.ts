@@ -102,6 +102,10 @@ export interface Channel {
   bans?: Array<{ mask: string; setter: string; timestamp: number }>;
   invites?: Array<{ mask: string; setter: string; timestamp: number }>;
   exceptions?: Array<{ mask: string; setter: string; timestamp: number }>;
+  // draft/read-marker: ISO-8601 timestamp of the latest message the
+  // user has marked as read in this channel (mirrored across all of
+  // the user's connected sessions).  null = no marker on file yet.
+  readMarker?: string | null;
 }
 
 export interface PrivateChat {
@@ -121,6 +125,12 @@ export interface PrivateChat {
   isBot?: boolean; // Bot status from WHO/WHOX or message tags
   isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
+  // draft/read-marker: see Channel.readMarker.
+  readMarker?: string | null;
+  // draft/read-marker: have we issued an initial MARKREAD GET for this
+  // PM yet?  PMs are not auto-pushed by the server, so we need to
+  // explicitly fetch on first open.
+  readMarkerFetched?: boolean;
 }
 
 export interface Reaction {
