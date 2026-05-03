@@ -3,6 +3,8 @@ import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
 import useStore, { loadSavedServers } from "../../store";
 import type { ServerConfig } from "../../types";
+import ChangePasswordModal from "./ChangePasswordModal";
+import PasswordRecoveryModal from "./PasswordRecoveryModal";
 import { TextInput } from "./TextInput";
 
 interface EditServerModalProps {
@@ -53,6 +55,8 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const [registerAccount, setRegisterAccount] = useState(false);
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -288,6 +292,26 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
                   </button>
                 </div>
               )}
+              {server?.capabilities?.includes("draft/account-recovery") && (
+                <div className="mb-4 flex flex-wrap gap-2 text-sm">
+                  {server.isConnected && (
+                    <button
+                      type="button"
+                      onClick={() => setShowChangePassword(true)}
+                      className="px-3 py-2 rounded bg-discord-dark-400 text-discord-text-normal hover:bg-discord-dark-300"
+                    >
+                      Change password
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowRecovery(true)}
+                    className="px-3 py-2 rounded bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 hover:text-white"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -461,6 +485,19 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           </div>
         </form>
       </div>
+      {showRecovery && (
+        <PasswordRecoveryModal
+          serverId={serverId}
+          initialAccount={saslAccountName || nickname}
+          onClose={() => setShowRecovery(false)}
+        />
+      )}
+      {showChangePassword && (
+        <ChangePasswordModal
+          serverId={serverId}
+          onClose={() => setShowChangePassword(false)}
+        />
+      )}
     </div>
   );
 };

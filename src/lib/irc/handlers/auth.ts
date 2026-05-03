@@ -30,6 +30,12 @@ export function handleFail(
     target,
     message,
   });
+  // draft/account-recovery typed projections so components don't
+  // have to filter the FAIL stream by command on every render.
+  if (cmd === "RECOVER")
+    ctx.triggerEvent("RECOVER_FAIL", { serverId, mtags, code, message });
+  else if (cmd === "SETPASS")
+    ctx.triggerEvent("SETPASS_FAIL", { serverId, mtags, code, message });
 }
 
 export function handleWarn(
@@ -74,6 +80,22 @@ export function handleNote(
   });
   if (cmd === "2FA") {
     ctx.triggerEvent("TWOFA_NOTE", {
+      serverId,
+      mtags,
+      code,
+      args: parv.slice(2),
+    });
+  }
+  // draft/account-recovery typed projections
+  if (cmd === "RECOVER") {
+    ctx.triggerEvent("RECOVER_NOTE", {
+      serverId,
+      mtags,
+      code,
+      args: parv.slice(2),
+    });
+  } else if (cmd === "SETPASS") {
+    ctx.triggerEvent("SETPASS_NOTE", {
       serverId,
       mtags,
       code,

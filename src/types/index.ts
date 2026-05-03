@@ -61,7 +61,12 @@ export interface ServerConfig {
   saslEnabled: boolean;
   // "auto" prefers SCRAM-SHA-256 when the server advertises it and falls
   // back to PLAIN, "webauthn" uses DRAFT-WEBAUTHN-BIO directly.
-  saslMechanism?: "auto" | "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO";
+  saslMechanism?:
+    | "auto"
+    | "PLAIN"
+    | "SCRAM-SHA-256"
+    | "DRAFT-WEBAUTHN-BIO"
+    | "EXTERNAL";
   skipLinkSecurityWarning?: boolean;
   skipLocalhostWarning?: boolean;
   operUsername?: string;

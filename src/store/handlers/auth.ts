@@ -19,7 +19,7 @@ import { normalizeHost } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
-type SaslMech = "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO";
+type SaslMech = "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO" | "EXTERNAL";
 
 interface SaslSession {
   mech: SaslMech;
@@ -33,8 +33,17 @@ const sessions = new Map<string, SaslSession>();
 
 function chooseMechanism(
   available: string[],
-  pref: "auto" | "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO" | undefined,
+  pref:
+    | "auto"
+    | "PLAIN"
+    | "SCRAM-SHA-256"
+    | "DRAFT-WEBAUTHN-BIO"
+    | "EXTERNAL"
+    | undefined,
 ): SaslMech {
+  // EXTERNAL is a deliberate user choice (the cert is on this device,
+  // typically) -- never picked under "auto".
+  if (pref === "EXTERNAL" && available.includes("EXTERNAL")) return "EXTERNAL";
   if (pref === "DRAFT-WEBAUTHN-BIO" && available.includes("DRAFT-WEBAUTHN-BIO"))
     return "DRAFT-WEBAUTHN-BIO";
   if (pref === "PLAIN") return "PLAIN";
@@ -55,10 +64,11 @@ function loadCreds(
     ? serv.saslAccountName
     : serv.nickname;
   const pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
-  if (!user || !pass) return null;
+  // EXTERNAL has no password -- the TLS cert is the proof.
+  if (!user || (serv.saslMechanism !== "EXTERNAL" && !pass)) return null;
   const available = ircClient.getSaslMechanisms(serverId);
   const mech = chooseMechanism(available, serv.saslMechanism);
-  return { user, pass, mech };
+  return { user, pass: pass ?? "", mech };
 }
 
 function clearSession(serverId: string) {
@@ -135,6 +145,14 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     }
 
     try {
+      if (session.mech === "EXTERNAL") {
+        // SASL EXTERNAL: server sends `+` to acknowledge the mechanism,
+        // we reply with `+` to mean "use the identity already
+        // established by the TLS cert".  No further frames.
+        if (param === "+") ircClient.sendRaw(serverId, "AUTHENTICATE +");
+        return;
+      }
+
       if (session.mech === "PLAIN") {
         if (param !== "+") return;
         if (!session.password) return;

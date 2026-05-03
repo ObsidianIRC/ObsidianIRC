@@ -254,6 +254,14 @@ export interface EventMap {
     code: string;
     args: string[];
   };
+  // draft/account-recovery: convenient typed projection of the
+  // generic NOTE/FAIL events for the RECOVER + SETPASS commands.
+  // The dispatch in handlers/auth.ts emits these alongside the
+  // generic NOTE/FAIL.
+  RECOVER_NOTE: EventWithTags & { code: string; args: string[] };
+  RECOVER_FAIL: EventWithTags & { code: string; message: string };
+  SETPASS_NOTE: EventWithTags & { code: string; args: string[] };
+  SETPASS_FAIL: EventWithTags & { code: string; message: string };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -1316,6 +1324,22 @@ export class IRCClient implements IRCClientContext {
       ? `EXTJWT ${targetParam} ${serviceName}`
       : `EXTJWT ${targetParam}`;
     this.sendRaw(serverId, command);
+  }
+
+  // draft/account-recovery: forgotten-password flow.
+  recoverRequest(serverId: string, account: string): void {
+    this.sendRaw(serverId, `RECOVER REQUEST ${account}`);
+  }
+
+  recoverConfirm(serverId: string, account: string, code: string): void {
+    this.sendRaw(serverId, `RECOVER CONFIRM ${account} ${code}`);
+  }
+
+  // SETPASS lives in the same draft/account-recovery cap.  The new
+  // password is sent as the IRC trailing parameter so it MAY contain
+  // spaces (for passphrases).  No base64 -- the password is UTF-8.
+  setpass(serverId: string, newPassword: string): void {
+    this.sendRaw(serverId, `SETPASS :${newPassword}`);
   }
 
   // MONITOR commands
