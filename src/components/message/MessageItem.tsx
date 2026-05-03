@@ -356,7 +356,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
     const ch = server?.channels.find((c) => c.id === channelId);
     return ch?.metadata?.["draft/emoji"]?.value;
   }, [server, channelId]);
-  const resolveEmoji = useEmojiResolver([
+  const { resolve: resolveEmoji } = useEmojiResolver([
     channelEmojiUrl,
     server?.emojiPackUrl,
   ]);

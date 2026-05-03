@@ -17,7 +17,7 @@ describe("customEmoji", () => {
         renderText,
         "k",
       );
-      const html = renderToStaticMarkup(<>{out}</>);
+      const html = renderToStaticMarkup(out);
       expect(html).toBe("<span>hello world</span>");
     });
 
@@ -28,7 +28,7 @@ describe("customEmoji", () => {
         renderText,
         "k",
       );
-      const html = renderToStaticMarkup(<>{out}</>);
+      const html = renderToStaticMarkup(out);
       expect(html).toContain('src="https://x/y.png"');
       expect(html).toContain('alt=":smile:"');
       expect(html).toContain("<span>hi </span>");
@@ -42,7 +42,7 @@ describe("customEmoji", () => {
         renderText,
         "k",
       );
-      const html = renderToStaticMarkup(<>{out}</>);
+      const html = renderToStaticMarkup(out);
       expect(html).toBe("<span>hi :nope: there</span>");
       expect(html).not.toContain("<img");
     });
@@ -54,7 +54,7 @@ describe("customEmoji", () => {
         renderText,
         "k",
       );
-      const html = renderToStaticMarkup(<>{out}</>);
+      const html = renderToStaticMarkup(out);
       expect(html).toContain('alt="Party!"');
     });
 
@@ -65,7 +65,7 @@ describe("customEmoji", () => {
         renderText,
         "k",
       );
-      const html = renderToStaticMarkup(<>{out}</>);
+      const html = renderToStaticMarkup(out);
       expect(html).toContain("https://x/one.png");
       expect(html).toContain("https://x/two.png");
     });

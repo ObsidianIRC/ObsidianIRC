@@ -15,6 +15,11 @@ import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { waitForAuthToken } from "../../lib/authToken";
+import { useEmojiResolver } from "../../lib/customEmoji";
+import {
+  emojiClickValue,
+  packEntriesForPicker,
+} from "../../lib/customEmojiPicker";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
 import {
@@ -426,8 +431,30 @@ export const ChatArea: React.FC<{
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
+  // draft/custom-emoji: gather pack URLs (channel-scoped first so it
+  // shadows the network-wide pack on shortcode collisions) and surface
+  // the resulting shortcodes to the emoji picker + completion.
+  const networkEmojiPackUrl = useMemo(
+    () => servers.find((s) => s.id === selectedServerId)?.emojiPackUrl,
+    [servers, selectedServerId],
+  );
+  const channelEmojiPackUrl = useMemo(() => {
+    const srv = servers.find((s) => s.id === selectedServerId);
+    return srv?.channels.find((c) => c.id === selectedChannelId)?.metadata?.[
+      "draft/emoji"
+    ]?.value;
+  }, [servers, selectedServerId, selectedChannelId]);
+  const { shortcodes: customEmojiShortcodes } = useEmojiResolver([
+    channelEmojiPackUrl,
+    networkEmojiPackUrl,
+  ]);
+  const pickerCustomEmojis = useMemo(
+    () => packEntriesForPicker(customEmojiShortcodes),
+    [customEmojiShortcodes],
+  );
+
   // Emoji completion hook
-  const emojiCompletion = useEmojiCompletion();
+  const emojiCompletion = useEmojiCompletion(customEmojiShortcodes);
 
   // Typing notification hook
   const typingNotification = useTypingNotification({
@@ -1731,7 +1758,7 @@ export const ChatArea: React.FC<{
   );
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
-    applyText(messageTextRef.current + emojiData.emoji);
+    applyText(messageTextRef.current + emojiClickValue(emojiData));
     setIsEmojiSelectorOpen(false);
   };
 
@@ -2044,6 +2071,7 @@ export const ChatArea: React.FC<{
                   onEmojiClick={handleEmojiSelect}
                   onClose={() => setIsEmojiSelectorOpen(false)}
                   onBackdropClick={handleEmojiModalBackdropClick}
+                  customEmojis={pickerCustomEmojis}
                 />
               )}
 
@@ -2072,9 +2100,10 @@ export const ChatArea: React.FC<{
                 <EmojiPickerInline
                   isOpen={isEmojiSelectorOpen}
                   onEmojiClick={(e) =>
-                    applyText(messageTextRef.current + e.emoji)
+                    applyText(messageTextRef.current + emojiClickValue(e))
                   }
                   onClose={() => setIsEmojiSelectorOpen(false)}
+                  customEmojis={pickerCustomEmojis}
                 />
               )}
 

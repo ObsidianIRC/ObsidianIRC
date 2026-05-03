@@ -86,12 +86,52 @@ export function clearEmojiPackCache(): void {
   CACHE.clear();
 }
 
+// Walk loaded packs in priority order and emit one entry per shortcode.
+// First URL wins for shortcode collisions, so callers should pass
+// channel-scoped pack URL(s) ahead of the network pack URL.
+export interface ResolvedShortcode extends EmojiEntry {
+  shortcode: string;
+  packId: string;
+  packName: string;
+}
+
+function collectShortcodesUnsafe(
+  packUrls: ReadonlyArray<string | undefined>,
+): ResolvedShortcode[] {
+  const out: ResolvedShortcode[] = [];
+  const seen = new Set<string>();
+  for (const url of packUrls) {
+    if (!url) continue;
+    const entry = CACHE.get(url);
+    if (!entry || entry.state !== "ok") continue;
+    for (const pack of entry.packs) {
+      for (const [shortcode, e] of Object.entries(pack.emoji ?? {})) {
+        if (seen.has(shortcode)) continue;
+        seen.add(shortcode);
+        out.push({
+          shortcode,
+          url: e.url,
+          alt: e.alt,
+          packId: pack.id,
+          packName: pack.name,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 // React hook: gather all packs visible from a (server, channel) viewpoint
 // and expose a synchronous resolver.  Channel-scoped packs win over the
 // network pack when shortcodes collide.
-export function useEmojiResolver(
-  packUrls: ReadonlyArray<string | undefined>,
-): (shortcode: string) => EmojiEntry | null {
+//
+// The hook also returns the flat shortcode list so consumers like the
+// emoji picker / autocomplete can enumerate without touching the
+// in-memory cache directly.
+export function useEmojiResolver(packUrls: ReadonlyArray<string | undefined>): {
+  resolve: (shortcode: string) => EmojiEntry | null;
+  shortcodes: ResolvedShortcode[];
+} {
   // Stable string key so React only re-runs the effect when the *set* of
   // URLs changes, not when their array identity does.
   const key = packUrls.filter(Boolean).join("|");
@@ -113,9 +153,8 @@ export function useEmojiResolver(
     };
   }, [packUrls.filter]);
 
-  return React.useCallback(
+  const resolve = React.useCallback(
     (shortcode: string) => {
-      // Walk in priority order: first listed URL wins.
       for (const url of packUrls) {
         if (!url) continue;
         const entry = CACHE.get(url);
@@ -129,6 +168,22 @@ export function useEmojiResolver(
     },
     [packUrls],
   );
+
+  const shortcodes = React.useMemo(
+    () => collectShortcodesUnsafe(packUrls),
+    [packUrls],
+  );
+
+  return { resolve, shortcodes };
+}
+
+// Synchronous accessor for callers that aren't in a React tree.  Only
+// returns shortcodes from packs already in the cache; doesn't trigger
+// fetches.
+export function getLoadedShortcodes(
+  packUrls: ReadonlyArray<string | undefined>,
+): ResolvedShortcode[] {
+  return collectShortcodesUnsafe(packUrls);
 }
 
 const SHORTCODE_RX = /:([A-Za-z0-9._-]+):/g;
