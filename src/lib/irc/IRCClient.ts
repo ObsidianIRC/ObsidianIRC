@@ -497,6 +497,7 @@ export class IRCClient implements IRCClientContext {
     "draft/metadata-2",
     "draft/message-redaction",
     "draft/account-registration",
+    "draft/account-2fa",
     "batch",
     "draft/multiline",
     "draft/typing",

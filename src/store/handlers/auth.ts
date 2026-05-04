@@ -193,11 +193,11 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
           const ok = scramVerifyServerFinal(session.scram, serverFinal);
           if (!ok) {
             ircClient.sendRaw(serverId, "AUTHENTICATE *");
-          } else {
-            // Acknowledge by sending an empty client message; the server
-            // will then issue 900/903 (or AUTHENTICATE 2FA-REQUIRED).
-            ircClient.sendRaw(serverId, "AUTHENTICATE +");
           }
+          // On success the server completes the exchange itself by
+          // emitting 900/903 (normal) or AUTHENTICATE 2FA-REQUIRED
+          // (step-up). Sending another "AUTHENTICATE +" here is read
+          // as an empty/abort payload by saslserv and trips 904.
           session.step = 3;
           return;
         }
