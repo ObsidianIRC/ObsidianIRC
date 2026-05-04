@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { FaSpinner, FaTimes, FaUpload } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
+import { TextInput } from "./TextInput";
 
 interface AvatarUploadProps {
   currentAvatarUrl?: string;
@@ -158,18 +159,19 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     fileInputRef.current?.click();
   };
 
-  const clearPreview = () => {
+  const clearAvatar = () => {
     setPreviewUrl(null);
     setUploadError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    onAvatarUrlChange("");
   };
 
   if (!filehostUrl) {
     // Fallback to URL input if no filehost
     return (
-      <input
+      <TextInput
         type="url"
         value={currentAvatarUrl || ""}
         onChange={(e) => onAvatarUrlChange(e.target.value)}
@@ -195,7 +197,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         {(previewUrl || currentAvatarUrl) && (
           <button
             type="button"
-            onClick={clearPreview}
+            onClick={clearAvatar}
             className="flex items-center gap-2 px-3 py-2 bg-discord-dark-300 hover:bg-discord-dark-200 text-white rounded"
           >
             <FaTimes />

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import ircClient from "../../src/lib/ircClient";
 import useStore, { type AppState } from "../../src/store";
+import { defaultUIExtensions } from "../fixtures/uiState";
 
 describe("Nickname retry functionality", () => {
   it("should retry with underscore when receiving 433 error", () => {
@@ -46,13 +47,11 @@ describe("Nickname retry functionality", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: false,
         isMobileMenuOpen: false,
         isMemberListVisible: true,
         isChannelListVisible: true,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "chatView",
         isServerMenuOpen: false,
@@ -71,6 +70,7 @@ describe("Nickname retry functionality", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
       addGlobalNotification: vi.fn(),
     };
@@ -144,13 +144,11 @@ describe("Nickname retry functionality", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: false,
         isMobileMenuOpen: false,
         isMemberListVisible: true,
         isChannelListVisible: true,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "chatView",
         isServerMenuOpen: false,
@@ -169,6 +167,7 @@ describe("Nickname retry functionality", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
       addGlobalNotification: vi.fn(),
     };

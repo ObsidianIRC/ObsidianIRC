@@ -1,16 +1,20 @@
+import type { MediaVisibilityLevel } from "../lib/mediaUtils";
+
 export type layoutColumn = "serverList" | "chatView" | "memberList";
+export type { MediaVisibilityLevel };
 
 export interface ConnectionDetails {
   name: string;
   host: string;
   port: string;
   nickname: string;
-  useIrcProtocol?: boolean;
+  useWebSocket?: boolean;
   ui?: {
     disableServerConnectionInfo?: boolean;
     hideServerInfo?: boolean;
     hideClose?: boolean;
     title?: string;
+    lockWebSocket?: boolean;
   };
 }
 
@@ -46,8 +50,7 @@ export interface GlobalSettings {
   enableMultilineInput: boolean;
   multilineOnShiftEnter: boolean;
   autoFallbackToSingleLine: boolean;
-  showSafeMedia: boolean;
-  showExternalContent: boolean;
+  mediaVisibilityLevel: MediaVisibilityLevel;
   enableMarkdownRendering: boolean;
   awayMessage: string;
   quitMessage: string;
@@ -57,6 +60,20 @@ export interface UISelections {
   selectedServerId: string | null;
   perServerSelections: Record<
     string,
-    { selectedChannelId: string | null; selectedPrivateChatId: string | null }
+    {
+      selectedChannelId: string | null;
+      selectedChannelName?: string | null;
+      selectedPrivateChatId: string | null;
+      selectedPrivateChatUsername?: string | null;
+    }
   >;
+  sidebarPreferences?: {
+    channelList: { isVisible: boolean; width: number };
+    memberList: { isVisible: boolean; width: number };
+  };
+  lastSelection?: {
+    serverHost: string;
+    channelName: string | null;
+    privateChatUsername: string | null;
+  };
 }

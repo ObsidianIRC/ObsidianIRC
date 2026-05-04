@@ -41,7 +41,26 @@ export const metadata = {
 export const settings = {
   load: (): Partial<GlobalSettings> => {
     try {
-      return JSON.parse(localStorage.getItem(KEYS.SETTINGS) || "{}");
+      const raw = JSON.parse(
+        localStorage.getItem(KEYS.SETTINGS) || "{}",
+      ) as Record<string, unknown>;
+
+      // Migrate old 3-boolean format to the single level enum.
+      // Most-permissive flag wins so existing preferences are preserved.
+      if (!("mediaVisibilityLevel" in raw)) {
+        raw.mediaVisibilityLevel = raw.showExternalContent
+          ? 3
+          : raw.showTrustedSourcesMedia
+            ? 2
+            : raw.showSafeMedia === false
+              ? 0
+              : 1;
+        delete raw.showSafeMedia;
+        delete raw.showTrustedSourcesMedia;
+        delete raw.showExternalContent;
+      }
+
+      return raw as Partial<GlobalSettings>;
     } catch {
       return {};
     }
@@ -107,11 +126,11 @@ export const migrationVersion = {
   },
 };
 
-export { KEYS };
 export type {
-  SavedMetadata,
-  PinnedPrivateChatsMap,
   ChannelOrderMap,
   GlobalSettings,
+  PinnedPrivateChatsMap,
+  SavedMetadata,
   UISelections,
 };
+export { KEYS };

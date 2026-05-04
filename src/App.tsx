@@ -4,23 +4,25 @@ import {
   requestPermission,
 } from "@tauri-apps/plugin-notification";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
-import ChannelRenameModal from "./components/ui/ChannelRenameModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
 import QuickActions from "./components/ui/QuickActions";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
+import { useChannelTabSwitching } from "./hooks/useChannelTabSwitching";
+import { useConnectionResilience } from "./hooks/useConnectionResilience";
 import { useKeyboardResize } from "./hooks/useKeyboardResize";
 import ircClient from "./lib/ircClient";
 import { parseIrcUrl } from "./lib/ircUrlParser";
+import { isTauri } from "./lib/platformUtils";
 import useStore, { loadSavedServers } from "./store";
 import type { ConnectionDetails } from "./store/types";
 
@@ -80,16 +82,16 @@ const App: React.FC = () => {
     toggleQuickActions,
     ui: {
       isAddServerModalOpen,
-      isUserProfileModalOpen,
       isChannelListModalOpen,
-      isChannelRenameModalOpen,
       isServerNoticesPopupOpen,
       isEditServerModalOpen,
       isSettingsModalOpen,
       isQuickActionsOpen,
+      isUserProfileModalOpen,
       editServerId,
       linkSecurityWarnings,
       profileViewRequest,
+      prefillServerDetails,
     },
     joinChannel,
     connectToSavedServers,
@@ -97,6 +99,8 @@ const App: React.FC = () => {
     clearProfileViewRequest,
     messages,
     isConnecting,
+    servers,
+    hasConnectedToSavedServers,
   } = useStore();
 
   // Local state for User Profile modal
@@ -140,34 +144,83 @@ const App: React.FC = () => {
   };
 
   const handleIrcLinkClick = (url: string) => {
-    // For now, just log. Could be extended to handle IRC links
-    console.log("IRC link clicked:", url);
+    const parsed = parseIrcUrl(url, "user");
+    toggleAddServerModal(true, {
+      name: parsed.host,
+      host: parsed.host,
+      port: parsed.port.toString(),
+      nickname: parsed.nick || "user",
+      useWebSocket: false,
+    });
   };
 
   // Initialize keyboard resize handling for mobile platforms
   useKeyboardResize();
+  useConnectionResilience();
+  useChannelTabSwitching();
 
   // askPermissions();
+  const hasInitialized = useRef(false);
   useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     initializeEnvSettings(toggleAddServerModal, joinChannel);
-    // Auto-reconnect to saved servers on app startup
     connectToSavedServers();
+  }, [connectToSavedServers, joinChannel, toggleAddServerModal]);
+
+  // When the server list is hidden and all saved-server connections fail, the user
+  // has no other way to open the login modal, so we open it automatically.
+  useEffect(() => {
+    if (!__HIDE_SERVER_LIST__) return;
+    if (!hasConnectedToSavedServers) return;
+    if (isAddServerModalOpen) return;
+    if (servers.length === 0) return;
+    // Wait until every server has settled (not still connecting/reconnecting)
+    if (
+      servers.some(
+        (s) =>
+          s.connectionState === "connecting" ||
+          s.connectionState === "reconnecting",
+      )
+    )
+      return;
+    if (servers.some((s) => s.isConnected)) return;
+
+    const firstSaved = loadSavedServers()[0];
+    toggleAddServerModal(
+      true,
+      firstSaved
+        ? {
+            name: firstSaved.name ?? firstSaved.host,
+            host: firstSaved.host,
+            port: String(firstSaved.port),
+            nickname: firstSaved.nickname,
+            ui: {
+              hideServerInfo: true,
+              hideClose: true,
+            },
+          }
+        : null,
+    );
   }, [
+    servers,
+    hasConnectedToSavedServers,
+    isAddServerModalOpen,
     toggleAddServerModal,
-    joinChannel, // Auto-reconnect to saved servers on app startup
-    connectToSavedServers,
-  ]); // Removed connectToSavedServers from dependencies
+  ]);
 
   // Handle deeplinks
   useEffect(() => {
+    let unlisten: (() => void) | null = null;
+
     const setupDeepLinkHandler = async () => {
-      if (typeof window === "undefined" || !window.__TAURI__) {
+      if (!isTauri()) {
         return;
       }
 
       try {
-        // Register handler for when app is already running
-        await onOpenUrl((urls) => {
+        // Register handler for when app is already running; store unlisten for cleanup
+        unlisten = await onOpenUrl((urls) => {
           console.log("Deep link received:", urls);
 
           for (const url of urls) {
@@ -182,7 +235,7 @@ const App: React.FC = () => {
                   host: parsed.host,
                   port: parsed.port.toString(),
                   nickname: parsed.nick || "user",
-                  useIrcProtocol: true,
+                  useWebSocket: false,
                 });
               } catch (error) {
                 console.error("Failed to parse IRC URL:", error);
@@ -196,6 +249,11 @@ const App: React.FC = () => {
     };
 
     setupDeepLinkHandler();
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
   }, [toggleAddServerModal]);
 
   // Global keyboard shortcut for Quick Actions (Cmd+K / Ctrl+K)
@@ -212,6 +270,25 @@ const App: React.FC = () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [toggleQuickActions]);
+
+  // Suppress :hover popups on blur; reclaim focus from iframes immediately.
+  useEffect(() => {
+    const onBlur = () => {
+      document.documentElement.classList.add("window-blurred");
+      // Cross-origin iframes swallow all keystrokes — blur immediately so the parent document regains them.
+      if (document.activeElement?.tagName === "IFRAME") {
+        (document.activeElement as HTMLElement).blur();
+      }
+    };
+    const onFocus = () =>
+      document.documentElement.classList.remove("window-blurred");
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   return (
     <div className="h-screen overflow-hidden">
@@ -232,7 +309,6 @@ const App: React.FC = () => {
               {isSettingsModalOpen && <UserSettings />}
               {isQuickActionsOpen && <QuickActions />}
               {isChannelListModalOpen && <ChannelListModal />}
-              {isChannelRenameModalOpen && <ChannelRenameModal />}
               <LinkSecurityWarningModal />
               {userProfileModalState?.isOpen && (
                 <UserProfileModal

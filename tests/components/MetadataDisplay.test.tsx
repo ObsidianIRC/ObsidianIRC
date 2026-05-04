@@ -5,6 +5,7 @@ import { MemberList } from "../../src/components/layout/MemberList";
 import { getColorStyle } from "../../src/lib/ircUtils";
 import useStore from "../../src/store";
 import type { Channel, Server, User } from "../../src/types";
+import { defaultUIExtensions } from "../fixtures/uiState";
 
 vi.mock("../../src/lib/ircClient", () => ({
   default: {
@@ -69,7 +70,7 @@ const mockChannel: Channel = {
   messages: [
     {
       id: "msg1",
-      userId: "alice-server1",
+      userId: "alice",
       content: "Hello everyone!",
       timestamp: new Date(),
       type: "message" as const,
@@ -81,7 +82,7 @@ const mockChannel: Channel = {
     },
     {
       id: "msg2",
-      userId: "bob-server1",
+      userId: "bob",
       content: "Hi Alice!",
       timestamp: new Date(),
       type: "message" as const,
@@ -139,11 +140,9 @@ describe("Metadata Display Features", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
@@ -162,6 +161,7 @@ describe("Metadata Display Features", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
       messages: {
         "server1-channel1": mockChannel.messages,
@@ -187,8 +187,7 @@ describe("Metadata Display Features", () => {
         enableMultilineInput: true,
         multilineOnShiftEnter: true,
         autoFallbackToSingleLine: true,
-        showSafeMedia: true,
-        showExternalContent: true,
+        mediaVisibilityLevel: 3,
         enableMarkdownRendering: false,
         awayMessage: "",
         quitMessage: "ObsidianIRC - Bringing IRC to the future",
@@ -367,7 +366,7 @@ describe("Metadata Display Features", () => {
       // Update mock channel to have an action message
       const actionMessage = {
         id: "msg3",
-        userId: "alice-server1",
+        userId: "alice",
         content: "\u0001ACTION waves hello\u0001",
         timestamp: new Date(),
         type: "message" as const,

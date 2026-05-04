@@ -3,6 +3,7 @@ import type React from "react";
 import { useState } from "react";
 import { isValidIgnorePattern } from "../../../lib/ignoreUtils";
 import type { SettingComponentProps } from "../../../lib/settings/types";
+import { TextInput } from "../TextInput";
 
 /**
  * Custom component for managing ignore list
@@ -60,8 +61,7 @@ export const IgnoreListField: React.FC<SettingComponentProps> = ({
     <div className="space-y-3">
       <div className="space-y-2">
         <div className="flex space-x-2">
-          <input
-            type="text"
+          <TextInput
             value={newPattern}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}

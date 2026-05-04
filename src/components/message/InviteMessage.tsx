@@ -32,7 +32,7 @@ export const InviteMessage: React.FC<InviteMessageProps> = ({
   };
 
   const handleAvatarClick = (e: React.MouseEvent) => {
-    const username = message.userId.split("-")[0];
+    const username = message.userId;
     onUsernameContextMenu(
       e,
       username,
@@ -48,7 +48,7 @@ export const InviteMessage: React.FC<InviteMessageProps> = ({
     }
   };
 
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
   const displayName =
     messageUser?.metadata?.["display-name"]?.value || username;
   const userColor = messageUser?.metadata?.color?.value || "#888888";

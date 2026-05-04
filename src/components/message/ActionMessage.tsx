@@ -1,6 +1,9 @@
 import type React from "react";
+import ircClient from "../../lib/ircClient";
 import type { MessageType, User } from "../../types";
 import { MessageAvatar } from "./MessageAvatar";
+import { MessageReply } from "./MessageReply";
+import { ReactionsWithActions } from "./ReactionsWithActions";
 
 interface ActionMessageProps {
   message: MessageType;
@@ -13,6 +16,10 @@ interface ActionMessageProps {
     channelId: string,
     avatarElement?: Element | null,
   ) => void;
+  setReplyTo: (msg: MessageType) => void;
+  onReactClick: (message: MessageType, buttonElement: Element) => void;
+  onReactionUnreact: (emoji: string, message: MessageType) => void;
+  onDirectReaction: (emoji: string, message: MessageType) => void;
 }
 
 export const ActionMessage: React.FC<ActionMessageProps> = ({
@@ -20,7 +27,12 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
   showDate,
   messageUser,
   onUsernameContextMenu,
+  setReplyTo,
+  onReactClick,
+  onReactionUnreact,
+  onDirectReaction,
 }) => {
+  const currentUser = ircClient.getCurrentUser(message.serverId);
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
@@ -37,10 +49,10 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
   };
 
   const displayName = messageUser?.metadata?.["display-name"]?.value;
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
 
   return (
-    <div className="px-4 py-1 hover:bg-discord-message-hover group">
+    <div className="px-4 py-1 hover:bg-discord-message-hover group relative">
       {showDate && (
         <div className="flex items-center text-xs text-discord-text-muted mb-2">
           <div className="flex-grow border-t border-discord-dark-400" />
@@ -74,6 +86,9 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
               {formatTime(new Date(message.timestamp))}
             </span>
           </div>
+          {message.replyMessage && (
+            <MessageReply replyMessage={message.replyMessage} theme="discord" />
+          )}
           <span className="italic text-white">
             {message.userId === "system"
               ? "System"
@@ -81,6 +96,20 @@ export const ActionMessage: React.FC<ActionMessageProps> = ({
                 (displayName ? ` (${username})` : "") +
                 message.content.substring(7, message.content.length - 1)}
           </span>
+          <ReactionsWithActions
+            message={message}
+            currentUserUsername={currentUser?.username ?? currentUser?.id}
+            onReactionClick={(emoji, currentUserReacted) => {
+              if (currentUserReacted) {
+                onReactionUnreact(emoji, message);
+              } else {
+                onDirectReaction(emoji, message);
+              }
+            }}
+            onReactClick={(el) => onReactClick(message, el)}
+            onReplyClick={() => setReplyTo(message)}
+            canReply={!!message.msgid}
+          />
         </div>
       </div>
     </div>

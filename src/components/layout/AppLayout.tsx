@@ -1,11 +1,12 @@
-import { platform } from "@tauri-apps/plugin-os";
 import type React from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
+import { isTauriAndroid } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { layoutColumn } from "../../store/types";
 import { GlobalNotifications } from "../ui/GlobalNotifications";
+import { MediaViewerModal } from "../ui/MediaViewerModal";
 import { ChannelList } from "./ChannelList";
 import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
@@ -25,7 +26,15 @@ export const AppLayout: React.FC = () => {
     toggleChannelList,
     setMobileViewActiveColumn,
     setIsNarrowView,
+    closeMedia,
   } = useStore();
+
+  const [channelListWidth, setChannelListWidth] = useState<number>(
+    ui.sidebarPreferences?.channelList.width ?? 264,
+  );
+  const [memberListWidth, setMemberListWidth] = useState<number>(
+    ui.sidebarPreferences?.memberList.width ?? 280,
+  );
 
   const selectedServerId = ui.selectedServerId;
   const currentSelection = ui.perServerSelections[selectedServerId || ""] || {
@@ -43,6 +52,28 @@ export const AppLayout: React.FC = () => {
 
   // Hide member list for private chats
   const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
+
+  const handleChannelListWidthChange = useCallback((width: number) => {
+    setChannelListWidth(width);
+    useStore.getState().updateSidebarPreferences({
+      channelList: {
+        isVisible: useStore.getState().ui.isChannelListVisible,
+        width,
+      },
+    });
+  }, []);
+
+  const handleMemberListWidthChange = useCallback((width: number) => {
+    setMemberListWidth(width);
+    useStore.getState().updateSidebarPreferences({
+      memberList: {
+        // isMemberListVisible (user's actual preference) not shouldShowMemberList
+        // (which is false for PMs, causing isVisible:false to be incorrectly saved)
+        isVisible: useStore.getState().ui.isMemberListVisible,
+        width,
+      },
+    });
+  }, []);
 
   // Set theme class on body
   useEffect(() => {
@@ -78,8 +109,35 @@ export const AppLayout: React.FC = () => {
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
   const isNarrowView = ui.isNarrowView;
 
-  const currentPageIndex = getPageIndex(mobileViewActiveColumn);
-  const totalPages = selectedServerId ? 3 : 2;
+  // Desktop narrow: member list shows as overlay in ChatArea instead of sidebar
+  const showMemberListAsOverlay = !isNarrowView && isTooNarrowForMemberList;
+  const shouldShowMemberListSidebar =
+    shouldShowMemberList && !showMemberListAsOverlay;
+
+  // Member list page doesn't exist in DMs — only channels have a member list.
+  const hasMemberPage = !!selectedServerId && !selectedPrivateChatId;
+
+  // Clamp the active column synchronously so currentPageIndex is never out of
+  // range during the same render that totalPages drops from 3 to 2 (e.g. when
+  // switching from a channel to a DM while on the member-list page).
+  const effectiveMobileColumn =
+    !hasMemberPage && mobileViewActiveColumn === "memberList"
+      ? "chatView"
+      : mobileViewActiveColumn;
+
+  const currentPageIndex = getPageIndex(effectiveMobileColumn);
+  const totalPages = hasMemberPage ? 3 : 2;
+
+  // Persist the corrected column back into the store after paint.
+  useEffect(() => {
+    if (effectiveMobileColumn !== mobileViewActiveColumn) {
+      setMobileViewActiveColumn(effectiveMobileColumn);
+    }
+  }, [
+    effectiveMobileColumn,
+    mobileViewActiveColumn,
+    setMobileViewActiveColumn,
+  ]);
 
   const {
     containerRef,
@@ -101,7 +159,7 @@ export const AppLayout: React.FC = () => {
           return (
             <div className="flex w-full h-full">
               {__HIDE_SERVER_LIST__ ? null : (
-                <div className="w-[72px] flex-shrink-0 h-full bg-discord-dark-300">
+                <div className="w-[72px] flex-shrink-0 h-full bg-discord-dark-300 select-none">
                   <ServerList />
                 </div>
               )}
@@ -116,7 +174,7 @@ export const AppLayout: React.FC = () => {
         return (
           <>
             {__HIDE_SERVER_LIST__ ? null : (
-              <div className="server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 w-[72px]">
+              <div className="server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 w-[72px] select-none">
                 <ServerList />
               </div>
             )}
@@ -124,10 +182,12 @@ export const AppLayout: React.FC = () => {
               bypass={false}
               isVisible={isChannelListVisible}
               defaultWidth={264}
+              initialWidth={channelListWidth}
               minWidth={80}
               maxWidth={400}
               side="left"
               onMinReached={() => toggleChannelList(false)}
+              onWidthChange={handleChannelListWidthChange}
             >
               <div className="channel-list w-full h-full bg-discord-dark-100 md:block z-20">
                 <ChannelList
@@ -165,12 +225,14 @@ export const AppLayout: React.FC = () => {
         return (
           <ResizableSidebar
             bypass={false}
-            isVisible={shouldShowMemberList}
+            isVisible={shouldShowMemberListSidebar}
             defaultWidth={280}
+            initialWidth={memberListWidth}
             minWidth={80}
             maxWidth={400}
             side="right"
             onMinReached={() => toggleMemberList(false)}
+            onWidthChange={handleMemberListWidthChange}
           >
             <div className="flex-1 overflow-hidden h-full bg-discord-dark-100">
               <MemberList />
@@ -185,24 +247,12 @@ export const AppLayout: React.FC = () => {
     setIsNarrowView(isNarrowViewFromHook);
   }, [isNarrowViewFromHook, setIsNarrowView]);
 
-  // Auto-hide member list on desktop if too narrow
-  useEffect(() => {
-    if (!isNarrowView && isTooNarrowForMemberList && isMemberListVisible) {
-      toggleMemberList(false);
-    }
-  }, [
-    isNarrowView,
-    isTooNarrowForMemberList,
-    isMemberListVisible,
-    toggleMemberList,
-  ]);
-
   const getLayoutColumn = (column: layoutColumn) => {
     // Desktop: use explicit visibility flags
     if (!isNarrowView) {
       if (column === "serverList") return getLayoutColumnElement("serverList");
       if (column === "chatView") return getLayoutColumnElement("chatView");
-      if (column === "memberList" && shouldShowMemberList) {
+      if (column === "memberList" && shouldShowMemberListSidebar) {
         return getLayoutColumnElement("memberList");
       }
       return null;
@@ -215,8 +265,7 @@ export const AppLayout: React.FC = () => {
 
   // Handle mobile back button
   // TODO: ios
-  if ("__TAURI__" in window && platform() === "android") {
-    // @ts-expect-error
+  if (isTauriAndroid()) {
     window.androidBackCallback = () => {
       switch (mobileViewActiveColumn) {
         case "chatView":
@@ -235,7 +284,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={`flex h-screen overflow-hidden bg-discord-dark-300 ${
+      className={`flex h-full overflow-hidden bg-discord-dark-300 keyboard-aware-layout ${
         isDarkMode ? "text-white" : "text-gray-900"
       }`}
       style={{
@@ -267,7 +316,7 @@ export const AppLayout: React.FC = () => {
             }}
           >
             {PAGE_ORDER.filter(
-              (col) => col !== "memberList" || selectedServerId,
+              (col) => col !== "memberList" || hasMemberPage,
             ).map((column) => (
               <div
                 key={column}
@@ -288,6 +337,17 @@ export const AppLayout: React.FC = () => {
         </>
       )}
       <GlobalNotifications />
+      {/* Rendered here so window resizes never unmount it */}
+      <MediaViewerModal
+        isOpen={!!ui.openedMedia}
+        url={ui.openedMedia?.url ?? ""}
+        sourceMsgId={ui.openedMedia?.sourceMsgId}
+        onClose={closeMedia}
+        serverId={ui.openedMedia?.serverId}
+        channelId={ui.openedMedia?.channelId}
+        preferTopicEntry={ui.openedMedia?.preferTopicEntry}
+        preferLastEntry={ui.openedMedia?.preferLastEntry}
+      />
     </div>
   );
 };

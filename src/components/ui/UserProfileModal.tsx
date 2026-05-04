@@ -14,12 +14,16 @@ import {
   FaUserCheck,
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
+import { isUrlFromFilehost } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
+import { openExternalUrl } from "../../lib/openUrl";
 import useStore from "../../store";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 
 interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   serverId: string;
   username: string;
 }
@@ -72,6 +76,7 @@ const getStatusBadge = (status: string) => {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isOpen,
   onClose,
+  onBack,
   serverId,
   username,
 }) => {
@@ -87,12 +92,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const selectChannel = useStore((state) => state.selectChannel);
   const openPrivateChat = useStore((state) => state.openPrivateChat);
   const selectPrivateChat = useStore((state) => state.selectPrivateChat);
-  const toggleUserProfileModal = useStore(
-    (state) => state.toggleUserProfileModal,
-  );
+  const toggleSettingsModal = useStore((state) => state.toggleSettingsModal);
   const setAway = useStore((state) => state.setAway);
   const clearAway = useStore((state) => state.clearAway);
   const server = servers.find((s) => s.id === serverId);
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
+  );
 
   // Get user metadata from channels
   const user = server?.channels
@@ -125,7 +131,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     // Only request WHOIS once per modal opening
     if (
       !whoisRequestedRef.current &&
-      (!whoisData || !whoisData.isComplete || whoisAge > WHOIS_CACHE_TTL)
+      (!whoisData?.isComplete || whoisAge > WHOIS_CACHE_TTL)
     ) {
       whoisRequestedRef.current = true;
       setIsLoadingWhois(true);
@@ -149,6 +155,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           "homepage",
           "status",
           "color",
+          "pronouns",
         ]);
       setTimeout(() => setIsLoadingMetadata(false), 2000);
     }
@@ -189,6 +196,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const homepage = user?.metadata?.homepage?.value;
   const status = user?.metadata?.status?.value;
   const color = user?.metadata?.color?.value;
+  const pronouns = user?.metadata?.pronouns?.value;
+
+  const isFilehostAvatar =
+    !!avatar && isUrlFromFilehost(avatar, server?.filehost ?? "");
+  const canShowAvatar =
+    !!avatar && ((isFilehostAvatar && showSafeMedia) || showExternalContent);
 
   // Check if user is a bot (from metadata or isBot flag)
   const isBot = user?.isBot || bot === "true" || !!bot;
@@ -223,9 +236,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  const handleConfirmOpen = () => {
+  const handleConfirmOpen = async () => {
     if (pendingUrl) {
-      window.open(pendingUrl, "_blank", "noopener,noreferrer");
+      await openExternalUrl(pendingUrl);
     }
     setPendingUrl(null);
   };
@@ -305,7 +318,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {/* Avatar positioned over banner */}
             <div className="absolute -bottom-12 left-6">
               <div className="w-24 h-24 rounded-full bg-discord-dark-100 flex items-center justify-center overflow-hidden border-4 border-discord-dark-200 shadow-xl transition-transform duration-300 ease-in-out hover:scale-[2] hover:z-50 cursor-pointer">
-                {avatar ? (
+                {canShowAvatar ? (
                   <img
                     src={getAvatarUrl(avatar, 96)}
                     alt={displayName}
@@ -322,7 +335,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 ) : null}
                 <div
                   className="w-full h-full flex items-center justify-center text-3xl font-bold text-white bg-gradient-to-br from-discord-blurple to-purple-600"
-                  style={{ display: avatar ? "none" : "flex" }}
+                  style={{ display: canShowAvatar ? "none" : "flex" }}
                 >
                   {displayName[0].toUpperCase()}
                 </div>
@@ -461,6 +474,15 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         Status
                       </div>
                       <div className="text-white">{status}</div>
+                    </div>
+                  )}
+
+                  {pronouns && (
+                    <div className="bg-discord-dark-300 rounded-lg p-4 hover:bg-discord-dark-400 transition-colors">
+                      <div className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide mb-2">
+                        Pronouns
+                      </div>
+                      <div className="text-white">{pronouns}</div>
                     </div>
                   )}
 
@@ -637,15 +659,17 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="flex justify-between items-center gap-3">
               {isOwnProfile && (
                 <>
-                  <button
-                    onClick={() => {
-                      onClose();
-                      toggleUserProfileModal(true);
-                    }}
-                    className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
-                  >
-                    Edit Profile
-                  </button>
+                  {!onBack && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        toggleSettingsModal(true);
+                      }}
+                      className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
+                    >
+                      Edit Profile
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       if (server?.isAway) {
@@ -668,10 +692,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   onClick={() => {
                     openPrivateChat(serverId, username);
-                    // Find and select the private chat
-                    const server = servers.find((s) => s.id === serverId);
+                    // Read fresh state after openPrivateChat updates the store
+                    const freshServers = useStore.getState().servers;
+                    const server = freshServers.find((s) => s.id === serverId);
                     const privateChat = server?.privateChats?.find(
-                      (pc) => pc.username === username,
+                      (pc) =>
+                        pc.username.toLowerCase() === username.toLowerCase(),
                     );
                     if (privateChat) {
                       selectPrivateChat(privateChat.id, { navigate: true });
@@ -686,10 +712,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </button>
               )}
               <button
-                onClick={onClose}
+                onClick={onBack ?? onClose}
                 className={`px-6 py-2 bg-discord-blurple hover:bg-discord-blurple-hover text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-discord-blurple/20 ${!isOwnProfile ? "ml-auto" : ""}`}
               >
-                Close
+                {onBack ? "← Back" : "Close"}
               </button>
             </div>
           </div>

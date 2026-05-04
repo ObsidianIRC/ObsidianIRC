@@ -1,8 +1,18 @@
-import hljs from "highlight.js";
+import DOMPurify from "dompurify";
 import { marked } from "marked";
 import React from "react";
 /* eslint-disable no-control-regex */
 import type { Server, User } from "../types";
+import { isTauri } from "./platformUtils";
+
+// highlight.js is ~1.6MB — lazy-load it so it doesn't block the initial bundle.
+// Start the import immediately (parallel with app startup) but don't wait for it.
+// The first code block render falls back to plain text; subsequent ones are highlighted.
+type HljsType = typeof import("highlight.js").default;
+let hljsModule: HljsType | null = null;
+import("highlight.js").then((m) => {
+  hljsModule = m.default;
+});
 
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
@@ -191,6 +201,108 @@ export const ircColors = [
   "inherit", // 99 - Default (not universally supported)
 ];
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: IRC formatting codes
+const IRC_FORMAT_RE = /\x03\d{0,2}(,\d{0,2})?|[\x02\x1D\x1F\x1E\x11\x0F]/g;
+
+/**
+ * Build a map of line index → IRC color style for the original text.
+ * Only tracks the dominant color per line (first color set on that line).
+ * Returns the map and the text with all IRC formatting stripped.
+ */
+function extractIrcColorMap(text: string): {
+  cleaned: string;
+  lineColors: Map<number, string>;
+} {
+  let fg = -1;
+  let bg = -1;
+  let lineIdx = 0;
+  const lineColors = new Map<number, string>();
+
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: IRC control codes
+  const regex = /(\x03(?:\d{1,2}(?:,\d{1,2})?)?|[\x02\x1D\x1F\x1E\x11\x0F])/g;
+
+  const parts = text.split(regex);
+  let cleaned = "";
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (i % 2 === 0) {
+      // Count newlines to track line index
+      for (const ch of part) {
+        if (ch === "\n") lineIdx++;
+      }
+      cleaned += part;
+      continue;
+    }
+    if (part === "\x0F") {
+      fg = -1;
+      bg = -1;
+    } else if (part.startsWith("\x03")) {
+      const nums = part.slice(1);
+      if (nums.length > 0) {
+        const [fgStr, bgStr] = nums.split(",");
+        fg = fgStr !== undefined ? Number(fgStr) : -1;
+        bg = bgStr !== undefined ? Number(bgStr) : -1;
+      } else {
+        fg = -1;
+        bg = -1;
+      }
+    }
+    // Record color for current line (and future lines until changed)
+    if (fg >= 0 && fg < ircColors.length) {
+      const styles = [`color:${ircColors[fg]}`];
+      if (bg >= 0 && bg < ircColors.length) {
+        styles.push(`background-color:${ircColors[bg]}`);
+      }
+      if (!lineColors.has(lineIdx)) {
+        lineColors.set(lineIdx, styles.join(";"));
+      }
+    }
+  }
+
+  return { cleaned, lineColors };
+}
+
+/**
+ * Apply IRC color styles to HTML output from marked, skipping code blocks.
+ * Only wraps content in <p>, <li>, <blockquote> tags — never code blocks.
+ */
+function applyIrcColorsToHtml(
+  htmlStr: string,
+  lineColors: Map<number, string>,
+): string {
+  if (lineColors.size === 0) return htmlStr;
+
+  // Use first color as the dominant color for all prose
+  const style = lineColors.values().next().value;
+  if (!style) return htmlStr;
+
+  // Match <p>...</p>, <li>...</li>, <blockquote>...</blockquote> that do NOT
+  // contain code blocks. Uses [^<]* with inline tags to avoid matching across
+  // block boundaries.
+  return htmlStr.replace(
+    /(<(?:p|li)(?:\s[^>]*)?>)((?:(?!<\/?(?:pre|div)\b)[\s\S])*?)(<\/(?:p|li)>)/g,
+    (match, open, content, close) => {
+      if (!content.trim()) return match;
+
+      // Split on inline code containers so IRC colors don't bleed into them.
+      // The capturing group in split() keeps the matched parts at odd indices.
+      const parts = content.split(
+        /(<span class="inline-code-container">[\s\S]*?<\/span>)/,
+      );
+      const colored = parts
+        .map((part: string, i: number) => {
+          if (i % 2 === 1) return part; // code container — leave as-is
+          if (!part.trim()) return part;
+          return `<span style="${style}">${part}</span>`;
+        })
+        .join("");
+
+      return `${open}${colored}${close}`;
+    },
+  );
+}
+
 export function renderMarkdown(
   text: string,
   showExternalContent = true,
@@ -206,6 +318,9 @@ export function renderMarkdown(
     return <span>{text.substring(0, maxLength)}...</span>;
   }
 
+  // Extract IRC colors and strip formatting before markdown parsing
+  const { cleaned: markdownText, lineColors } = extractIrcColorMap(text);
+
   // Configure marked for safe rendering with custom renderer
   const renderer = new marked.Renderer();
 
@@ -216,7 +331,13 @@ export function renderMarkdown(
 
     if (!showExternalContent) {
       // Return a placeholder or link instead of the image
-      return `<a href="${sanitizedHref}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 underline">[Image: ${text || sanitizedHref}]</a>`;
+      const isExternalLink =
+        sanitizedHref.startsWith("http://") ||
+        sanitizedHref.startsWith("https://");
+      const linkClass = isExternalLink
+        ? "text-blue-500 hover:text-blue-700 underline external-link-security"
+        : "text-blue-500 hover:text-blue-700 underline";
+      return `<a href="${sanitizedHref}" target="_blank" rel="noopener noreferrer" class="${linkClass}">[Image: ${text || sanitizedHref}]</a>`;
     }
     // Allow the image to render normally, but make it clickable
     const titleAttr = title ? ` title="${title.replace(/"/g, "&quot;")}"` : "";
@@ -252,7 +373,7 @@ export function renderMarkdown(
   // Custom code renderer for inline code
   renderer.codespan = ({ text }) => {
     // Decode HTML entities back to characters for inline code
-    const decodedText = text
+    let decodedText = text
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&amp;/g, "&")
@@ -260,8 +381,45 @@ export function renderMarkdown(
       .replace(/&#39;/g, "'")
       .replace(/&apos;/g, "'");
 
+    const hasActualNewlines = decodedText.includes("\n");
+    const hasEscapedNewlines = decodedText.includes("\\n");
+
+    if (hasActualNewlines || hasEscapedNewlines) {
+      if (hasEscapedNewlines) {
+        decodedText = decodedText.replace(/\\n/g, "\n");
+      }
+
+      const codeId = `multiline-inline-code-${Math.random().toString(36).substr(2, 9)}`;
+      const escapedForHtml = decodedText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+      return `<div class="code-block-container">
+        <div class="code-block-header">
+          <span class="language-label">text</span>
+          <button class="copy-button" data-code-id="${codeId}" title="Copy to clipboard">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+        <pre><code id="${codeId}">${escapedForHtml}</code></pre>
+      </div>`;
+    }
+
+    const escapedForHtml = decodedText
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
     const codeId = `inline-code-${Math.random().toString(36).substr(2, 9)}`;
-    return `<span class="inline-code-container"><code id="${codeId}" class="inline-code">${decodedText}</code><button class="inline-copy-button" data-code-id="${codeId}" title="Copy to clipboard">
+    return `<span class="inline-code-container"><code id="${codeId}" class="inline-code">${escapedForHtml}</code><button class="inline-copy-button" data-code-id="${codeId}" title="Copy to clipboard">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -286,34 +444,29 @@ export function renderMarkdown(
     let highlightedCode = decodedText;
     let language = lang;
 
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        const result = hljs.highlight(decodedText, { language: lang });
-        highlightedCode = result.value;
-        language = result.language;
-      } catch (err) {
-        // Fallback to auto-detection if specific language fails
+    if (hljsModule) {
+      if (lang && hljsModule.getLanguage(lang)) {
         try {
-          const result = hljs.highlightAuto(decodedText);
+          const result = hljsModule.highlight(decodedText, { language: lang });
+          highlightedCode = result.value;
+          language = result.language;
+        } catch (err) {
+          try {
+            const result = hljsModule.highlightAuto(decodedText);
+            highlightedCode = result.value;
+            language = result.language;
+          } catch (autoErr) {
+            highlightedCode = decodedText;
+          }
+        }
+      } else if (!lang) {
+        try {
+          const result = hljsModule.highlightAuto(decodedText);
           highlightedCode = result.value;
           language = result.language;
         } catch (autoErr) {
-          // If highlighting fails, use the decoded text
           highlightedCode = decodedText;
         }
-      }
-    } else if (lang) {
-      // Language specified but not supported, still use decoded text
-      highlightedCode = decodedText;
-    } else {
-      // No language specified, try auto-detection
-      try {
-        const result = hljs.highlightAuto(decodedText);
-        highlightedCode = result.value;
-        language = result.language;
-      } catch (autoErr) {
-        // If auto-detection fails, use decoded text
-        highlightedCode = decodedText;
       }
     }
 
@@ -323,7 +476,7 @@ export function renderMarkdown(
 
   // Temporarily replace blockquote markers to preserve them during HTML escaping
   const blockquotePlaceholder = "__BLOCKQUOTE_MARKER__";
-  const textWithPlaceholders = text.replace(
+  const textWithPlaceholders = markdownText.replace(
     /^> /gm,
     `${blockquotePlaceholder} `,
   );
@@ -356,7 +509,7 @@ export function renderMarkdown(
   const html = marked.parse(finalText) as string;
 
   // Post-process HTML to add copy buttons to code blocks
-  const processedHtml = html.replace(
+  let processedHtml = html.replace(
     /<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g,
     (match, attrs, content) => {
       const codeId = `code-${Math.random().toString(36).substr(2, 9)}`;
@@ -370,12 +523,19 @@ export function renderMarkdown(
     },
   );
 
-  // Return a div with dangerouslySetInnerHTML
+  // Apply IRC colors to prose (after code blocks are wrapped, so we can skip them)
+  processedHtml = applyIrcColorsToHtml(processedHtml, lineColors);
+
+  const safeHtml = DOMPurify.sanitize(processedHtml, {
+    ADD_ATTR: ["style", "data-code-id", "viewBox", "stroke-width", "rx", "ry"],
+    ADD_TAGS: ["button"],
+  });
+
   return (
     <div
       className="markdown-content"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML is sanitized above
-      dangerouslySetInnerHTML={{ __html: processedHtml }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized by DOMPurify above
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
       onClick={(e) => {
         const target = e.target as HTMLElement;
         const button =
@@ -578,11 +738,15 @@ export function mircToHtml(text: string, keyPrefix = ""): React.ReactNode {
   const elementIndexRef = { current: 0 };
   result.forEach((node, index) => {
     if (React.isValidElement(node) && node.type === "span") {
-      const textContent = node.props.children;
+      const props = node.props as {
+        children?: React.ReactNode;
+        style?: React.CSSProperties;
+      };
+      const textContent = props.children;
       if (typeof textContent === "string") {
         const urlProcessed = processUrlsInText(
           textContent,
-          node.props.style,
+          props.style,
           keyPrefix,
           elementIndexRef,
         );
@@ -605,9 +769,12 @@ function processUrlsInText(
   keyPrefix = "",
   elementIndexRef?: { current: number },
 ): React.ReactNode[] {
-  // URL regex pattern - matches http://, https://, and www. URLs
+  // Check if running in Tauri native environment
+  const isTauriEnv = isTauri();
+
+  // URL regex pattern - matches http://, https://, irc://, ircs://, and www. URLs
   const urlRegex =
-    /(https?:\/\/[^\s<>"{}|\\^`[\]]+|www\.[^\s<>"{}|\\^`[\]]+)/gi;
+    /((?:https?|ircs?):\/\/[^\s<>"{}|\\^`[\]]+|www\.[^\s<>"{}|\\^`[\]]+)/gi;
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -625,25 +792,48 @@ function processUrlsInText(
     }
 
     const url = match[0];
+    const isIrcLink = url.startsWith("irc://") || url.startsWith("ircs://");
+
     // Ensure URL has protocol
     const fullUrl = url.startsWith("http") ? url : `https://${url}`;
 
-    // Truncate long URLs for display
-    const displayText = url.length > 50 ? `${url.slice(0, 47)}...` : url;
+    // IRC links: only make clickable on Tauri, otherwise show as plain text
+    if (isIrcLink && !isTauriEnv) {
+      parts.push(
+        <span
+          key={`${keyPrefix}text-${elementIndex++}`}
+          style={style}
+          className="text-discord-text-muted"
+        >
+          {url}
+        </span>,
+      );
+    } else {
+      // Add appropriate class based on link type
+      const isExternalLink =
+        fullUrl.startsWith("http://") || fullUrl.startsWith("https://");
+      const linkClass = isIrcLink
+        ? "text-blue-500 hover:text-blue-700 underline irc-link"
+        : isExternalLink
+          ? "text-blue-500 hover:text-blue-700 underline external-link-security"
+          : "text-blue-500 hover:text-blue-700 underline";
 
-    parts.push(
-      <a
-        key={`${keyPrefix}url-${elementIndex++}`}
-        href={fullUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-500 hover:text-blue-700 underline"
-        style={style}
-        title={url}
-      >
-        {displayText}
-      </a>,
-    );
+      parts.push(
+        // inline-block + max-w + truncate: CSS ellipsis so the full URL text is in the
+        // DOM (copy-paste works) while long URLs don't overflow the message bubble.
+        <a
+          key={`${keyPrefix}url-${elementIndex++}`}
+          href={isIrcLink ? url : fullUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${linkClass} inline-block max-w-[40ch] truncate align-bottom`}
+          style={style}
+          title={url}
+        >
+          {url}
+        </a>,
+      );
+    }
 
     lastIndex = match.index + match[0].length;
     match = urlRegex.exec(text);

@@ -1,0 +1,17 @@
+[package]
+name = "tauri-plugin-ios-keyboard"
+version = "0.2.0"
+edition = "2021"
+build = "build.rs"
+links = "tauri-plugin-ios-keyboard"
+
+[lib]
+name = "tauri_plugin_ios_keyboard"
+
+[dependencies]
+serde = "1.0"
+tauri = { version = "2" }
+thiserror = "2"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }

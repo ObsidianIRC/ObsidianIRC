@@ -2,6 +2,7 @@ import { XMarkIcon } from "@heroicons/react/24/solid";
 import type React from "react";
 import { useState } from "react";
 import type { SettingComponentProps } from "../../../lib/settings/types";
+import { TextInput } from "../TextInput";
 
 /**
  * Custom component for managing custom mentions list
@@ -35,8 +36,7 @@ export const CustomMentionsField: React.FC<SettingComponentProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex space-x-2">
-        <input
-          type="text"
+        <TextInput
           value={newMention}
           onChange={(e) => setNewMention(e.target.value)}
           onKeyPress={handleKeyPress}

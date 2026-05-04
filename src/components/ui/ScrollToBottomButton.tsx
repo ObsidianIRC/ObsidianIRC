@@ -19,10 +19,13 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
       <div className="absolute right-4">
         <button
           onClick={onClick}
-          className="bg-discord-dark-400 hover:bg-discord-dark-300 text-white rounded-full p-2 shadow-lg transition-all relative"
+          // Prevent focus leaving the textarea (which hides the keyboard on mobile)
+          // while still letting the click fire and scroll to bottom.
+          onMouseDown={(e) => e.preventDefault()}
+          className="scroll-to-bottom-btn p-3 bg-discord-dark-300 hover:bg-discord-dark-200 text-discord-text-muted hover:text-discord-channels-default rounded-full shadow-2xl transition-colors relative"
           aria-label="Scroll to bottom"
         >
-          <FaArrowDown className="text-white" />
+          <FaArrowDown className="w-4 h-4" />
           {unreadCount && unreadCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-discord-accent text-white text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
               {unreadCount > 99 ? "99+" : unreadCount}

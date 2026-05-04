@@ -2,6 +2,7 @@ import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppLayout } from "../../../src/components/layout/AppLayout";
 import useStore from "../../../src/store";
+import { defaultUIExtensions } from "../../fixtures/uiState";
 
 describe("AppLayout - Resize Behavior", () => {
   let matchMediaMock: {
@@ -33,11 +34,9 @@ describe("AppLayout - Resize Behavior", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         isServerMenuOpen: false,
         contextMenu: {
           isOpen: false,
@@ -55,6 +54,7 @@ describe("AppLayout - Resize Behavior", () => {
         settingsNavigation: {},
         perServerSelections: {},
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
     });
   });

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppLayout } from "../../../src/components/layout/AppLayout";
 import useStore from "../../../src/store";
 import type { Channel, Server, User } from "../../../src/types";
+import { defaultUIExtensions } from "../../fixtures/uiState";
 
 vi.mock("@tauri-apps/plugin-os", () => ({
   platform: vi.fn(() => "linux"),
@@ -110,11 +111,9 @@ describe("AppLayout Swipe Navigation", () => {
         editServerId: null,
         isSettingsModalOpen: false,
         isQuickActionsOpen: false,
-        isUserProfileModalOpen: false,
         isDarkMode: true,
         isMobileMenuOpen: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         linkSecurityWarnings: [],
         mobileViewActiveColumn: "serverList",
         isServerMenuOpen: false,
@@ -132,6 +131,7 @@ describe("AppLayout Swipe Navigation", () => {
         profileViewRequest: null,
         settingsNavigation: null,
         shouldFocusChatInput: false,
+        ...defaultUIExtensions,
       },
       messages: {},
       isConnecting: false,
@@ -373,13 +373,15 @@ describe("AppLayout Swipe Navigation", () => {
         })),
       });
 
-      vi.mock("@tauri-apps/plugin-os", () => ({
-        platform: vi.fn(() => "android"),
-      }));
-
       Object.defineProperty(window, "__TAURI__", {
         value: true,
         writable: true,
+      });
+
+      Object.defineProperty(navigator, "userAgent", {
+        value: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36",
+        writable: true,
+        configurable: true,
       });
     });
 
@@ -393,7 +395,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(useStore.getState().ui.mobileViewActiveColumn).toBe("serverList");
@@ -411,7 +412,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(useStore.getState().ui.mobileViewActiveColumn).toBe("chatView");
@@ -428,7 +428,6 @@ describe("AppLayout Swipe Navigation", () => {
 
       renderAppLayout();
 
-      // @ts-expect-error - androidBackCallback is dynamically added
       const result = window.androidBackCallback?.();
 
       expect(result).toBe(true);

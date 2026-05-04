@@ -25,3 +25,4 @@ jobs:
           publish_dir: ./dist
           external_repository: obsidianirc/obsidianirc.github.io
           publish_branch: main
+          cname: hello.obby.world

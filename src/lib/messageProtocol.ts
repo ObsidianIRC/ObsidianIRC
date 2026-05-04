@@ -29,7 +29,7 @@ export const splitLongMessage = (
     if (word.length > maxMessageLength) {
       // If a single word is too long, we have to break it
       if (currentLine) {
-        lines.push(currentLine.trim());
+        lines.push(currentLine);
         currentLine = "";
       }
 
@@ -40,7 +40,7 @@ export const splitLongMessage = (
     } else if (`${currentLine} ${word}`.length > maxMessageLength) {
       // Adding this word would exceed the limit
       if (currentLine) {
-        lines.push(currentLine.trim());
+        lines.push(currentLine);
       }
       currentLine = word;
     } else {
@@ -49,7 +49,7 @@ export const splitLongMessage = (
   }
 
   if (currentLine) {
-    lines.push(currentLine.trim());
+    lines.push(currentLine);
   }
 
   return lines.filter((line) => line.length > 0);
@@ -87,5 +87,5 @@ export const calculateProtocolOverhead = (target: string): number => {
  * @returns A unique batch identifier
  */
 export const createBatchId = (): string => {
-  return `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `ml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };

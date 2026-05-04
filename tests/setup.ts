@@ -2,6 +2,12 @@ import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
+window.HTMLElement.prototype.scrollTo = vi.fn();
+// jsdom returns "" for all canPlayType queries, making every video look unsupported.
+// Return "probably" so tests exercise the normal player path.
+window.HTMLVideoElement.prototype.canPlayType = vi.fn(
+  () => "probably" as CanPlayTypeResult,
+);
 window.matchMedia = vi.fn(() => ({
   matches: false,
   addEventListener: vi.fn(),
@@ -17,6 +23,13 @@ global.IntersectionObserver = class IntersectionObserver {
   }
   unobserve() {}
 } as unknown as typeof IntersectionObserver;
+
+// Mock ResizeObserver
+global.ResizeObserver = class ResizeObserver {
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as unknown as typeof ResizeObserver;
 
 // Mock localStorage
 const localStorageMock = {

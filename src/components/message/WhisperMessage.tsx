@@ -2,10 +2,9 @@ import type React from "react";
 import { processMarkdownInText } from "../../lib/ircUtils";
 import type { MessageType, User } from "../../types";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
-import { MessageActions } from "./MessageActions";
 import { MessageAvatar } from "./MessageAvatar";
 import { MessageHeader } from "./MessageHeader";
-import { MessageReactions } from "./MessageReactions";
+import { ReactionsWithActions } from "./ReactionsWithActions";
 
 interface WhisperMessageProps {
   message: MessageType;
@@ -43,7 +42,7 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
   canRedact,
   ircCurrentUser,
 }) => {
-  const username = message.userId.split("-")[0];
+  const username = message.userId;
   const avatarUrl = messageUser?.metadata?.avatar?.value;
   const displayName = messageUser?.metadata?.["display-name"]?.value;
   const userColor = messageUser?.metadata?.color?.value;
@@ -162,24 +161,18 @@ export const WhisperMessage: React.FC<WhisperMessageProps> = ({
               </EnhancedLinkWrapper>
             </div>
 
-            <MessageReactions
-              reactions={message.reactions}
+            <ReactionsWithActions
+              message={message}
               currentUserUsername={ircCurrentUser?.username}
               onReactionClick={handleReactionClick}
+              onReactClick={(el) => onReactClick(message, el)}
+              onReplyClick={() => setReplyTo(message)}
+              onRedactClick={
+                canRedact ? () => onRedactMessage?.(message) : undefined
+              }
+              canRedact={canRedact}
             />
           </div>
-
-          <MessageActions
-            message={message}
-            onReplyClick={() => setReplyTo(message)}
-            onReactClick={(buttonElement) =>
-              onReactClick(message, buttonElement)
-            }
-            onRedactClick={
-              canRedact ? () => onRedactMessage?.(message) : undefined
-            }
-            canRedact={canRedact}
-          />
         </div>
       </div>
     </div>

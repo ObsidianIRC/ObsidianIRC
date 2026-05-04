@@ -8,6 +8,7 @@ import {
   isUrlFromFilehost,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import useStore from "../../store";
 import type { User } from "../../types";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
@@ -107,9 +108,8 @@ const UserItem: React.FC<{
 }> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
-  // Get global settings for media controls
-  const { showSafeMedia, showExternalContent } = useStore(
-    (state) => state.globalSettings,
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
   // Get server for filehost detection
@@ -369,25 +369,16 @@ export const MemberList: React.FC = () => {
         (u) => u.username.toLowerCase() === currentUser.username.toLowerCase(),
       );
       if (userInServer?.status && userInServer.status !== currentUser.status) {
-        console.log(
-          "MemberList - updating currentUser.status from server.users:",
-          userInServer.status,
+        useStore.setState((state) =>
+          state.currentUser
+            ? {
+                currentUser: {
+                  ...state.currentUser,
+                  status: userInServer.status,
+                },
+              }
+            : {},
         );
-        useStore.setState((state) => ({
-          ...state,
-          currentUser: {
-            ...currentUser,
-            status: userInServer.status,
-          },
-        }));
-        // Also update in channel.users
-        const userInChannel = selectedChannel.users.find(
-          (u) =>
-            u.username.toLowerCase() === currentUser.username.toLowerCase(),
-        );
-        if (userInChannel) {
-          userInChannel.status = userInServer.status;
-        }
       }
     }
   }, [selectedServer, currentUser, selectedChannel]);
@@ -508,8 +499,10 @@ export const MemberList: React.FC = () => {
   const handleOpenPM = (username: string) => {
     if (selectedServerId) {
       openPrivateChat(selectedServerId, username);
-      // Find and select the private chat
-      const server = servers.find((s) => s.id === selectedServerId);
+      // Read fresh store state so newly-created DMs are visible (stale closure fix)
+      const server = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
       const privateChat = server?.privateChats?.find(
         (pc) => pc.username === username,
       );

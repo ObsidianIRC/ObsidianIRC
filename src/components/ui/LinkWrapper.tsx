@@ -4,16 +4,31 @@ import {
   cloneElement,
   Fragment,
   isValidElement,
+  useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
+import { openExternalUrl } from "../../lib/openUrl";
 import ExternalLinkWarningModal from "./ExternalLinkWarningModal";
 
 interface EnhancedLinkWrapperProps {
   children: React.ReactNode;
   onIrcLinkClick?: (url: string) => void;
 }
+
+// Factory so each call gets a fresh lastIndex (global-flag regex is stateful)
+const makeUrlRegex = () => /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
+
+const truncateUrl = (url: string, maxLength = 60): string => {
+  if (url.length <= maxLength) return url;
+
+  const charsToShow = maxLength - 3; // Account for "..."
+  const frontChars = Math.ceil(charsToShow / 2);
+  const backChars = Math.floor(charsToShow / 2);
+
+  return `${url.substring(0, frontChars)}...${url.substring(url.length - backChars)}`;
+};
 
 export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
   children,
@@ -22,15 +37,25 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Handle clicks on external links within dangerouslySetInnerHTML content
+  // dangerouslySetInnerHTML content doesn't go through React's synthetic event
+  // system, so we need a DOM listener to intercept those link clicks.
   useEffect(() => {
-    const handleExternalLinkClick = (e: Event) => {
+    const handleDomLinkClick = (e: Event) => {
       const target = e.target as HTMLElement;
-      // Check if the target or any of its parents have the external-link-security class
       let element: HTMLElement | null = target;
       while (element) {
+        if (element.classList.contains("irc-link") && onIrcLinkClick) {
+          e.preventDefault();
+          e.stopPropagation();
+          const url = element.getAttribute("href");
+          if (url) {
+            onIrcLinkClick(url);
+          }
+          break;
+        }
         if (element.classList.contains("external-link-security")) {
           e.preventDefault();
+          e.stopPropagation();
           const url = element.getAttribute("href");
           if (url) {
             setPendingUrl(url);
@@ -43,33 +68,34 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
 
     const container = containerRef.current;
     if (container) {
-      container.addEventListener("click", handleExternalLinkClick);
+      container.addEventListener("click", handleDomLinkClick, true);
       return () =>
-        container.removeEventListener("click", handleExternalLinkClick);
+        container.removeEventListener("click", handleDomLinkClick, true);
     }
-  }, []);
+  }, [onIrcLinkClick]);
 
-  const handleLinkClick = (e: React.MouseEvent, url: string) => {
-    // Handle IRC links
-    if (
-      (url.startsWith("ircs://") || url.startsWith("irc://")) &&
-      onIrcLinkClick
-    ) {
-      e.preventDefault();
-      onIrcLinkClick(url);
-      return;
-    }
+  const handleLinkClick = useCallback(
+    (e: React.MouseEvent, url: string) => {
+      if (
+        (url.startsWith("ircs://") || url.startsWith("irc://")) &&
+        onIrcLinkClick
+      ) {
+        e.preventDefault();
+        onIrcLinkClick(url);
+        return;
+      }
 
-    // Handle HTTP/HTTPS links - show warning modal
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      e.preventDefault();
-      setPendingUrl(url);
-    }
-  };
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        e.preventDefault();
+        setPendingUrl(url);
+      }
+    },
+    [onIrcLinkClick],
+  );
 
-  const handleConfirmOpen = () => {
+  const handleConfirmOpen = async () => {
     if (pendingUrl) {
-      window.open(pendingUrl, "_blank", "noopener,noreferrer");
+      await openExternalUrl(pendingUrl);
     }
     setPendingUrl(null);
   };
@@ -78,59 +104,45 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
     setPendingUrl(null);
   };
 
-  // Truncate long URLs with middle ellipsis
-  const truncateUrl = (url: string, maxLength = 60): string => {
-    if (url.length <= maxLength) return url;
+  const parseContent = useCallback(
+    (content: string): React.ReactNode[] => {
+      const parts = content.split(makeUrlRegex());
+      const matches = content.match(makeUrlRegex()) || [];
 
-    const charsToShow = maxLength - 3; // Account for "..."
-    const frontChars = Math.ceil(charsToShow / 2);
-    const backChars = Math.floor(charsToShow / 2);
+      return parts.map((part, index) => {
+        const partKey = `text-${part}-${index}`;
+        const textPart = <span key={partKey}>{part}</span>;
 
-    return `${url.substring(0, frontChars)}...${url.substring(url.length - backChars)}`;
-  };
+        if (index < matches.length) {
+          const fragmentKey = `fragment-${matches[index]}-${index}`;
+          return (
+            <Fragment key={fragmentKey}>
+              {textPart}
+              <a
+                href={matches[index]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 underline hover:text-blue-700 break-all"
+                onClick={(e) => handleLinkClick(e, matches[index])}
+                title={matches[index]}
+              >
+                {truncateUrl(matches[index])}
+              </a>
+            </Fragment>
+          );
+        }
 
-  // Regular expression to detect HTTP and HTTPS links
-  const urlRegex = /\b(?:https?|irc|ircs):\/\/[^\s<>"']+/gi;
-  const parseContent = (content: string): React.ReactNode[] => {
-    // Split the content based on the URL regex
-    const parts = content.split(urlRegex);
-    const matches = content.match(urlRegex) || [];
+        return textPart;
+      });
+    },
+    [handleLinkClick],
+  );
 
-    return parts.map((part, index) => {
-      // Generate stable keys based on content and position
-      const partKey = `text-${part}-${index}`;
-      const textPart = <span key={partKey}>{part}</span>;
-
-      // If there's a matching link for this part, render it
-      if (index < matches.length) {
-        const fragmentKey = `fragment-${matches[index]}-${index}`;
-        return (
-          <Fragment key={fragmentKey}>
-            {textPart}
-            <a
-              href={matches[index]}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-discord-text-link underline hover:text-blue-700 break-all"
-              onClick={(e) => handleLinkClick(e, matches[index])}
-              title={matches[index]}
-            >
-              {truncateUrl(matches[index])}
-            </a>
-          </Fragment>
-        );
-      }
-
-      return textPart;
-    });
-  };
-
-  // Since children can be React nodes, we need to process them
   const processChildren = (node: React.ReactNode): React.ReactNode[] => {
     return (
       Children.map(node, (child) => {
         if (typeof child === "string") {
-          return parseContent(child); // Process string content
+          return parseContent(child);
         }
         if (isValidElement(child)) {
           // Skip already-linkified anchors to avoid nested <a>
@@ -138,24 +150,25 @@ export const EnhancedLinkWrapper: React.FC<EnhancedLinkWrapperProps> = ({
             return child;
           }
           // Skip elements with dangerouslySetInnerHTML to avoid conflicts
-          if ((child as React.ReactElement).props?.dangerouslySetInnerHTML) {
+          const childProps = (child as React.ReactElement).props as {
+            dangerouslySetInnerHTML?: unknown;
+            children?: React.ReactNode;
+          };
+          if (childProps?.dangerouslySetInnerHTML) {
             return child;
           }
-          // Directly process the children of the React element
-          const processed = processChildren(
-            (child as React.ReactElement).props?.children,
-          );
+          const processed = processChildren(childProps?.children);
           return cloneElement(
             child as React.ReactElement,
             undefined,
             processed,
           );
         }
-        // For other types of children, return them as is
         return child as React.ReactNode;
       }) ?? []
     );
   };
+
   return (
     <>
       <ExternalLinkWarningModal

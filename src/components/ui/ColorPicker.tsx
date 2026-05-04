@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { FaTimes } from "react-icons/fa";
 import { ircColors } from "../../lib/ircUtils";
 import type { FormattingType } from "../../lib/messageFormatter";
+import { BaseModal } from "../../lib/modal/BaseModal";
 
 const ColorPicker: React.FC<{
   onSelect: (color: string, formatting: FormattingType[]) => void;
@@ -10,16 +11,20 @@ const ColorPicker: React.FC<{
   selectedColor: string | null;
   selectedFormatting: FormattingType[];
   toggleFormatting: (format: FormattingType) => void;
+  isNarrowView?: boolean;
 }> = ({
   onSelect,
   onClose,
   selectedColor,
   selectedFormatting,
   toggleFormatting,
+  isNarrowView = false,
 }) => {
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isNarrowView) return;
+
     const handleClickOutside = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         onClose();
@@ -28,96 +33,120 @@ const ColorPicker: React.FC<{
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
+  }, [onClose, isNarrowView]);
+
+  const colorGrid = (
+    <div
+      className={`grid grid-cols-8 ${isNarrowView ? "gap-3 mb-6" : "gap-2 mb-4"}`}
+    >
+      {ircColors.map((color, index) => {
+        const isSelected = selectedColor === color;
+        // There are duplicate colors due to things like 98 being the same as white (00)
+        const keyToken = `${color}-${index}`;
+        return (
+          <button
+            key={keyToken}
+            className={`${isNarrowView ? "w-9 h-9" : "w-6 h-6"} rounded border-2 flex items-center justify-center ${
+              isSelected
+                ? "border-purple-500 shadow-md shadow-purple-500"
+                : "border-gray-700"
+            }`}
+            style={{
+              backgroundColor: color === "inherit" ? "transparent" : color,
+            }}
+            onClick={() => onSelect(color, selectedFormatting)}
+          >
+            {color === "inherit" && (
+              <span className="text-xs text-purple-500 font-bold">
+                <FaTimes />
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const formattingGrid = (
+    <div className={`grid grid-cols-6 ${isNarrowView ? "gap-3" : "gap-2"}`}>
+      <button
+        className={`${isNarrowView ? "w-11 h-11" : "w-6 h-6"} rounded border-2 flex items-center justify-center ${
+          selectedFormatting.includes("bold")
+            ? "bg-discord-dark-200 text-white border-purple-500"
+            : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
+        }`}
+        onClick={() => toggleFormatting("bold")}
+      >
+        <span className="font-bold">B</span>
+      </button>
+      <button
+        className={`${isNarrowView ? "w-11 h-11" : "w-6 h-6"} rounded border-2 flex items-center justify-center ${
+          selectedFormatting.includes("italic")
+            ? "bg-discord-dark-200 text-white border-purple-500"
+            : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
+        }`}
+        onClick={() => toggleFormatting("italic")}
+      >
+        <span className="italic">I</span>
+      </button>
+      <button
+        className={`${isNarrowView ? "w-11 h-11" : "w-6 h-6"} rounded border-2 flex items-center justify-center ${
+          selectedFormatting.includes("underline")
+            ? "bg-discord-dark-200 text-white border-purple-500"
+            : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
+        }`}
+        onClick={() => toggleFormatting("underline")}
+      >
+        <span className="underline">U</span>
+      </button>
+      <button
+        className={`${isNarrowView ? "w-11 h-11" : "w-6 h-6"} rounded border-2 flex items-center justify-center ${
+          selectedFormatting.includes("strikethrough")
+            ? "bg-discord-dark-200 text-white border-purple-500"
+            : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
+        }`}
+        onClick={() => toggleFormatting("strikethrough")}
+      >
+        <span className="line-through">S</span>
+      </button>
+      <button
+        className={`${isNarrowView ? "w-11 h-11" : "w-6 h-6"} rounded border-2 flex items-center justify-center ${
+          selectedFormatting.includes("monospace")
+            ? "bg-discord-dark-200 text-white border-purple-500"
+            : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
+        }`}
+        onClick={() => toggleFormatting("monospace")}
+      >
+        <span className="font-mono text-xs">M</span>
+      </button>
+    </div>
+  );
+
+  if (isNarrowView) {
+    return (
+      <BaseModal
+        isOpen={true}
+        onClose={onClose}
+        title="Color & Formatting"
+        maxWidth="sm"
+        closeOnClickOutside={true}
+        closeOnEsc={true}
+      >
+        <div className="p-4">
+          {colorGrid}
+          {formattingGrid}
+        </div>
+      </BaseModal>
+    );
+  }
 
   return (
     <div
       ref={pickerRef}
       className="absolute bottom-16 right-4 z-50 bg-discord-dark-300 p-4 rounded shadow-lg"
     >
-      {/* Color Options */}
-      <div className="grid grid-cols-8 gap-2 mb-4">
-        {ircColors.map((color, index) => {
-          const isSelected = selectedColor === color;
-
-          // There are duplicate colors due to things like 98 being the same as white (00)
-          const keyToken = `${color}-${index}-${Math.floor(Math.random() * 9999)}`;
-          return (
-            <button
-              key={keyToken}
-              className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-                isSelected
-                  ? "border-purple-500 shadow-md shadow-purple-500"
-                  : "border-gray-700"
-              }`}
-              style={{
-                backgroundColor: color === "inherit" ? "transparent" : color,
-              }}
-              onClick={() => onSelect(color, selectedFormatting)}
-            >
-              {color === "inherit" && (
-                <span className="text-xs text-purple-500 font-bold">
-                  <FaTimes />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Formatting Options */}
-      <div className="grid grid-cols-6 gap-2">
-        <button
-          className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-            selectedFormatting.includes("bold")
-              ? "bg-discord-dark-200 text-white border-purple-500"
-              : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
-          }`}
-          onClick={() => toggleFormatting("bold")}
-        >
-          <span className="font-bold">B</span>
-        </button>
-        <button
-          className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-            selectedFormatting.includes("italic")
-              ? "bg-discord-dark-200 text-white border-purple-500"
-              : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
-          }`}
-          onClick={() => toggleFormatting("italic")}
-        >
-          <span className="italic">I</span>
-        </button>
-        <button
-          className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-            selectedFormatting.includes("underline")
-              ? "bg-discord-dark-200 text-white border-purple-500"
-              : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
-          }`}
-          onClick={() => toggleFormatting("underline")}
-        >
-          <span className="underline">U</span>
-        </button>
-        <button
-          className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-            selectedFormatting.includes("strikethrough")
-              ? "bg-discord-dark-200 text-white border-purple-500"
-              : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
-          }`}
-          onClick={() => toggleFormatting("strikethrough")}
-        >
-          <span className="line-through">S</span>
-        </button>
-        <button
-          className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-            selectedFormatting.includes("monospace")
-              ? "bg-discord-dark-200 text-white border-purple-500"
-              : "bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 border-gray-700"
-          }`}
-          onClick={() => toggleFormatting("monospace")}
-        >
-          <span className="font-mono text-xs">M</span>
-        </button>
-      </div>
+      {colorGrid}
+      {formattingGrid}
 
       <button
         onClick={onClose}

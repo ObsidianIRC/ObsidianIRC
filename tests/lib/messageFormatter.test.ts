@@ -386,7 +386,21 @@ console.log('test');
       const result = renderMarkdown(input);
 
       expect(result).toBeDefined();
-      // Should include copy button in the HTML
+    });
+
+    it("should handle inline code with newlines", () => {
+      const input =
+        "hi please type `MOD_LOAD(){return MOD_SUCCESS;}\\nMOD_INIT(){return MOD_SUCCESS;}\\nMOD_UNLOAD(){return MOD_SUCCESS;}` and you're done";
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
+    });
+
+    it("should handle normal inline code without newlines", () => {
+      const input = "Use `console.log()` to debug";
+      const result = renderMarkdown(input);
+
+      expect(result).toBeDefined();
     });
   });
 
@@ -413,17 +427,15 @@ console.log('test');
       expect(resultString).toContain("https://www.example.com");
     });
 
-    it("should truncate long URLs for display", () => {
+    it("should render long URLs with CSS truncation and full URL as text content", () => {
       const longUrl =
         "https://very-long-domain-name-that-should-be-truncated.example.com/path/to/some/very/long/resource";
       const result = mircToHtml(`Check ${longUrl}`);
       expect(result).toBeDefined();
       const resultString = JSON.stringify(result);
-      // Should contain truncated display text but full URL in href
-      expect(resultString).toContain(
-        "https://very-long-domain-name-that-should-be-tr...",
-      );
+      // Full URL must appear as both href and visible text — CSS handles visual truncation.
       expect(resultString).toContain(longUrl);
+      expect(resultString).toContain("truncate");
     });
 
     it("should preserve IRC color formatting with URLs", () => {

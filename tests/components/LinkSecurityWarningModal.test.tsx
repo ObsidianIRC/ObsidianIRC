@@ -90,7 +90,6 @@ describe("LinkSecurityWarningModal", () => {
         isMemberListVisible: false,
         isChannelListVisible: false,
         isChannelListModalOpen: false,
-        isChannelRenameModalOpen: false,
         // biome-ignore lint/suspicious/noExplicitAny: Partial mock type
         mobileViewActiveColumn: "chat" as any,
         isServerMenuOpen: false,
@@ -128,7 +127,6 @@ describe("LinkSecurityWarningModal", () => {
         notificationSound: "default",
         notificationVolume: 0.8,
         skipLinkSecurityWarnings: false,
-        skipLocalhostWarnings: false,
       },
     };
 
@@ -190,15 +188,6 @@ describe("LinkSecurityWarningModal", () => {
     expect(securityWarnings).toHaveLength(2);
     expect(screen.getByText("Test Server")).toBeInTheDocument();
     expect(screen.getByText("Local Server")).toBeInTheDocument();
-  });
-
-  test("renders localhost warning correctly", () => {
-    render(<LinkSecurityWarningModal />);
-
-    expect(screen.getByText("Local Server")).toBeInTheDocument();
-    expect(
-      screen.getByText("Unencrypted Connection (Localhost)"),
-    ).toBeInTheDocument();
   });
 
   test("renders link security warning correctly", () => {

@@ -1,15 +1,26 @@
-import exifr from "exifr";
 import type * as React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { useLongPress } from "../../hooks/useLongPress";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
   isUrlFromFilehost,
   isUserVerified,
   processMarkdownInText,
 } from "../../lib/ircUtils";
+import {
+  canShowMedia,
+  extractMediaFromMessage,
+  type MediaEntry,
+  type MediaType,
+  mediaLevelToSettings,
+} from "../../lib/mediaUtils";
+import { stripIrcFormatting } from "../../lib/messageFormatter";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
+import MessageBottomSheet from "../mobile/MessageBottomSheet";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
+import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
 import { InviteMessage } from "./InviteMessage";
 import {
   ActionMessage,
@@ -18,308 +29,15 @@ import {
   EventMessage,
   JsonLogMessage,
   LinkPreview,
-  MessageActions,
   MessageAvatar,
   MessageHeader,
-  MessageReactions,
   MessageReply,
+  ReactionsWithActions,
   StandardReplyNotification,
   SystemMessage,
   WhisperMessage,
 } from "./index";
-
-// Function to extract JPEG COM (comment) marker data
-function extractJpegComment(uint8Array: Uint8Array): string | null {
-  // JPEG files start with 0xFF 0xD8 (SOI marker)
-  if (
-    uint8Array.length < 4 ||
-    uint8Array[0] !== 0xff ||
-    uint8Array[1] !== 0xd8
-  ) {
-    return null;
-  }
-
-  let offset = 2;
-
-  while (offset < uint8Array.length - 1) {
-    // Look for marker (starts with 0xFF)
-    if (uint8Array[offset] !== 0xff) {
-      break;
-    }
-
-    const marker = uint8Array[offset + 1];
-    const markerLength = (uint8Array[offset + 2] << 8) | uint8Array[offset + 3];
-
-    // COM marker is 0xFE
-    if (marker === 0xfe) {
-      // Extract comment data (skip the 2-byte length field)
-      const commentData = uint8Array.slice(
-        offset + 4,
-        offset + markerLength + 2,
-      );
-      // Convert to string, assuming UTF-8
-      try {
-        return new TextDecoder("utf-8").decode(commentData);
-      } catch (e) {
-        // Try latin1 if UTF-8 fails
-        return String.fromCharCode.apply(null, Array.from(commentData));
-      }
-    }
-
-    // Move to next marker
-    offset += markerLength + 2;
-
-    // SOS marker (0xDA) indicates start of scan data - comments usually come before this
-    if (marker === 0xda) {
-      break;
-    }
-  }
-
-  return null;
-}
-
-// Component to display banner overlay for filehost images
-const FilehostImageBanner: React.FC<{
-  exifData: { author?: string; jwt_expiry?: string; server_expiry?: string };
-  serverId?: string;
-  onOpenProfile?: (username: string) => void;
-}> = ({ exifData, serverId, onOpenProfile }) => {
-  const currentUser = serverId ? ircClient.getCurrentUser(serverId) : null;
-
-  if (!exifData.author) return null;
-
-  const [ircNick, ircAccount] = exifData.author.split(":");
-  const isVerified =
-    currentUser?.account &&
-    ircAccount !== "0" &&
-    currentUser.account.toLowerCase() === ircAccount.toLowerCase();
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering the image click
-    if (onOpenProfile) {
-      onOpenProfile(ircNick);
-    }
-  };
-
-  return (
-    <div
-      className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-b-lg flex items-center cursor-pointer hover:bg-opacity-90 transition-opacity"
-      onClick={handleClick}
-    >
-      <div className="flex items-center gap-1">
-        <span>{ircNick}</span>
-        {isVerified && (
-          <svg
-            className="w-3 h-3 text-green-400"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              clipRule="evenodd"
-            />
-          </svg>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Component to render image with fallback to URL if loading fails
-const ImageWithFallback: React.FC<{
-  url: string;
-  isFilehostImage?: boolean;
-  serverId?: string;
-  onOpenProfile?: (username: string) => void;
-}> = ({ url, isFilehostImage = false, serverId, onOpenProfile }) => {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
-  const [exifData, setExifData] = useState<{
-    author?: string;
-    jwt_expiry?: string;
-    server_expiry?: string;
-  } | null>(null);
-  const [exifError, setExifError] = useState(false);
-
-  // Simple in-memory cache for images per session
-  const imageCache = useRef<Map<string, string>>(new Map());
-
-  useEffect(() => {
-    const resolveTenorUrl = async (sharingUrl: string) => {
-      try {
-        // Extract ID from Tenor sharing URL: https://tenor.com/view/slug-gif-ID
-        const match = sharingUrl.match(/tenor\.com\/view\/.*-gif-(\d+)/);
-        if (!match) return sharingUrl;
-
-        const gifId = match[1];
-        const apiKey = import.meta.env.VITE_TENOR_API_KEY;
-
-        if (!apiKey) return sharingUrl; // Fallback to original URL if no API key
-
-        // Use Tenor API to get the GIF data
-        const response = await fetch(
-          `https://tenor.googleapis.com/v2/posts?ids=${gifId}&key=${apiKey}`,
-        );
-
-        if (!response.ok) return sharingUrl;
-
-        const data = await response.json();
-        if (data.results?.[0]?.media_formats) {
-          // Prefer gif format, fallback to other formats
-          const media = data.results[0].media_formats;
-          return (
-            media.gif?.url ||
-            media.mediumgif?.url ||
-            media.tinygif?.url ||
-            sharingUrl
-          );
-        }
-      } catch (error) {
-        console.warn("Failed to resolve Tenor URL:", error);
-      }
-      return sharingUrl;
-    };
-
-    const processUrl = async () => {
-      let finalUrl = url;
-
-      // Check if this is a Tenor sharing URL that needs resolution
-      if (url.match(/tenor\.com\/view\//)) {
-        finalUrl = await resolveTenorUrl(url);
-        setResolvedUrl(finalUrl);
-      } else {
-        setResolvedUrl(url);
-      }
-
-      // For filehost images, fetch EXIF data
-      if (isFilehostImage) {
-        try {
-          // Fetch the image as a blob to read EXIF data
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          const blob = await response.blob();
-
-          const exif = await exifr.parse(blob);
-
-          // Try to find the Comment field in various places
-          let commentData = null;
-          if (exif?.Comment) {
-            commentData = exif.Comment;
-          } else if (exif?.UserComment) {
-            commentData = exif.UserComment;
-          } else if (exif?.ImageDescription) {
-            commentData = exif.ImageDescription;
-          } else if (exif?.iptc?.Caption) {
-            commentData = exif.iptc.Caption;
-          } else if (exif?.xmp?.description) {
-            commentData = exif.xmp.description;
-          }
-
-          // If no comment found in standard EXIF, try to manually parse JPEG COM markers
-          if (!commentData) {
-            try {
-              const arrayBuffer = await blob.arrayBuffer();
-              const uint8Array = new Uint8Array(arrayBuffer);
-              commentData = extractJpegComment(uint8Array);
-            } catch (error) {
-              console.warn("Failed to manually parse JPEG comment:", error);
-            }
-          }
-
-          if (commentData) {
-            try {
-              const parsedData = JSON.parse(commentData);
-              setExifData({
-                author: parsedData.author,
-                jwt_expiry: parsedData.jwt_expiry,
-                server_expiry: parsedData.server_expiry,
-              });
-            } catch (parseError) {
-              console.warn(
-                "Failed to parse EXIF Comment JSON:",
-                parseError,
-                "Raw data:",
-                commentData,
-              );
-              setExifError(true);
-            }
-          } else {
-            console.warn(
-              "No Comment field found in EXIF data. Available fields:",
-              Object.keys(exif || {}),
-            );
-            // Log the full exif object for debugging
-            console.warn("Full EXIF data:", exif);
-            setExifError(true);
-          }
-        } catch (error) {
-          console.warn("Failed to fetch EXIF data:", error);
-          setExifError(true);
-        }
-      }
-
-      // Cache the image in background for future use
-      if (!imageCache.current.has(finalUrl)) {
-        fetch(finalUrl)
-          .then((response) => response.blob())
-          .then((blob) => {
-            const objectUrl = URL.createObjectURL(blob);
-            imageCache.current.set(finalUrl, objectUrl);
-          })
-          .catch(() => {
-            // Ignore cache errors
-          });
-      }
-    };
-
-    processUrl();
-  }, [url, isFilehostImage]);
-
-  const displayUrl = resolvedUrl || url;
-
-  if (imageError) {
-    // Fallback to showing expired badge
-    return (
-      <div className="max-w-md">
-        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
-          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 border border-red-200">
-            <span>This image has expired</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-md">
-      <div className="relative inline-block">
-        <img
-          src={displayUrl}
-          alt={isFilehostImage ? "Filehost image" : "GIF"}
-          className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-          onClick={(e) => {
-            e.preventDefault();
-            window.open(url, "_blank"); // Always open original URL for sharing
-          }}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
-          style={{ maxHeight: "150px" }}
-        />
-        {isFilehostImage && exifData && (
-          <FilehostImageBanner
-            exifData={exifData}
-            serverId={serverId}
-            onOpenProfile={onOpenProfile}
-          />
-        )}
-      </div>
-    </div>
-  );
-};
+import { MediaPreview } from "./MediaPreview";
 
 interface MessageItemProps {
   message: MessageType;
@@ -345,7 +63,11 @@ interface MessageItemProps {
   onDirectReaction: (emoji: string, message: MessageType) => void;
   serverId: string;
   channelId?: string;
+  /** DM context only — used as the message store key for media viewer navigation. */
+  privateChatId?: string;
   onRedactMessage?: (message: MessageType) => void;
+  hideReply?: boolean;
+  isHighlighted?: boolean;
 }
 
 // Helper function to get user metadata
@@ -394,7 +116,22 @@ const getUserFromChannels = (username: string, serverId: string) => {
   return null;
 };
 
-export const MessageItem = (props: MessageItemProps) => {
+// When index 0 has no preview (type null), the first known-type entry must be shown
+// directly, not collapsed — otherwise there would be 0 visible previews before "Show more".
+export function partitionMediaEntries(entries: MediaEntry[]) {
+  const extraNullEntries = entries.slice(1).filter((e) => e.type === null);
+  const allKnownEntries = entries.filter((e) => e.type !== null);
+  const firstKnownNotAtZero =
+    entries[0]?.type === null ? (allKnownEntries[0] ?? null) : null;
+  const extraKnownEntries = allKnownEntries.slice(1);
+  return { extraNullEntries, firstKnownNotAtZero, extraKnownEntries };
+}
+
+// Theme is set once at startup and does not change while the app is running.
+// Reading it per-render via localStorage.getItem is unnecessary synchronous I/O.
+const CURRENT_THEME = localStorage.getItem("theme") || "discord";
+
+export const MessageItem = memo((props: MessageItemProps) => {
   const {
     message,
     showDate,
@@ -410,10 +147,54 @@ export const MessageItem = (props: MessageItemProps) => {
     onDirectReaction,
     serverId,
     channelId,
+    privateChatId,
     onRedactMessage,
+    hideReply,
+    isHighlighted,
   } = props;
+  // channelId is null in DMs (drives avatar lookup); privateChatId is the message store key.
+  const mediaChannelId = channelId ?? privateChatId;
   const pmUserCache = useRef(new Map<string, User>());
-  const EMPTY_MESSAGES = useRef<MessageType[]>([]).current;
+  const isNarrowView = useMediaQuery();
+  const isTouchDevice = useMediaQuery("(pointer: coarse)");
+  const collapsibleRef = useRef<CollapsibleMessageHandle>(null);
+  const [messageNeedsCollapsing, setMessageNeedsCollapsing] = useState(false);
+  const messageRowRef = useRef<HTMLDivElement>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const longPress = useLongPress({
+    onLongPress: () => setSheetOpen(true),
+  });
+
+  const handleMessageMouseEnter = () => {
+    const el = messageRowRef.current;
+    if (!el) return;
+    const msgRect = el.getBoundingClientRect();
+    // Toolbar: bottom-1 (4px from bottom), right-4 (16px from right), ~90px wide, ~32px tall
+    const toolbarTop = msgRect.bottom - 4 - 32;
+    const toolbarLeft = msgRect.right - 16 - 90;
+    const toolbarRight = msgRect.right - 16;
+    const toolbarBottom = msgRect.bottom - 4;
+
+    for (const btn of el.querySelectorAll<HTMLElement>(
+      ".copy-button, .inline-copy-button",
+    )) {
+      const r = btn.getBoundingClientRect();
+      const overlaps =
+        r.right > toolbarLeft &&
+        r.left < toolbarRight &&
+        r.bottom > toolbarTop &&
+        r.top < toolbarBottom;
+      if (overlaps) btn.classList.add("avoid-toolbar");
+    }
+  };
+
+  const handleMessageMouseLeave = () => {
+    for (const el of messageRowRef.current?.querySelectorAll(
+      ".avoid-toolbar",
+    ) ?? []) {
+      el.classList.remove("avoid-toolbar");
+    }
+  };
 
   const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
   const isCurrentUser = ircCurrentUser?.username === message.userId;
@@ -424,38 +205,33 @@ export const MessageItem = (props: MessageItemProps) => {
       (state) => {
         if (!serverId) return "none";
 
-        // For private chats, check private chats
         if (!channelId) {
-          const privateChat = state.servers
-            .find((s) => s.id === serverId)
-            ?.privateChats?.find(
-              (pc) => pc.username === message.userId.split("-")[0],
-            );
-          if (privateChat) {
-            // Check if user is in any channel
-            const server = state.servers.find((s) => s.id === serverId);
-            if (server) {
-              const user = server.channels
-                .flatMap((c) => c.users)
-                .find(
-                  (u) =>
-                    u.username.toLowerCase() ===
-                    privateChat.username.toLowerCase(),
-                );
-              if (user) {
-                return `channel-${user.id}`;
-              }
+          const server = state.servers.find((s) => s.id === serverId);
+          // Prefer channel user — covers current user who has no PrivateChat entry
+          if (server) {
+            const user = server.channels
+              .flatMap((c) => c.users)
+              .find(
+                (u) =>
+                  u.username.toLowerCase() === message.userId.toLowerCase(),
+              );
+            if (user) {
+              return `channel-${user.id}`;
             }
+          }
+          const privateChat = server?.privateChats?.find(
+            (pc) => pc.username === message.userId,
+          );
+          if (privateChat) {
             return `pm-${privateChat.id}`;
           }
           return "none";
         }
 
-        // For channels, find the user in the channel
         const server = state.servers.find((s) => s.id === serverId);
         const channel = server?.channels.find((c) => c.id === channelId);
         const user = channel?.users.find(
-          (user) => user.username === message.userId.split("-")[0],
+          (user) => user.username === message.userId,
         );
         return user ? `channel-${user.id}` : "none";
       },
@@ -473,16 +249,18 @@ export const MessageItem = (props: MessageItemProps) => {
           const privateChat = state.servers
             .find((s) => s.id === serverId)
             ?.privateChats?.find((pc) => pc.id === privateChatId);
-          if (privateChat) {
-            // Don't create new objects - return the privateChat user reference
-            // We'll handle metadata separately
-            return privateChat;
-          }
+          if (privateChat) return privateChat;
         } else if (userKey.startsWith("channel-")) {
           const userId = userKey.slice(8);
           const server = state.servers.find((s) => s.id === serverId);
-          const channel = server?.channels.find((c) => c.id === channelId);
-          return channel?.users.find((user) => user.id === userId);
+          if (channelId) {
+            const channel = server?.channels.find((c) => c.id === channelId);
+            return channel?.users.find((user) => user.id === userId);
+          }
+          // DM context: no channelId, search all channels
+          return server?.channels
+            .flatMap((c) => c.users)
+            .find((user) => user.id === userId);
         }
 
         return undefined;
@@ -491,25 +269,18 @@ export const MessageItem = (props: MessageItemProps) => {
     ),
   );
 
-  // Get metadata for private message users reactively
-  const pmUserMetadata = useStore(
-    useCallback(
-      (state) => {
-        // Include metadataChangeCounter to make this reactive to metadata updates
-        const _counter = state.metadataChangeCounter;
-        if (!userKey.startsWith("pm-")) return null;
-        const privateChatId = userKey.slice(3);
-        const privateChat = state.servers
-          .find((s) => s.id === serverId)
-          ?.privateChats?.find((pc) => pc.id === privateChatId);
-        if (privateChat) {
-          return getUserMetadata(privateChat.username, serverId);
-        }
-        return null;
-      },
-      [userKey, serverId],
-    ),
+  const metadataChangeCounter = useStore(
+    (state) => state.metadataChangeCounter,
   );
+
+  // useMemo instead of useStore — safe to read localStorage without infinite loop via useSyncExternalStore
+  // biome-ignore lint/correctness/useExhaustiveDependencies: metadataChangeCounter is intentional reactive trigger
+  const pmUserMetadata = useMemo(() => {
+    if (!userKey.startsWith("pm-")) return null;
+    const pmUsername = (rawMessageUser as PrivateChat)?.username;
+    if (!pmUsername || !serverId) return null;
+    return getUserMetadata(pmUsername, serverId);
+  }, [metadataChangeCounter, userKey, rawMessageUser, serverId]);
 
   const messageUser: User | undefined = useMemo(() => {
     if (!rawMessageUser) return undefined;
@@ -541,6 +312,7 @@ export const MessageItem = (props: MessageItemProps) => {
   const displayName = messageUser?.metadata?.["display-name"]?.value;
   const userColor = messageUser?.metadata?.color?.value;
   const userStatus = messageUser?.metadata?.status?.value;
+  const userPronouns = messageUser?.metadata?.pronouns?.value;
   const isSystem = message.type === "system";
   const isBot =
     messageUser?.isBot ||
@@ -556,132 +328,119 @@ export const MessageItem = (props: MessageItemProps) => {
       [message.serverId],
     ),
   );
-  const showSafeMedia = useStore(
-    useCallback((state) => state.globalSettings.showSafeMedia, []),
+  const mediaVisibilityLevel = useStore(
+    useCallback((state) => state.globalSettings.mediaVisibilityLevel, []),
   );
-  const showExternalContent = useStore(
-    useCallback((state) => state.globalSettings.showExternalContent, []),
-  );
+  const { showSafeMedia, showTrustedSourcesMedia, showExternalContent } =
+    mediaLevelToSettings(mediaVisibilityLevel);
   const enableMarkdownRendering = useStore(
     useCallback((state) => state.globalSettings.enableMarkdownRendering, []),
   );
+  const openMedia = useStore(useCallback((state) => state.openMedia, []));
   const canRedact =
     !isSystem &&
     isCurrentUser &&
     !!message.msgid &&
     !!server?.capabilities?.includes("draft/message-redaction") &&
     !!onRedactMessage;
+  const canReply = !hideReply && message.type === "message";
 
-  // Get the channel messages to handle multiline message content
-  const rawChannelMessages = useStore(
-    useCallback(
-      (state) => {
-        if (!serverId || !channelId) return EMPTY_MESSAGES;
-        const server = state.servers.find((s) => s.id === serverId);
-        const channel = server?.channels.find((c) => c.id === channelId);
-        return channel?.messages ?? EMPTY_MESSAGES;
-      },
-      [serverId, channelId, EMPTY_MESSAGES],
-    ),
-  );
+  // message.content is already combined for multiline messages by the IRC client
+  const messageContent = message.content;
 
-  const channelMessages = rawChannelMessages;
-
-  // For multiline messages, combine content from all messages in the group
-  const getMessageContent = () => {
-    if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
-      // Find all messages that are part of this multiline group
-      const multilineMessages = channelMessages.filter((m) =>
-        message.multilineMessageIds?.includes(m.id),
-      );
-
-      // Sort by timestamp to maintain order
-      multilineMessages.sort(
-        (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-      );
-
-      // Only the first message in the group should display content
-      if (multilineMessages[0]?.id !== message.id) {
-        return ""; // Don't display content for subsequent messages in multiline group
-      }
-
-      // Combine content with newlines
-      return multilineMessages.map((m) => m.content).join("\n");
-    }
-    return message.content;
-  };
-
-  const messageContent = getMessageContent();
-
-  // If this is a multiline message and not the first one, don't render anything
-  if (message.multilineMessageIds && message.multilineMessageIds.length > 0) {
-    const multilineMessages = channelMessages.filter((m) =>
-      message.multilineMessageIds?.includes(m.id),
-    );
-    multilineMessages.sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
-    if (multilineMessages[0]?.id !== message.id) {
-      return null; // Don't render subsequent messages in multiline group
-    }
-  }
-
-  // Convert message content to React elements
-  const htmlContent = processMarkdownInText(
-    messageContent,
-    showExternalContent,
-    enableMarkdownRendering,
-    message.id || message.msgid || "msg",
+  const htmlContent = useMemo(
+    () =>
+      processMarkdownInText(
+        messageContent,
+        showExternalContent,
+        enableMarkdownRendering,
+        message.id || message.msgid || "msg",
+      ),
+    [
+      messageContent,
+      showExternalContent,
+      enableMarkdownRendering,
+      message.id,
+      message.msgid,
+    ],
   );
 
   // Create collapsible content wrapper
-  const collapsibleContent = <CollapsibleMessage content={htmlContent} />;
+  const collapsibleContent = (
+    <CollapsibleMessage
+      ref={collapsibleRef}
+      content={htmlContent}
+      onNeedsCollapsing={setMessageNeedsCollapsing}
+    />
+  );
 
-  const theme = localStorage.getItem("theme") || "discord";
-  const username = message.userId.split("-")[0];
+  const theme = CURRENT_THEME;
+  const username = message.userId;
 
-  // Check if message is just an image URL from our filehost
-  const isImageUrl =
+  // Strip IRC formatting codes so URL/image detection works even when the URL
+  // is wrapped in bold, italic, underline, strikethrough, or color codes.
+  const strippedContent = stripIrcFormatting(message.content);
+
+  // A message with no whitespace is a single token (e.g. a bare URL)
+  const isSingleToken = !/\s/.test(strippedContent.trim());
+
+  // Kept for isFilehostImage prop passed to ImagePreview (EXIF banner)
+  const isFilehostUrl =
     !!server?.filehost &&
-    message.content.trim() === message.content &&
-    isUrlFromFilehost(message.content, server.filehost) &&
-    (!!message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")); // check for backend upload URLs
+    isUrlFromFilehost(strippedContent.trim(), server.filehost);
 
-  // Check if message is just a GIF URL from GIPHY or Tenor
-  const isGifUrl =
-    message.content.trim() === message.content &&
-    (message.content.match(/media\d*\.giphy\.com\/media\//) ||
-      message.content.includes("media.tenor.com/") ||
-      message.content.includes("tenor.googleapis.com/") ||
-      message.content.match(/tenor\.com\/view\//)) &&
-    (message.content.match(/\.(gif)$/i) ||
-      message.content.includes("/giphy.gif") ||
-      message.content.includes("/tinygif") ||
-      message.content.match(/tenor\.com\/view\//));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: strippedContent derived from message.content
+  const mediaEntries = useMemo(() => {
+    return extractMediaFromMessage(message).filter((e) =>
+      canShowMedia(
+        e.url,
+        { showSafeMedia, showTrustedSourcesMedia, showExternalContent },
+        server?.filehost,
+      ),
+    );
+  }, [strippedContent, mediaVisibilityLevel, server?.filehost]);
 
-  // Check if message is just an external image URL (not from filehost)
-  const isExternalImageUrl =
-    message.content.trim() === message.content &&
-    !isImageUrl && // Not a filehost image
-    !isGifUrl && // Not a GIF from specific services
-    (message.content.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
-      message.content.includes("/images/")) &&
-    (message.content.startsWith("http://") ||
-      message.content.startsWith("https://"));
+  const [showAllImages, setShowAllImages] = useState(false);
+
+  // Tracks async probe results for null-type entries (e.g. extensionless filehost URLs).
+  // When ProbeablePreview resolves a type, it notifies us so canOpenMedia updates.
+  const [resolvedProbeTypes, setResolvedProbeTypes] = useState<
+    Map<string, MediaType>
+  >(() => new Map());
+  const handleTypeResolved = useCallback((url: string, type: MediaType) => {
+    setResolvedProbeTypes((prev) => {
+      if (prev.get(url) === type) return prev;
+      const next = new Map(prev);
+      next.set(url, type);
+      return next;
+    });
+  }, []);
+
+  const firstOpenableMedia = mediaEntries.find(
+    (e) => e.type !== null || resolvedProbeTypes.has(e.url),
+  );
+  const canOpenMedia = !!firstOpenableMedia;
+  const handleOpenMedia = firstOpenableMedia
+    ? () =>
+        openMedia(
+          firstOpenableMedia.url,
+          message.msgid,
+          serverId,
+          mediaChannelId ?? undefined,
+        )
+    : undefined;
 
   // Handle system messages
   if (isSystem) {
     return <SystemMessage message={message} onIrcLinkClick={onIrcLinkClick} />;
   }
 
-  // Handle whisper messages (messages with draft/channel-context tag)
-  // Note: Client tags use + prefix
+  // Handle whisper messages (channel-context tag, ratified or draft variant)
   if (
-    message.tags?.["draft/channel-context"] ||
-    message.tags?.["+draft/channel-context"]
+    message.tags?.["+channel-context"] ||
+    message.tags?.["channel-context"] ||
+    message.tags?.["+draft/channel-context"] ||
+    message.tags?.["draft/channel-context"]
   ) {
     return (
       <>
@@ -781,6 +540,10 @@ export const MessageItem = (props: MessageItemProps) => {
           showDate={showDate}
           messageUser={messageUser}
           onUsernameContextMenu={onUsernameContextMenu}
+          setReplyTo={setReplyTo}
+          onReactClick={onReactClick}
+          onReactionUnreact={onReactionUnreact}
+          onDirectReaction={onDirectReaction}
         />
       </>
     );
@@ -843,7 +606,7 @@ export const MessageItem = (props: MessageItemProps) => {
       const avatarElement = messageElement?.querySelector(".mr-4");
       onUsernameContextMenu(
         e,
-        message.replyMessage.userId.split("-")[0],
+        message.replyMessage.userId,
         message.serverId,
         message.channelId,
         avatarElement,
@@ -880,10 +643,17 @@ export const MessageItem = (props: MessageItemProps) => {
 
   return (
     <div
+      ref={messageRowRef}
       data-message-id={message.id}
-      className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-300 ${
-        showHeader ? "py-2 mt-2" : "py-0.5"
-      }`}
+      className={`px-4 hover:bg-discord-message-hover group relative transition-colors duration-150 ${
+        showHeader ? "mt-4" : "py-0.5"
+      }${isHighlighted ? " bg-primary/10 ring-1 ring-primary/30 rounded" : ""}`}
+      onMouseEnter={handleMessageMouseEnter}
+      onMouseLeave={handleMessageMouseLeave}
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
     >
       {showDate && (
         <DateSeparator date={new Date(message.timestamp)} theme={theme} />
@@ -894,6 +664,7 @@ export const MessageItem = (props: MessageItemProps) => {
           userId={message.userId}
           avatarUrl={avatarUrl}
           userStatus={userStatus}
+          pronouns={userPronouns}
           isAway={messageUser?.isAway}
           theme={theme}
           showHeader={showHeader}
@@ -902,7 +673,9 @@ export const MessageItem = (props: MessageItemProps) => {
           serverId={message.serverId}
         />
 
-        <div className={`flex-1 relative ${isCurrentUser ? "text-white" : ""}`}>
+        <div
+          className={`flex-1 min-w-0 relative ${isCurrentUser ? "text-white" : "text-discord-text-normal"}`}
+        >
           {showHeader && (
             <MessageHeader
               userId={message.userId}
@@ -918,7 +691,7 @@ export const MessageItem = (props: MessageItemProps) => {
             />
           )}
 
-          <div className="relative">
+          <div className="relative min-w-0">
             {message.replyMessage && (
               <MessageReply
                 replyMessage={message.replyMessage}
@@ -930,16 +703,23 @@ export const MessageItem = (props: MessageItemProps) => {
             )}
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
-              {(isImageUrl && showSafeMedia) ||
-              (isGifUrl && showExternalContent) ||
-              (isExternalImageUrl && showExternalContent) ? (
-                <ImageWithFallback
-                  url={message.content}
-                  isFilehostImage={isImageUrl}
+              {isSingleToken &&
+              mediaEntries.length === 1 &&
+              mediaEntries[0].type !== null ? (
+                // Known type: hide URL, show only the preview
+                <MediaPreview
+                  entry={mediaEntries[0]}
+                  msgid={message.msgid}
+                  isFilehostImage={
+                    !!server?.filehost &&
+                    isUrlFromFilehost(mediaEntries[0].url, server.filehost)
+                  }
                   serverId={message.serverId}
+                  channelId={mediaChannelId}
                   onOpenProfile={onOpenProfile}
                 />
               ) : (
+                // Unknown type (needs probe) or multi-URL: show text body
                 <div
                   className="overflow-hidden"
                   style={{
@@ -952,6 +732,103 @@ export const MessageItem = (props: MessageItemProps) => {
                 </div>
               )}
             </EnhancedLinkWrapper>
+
+            {/* Embedded media below text — first always visible,
+                  known-type extras collapsed behind a "show more" toggle to prevent floods.
+                  Null-type extras render inline since they show nothing if the probe fails. */}
+            {!(
+              isSingleToken &&
+              mediaEntries.length === 1 &&
+              mediaEntries[0].type !== null
+            ) &&
+              mediaEntries.length > 0 &&
+              (() => {
+                const {
+                  extraNullEntries,
+                  firstKnownNotAtZero,
+                  extraKnownEntries,
+                } = partitionMediaEntries(mediaEntries);
+                return (
+                  <div>
+                    <MediaPreview
+                      entry={mediaEntries[0]}
+                      msgid={message.msgid}
+                      isFilehostImage={
+                        !!server?.filehost &&
+                        isUrlFromFilehost(mediaEntries[0].url, server.filehost)
+                      }
+                      serverId={message.serverId}
+                      channelId={mediaChannelId}
+                      onOpenProfile={onOpenProfile}
+                      onTypeResolved={handleTypeResolved}
+                    />
+                    {extraNullEntries.map((entry) => (
+                      <MediaPreview
+                        key={entry.url}
+                        entry={entry}
+                        msgid={message.msgid}
+                        isFilehostImage={false}
+                        serverId={message.serverId}
+                        channelId={mediaChannelId}
+                        onOpenProfile={onOpenProfile}
+                        onTypeResolved={handleTypeResolved}
+                      />
+                    ))}
+                    {firstKnownNotAtZero && (
+                      <MediaPreview
+                        key={firstKnownNotAtZero.url}
+                        entry={firstKnownNotAtZero}
+                        msgid={message.msgid}
+                        isFilehostImage={
+                          !!server?.filehost &&
+                          isUrlFromFilehost(
+                            firstKnownNotAtZero.url,
+                            server.filehost,
+                          )
+                        }
+                        serverId={message.serverId}
+                        channelId={mediaChannelId}
+                        onOpenProfile={onOpenProfile}
+                      />
+                    )}
+                    {extraKnownEntries.length > 0 &&
+                      (showAllImages ? (
+                        <>
+                          {extraKnownEntries.map((entry) => (
+                            <MediaPreview
+                              key={entry.url}
+                              entry={entry}
+                              msgid={message.msgid}
+                              isFilehostImage={
+                                !!server?.filehost &&
+                                isUrlFromFilehost(entry.url, server.filehost)
+                              }
+                              serverId={message.serverId}
+                              channelId={mediaChannelId}
+                              onOpenProfile={onOpenProfile}
+                            />
+                          ))}
+                          <button
+                            type="button"
+                            className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
+                            onClick={() => setShowAllImages(false)}
+                          >
+                            Show less
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="mt-1 text-xs text-discord-text-muted hover:text-discord-text cursor-pointer underline"
+                          onClick={() => setShowAllImages(true)}
+                        >
+                          Show {extraKnownEntries.length} more item
+                          {extraKnownEntries.length > 1 ? "s" : ""}
+                        </button>
+                      ))}
+                  </div>
+                );
+              })()}
 
             {/* Render link preview if available */}
             {(message.linkPreviewTitle ||
@@ -968,23 +845,63 @@ export const MessageItem = (props: MessageItemProps) => {
             )}
           </div>
 
-          <MessageReactions
-            reactions={message.reactions}
+          <ReactionsWithActions
+            message={message}
             currentUserUsername={ircCurrentUser?.username}
             onReactionClick={handleReactionClick}
+            onReactClick={(el) => onReactClick(message, el)}
+            onReplyClick={() => setReplyTo(message)}
+            onRedactClick={
+              canRedact ? () => onRedactMessage?.(message) : undefined
+            }
+            canRedact={canRedact}
+            canReply={canReply}
+            onOpenMedia={handleOpenMedia}
+            canOpenMedia={canOpenMedia}
           />
         </div>
-
-        <MessageActions
-          message={message}
-          onReplyClick={() => setReplyTo(message)}
-          onReactClick={(buttonElement) => onReactClick(message, buttonElement)}
-          onRedactClick={
-            canRedact ? () => onRedactMessage?.(message) : undefined
-          }
-          canRedact={canRedact}
-        />
       </div>
+
+      {isTouchDevice && (
+        <MessageBottomSheet
+          isOpen={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          onReply={
+            canReply
+              ? () => {
+                  setReplyTo(message);
+                  setSheetOpen(false);
+                }
+              : undefined
+          }
+          onReact={
+            message.msgid
+              ? (el: Element) => onReactClick(message, el)
+              : undefined
+          }
+          onDelete={
+            canRedact
+              ? () => {
+                  onRedactMessage?.(message);
+                  setSheetOpen(false);
+                }
+              : undefined
+          }
+          onOpenMedia={
+            handleOpenMedia
+              ? () => {
+                  handleOpenMedia();
+                  setSheetOpen(false);
+                }
+              : undefined
+          }
+          canReply={canReply}
+          canReact={!!message.msgid}
+          canDelete={canRedact}
+          canOpenMedia={canOpenMedia}
+        />
+      )}
     </div>
   );
-};
+});
+MessageItem.displayName = "MessageItem";

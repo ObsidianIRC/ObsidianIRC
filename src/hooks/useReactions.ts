@@ -70,13 +70,11 @@ export function useReactions({
       const server = servers.find((s) => s.id === message.serverId);
       if (!server) return { server: undefined, target: undefined };
 
-      if (message.channelId) {
-        const channel = server.channels.find((c) => c.id === message.channelId);
-        return { server, target: channel?.name };
-      }
-      // Private message
+      const channel = server.channels.find((c) => c.id === message.channelId);
+      if (channel) return { server, target: channel.name };
+
       const privateChat = server.privateChats?.find(
-        (pc) => pc.username === message.userId.split("-")[0],
+        (pc) => pc.id === message.channelId,
       );
       return { server, target: privateChat?.username };
     },
@@ -96,18 +94,26 @@ export function useReactions({
       const { server, target } = findServerAndTarget(reactionModal.message);
 
       if (server && target) {
-        // Check if user has already reacted with this emoji
-        const existingReaction = reactionModal.message.reactions.find(
+        // Check live store state — reactionModal.message is stale after optimistic updates
+        const storeMsg = (() => {
+          const key = `${reactionModal.message.serverId}-${reactionModal.message.channelId}`;
+          return useStore
+            .getState()
+            .messages[key]?.find((m) => m.id === reactionModal.message?.id);
+        })();
+        const liveReactions =
+          storeMsg?.reactions ?? reactionModal.message.reactions;
+        const existingReaction = liveReactions.find(
           (r) => r.emoji === emoji && r.userId === currentUser?.username,
         );
 
         if (existingReaction) {
           // Send unreact message
-          const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
+          const tagMsg = `@+draft/unreact=${emoji};+reply=${reactionModal.message.msgid};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
           ircClient.sendRaw(server.id, tagMsg);
         } else {
           // Send react message
-          const tagMsg = `@+draft/react=${emoji};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
+          const tagMsg = `@+draft/react=${emoji};+reply=${reactionModal.message.msgid};+draft/reply=${reactionModal.message.msgid} TAGMSG ${target}`;
           ircClient.sendRaw(server.id, tagMsg);
         }
 
@@ -152,8 +158,6 @@ export function useReactions({
           });
         }
       }
-
-      closeReactionModal();
     },
     [
       reactionModal.message,
@@ -173,7 +177,7 @@ export function useReactions({
       const { server, target } = findServerAndTarget(message);
 
       if (server && target) {
-        const tagMsg = `@+draft/react=${emoji};+draft/reply=${message.msgid} TAGMSG ${target}`;
+        const tagMsg = `@+draft/react=${emoji};+reply=${message.msgid};+draft/reply=${message.msgid} TAGMSG ${target}`;
         ircClient.sendRaw(server.id, tagMsg);
 
         // Optimistically update the message
@@ -223,7 +227,7 @@ export function useReactions({
       const { server, target } = findServerAndTarget(message);
 
       if (server && target) {
-        const tagMsg = `@+draft/unreact=${emoji};+draft/reply=${message.msgid} TAGMSG ${target}`;
+        const tagMsg = `@+draft/unreact=${emoji};+reply=${message.msgid};+draft/reply=${message.msgid} TAGMSG ${target}`;
         ircClient.sendRaw(server.id, tagMsg);
 
         // Optimistically update the message

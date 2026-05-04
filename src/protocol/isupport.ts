@@ -48,6 +48,19 @@ export function registerISupportHandler(
       return;
     }
 
+    if (key === "CHANMODES") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server: Server) => {
+          if (server.id === serverId) {
+            return { ...server, chanmodes: value };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+      return;
+    }
+
     if (key === "BOT") {
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server: Server) => {
@@ -61,7 +74,7 @@ export function registerISupportHandler(
       return;
     }
 
-    if (key === "FILEHOST" || key === "draft/FILEHOST") {
+    if (key === "draft/FILEHOST") {
       useStore.setState((state) => {
         const updatedServers = state.servers.map((server: Server) => {
           if (server.id === serverId) {
