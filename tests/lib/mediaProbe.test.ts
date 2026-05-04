@@ -131,6 +131,22 @@ describe("probeMediaUrl", () => {
     expect(result).toBeNull();
   });
 
+  test("mixed-case content-type normalized → classified correctly", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "Video/MP4", "content-length": "1000000" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result?.type).toBe("video");
+  });
+
+  test("mixed-case SVG content-type → null", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ "content-type": "Image/SVG+XML" }),
+    );
+    const result = await probeMediaUrl(uniqueUrl());
+    expect(result).toBeNull();
+  });
+
   test("content-type with charset stripped correctly", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeResponse({
