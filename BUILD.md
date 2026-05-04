@@ -27,6 +27,9 @@ VITE_DEFAULT_IRC_SERVER_NAME="Local"
 VITE_DEFAULT_IRC_CHANNELS="#lobby,#bots,#test"
 # Optionally hide the server list
 VITE_HIDE_SERVER_LIST=true
+# Optional comma-separated list of trusted media URLs
+# Useful for chat bridges like Matterbridge or Matrix bridges that host media
+VITE_TRUSTED_MEDIA_URLS="https://matterbridge.example.com,https://matrix-media.example.com"
 ```
 
 ### Docker
@@ -43,6 +46,7 @@ docker build \
   --build-arg VITE_DEFAULT_IRC_SERVER_NAME="Your Server" \
   --build-arg VITE_DEFAULT_IRC_CHANNELS="#general,#random" \
   --build-arg VITE_HIDE_SERVER_LIST=false \
+  --build-arg VITE_TRUSTED_MEDIA_URLS="https://matterbridge.example.com,https://matrix-media.example.com" \
   -t obsidianirc .
 ```
 

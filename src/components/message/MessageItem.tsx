@@ -840,6 +840,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
                 imageUrl={message.linkPreviewMeta}
                 theme={theme}
                 messageContent={message.content}
+                serverId={serverId}
               />
             )}
           </div>
