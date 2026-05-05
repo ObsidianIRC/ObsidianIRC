@@ -70,12 +70,24 @@ function unescapeTagValue(s: string): string {
     const next = s[++i];
     if (next === undefined) break;
     switch (next) {
-      case ":": out += ";"; break;
-      case "s": out += " "; break;
-      case "\\": out += "\\"; break;
-      case "r": out += "\r"; break;
-      case "n": out += "\n"; break;
-      default: out += next; break;
+      case ":":
+        out += ";";
+        break;
+      case "s":
+        out += " ";
+        break;
+      case "\\":
+        out += "\\";
+        break;
+      case "r":
+        out += "\r";
+        break;
+      case "n":
+        out += "\n";
+        break;
+      default:
+        out += next;
+        break;
     }
   }
   return out;

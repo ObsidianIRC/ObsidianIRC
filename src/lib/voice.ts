@@ -130,15 +130,52 @@ function escapeIrcTagValue(s: string): string {
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
     switch (c) {
-      case 0x3b /* ; */: out += "\\:"; break;
-      case 0x20 /* space */: out += "\\s"; break;
-      case 0x5c /* \ */: out += "\\\\"; break;
-      case 0x0d /* CR */: out += "\\r"; break;
-      case 0x0a /* LF */: out += "\\n"; break;
-      default: out += s[i];
+      case 0x3b /* ; */:
+        out += "\\:";
+        break;
+      case 0x20 /* space */:
+        out += "\\s";
+        break;
+      case 0x5c /* \ */:
+        out += "\\\\";
+        break;
+      case 0x0d /* CR */:
+        out += "\\r";
+        break;
+      case 0x0a /* LF */:
+        out += "\\n";
+        break;
+      default:
+        out += s[i];
     }
   }
   return out;
+}
+
+// Wire-byte cost of one raw SDP character after the JSON.stringify +
+// escapeIrcTagValue pipeline. CR/LF go 1 → 3 (JSON: `\r` 2 bytes →
+// IRC: `\\r` 3 bytes), `\` goes 1 → 4 (JSON `\\` → IRC `\\\\`), and
+// space/`;` go 1 → 2. Used by the SDP chunker to pick slice boundaries
+// such that each emitted TAGMSG stays under the server's tag-block
+// limit regardless of how dense the SDP is in newlines.
+function encodedTagCost(charCode: number): number {
+  switch (charCode) {
+    case 0x0d /* CR */:
+    case 0x0a /* LF */:
+      return 3;
+    case 0x5c /* \ */:
+      return 4;
+    case 0x22 /* " */:
+      return 2;
+    case 0x20 /* space */:
+    case 0x3b /* ; */:
+    case 0x09 /* tab */:
+    case 0x08 /* BS */:
+    case 0x0c /* FF */:
+      return 2;
+    default:
+      return 1;
+  }
 }
 
 // IRCv3 tag-value escaping is reversed by the parser before we see
@@ -180,7 +217,8 @@ export class VoiceClient {
   // was set. Drained by drainPendingIce() after every successful
   // setRemoteDescription.
   private pendingIce: RTCIceCandidateInit[] = [];
-  // Push-to-talk mode flag.
+  // Push-to-talk mode flag. Read by callers via the setPushToTalk
+  // toggle; assignment also flips the mic track immediately.
   private pttMode = false;
   // Per-peer local mute set: nicks whose inbound audio is silenced
   // by toggling the MediaStreamTrack.enabled flag (silences only on
@@ -412,18 +450,16 @@ export class VoiceClient {
 
   /* ------- signaling ------- */
 
-  // Raw SDP threshold above which we split across multiple TAGMSGs.
-  // Each split slice ends up ~2x size after IRCv3 escape (every space
-  // and newline doubles), so 3000 raw → ~6 KB on the wire, comfortably
-  // under the server's 8191-byte CLIENT_TAG_SIZE_LIMIT once you add
-  // wrapper JSON + the rest of the IRC line.
-  private static SDP_CHUNK_RAW_LIMIT = 3000;
+  // Hard ceiling for the on-wire `@<tag>=<value>` block. The ircd's
+  // MAXTAGSIZE is 8192; we leave headroom for the ` TAGMSG <channel>\r\n`
+  // suffix and small estimation slop in encodedTagCost().
+  private static WIRE_BUDGET = 7800;
 
   private sendSignal(env: SignalEnvelope) {
     if (
       (env.type === "offer" || env.type === "answer") &&
       env.sdp &&
-      env.sdp.length > VoiceClient.SDP_CHUNK_RAW_LIMIT
+      this.wireSize(env) > VoiceClient.WIRE_BUDGET
     ) {
       this.sendChunkedSignal(env);
       return;
@@ -440,20 +476,49 @@ export class VoiceClient {
     );
   }
 
+  // Predict the wire size of `@<tag>=<value>` for a given envelope.
+  private wireSize(env: SignalEnvelope): number {
+    return RTC_TAG.length + 2 + escapeIrcTagValue(JSON.stringify(env)).length;
+  }
+
+  // SDP carries CR/LF (each 1 byte → 3 on the wire after JSON-escape +
+  // IRC-tag-escape) and many spaces (1 → 2), so a fixed raw-byte chunk
+  // size doesn't predict on-wire size accurately. Slice the SDP using
+  // per-character encoded cost so each chunk's resulting IRC line stays
+  // under WIRE_BUDGET regardless of the SDP's character distribution.
   private sendChunkedSignal(env: SignalEnvelope) {
     const sdp = env.sdp ?? "";
-    const limit = VoiceClient.SDP_CHUNK_RAW_LIMIT;
-    const total = Math.ceil(sdp.length / limit);
     const id = randomChunkId();
+
+    // Wire cost of everything except the SDP slice: envelope JSON with
+    // the slice replaced by an empty string. Use total=999 as a generous
+    // upper bound on the digit count we'll embed.
+    const overhead = this.wireSize({
+      ...env,
+      sdp: "",
+      id,
+      seq: 999,
+      total: 999,
+    });
+    const sliceBudget = VoiceClient.WIRE_BUDGET - overhead;
+
+    const slices: string[] = [];
+    let start = 0;
+    let cost = 0;
+    for (let i = 0; i < sdp.length; i++) {
+      const c = encodedTagCost(sdp.charCodeAt(i));
+      if (cost + c > sliceBudget && i > start) {
+        slices.push(sdp.slice(start, i));
+        start = i;
+        cost = 0;
+      }
+      cost += c;
+    }
+    if (start < sdp.length) slices.push(sdp.slice(start));
+
+    const total = slices.length;
     for (let seq = 0; seq < total; seq++) {
-      const chunk: SignalEnvelope = {
-        ...env,
-        sdp: sdp.slice(seq * limit, (seq + 1) * limit),
-        id,
-        seq,
-        total,
-      };
-      this.emitSignal(chunk);
+      this.emitSignal({ ...env, sdp: slices[seq], id, seq, total });
     }
   }
 
@@ -657,6 +722,14 @@ export class VoiceClient {
         knownTrackOwners: Object.keys(this.trackOwners),
         knownMidOwners: Object.keys(this.midOwners),
       });
+      return;
+    }
+    // Defense-in-depth: never play our own audio back through the
+    // shared sink. The SFU is supposed to skip the publisher in fan-out,
+    // but a stale peer (e.g. nick-collision rename leaving an old entry
+    // behind) could still relay self-audio in. Drop it before it reaches
+    // the audio element.
+    if (nick === this.opts.selfNick) {
       return;
     }
     // Make sure the owner exists in members even if presence raced
