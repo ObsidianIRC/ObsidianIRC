@@ -50,13 +50,49 @@ function parseStatus(
   return "offline"; // Default
 }
 
+// Inverse of UnrealIRCd's `message_tag_escape`. Per IRCv3:
+//   \:  -> ;
+//   \s  -> space
+//   \\  -> \
+//   \r  -> CR
+//   \n  -> LF
+// A trailing lone backslash is dropped; a backslash followed by any
+// other char is collapsed to that char (per spec, "drop the preceding
+// backslash").
+function unescapeTagValue(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c !== "\\") {
+      out += c;
+      continue;
+    }
+    const next = s[++i];
+    if (next === undefined) break;
+    switch (next) {
+      case ":": out += ";"; break;
+      case "s": out += " "; break;
+      case "\\": out += "\\"; break;
+      case "r": out += "\r"; break;
+      case "n": out += "\n"; break;
+      default: out += next; break;
+    }
+  }
+  return out;
+}
+
 export function parseMessageTags(tags: string): Record<string, string> {
   const parsedTags: Record<string, string> = {};
   const tagPairs = tags.substring(1).split(";");
 
   for (const tag of tagPairs) {
-    const [key, value] = tag.split("=");
-    parsedTags[key] = value?.trim() ?? ""; // empty string fallback
+    const eq = tag.indexOf("=");
+    if (eq < 0) {
+      parsedTags[tag] = "";
+    } else {
+      const key = tag.substring(0, eq);
+      parsedTags[key] = unescapeTagValue(tag.substring(eq + 1));
+    }
   }
 
   return parsedTags;

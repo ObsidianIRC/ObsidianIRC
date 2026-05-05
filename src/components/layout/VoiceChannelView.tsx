@@ -1,15 +1,18 @@
-// Discord-style voice channel UI.  Mounted in place of ChatArea when
-// the user has selected a `^channel`.  Owns one VoiceClient per
+// Discord-style voice channel UI. Mounted in place of ChatArea when
+// the user has selected a `^channel`. Owns one VoiceClient per
 // (server, channel) and renders the participant grid + controls.
 //
 // Audio playback is funneled through a single hidden <audio> element
-// so Safari's autoplay policies cooperate; video is rendered per-tile
-// via a <video> bound to the inbound MediaStreamTrack.
+// owned by voice.ts so Safari's autoplay policies cooperate; video
+// is rendered per-tile via a <video> bound to the inbound
+// MediaStreamTrack.
 
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  FaCircle,
   FaDesktop,
+  FaHandPaper,
   FaMicrophone,
   FaMicrophoneSlash,
   FaPhoneSlash,
@@ -20,7 +23,9 @@ import {
 } from "react-icons/fa";
 import ircClient from "../../lib/ircClient";
 import {
-  VoiceClient,
+  acquireVoiceClient,
+  releaseVoiceClient,
+  type VoiceClient,
   type VoiceMember,
   type VoiceState,
 } from "../../lib/voice";
@@ -41,8 +46,24 @@ export const VoiceChannelView: React.FC<Props> = ({
   const [videoOn, setVideoOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
   const [deafened, setDeafened] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const [handRaised, setHandRaised] = useState(false);
+  const [pttMode, setPttMode] = useState(false);
+  // Nick of the currently spotlighted member, or null for grid view.
+  const [focusNick, setFocusNick] = useState<string | null>(null);
+  // Per-member ephemeral reactions: each entry animates briefly then is dropped.
+  const [reactions, setReactions] = useState<
+    Array<{ id: number; nick: string; emoji: string }>
+  >([]);
+  const reactionIdRef = useRef(0);
   const clientRef = useRef<VoiceClient | null>(null);
+
+  const pushReaction = useCallback((nick: string, emoji: string) => {
+    const id = ++reactionIdRef.current;
+    setReactions((rs) => [...rs, { id, nick, emoji }]);
+    setTimeout(() => {
+      setReactions((rs) => rs.filter((r) => r.id !== id));
+    }, 2400);
+  }, []);
 
   // Self nick from the IRC client.
   const selfNick = useMemo(() => {
@@ -50,27 +71,49 @@ export const VoiceChannelView: React.FC<Props> = ({
     return u?.username || "you";
   }, [serverId]);
 
-  // Keep a ref to the current store action so cleanup can use it
-  // without re-binding the effect on every store update.
   const selectChannel = useStore((s) => s.selectChannel);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: store actions have unstable refs
   useEffect(() => {
-    if (!audioRef.current) return;
-    const client = new VoiceClient({
+    const client = acquireVoiceClient({
       serverId,
       channel: channelName,
       selfNick,
       onState: (s) => setState(s),
       onError: (e) => setError(e),
-      audioSink: audioRef.current,
+      onReaction: (nick, emoji) => pushReaction(nick, emoji),
     });
     clientRef.current = client;
-    void client.join();
+    setState(client.getState());
     return () => {
-      client.leave();
       clientRef.current = null;
     };
   }, [serverId, channelName, selfNick]);
+
+  // Push-to-talk: while pttMode is on, mic is muted by default and
+  // pressing/holding Space unmutes briefly. Releasing re-mutes.
+  useEffect(() => {
+    if (!pttMode) return;
+    const onDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat) return;
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+      e.preventDefault();
+      clientRef.current?.setMic(true);
+      setMicOn(true);
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      clientRef.current?.setMic(false);
+      setMicOn(false);
+    };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+    };
+  }, [pttMode]);
 
   const onToggleMic = () => {
     const next = !micOn;
@@ -90,54 +133,155 @@ export const VoiceChannelView: React.FC<Props> = ({
   const onToggleDeafen = () => {
     const next = !deafened;
     setDeafened(next);
-    if (audioRef.current) audioRef.current.muted = next;
+    clientRef.current?.setDeafened(next);
+  };
+  const onToggleHand = () => {
+    const next = !handRaised;
+    setHandRaised(next);
+    clientRef.current?.setHandRaised(next);
+  };
+  const onTogglePtt = () => {
+    const next = !pttMode;
+    setPttMode(next);
+    clientRef.current?.setPushToTalk(next);
+    // Going into PTT instantly mutes; coming out leaves mic in its
+    // last manual state, defaulting to muted to avoid surprises.
+    if (next) {
+      setMicOn(false);
+      clientRef.current?.setMic(false);
+    }
   };
   const onLeave = () => {
-    clientRef.current?.leave();
-    // Bounce to the server's first text channel.
+    releaseVoiceClient(serverId, channelName);
+    clientRef.current = null;
     const srv = useStore.getState().servers.find((s) => s.id === serverId);
     const firstText = srv?.channels.find((c) => c.name.startsWith("#"));
     if (firstText) selectChannel(firstText.id);
   };
 
+  const setMemberMuted = useCallback((nick: string, muted: boolean) => {
+    clientRef.current?.setMemberMuted(nick, muted);
+  }, []);
+
   const members =
     state.phase === "connected" ? Object.values(state.members) : [];
 
+  // Auto-pop focus when the focused member leaves the call.
+  useEffect(() => {
+    if (focusNick && !members.find((m) => m.nick === focusNick)) {
+      setFocusNick(null);
+    }
+  }, [focusNick, members]);
+
+  const focusMember =
+    focusNick != null ? members.find((m) => m.nick === focusNick) : null;
+  const sideMembers = focusMember
+    ? members.filter((m) => m.nick !== focusMember.nick)
+    : members;
+
   return (
     <div className="w-full h-full flex flex-col bg-discord-dark-200">
-      <header className="px-4 py-3 border-b border-discord-dark-300">
-        <h2 className="text-white text-lg font-medium">
-          🔊 {channelName.replace(/^\^/, "")}
-        </h2>
-        <p className="text-xs text-discord-text-muted">
-          {state.phase === "joining" && "Connecting…"}
-          {state.phase === "connected" &&
-            `${members.length} ${members.length === 1 ? "member" : "members"}`}
-          {state.phase === "failed" && `Connection failed: ${state.error}`}
-          {state.phase === "idle" && "Ready"}
-        </p>
+      <header className="px-4 py-3 border-b border-discord-dark-300 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-white text-lg font-medium truncate">
+            🔊 {channelName.replace(/^\^/, "")}
+          </h2>
+          <p className="text-xs text-discord-text-muted">
+            {state.phase === "joining" && "Connecting…"}
+            {state.phase === "connected" &&
+              `${members.length} ${members.length === 1 ? "member" : "members"}`}
+            {state.phase === "failed" && `Connection failed: ${state.error}`}
+            {state.phase === "idle" && "Ready"}
+          </p>
+        </div>
+        {focusMember && (
+          <button
+            type="button"
+            onClick={() => setFocusNick(null)}
+            className="px-3 py-1 rounded text-xs bg-discord-dark-300 text-discord-text-normal hover:bg-discord-dark-400"
+          >
+            Exit spotlight
+          </button>
+        )}
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {members.map((m) => (
-            <ParticipantTile
-              key={m.nick}
-              member={m}
-              isSelf={m.nick === selfNick}
-              selfMicOn={micOn}
-            />
-          ))}
-        </div>
-        {state.phase === "connected" && members.length === 0 && (
-          <p className="text-discord-text-muted text-sm italic mt-8 text-center">
-            Just you for now. Tell someone to /join {channelName} to chat.
-          </p>
+      <main className="flex-1 overflow-hidden p-4 flex flex-col gap-3 min-h-0">
+        {focusMember ? (
+          <>
+            <div className="flex-1 min-h-0">
+              <ParticipantTile
+                key={focusMember.nick}
+                member={focusMember}
+                isSelf={focusMember.nick === selfNick}
+                selfMicOn={micOn}
+                onClick={() => setFocusNick(null)}
+                onSetMuted={setMemberMuted}
+                reactions={reactions
+                  .filter((r) => r.nick === focusMember.nick)
+                  .map((r) => ({ id: r.id, emoji: r.emoji }))}
+                large
+              />
+            </div>
+            {sideMembers.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 flex-shrink-0">
+                {sideMembers.map((m) => (
+                  <div key={m.nick} className="w-40 flex-shrink-0">
+                    <ParticipantTile
+                      member={m}
+                      isSelf={m.nick === selfNick}
+                      selfMicOn={micOn}
+                      onClick={() => setFocusNick(m.nick)}
+                      onSetMuted={setMemberMuted}
+                      reactions={reactions
+                        .filter((r) => r.nick === m.nick)
+                        .map((r) => ({ id: r.id, emoji: r.emoji }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {members.map((m) => (
+                <ParticipantTile
+                  key={m.nick}
+                  member={m}
+                  isSelf={m.nick === selfNick}
+                  selfMicOn={micOn}
+                  onClick={() => setFocusNick(m.nick)}
+                  onSetMuted={setMemberMuted}
+                  reactions={reactions
+                    .filter((r) => r.nick === m.nick)
+                    .map((r) => ({ id: r.id, emoji: r.emoji }))}
+                />
+              ))}
+            </div>
+            {state.phase === "connected" && members.length === 0 && (
+              <p className="text-discord-text-muted text-sm italic mt-8 text-center">
+                Just you for now. Tell someone to /join {channelName} to chat.
+              </p>
+            )}
+          </div>
         )}
-        {error && <p className="text-discord-red text-xs mt-4">{error}</p>}
+        {error && <p className="text-discord-red text-xs mt-2">{error}</p>}
       </main>
 
-      <footer className="border-t border-discord-dark-300 p-3 flex items-center justify-center gap-2">
+      <footer className="border-t border-discord-dark-300 p-3 flex items-center justify-center flex-wrap gap-2">
+        <div className="flex gap-1 mr-2">
+          {["👍", "👏", "❤️", "😂", "🎉", "🔥"].map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => clientRef.current?.sendReaction(e)}
+              title="React"
+              className="w-9 h-9 rounded-full bg-discord-dark-300 hover:bg-discord-dark-400 text-lg leading-none flex items-center justify-center"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
         <ControlButton
           on={micOn}
           onClick={onToggleMic}
@@ -166,6 +310,30 @@ export const VoiceChannelView: React.FC<Props> = ({
           IconOff={FaVolumeMute}
           label={deafened ? "Undeafen" : "Deafen"}
         />
+        <ControlButton
+          on={!handRaised}
+          onClick={onToggleHand}
+          IconOn={FaHandPaper}
+          IconOff={FaHandPaper}
+          label={handRaised ? "Lower hand" : "Raise hand"}
+          activeOverride={handRaised ? "ring-2 ring-yellow-400" : undefined}
+        />
+        <button
+          type="button"
+          onClick={onTogglePtt}
+          title={
+            pttMode
+              ? "Push-to-talk: hold Space to talk. Click to disable."
+              : "Enable push-to-talk (hold Space to talk)"
+          }
+          className={`px-3 h-12 rounded-full text-xs font-medium transition-colors ${
+            pttMode
+              ? "bg-discord-blue text-white"
+              : "bg-discord-dark-300 text-white hover:bg-discord-dark-400"
+          }`}
+        >
+          PTT
+        </button>
         <button
           type="button"
           onClick={onLeave}
@@ -177,11 +345,9 @@ export const VoiceChannelView: React.FC<Props> = ({
         </button>
       </footer>
 
-      {/* Hidden sink for inbound audio.  Safari requires a real
-          element on the page for autoplay to fire. */}
-      <audio ref={audioRef} autoPlay playsInline className="hidden">
-        <track kind="captions" />
-      </audio>
+      {/* Inbound audio is rendered via a hidden <audio> owned by
+          voice.ts so it survives this component unmounting (e.g. when
+          the user navigates to a text channel without hanging up). */}
     </div>
   );
 };
@@ -192,12 +358,14 @@ function ControlButton({
   IconOn,
   IconOff,
   label,
+  activeOverride,
 }: {
   on: boolean;
   onClick: () => void;
   IconOn: React.ComponentType;
   IconOff: React.ComponentType;
   label: string;
+  activeOverride?: string;
 }) {
   const Icon = on ? IconOn : IconOff;
   return (
@@ -210,7 +378,7 @@ function ControlButton({
         on
           ? "bg-discord-dark-300 text-white hover:bg-discord-dark-400"
           : "bg-discord-red text-white hover:opacity-90"
-      }`}
+      } ${activeOverride ?? ""}`}
     >
       <Icon />
     </button>
@@ -221,10 +389,18 @@ function ParticipantTile({
   member,
   isSelf,
   selfMicOn,
+  onClick,
+  onSetMuted,
+  reactions,
+  large,
 }: {
   member: VoiceMember;
   isSelf: boolean;
   selfMicOn: boolean;
+  onClick: () => void;
+  onSetMuted: (nick: string, muted: boolean) => void;
+  reactions: Array<{ id: number; emoji: string }>;
+  large?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -239,10 +415,20 @@ function ParticipantTile({
   }, [member.videoTrack]);
 
   const showSpeakingRing = member.speaking && (isSelf ? selfMicOn : true);
+  const muted = member.volume === 0;
+  const aspect = large ? "" : "aspect-video";
+
+  const onMuteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSelf) return;
+    onSetMuted(member.nick, !muted);
+  };
 
   return (
-    <div
-      className={`relative bg-discord-dark-300 rounded-lg aspect-video overflow-hidden flex items-center justify-center ${
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative bg-discord-dark-300 rounded-lg ${aspect} ${large ? "w-full h-full" : ""} overflow-hidden flex items-center justify-center text-left ${
         showSpeakingRing
           ? "ring-2 ring-discord-green"
           : "ring-1 ring-discord-dark-200"
@@ -251,16 +437,61 @@ function ParticipantTile({
       {member.videoTrack ? (
         <video
           ref={videoRef}
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${member.screenSharing ? "object-contain" : "object-cover"}`}
           autoPlay
           playsInline
           muted={isSelf}
         />
       ) : (
-        <div className="w-16 h-16 rounded-full bg-discord-dark-100 flex items-center justify-center text-white text-2xl font-bold">
+        <div
+          className={`${large ? "w-32 h-32 text-5xl" : "w-16 h-16 text-2xl"} rounded-full bg-discord-dark-100 flex items-center justify-center text-white font-bold`}
+        >
           {member.nick[0]?.toUpperCase() ?? "?"}
         </div>
       )}
+
+      {/* Hand-raised badge */}
+      {member.handRaised && (
+        <div className="absolute top-1 left-1 px-1.5 py-1 rounded bg-yellow-500/90 text-white text-xs flex items-center gap-1">
+          <FaHandPaper />
+        </div>
+      )}
+
+      {/* Floating emoji reactions */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {reactions.map((r, i) => (
+          <span
+            key={r.id}
+            className="absolute text-3xl animate-react-float"
+            style={{
+              left: `${30 + ((i * 17) % 40)}%`,
+              bottom: "20%",
+            }}
+          >
+            {r.emoji}
+          </span>
+        ))}
+      </div>
+
+      {/* Connection quality dot */}
+      {member.quality !== "unknown" && !isSelf && (
+        <div
+          className="absolute top-1 right-1"
+          title={`Connection: ${member.quality}`}
+        >
+          <FaCircle
+            className={
+              member.quality === "good"
+                ? "text-discord-green"
+                : member.quality === "ok"
+                  ? "text-yellow-400"
+                  : "text-discord-red"
+            }
+            style={{ fontSize: 8 }}
+          />
+        </div>
+      )}
+
       <div className="absolute bottom-1 left-1 right-1 px-2 py-0.5 rounded bg-black/50 text-white text-xs flex items-center gap-1.5">
         <span className="truncate flex-1">{member.nick}</span>
         {!member.micOn && !isSelf && (
@@ -272,8 +503,18 @@ function ParticipantTile({
         {member.deafened && (
           <FaVolumeMute className="text-discord-red flex-shrink-0" />
         )}
+        {!isSelf && (
+          <button
+            type="button"
+            onClick={onMuteClick}
+            className="text-discord-text-muted hover:text-white flex-shrink-0"
+            title={muted ? "Unmute (local)" : "Mute for me only"}
+          >
+            {muted ? <FaVolumeMute /> : <FaVolumeUp />}
+          </button>
+        )}
       </div>
-    </div>
+    </button>
   );
 }
 
