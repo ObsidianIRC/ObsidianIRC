@@ -21,6 +21,7 @@ import {
   FaMinus,
   FaMusic,
   FaPlus,
+  FaRedo,
   FaSpinner,
   FaVideo,
 } from "react-icons/fa";
@@ -424,6 +425,7 @@ export function MediaViewerModal({
   // never derived from React state, so renders can't fight them.
   const zoomRef = useRef(1);
   const translateRef = useRef({ x: 0, y: 0 });
+  const rotationRef = useRef(0);
 
   const imgRef = useRef<HTMLImageElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -515,9 +517,18 @@ export function MediaViewerModal({
     zoomRef.current = z;
     translateRef.current = { x: tx, y: ty };
     if (imgRef.current) {
-      imgRef.current.style.transform = `translate(${tx}px, ${ty}px) scale(${z})`;
+      imgRef.current.style.transform = `translate(${tx}px, ${ty}px) scale(${z}) rotate(${rotationRef.current}deg)`;
     }
   }, []);
+
+  const rotateImage = useCallback(() => {
+    rotationRef.current = (rotationRef.current + 90) % 360;
+    applyTransform(
+      zoomRef.current,
+      translateRef.current.x,
+      translateRef.current.y,
+    );
+  }, [applyTransform]);
 
   // Schedule a slider state update, coalescing rapid gesture events.
   const scheduleSliderUpdate = useCallback((z: number) => {
@@ -528,6 +539,7 @@ export function MediaViewerModal({
   useEffect(() => {
     if (isOpen) {
       filmstripScrolledRef.current = false;
+      rotationRef.current = 0;
       applyTransform(1, 0, 0);
       setZoom(1);
       setFailedUrls(new Set());
@@ -698,6 +710,7 @@ export function MediaViewerModal({
     (index: number) => {
       setCurrentIndex(index);
       setZoom(1);
+      rotationRef.current = 0;
       applyTransform(1, 0, 0);
     },
     [applyTransform],
@@ -1233,6 +1246,16 @@ export function MediaViewerModal({
                         className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
                         <FaPlus className="w-3 h-3" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={rotateImage}
+                        title="Rotate 90°"
+                        aria-label="Rotate 90°"
+                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                      >
+                        <FaRedo className="w-3 h-3" />
                       </button>
                     </>
                   )}
