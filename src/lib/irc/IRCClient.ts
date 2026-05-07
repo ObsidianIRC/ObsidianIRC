@@ -245,6 +245,49 @@ export interface EventMap {
     serviceName: string;
     jwtToken: string;
   };
+  // IRCv3 draft/named-modes (PROP command + RPL_CHMODELIST etc.).
+  // The "registry" events (CHANMODE_LIST / UMODE_LIST) carry the
+  // server's long-form mode name table; the "mode change" event
+  // (PROP) carries an actual mode change; the rest pair with the
+  // listing forms of PROP <chan> [<listmode>].
+  NAMED_MODES_CHANMODE_LIST: BaseIRCEvent & {
+    entries: Array<{
+      type: 1 | 2 | 3 | 4 | 5;
+      name: string;
+      letter?: string;
+    }>;
+    isFinal: boolean;
+  };
+  NAMED_MODES_UMODE_LIST: BaseIRCEvent & {
+    entries: Array<{
+      type: 1 | 2 | 3 | 4 | 5;
+      name: string;
+      letter?: string;
+    }>;
+    isFinal: boolean;
+  };
+  NAMED_MODES_PROPLIST: BaseIRCEvent & {
+    channel: string;
+    items: string[];
+  };
+  NAMED_MODES_PROPLIST_END: BaseIRCEvent & { channel: string };
+  NAMED_MODES_LISTPROPLIST: BaseIRCEvent & {
+    channel: string;
+    modeName: string;
+    mask: string;
+    setter: string;
+    settime: number;
+  };
+  NAMED_MODES_LISTPROPLIST_END: BaseIRCEvent & {
+    channel: string;
+    modeName: string;
+  };
+  NAMED_MODES_PROP: EventWithTags & {
+    sender: string;
+    target: string;
+    items: Array<{ sign: "+" | "-"; name: string; param?: string }>;
+    timestamp: Date;
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -470,6 +513,7 @@ export class IRCClient implements IRCClientContext {
     "invite-notify",
     "monitor",
     "extended-monitor",
+    "draft/named-modes",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 

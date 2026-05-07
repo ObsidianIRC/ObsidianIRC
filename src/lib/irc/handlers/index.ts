@@ -65,6 +65,15 @@ import {
   handleMonOnline,
 } from "./monitoring";
 import {
+  handleProp,
+  handleRplChmodelist,
+  handleRplEndOfListProplist,
+  handleRplEndOfProplist,
+  handleRplListProplist,
+  handleRplProplist,
+  handleRplUmodelist,
+} from "./named-modes";
+import {
   handleAway,
   handleChghost,
   handleInvite,
@@ -288,6 +297,21 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleVerify(ctx, serverId, source, parv, mtags),
   EXTJWT: (ctx, serverId, source, parv, mtags) =>
     handleExtjwt(ctx, serverId, source, parv, mtags),
+
+  PROP: (ctx, serverId, source, parv, mtags) =>
+    handleProp(ctx, serverId, source, parv, mtags),
+  "960": (ctx, serverId, source, parv, mtags) =>
+    handleRplEndOfProplist(ctx, serverId, source, parv, mtags),
+  "961": (ctx, serverId, source, parv, mtags) =>
+    handleRplProplist(ctx, serverId, source, parv, mtags),
+  "962": (ctx, serverId, source, parv, mtags) =>
+    handleRplEndOfListProplist(ctx, serverId, source, parv, mtags),
+  "963": (ctx, serverId, source, parv, mtags) =>
+    handleRplListProplist(ctx, serverId, source, parv, mtags),
+  "964": (ctx, serverId, source, parv, mtags) =>
+    handleRplChmodelist(ctx, serverId, source, parv, mtags),
+  "965": (ctx, serverId, source, parv, mtags) =>
+    handleRplUmodelist(ctx, serverId, source, parv, mtags),
 
   "730": (ctx, serverId, source, parv, mtags) =>
     handleMonOnline(ctx, serverId, source, parv, mtags),
