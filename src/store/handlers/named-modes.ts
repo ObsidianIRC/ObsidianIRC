@@ -102,13 +102,105 @@ export function registerNamedModesHandlers(store: StoreApi<AppState>): void {
   });
 
   // Server-pushed PROP changes are the cap-aware equivalent of MODE.
-  // For phase 1 we just log them; the next phase translates them into
-  // the existing channel/user mode-state store updates so the chat
-  // header / member list / etc. stay consistent.
+  // We synthesise a MODE event from the registry-resolved letter so
+  // every existing chanmode/usermode handler keeps working without
+  // having to learn about PROP. Name-only modes (no letter) have no
+  // MODE equivalent and are dropped here; UI surfaces that want them
+  // can subscribe to NAMED_MODES_PROP directly.
   ircClient.on("NAMED_MODES_PROP", (event) => {
-    // No-op for now -- the existing MODE event still fires for
-    // legacy-letter-equivalent changes and drives the UI. We'll
-    // route name-only changes through this path in the next phase.
-    void event;
+    const state = store.getState();
+    const server = state.servers.find((s) => s.id === event.serverId);
+    if (!server?.namedModes?.supported) return;
+
+    // Channel target uses CHANTYPES heuristic (#^$ is what the
+    // ircd advertises today; covers any future prefix automatically
+    // because this branch's named-modes spec routes both via the
+    // same wire form). Anything else is a user target.
+    const isChannel =
+      event.target.startsWith("#") ||
+      event.target.startsWith("^") ||
+      event.target.startsWith("$");
+    const registry = isChannel
+      ? server.namedModes.channelModes
+      : server.namedModes.userModes;
+
+    let modestring = "";
+    const modeargs: string[] = [];
+    let lastSign: "+" | "-" | "" = "";
+
+    for (const item of event.items) {
+      const spec = registry.find((m) => m.name === item.name);
+      if (!spec || !spec.letter) {
+        // Name-only mode -- no legacy-letter representation. The
+        // NAMED_MODES_PROP event still fired for richer subscribers;
+        // we just can't fan it through MODE.
+        continue;
+      }
+      if (item.sign !== lastSign) {
+        modestring += item.sign;
+        lastSign = item.sign;
+      }
+      modestring += spec.letter;
+      if (item.param !== undefined) modeargs.push(item.param);
+    }
+
+    if (!modestring) return;
+
+    ircClient.triggerEvent("MODE", {
+      serverId: event.serverId,
+      mtags: event.mtags,
+      sender: event.sender,
+      target: event.target,
+      modestring,
+      modeargs,
+    });
+  });
+
+  // PROP-list responses (961/960): bridge to the same RPL_CHANNELMODEIS
+  // path so the existing channel-modes display picks them up. We build
+  // a single +<modestring> + args from the items the server returned.
+  // Keyed by serverId+channel so concurrent PROP <chan> queries don't
+  // intermix.
+  type PropBuf = { items: string[] };
+  const propBufs = new Map<string, PropBuf>();
+  const bufKey = (serverId: string, channel: string) =>
+    `${serverId}\x00${channel}`;
+
+  ircClient.on("NAMED_MODES_PROPLIST", ({ serverId, channel, items }) => {
+    const key = bufKey(serverId, channel);
+    const buf = propBufs.get(key) ?? { items: [] };
+    for (const it of items) buf.items.push(it);
+    propBufs.set(key, buf);
+  });
+
+  ircClient.on("NAMED_MODES_PROPLIST_END", ({ serverId, channel }) => {
+    const key = bufKey(serverId, channel);
+    const buf = propBufs.get(key);
+    propBufs.delete(key);
+    if (!buf) return;
+
+    const state = store.getState();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server?.namedModes?.supported) return;
+
+    let modestring = "+";
+    const modeargs: string[] = [];
+    for (const raw of buf.items) {
+      const eq = raw.indexOf("=");
+      const name = eq === -1 ? raw : raw.slice(0, eq);
+      const param = eq === -1 ? undefined : raw.slice(eq + 1);
+      const spec = server.namedModes.channelModes.find((m) => m.name === name);
+      if (!spec || !spec.letter) continue;
+      modestring += spec.letter;
+      if (param !== undefined) modeargs.push(param);
+    }
+    if (modestring === "+") return;
+
+    ircClient.triggerEvent("RPL_CHANNELMODEIS", {
+      serverId,
+      channelName: channel,
+      modestring,
+      modeargs,
+    });
   });
 }

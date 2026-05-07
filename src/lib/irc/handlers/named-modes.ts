@@ -59,25 +59,27 @@ function parseListAdvertisement(parv: string[]): {
   entries: NamedModeSpec[];
   isFinal: boolean;
 } {
-  // parv[0] = recipient nick; remove it
-  let tokens = parv.slice(1);
-  // Optional "*" continuation marker
+  // parv[0] = recipient nick; everything after is either separate
+  // mode-entry tokens (when the wire form put them inline) or a single
+  // trailing string with space-separated entries. The IRC parser
+  // already stripped the leading ":" from trailing args, so we just
+  // need to flatten on whitespace either way.
+  let rest = parv.slice(1);
+
+  // Optional "*" continuation marker.
   let isFinal = true;
-  if (tokens.length && tokens[0] === "*") {
+  if (rest.length && rest[0] === "*") {
     isFinal = false;
-    tokens = tokens.slice(1);
+    rest = rest.slice(1);
   }
-  // The trailing param may have a leading colon (IRC trailing-arg form)
-  // and may be a single space-separated string.
-  if (tokens.length === 1 && tokens[0].startsWith(":")) {
-    tokens = tokens[0].slice(1).split(" ");
-  } else if (tokens.length) {
-    // Last token (if it was the trailing) loses its leading colon
-    if (tokens[tokens.length - 1].startsWith(":")) {
-      tokens[tokens.length - 1] = tokens[tokens.length - 1].slice(1);
+
+  const flat: string[] = [];
+  for (const tok of rest) {
+    for (const part of tok.split(" ")) {
+      if (part.length) flat.push(part);
     }
   }
-  return { entries: parseEntries(tokens.filter((t) => t.length > 0)), isFinal };
+  return { entries: parseEntries(flat), isFinal };
 }
 
 export function handleRplChmodelist(
