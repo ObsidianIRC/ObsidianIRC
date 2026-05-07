@@ -1094,7 +1094,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           {display}
         </span>
         {vendor && (
-          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-discord-dark-400 text-discord-text-muted flex-shrink-0">
+          <span className="text-[10px] tracking-wide px-1.5 py-0.5 rounded bg-discord-dark-400 text-discord-text-muted flex-shrink-0 lowercase">
             {vendor}
           </span>
         )}
