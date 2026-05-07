@@ -14,6 +14,41 @@ import("highlight.js").then((m) => {
   hljsModule = m.default;
 });
 
+/** Split an IRCv3 named-modes mode name into its vendor prefix and a
+ * human-readable display label.
+ *
+ * Examples:
+ *   "op"                            -> { vendor: undefined, display: "Op" }
+ *   "topiclock"                     -> { vendor: undefined, display: "Topiclock" }
+ *   "obsidianirc/this-mode-lol"     -> { vendor: "obsidianirc",
+ *                                        display: "This Mode Lol" }
+ *   "example.org/history"           -> { vendor: "example.org",
+ *                                        display: "History" }
+ *
+ * The display string title-cases each hyphen/underscore-separated word.
+ * The vendor (if any) is always lower-cased so the UI badge is uniform.
+ */
+export function humanizeNamedMode(name: string): {
+  vendor?: string;
+  display: string;
+} {
+  const slash = name.indexOf("/");
+  let vendor: string | undefined;
+  let raw: string;
+  if (slash === -1) {
+    raw = name;
+  } else {
+    vendor = name.slice(0, slash).toLowerCase();
+    raw = name.slice(slash + 1);
+  }
+  const display = raw
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+  return { vendor, display: display || raw };
+}
+
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
   for (const name of namesResponse.split(" ")) {
