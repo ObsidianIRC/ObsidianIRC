@@ -1343,6 +1343,85 @@ export class IRCClient implements IRCClientContext {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
   }
 
+  /**
+   * IRCv3 draft/named-modes: send a mode change addressed by long-form
+   * mode names instead of single letters.
+   *
+   * When the negotiated registry exposes a letter for every requested
+   * name, we build a `MODE` line so the change works on legacy
+   * (non-cap) servers too. When the cap is negotiated AND any item
+   * has no letter equivalent (a name-only mode), we send a `PROP`
+   * line, which is the only wire form that can carry such modes.
+   *
+   * `target` is a channel name or a nick. `items` is a list of
+   * `{sign, name, param?}` triples. `registry` is the per-server
+   * NamedModes object the caller already has from the store; passing
+   * it in keeps this layer free of a store dependency.
+   */
+  sendNamedMode(
+    serverId: string,
+    target: string,
+    items: Array<{ sign: "+" | "-"; name: string; param?: string }>,
+    registry?: { supported: boolean } & {
+      channelModes: Array<{ name: string; letter?: string }>;
+      userModes: Array<{ name: string; letter?: string }>;
+    },
+  ): void {
+    if (!items.length) return;
+
+    const isChannelTarget =
+      target.startsWith("#") ||
+      target.startsWith("^") ||
+      target.startsWith("$");
+    const list = isChannelTarget
+      ? (registry?.channelModes ?? [])
+      : (registry?.userModes ?? []);
+
+    // Decide which form to send. Prefer PROP when the cap is
+    // negotiated AND any item is name-only (no letter); fall back to
+    // MODE otherwise so legacy servers / clients in mixed deployments
+    // keep working.
+    const capSupported = !!registry?.supported;
+    const anyNameOnly = items.some((it) => {
+      const spec = list.find((m) => m.name === it.name);
+      return !spec?.letter;
+    });
+
+    if (capSupported && anyNameOnly) {
+      const tail = items
+        .map((it) =>
+          it.param !== undefined
+            ? `${it.sign}${it.name}=${it.param}`
+            : `${it.sign}${it.name}`,
+        )
+        .join(" ");
+      this.sendRaw(serverId, `PROP ${target} ${tail}`);
+      return;
+    }
+
+    // Build a MODE line. Drop any items that map to no letter (only
+    // happens when the cap isn't negotiated; the user just can't
+    // reach name-only modes on a legacy server).
+    let modestring = "";
+    const params: string[] = [];
+    let lastSign: "+" | "-" | "" = "";
+    for (const it of items) {
+      const spec = list.find((m) => m.name === it.name);
+      if (!spec?.letter) continue;
+      if (it.sign !== lastSign) {
+        modestring += it.sign;
+        lastSign = it.sign;
+      }
+      modestring += spec.letter;
+      if (it.param !== undefined) params.push(it.param);
+    }
+    if (!modestring) return;
+    const cmd = params.length
+      ? `MODE ${target} ${modestring} ${params.join(" ")}`
+      : `MODE ${target} ${modestring}`;
+    this.sendRaw(serverId, cmd);
+  }
+
   // EXTJWT commands
   requestExtJwt(serverId: string, target?: string, serviceName?: string): void {
     // EXTJWT ( <channel> | * ) [service_name]

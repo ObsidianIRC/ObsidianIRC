@@ -6,6 +6,7 @@ import {
   handleRplUmodelist,
 } from "../../src/lib/irc/handlers/named-modes";
 import type { IRCClientContext } from "../../src/lib/irc/IRCClientContext";
+import ircClient from "../../src/lib/ircClient";
 
 function makeCtx() {
   const events: Array<{ name: string; payload: unknown }> = [];
@@ -140,5 +141,119 @@ describe("named-modes protocol handlers", () => {
     const ev = events[0].payload as { channel: string; items: string[] };
     expect(ev.channel).toBe("#egypt");
     expect(ev.items).toEqual(["topiclock", "noextmsg", "limit=5"]);
+  });
+});
+
+// sendNamedMode is on the IRCClient class proper. We test it by
+// constructing a stub that captures sendRaw output, since hand-rolling
+// the full IRCClient lifecycle inside a unit test is overkill and
+// brittle. The decision logic (PROP vs MODE, name->letter mapping,
+// drop-when-no-letter) is what matters.
+describe("sendNamedMode outbound translation", () => {
+  type Item = { sign: "+" | "-"; name: string; param?: string };
+  type Registry = {
+    supported: boolean;
+    channelModes: Array<{ name: string; letter?: string }>;
+    userModes: Array<{ name: string; letter?: string }>;
+  };
+
+  // Spy on sendRaw on the singleton ircClient so the real method runs
+  // through its real `this`, exercising the shared codepath. Each
+  // call resets the spy so tests are independent.
+  function callSendNamedMode(
+    target: string,
+    items: Item[],
+    registry?: Registry,
+  ): string | null {
+    let captured: string | null = null;
+    const spy = vi
+      .spyOn(ircClient, "sendRaw")
+      .mockImplementation((_serverId: string, cmd: string) => {
+        captured = cmd;
+      });
+    ircClient.sendNamedMode("srv1", target, items, registry);
+    spy.mockRestore();
+    return captured;
+  }
+
+  const fullRegistry: Registry = {
+    supported: true,
+    channelModes: [
+      { name: "op", letter: "o" },
+      { name: "voice", letter: "v" },
+      { name: "topiclock", letter: "t" },
+      { name: "ban", letter: "b" },
+      { name: "obsidianirc/futureflag" }, // name-only
+    ],
+    userModes: [
+      { name: "invisible", letter: "i" },
+      { name: "wallops", letter: "w" },
+    ],
+  };
+
+  test("emits MODE when every requested mode has a letter", () => {
+    const out = callSendNamedMode(
+      "#chan",
+      [
+        { sign: "+", name: "op", param: "alice" },
+        { sign: "-", name: "topiclock" },
+      ],
+      fullRegistry,
+    );
+    expect(out).toBe("MODE #chan +o-t alice");
+  });
+
+  test("emits PROP when the cap is on and a name-only mode is requested", () => {
+    const out = callSendNamedMode(
+      "#chan",
+      [
+        { sign: "+", name: "obsidianirc/futureflag" },
+        { sign: "+", name: "op", param: "bob" },
+      ],
+      fullRegistry,
+    );
+    expect(out).toBe("PROP #chan +obsidianirc/futureflag +op=bob");
+  });
+
+  test("drops name-only items when cap is unsupported and falls back to MODE", () => {
+    const out = callSendNamedMode(
+      "#chan",
+      [
+        { sign: "+", name: "obsidianirc/futureflag" },
+        { sign: "+", name: "op", param: "bob" },
+      ],
+      { ...fullRegistry, supported: false },
+    );
+    expect(out).toBe("MODE #chan +o bob");
+  });
+
+  test("returns null (no send) when nothing is resolvable", () => {
+    const out = callSendNamedMode(
+      "#chan",
+      [{ sign: "+", name: "obsidianirc/futureflag" }],
+      { ...fullRegistry, supported: false },
+    );
+    expect(out).toBeNull();
+  });
+
+  test("user target uses userModes registry", () => {
+    const out = callSendNamedMode(
+      "alice",
+      [{ sign: "+", name: "invisible" }],
+      fullRegistry,
+    );
+    expect(out).toBe("MODE alice +i");
+  });
+
+  test("collapses repeated signs ('+', '+') into a single sign group", () => {
+    const out = callSendNamedMode(
+      "#chan",
+      [
+        { sign: "+", name: "op", param: "alice" },
+        { sign: "+", name: "voice", param: "bob" },
+      ],
+      fullRegistry,
+    );
+    expect(out).toBe("MODE #chan +ov alice bob");
   });
 });
