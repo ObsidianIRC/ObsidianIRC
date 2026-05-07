@@ -1098,11 +1098,6 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
             {vendor}
           </span>
         )}
-        {spec.letter && (
-          <span className="text-[10px] font-mono text-discord-text-muted flex-shrink-0">
-            +{spec.letter}
-          </span>
-        )}
       </div>
     );
 
