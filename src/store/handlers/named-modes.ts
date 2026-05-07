@@ -130,7 +130,7 @@ export function registerNamedModesHandlers(store: StoreApi<AppState>): void {
 
     for (const item of event.items) {
       const spec = registry.find((m) => m.name === item.name);
-      if (!spec || !spec.letter) {
+      if (!spec?.letter) {
         // Name-only mode -- no legacy-letter representation. The
         // NAMED_MODES_PROP event still fired for richer subscribers;
         // we just can't fan it through MODE.
@@ -190,7 +190,7 @@ export function registerNamedModesHandlers(store: StoreApi<AppState>): void {
       const name = eq === -1 ? raw : raw.slice(0, eq);
       const param = eq === -1 ? undefined : raw.slice(eq + 1);
       const spec = server.namedModes.channelModes.find((m) => m.name === name);
-      if (!spec || !spec.letter) continue;
+      if (!spec?.letter) continue;
       modestring += spec.letter;
       if (param !== undefined) modeargs.push(param);
     }

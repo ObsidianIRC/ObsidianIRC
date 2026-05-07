@@ -19,6 +19,12 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 import ircClient from "../../lib/ircClient";
 import { hasOpPermission, humanizeNamedMode } from "../../lib/ircUtils";
+import {
+  lookupNamedModeMeta,
+  NAMED_MODE_GROUP_LABELS,
+  NAMED_MODE_GROUP_ORDER,
+  type NamedModeGroup,
+} from "../../lib/namedModeRegistry";
 import useStore, { serverSupportsMetadata } from "../../store";
 import type { Channel, NamedModeSpec } from "../../types";
 import AvatarUpload from "./AvatarUpload";
@@ -1077,10 +1083,25 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
    *  by the spec's mode type (1=list, 2=param-both, 3=param-add-only,
    *  4=flag, 5=prefix). We skip 1 (the dedicated Bans/Exceptions/
    *  Invitations tabs cover those) and 5 (member-prefix modes are
-   *  set via the member context menu, not channel settings). */
-  const renderNamedModeRow = (spec: NamedModeSpec) => {
+   *  set via the member context menu, not channel settings).
+   *
+   *  Returns { node, group } so the caller can bucket rows into the
+   *  section ordering from NAMED_MODE_GROUP_ORDER. Returns null when
+   *  the registry marks the mode as hidden (covered by another tab or
+   *  server-managed). */
+  const renderNamedModeRow = (
+    spec: NamedModeSpec,
+  ): { node: React.ReactNode; group: NamedModeGroup } | null => {
     if (spec.type === 1 || spec.type === 5) return null;
-    const { vendor, display } = humanizeNamedMode(spec.name);
+    const meta = lookupNamedModeMeta(spec.name);
+    if (meta?.hidden) return null;
+
+    const fallback = humanizeNamedMode(spec.name);
+    const label = meta?.label ?? fallback.display;
+    const description = meta?.description ?? "";
+    const group: NamedModeGroup = meta?.group ?? "properties";
+    const placeholder = meta?.paramPlaceholder;
+
     const live = liveStateForNamedMode(spec);
     const staged = stagedStateForNamedMode(spec.name);
 
@@ -1089,70 +1110,87 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     const stagedParam = staged?.param ?? live.param ?? "";
 
     const headerRow = (
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <span className="text-sm font-medium text-white truncate">
-          {display}
-        </span>
-        {vendor && (
-          <span className="text-[10px] tracking-wide px-1.5 py-0.5 rounded bg-discord-dark-400 text-discord-text-muted flex-shrink-0 lowercase">
-            {vendor}
+      <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-white truncate">
+            {label}
           </span>
+          {fallback.vendor && (
+            <span className="text-[10px] tracking-wide px-1.5 py-0.5 rounded bg-discord-dark-400 text-discord-text-muted flex-shrink-0 lowercase">
+              {fallback.vendor}
+            </span>
+          )}
+        </div>
+        {description && (
+          <p className="text-xs text-discord-text-muted leading-snug">
+            {description}
+          </p>
         )}
       </div>
     );
 
     if (isFlag) {
-      return (
-        <div
-          key={spec.name}
-          className="flex items-center justify-between p-3 bg-discord-dark-300 rounded gap-3"
-        >
-          {headerRow}
-          <input
-            type="checkbox"
-            checked={stagedSet}
-            onChange={(e) => {
-              const next = e.target.checked;
-              if (next === live.set) {
-                stageNamedMode(spec.name, null);
-              } else {
-                stageNamedMode(spec.name, { sign: next ? "+" : "-" });
-              }
-            }}
-            className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-          />
-        </div>
-      );
+      return {
+        group,
+        node: (
+          <div
+            key={spec.name}
+            className="flex items-start justify-between p-3 bg-discord-dark-300 rounded gap-3"
+          >
+            {headerRow}
+            <input
+              type="checkbox"
+              checked={stagedSet}
+              onChange={(e) => {
+                const next = e.target.checked;
+                if (next === live.set) {
+                  stageNamedMode(spec.name, null);
+                } else {
+                  stageNamedMode(spec.name, { sign: next ? "+" : "-" });
+                }
+              }}
+              className="w-4 h-4 mt-1 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+            />
+          </div>
+        ),
+      };
     }
 
-    // Param mode (type 2 or 3). One input + a clear button. Empty input
-    // means "unset"; non-empty means "set to this value".
-    return (
-      <div
-        key={spec.name}
-        className="flex flex-col gap-2 p-3 bg-discord-dark-300 rounded"
-      >
-        {headerRow}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={stagedParam}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === (live.param ?? "")) {
-                stageNamedMode(spec.name, null);
-              } else if (!v) {
-                stageNamedMode(spec.name, { sign: "-" });
-              } else {
-                stageNamedMode(spec.name, { sign: "+", param: v });
+    // Param mode (type 2 or 3). Empty input means "unset"; non-empty
+    // means "set to this value".
+    return {
+      group,
+      node: (
+        <div
+          key={spec.name}
+          className="flex flex-col gap-2 p-3 bg-discord-dark-300 rounded"
+        >
+          {headerRow}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={stagedParam}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === (live.param ?? "")) {
+                  stageNamedMode(spec.name, null);
+                } else if (!v) {
+                  stageNamedMode(spec.name, { sign: "-" });
+                } else {
+                  stageNamedMode(spec.name, { sign: "+", param: v });
+                }
+              }}
+              placeholder={
+                live.set
+                  ? "(set, edit to change)"
+                  : (placeholder ?? "(not set)")
               }
-            }}
-            placeholder={live.set ? "(set, edit to change)" : "(not set)"}
-            className="flex-1 p-2 bg-discord-dark-400 text-white rounded text-sm"
-          />
+              className="flex-1 p-2 bg-discord-dark-400 text-white rounded text-sm"
+            />
+          </div>
         </div>
-      </div>
-    );
+      ),
+    };
   };
 
   const contentBody = (
@@ -1566,18 +1604,40 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           <>
             {/* Advanced tab content */}
             {server?.namedModes?.supported ? (
-              <div className="flex-1 overflow-y-auto space-y-3">
-                {(server.namedModes.channelModes ?? [])
-                  .filter((spec) => spec.type !== 1 && spec.type !== 5)
-                  .map((spec) => renderNamedModeRow(spec))}
-                {(server.namedModes.channelModes ?? []).every(
-                  (s) => s.type === 1 || s.type === 5,
-                ) && (
-                  <p className="text-sm text-discord-text-muted italic">
-                    No advanced modes are advertised by this server.
-                  </p>
-                )}
-              </div>
+              (() => {
+                const grouped = new Map<NamedModeGroup, React.ReactNode[]>();
+                for (const spec of server.namedModes.channelModes ?? []) {
+                  const result = renderNamedModeRow(spec);
+                  if (!result) continue;
+                  const list = grouped.get(result.group) ?? [];
+                  list.push(result.node);
+                  grouped.set(result.group, list);
+                }
+                const sections = NAMED_MODE_GROUP_ORDER.filter(
+                  (g) => (grouped.get(g)?.length ?? 0) > 0,
+                );
+                if (sections.length === 0) {
+                  return (
+                    <div className="flex-1 overflow-y-auto">
+                      <p className="text-sm text-discord-text-muted italic">
+                        No advanced modes are advertised by this server.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex-1 overflow-y-auto space-y-6">
+                    {sections.map((g) => (
+                      <div key={g} className="space-y-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-discord-text-muted">
+                          {NAMED_MODE_GROUP_LABELS[g]}
+                        </h3>
+                        <div className="space-y-2">{grouped.get(g)}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
             ) : (
               <div className="flex-1 overflow-y-auto space-y-6">
                 {/* Flood Protection Settings */}
