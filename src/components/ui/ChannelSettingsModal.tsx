@@ -1572,12 +1572,6 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
             {/* Advanced tab content */}
             {server?.namedModes?.supported ? (
               <div className="flex-1 overflow-y-auto space-y-3">
-                <p className="text-xs text-discord-text-muted">
-                  Driven by the server's <code>draft/named-modes</code>{" "}
-                  registry. Standard modes (op, voice, ban, ...) live on their
-                  own tabs above; this list shows every other channel mode the
-                  server advertises.
-                </p>
                 {(server.namedModes.channelModes ?? [])
                   .filter((spec) => spec.type !== 1 && spec.type !== 5)
                   .map((spec) => renderNamedModeRow(spec))}
