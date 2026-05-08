@@ -11,6 +11,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FaCircle,
+  FaCog,
   FaDesktop,
   FaHandPaper,
   FaMicrophone,
@@ -30,11 +31,17 @@ import {
   type VoiceState,
 } from "../../lib/voice";
 import useStore from "../../store";
+import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 
 interface Props {
   serverId: string;
   channelName: string;
 }
+
+// Mirrors `streamMaxStreamers` in hosted-backend/voice.go. The server
+// is the source of truth; this is just for the "X/4 streaming" header
+// label.
+const streamMaxStreamers = 4;
 
 export const VoiceChannelView: React.FC<Props> = ({
   serverId,
@@ -48,6 +55,7 @@ export const VoiceChannelView: React.FC<Props> = ({
   const [deafened, setDeafened] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [pttMode, setPttMode] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Nick of the currently spotlighted member, or null for grid view.
   const [focusNick, setFocusNick] = useState<string | null>(null);
   // Per-member ephemeral reactions: each entry animates briefly then is dropped.
@@ -165,6 +173,20 @@ export const VoiceChannelView: React.FC<Props> = ({
 
   const members =
     state.phase === "connected" ? Object.values(state.members) : [];
+  const mode = state.phase === "connected" ? state.mode : "voice";
+  const role = state.phase === "connected" ? state.role : "streamer";
+  const streamerNicks = state.phase === "connected" ? state.streamers : [];
+  const isStreamRoom = mode === "stream";
+  const isStreamer = role === "streamer";
+  const isHost = isStreamRoom && streamerNicks[0] === selfNick;
+  // Streamer tiles: in a $-room only members in the streamer list show
+  // up in the main grid. Voice rooms render every member as before.
+  const streamerMembers = isStreamRoom
+    ? members.filter((m) => streamerNicks.includes(m.nick))
+    : members;
+  const viewerMembers = isStreamRoom
+    ? members.filter((m) => !streamerNicks.includes(m.nick))
+    : [];
 
   // Auto-pop focus when the focused member leaves the call.
   useEffect(() => {
@@ -175,34 +197,62 @@ export const VoiceChannelView: React.FC<Props> = ({
 
   const focusMember =
     focusNick != null ? members.find((m) => m.nick === focusNick) : null;
+  // Spotlight pulls from the streamer-only set in $-rooms so viewers
+  // can never get focused (they have no media to render anyway).
+  const focusPool = streamerMembers;
   const sideMembers = focusMember
-    ? members.filter((m) => m.nick !== focusMember.nick)
-    : members;
+    ? focusPool.filter((m) => m.nick !== focusMember.nick)
+    : focusPool;
 
   return (
     <div className="w-full h-full flex flex-col bg-discord-dark-200">
       <header className="px-4 py-3 border-b border-discord-dark-300 flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-white text-lg font-medium truncate">
-            🔊 {channelName.replace(/^\^/, "")}
+          <h2 className="text-white text-lg font-medium truncate flex items-center gap-2">
+            {isStreamRoom ? (
+              <FaDesktop className="text-discord-blue" />
+            ) : (
+              <FaVolumeUp className="text-discord-green" />
+            )}
+            <span className="truncate">
+              {channelName.replace(/^[\^$]/, "")}
+            </span>
+            {isStreamRoom && (
+              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-discord-blue text-white align-middle">
+                {role}
+              </span>
+            )}
           </h2>
           <p className="text-xs text-discord-text-muted">
             {state.phase === "joining" && "Connecting…"}
             {state.phase === "connected" &&
-              `${members.length} ${members.length === 1 ? "member" : "members"}`}
+              (isStreamRoom
+                ? `${streamerMembers.length}/${streamMaxStreamers} streaming · ${viewerMembers.length} watching`
+                : `${members.length} ${members.length === 1 ? "member" : "members"}`)}
             {state.phase === "failed" && `Connection failed: ${state.error}`}
             {state.phase === "idle" && "Ready"}
           </p>
         </div>
-        {focusMember && (
+        <div className="flex items-center gap-2">
+          {focusMember && (
+            <button
+              type="button"
+              onClick={() => setFocusNick(null)}
+              className="px-3 py-1 rounded text-xs bg-discord-dark-300 text-discord-text-normal hover:bg-discord-dark-400"
+            >
+              Exit spotlight
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setFocusNick(null)}
-            className="px-3 py-1 rounded text-xs bg-discord-dark-300 text-discord-text-normal hover:bg-discord-dark-400"
+            onClick={() => setSettingsOpen(true)}
+            title="Channel settings (topic, metadata, avatar)"
+            aria-label="Channel settings"
+            className="w-8 h-8 rounded-full bg-discord-dark-300 hover:bg-discord-dark-400 text-discord-text-muted hover:text-white flex items-center justify-center"
           >
-            Exit spotlight
+            <FaCog />
           </button>
-        )}
+        </div>
       </header>
 
       <main className="flex-1 overflow-hidden p-4 flex flex-col gap-3 min-h-0">
@@ -244,7 +294,7 @@ export const VoiceChannelView: React.FC<Props> = ({
         ) : (
           <div className="flex-1 overflow-y-auto">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {members.map((m) => (
+              {streamerMembers.map((m) => (
                 <ParticipantTile
                   key={m.nick}
                   member={m}
@@ -258,10 +308,60 @@ export const VoiceChannelView: React.FC<Props> = ({
                 />
               ))}
             </div>
-            {state.phase === "connected" && members.length === 0 && (
-              <p className="text-discord-text-muted text-sm italic mt-8 text-center">
-                Just you for now. Tell someone to /join {channelName} to chat.
-              </p>
+            {state.phase === "connected" &&
+              streamerMembers.length === 0 &&
+              !isStreamRoom && (
+                <p className="text-discord-text-muted text-sm italic mt-8 text-center">
+                  Just you for now. Tell someone to /join {channelName} to chat.
+                </p>
+              )}
+            {isStreamRoom && (
+              <div className="mt-6">
+                <h3 className="text-discord-text-muted text-xs uppercase mb-2">
+                  Viewers ({viewerMembers.length})
+                </h3>
+                {viewerMembers.length === 0 ? (
+                  <p className="text-xs text-discord-text-muted italic">
+                    No viewers yet.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {viewerMembers.map((v) => (
+                      <span
+                        key={v.nick}
+                        className="px-2 py-1 rounded bg-discord-dark-300 text-xs text-discord-text-normal flex items-center gap-2"
+                      >
+                        {v.nick}
+                        {isHost &&
+                          streamerNicks.length < streamMaxStreamers && (
+                            <button
+                              type="button"
+                              onClick={() => clientRef.current?.promote(v.nick)}
+                              className="text-xs text-discord-blue hover:underline"
+                              title="Invite to stream"
+                            >
+                              + Invite
+                            </button>
+                          )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {isStreamer && !isHost && (
+                  <button
+                    type="button"
+                    onClick={() => clientRef.current?.demote()}
+                    className="mt-3 text-xs text-discord-red hover:underline"
+                  >
+                    Step off stream (back to viewer)
+                  </button>
+                )}
+                {isHost && streamerNicks.length > 1 && (
+                  <p className="mt-3 text-xs text-discord-text-muted">
+                    As host you can also click a streamer's tile to demote them.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -282,27 +382,34 @@ export const VoiceChannelView: React.FC<Props> = ({
             </button>
           ))}
         </div>
-        <ControlButton
-          on={micOn}
-          onClick={onToggleMic}
-          IconOn={FaMicrophone}
-          IconOff={FaMicrophoneSlash}
-          label={micOn ? "Mute" : "Unmute"}
-        />
-        <ControlButton
-          on={videoOn}
-          onClick={onToggleVideo}
-          IconOn={FaVideo}
-          IconOff={FaVideoSlash}
-          label={videoOn ? "Stop video" : "Start video"}
-        />
-        <ControlButton
-          on={screenOn}
-          onClick={onToggleScreen}
-          IconOn={FaDesktop}
-          IconOff={FaDesktop}
-          label={screenOn ? "Stop sharing" : "Share screen"}
-        />
+        {/* Publishing controls (mic / video / screen / PTT) only show
+            for streamers. Viewers in $-channels keep deafen + hand +
+            leave so they can still control their listening + signal. */}
+        {isStreamer && (
+          <>
+            <ControlButton
+              on={micOn}
+              onClick={onToggleMic}
+              IconOn={FaMicrophone}
+              IconOff={FaMicrophoneSlash}
+              label={micOn ? "Mute" : "Unmute"}
+            />
+            <ControlButton
+              on={videoOn}
+              onClick={onToggleVideo}
+              IconOn={FaVideo}
+              IconOff={FaVideoSlash}
+              label={videoOn ? "Stop video" : "Start video"}
+            />
+            <ControlButton
+              on={screenOn}
+              onClick={onToggleScreen}
+              IconOn={FaDesktop}
+              IconOff={FaDesktop}
+              label={screenOn ? "Stop sharing" : "Share screen"}
+            />
+          </>
+        )}
         <ControlButton
           on={!deafened}
           onClick={onToggleDeafen}
@@ -318,22 +425,24 @@ export const VoiceChannelView: React.FC<Props> = ({
           label={handRaised ? "Lower hand" : "Raise hand"}
           activeOverride={handRaised ? "ring-2 ring-yellow-400" : undefined}
         />
-        <button
-          type="button"
-          onClick={onTogglePtt}
-          title={
-            pttMode
-              ? "Push-to-talk: hold Space to talk. Click to disable."
-              : "Enable push-to-talk (hold Space to talk)"
-          }
-          className={`px-3 h-12 rounded-full text-xs font-medium transition-colors ${
-            pttMode
-              ? "bg-discord-blue text-white"
-              : "bg-discord-dark-300 text-white hover:bg-discord-dark-400"
-          }`}
-        >
-          PTT
-        </button>
+        {isStreamer && (
+          <button
+            type="button"
+            onClick={onTogglePtt}
+            title={
+              pttMode
+                ? "Push-to-talk: hold Space to talk. Click to disable."
+                : "Enable push-to-talk (hold Space to talk)"
+            }
+            className={`px-3 h-12 rounded-full text-xs font-medium transition-colors ${
+              pttMode
+                ? "bg-discord-blue text-white"
+                : "bg-discord-dark-300 text-white hover:bg-discord-dark-400"
+            }`}
+          >
+            PTT
+          </button>
+        )}
         <button
           type="button"
           onClick={onLeave}
@@ -348,6 +457,13 @@ export const VoiceChannelView: React.FC<Props> = ({
       {/* Inbound audio is rendered via a hidden <audio> owned by
           voice.ts so it survives this component unmounting (e.g. when
           the user navigates to a text channel without hanging up). */}
+
+      <ChannelSettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        serverId={serverId}
+        channelName={channelName}
+      />
     </div>
   );
 };

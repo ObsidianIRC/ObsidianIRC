@@ -1,17 +1,39 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FaUsers } from "react-icons/fa";
+import { FaDesktop, FaHashtag, FaUsers, FaVolumeUp } from "react-icons/fa";
 import { useJoinAndSelectChannel } from "../../hooks/useJoinAndSelectChannel";
 import ircClient from "../../lib/ircClient";
-import {
-  getChannelAvatarUrl,
-  getChannelDisplayName,
-  isUrlFromFilehost,
-} from "../../lib/ircUtils";
+import { getChannelAvatarUrl, isUrlFromFilehost } from "../../lib/ircUtils";
 import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import { BaseModal } from "../../lib/modal/BaseModal";
 import useStore from "../../store";
 import { TextInput } from "./TextInput";
+
+// Per-channel-prefix icon + label mapping. Mirrors the CHANTYPES the
+// ircd advertises ("#^$"); anything else falls back to the text-channel
+// hashtag glyph so unknown future prefixes still render something.
+function channelTypeMeta(name: string): {
+  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  color: string;
+} {
+  switch (name[0]) {
+    case "^":
+      return { Icon: FaVolumeUp, label: "Voice", color: "text-discord-green" };
+    case "$":
+      return {
+        Icon: FaDesktop,
+        label: "Stream",
+        color: "text-discord-blue",
+      };
+    default:
+      return {
+        Icon: FaHashtag,
+        label: "Text",
+        color: "text-discord-text-muted",
+      };
+  }
+}
 
 const ChannelListModal: React.FC = () => {
   const {
@@ -524,6 +546,9 @@ const ChannelListModal: React.FC = () => {
                           !!avatarUrl &&
                           ((isFilehostAvatar && showSafeMedia) ||
                             showExternalContent);
+                        const { Icon, color } = channelTypeMeta(
+                          channel.channel,
+                        );
                         return (
                           <>
                             {canShowAvatar ? (
@@ -535,18 +560,17 @@ const ChannelListModal: React.FC = () => {
                                   e.currentTarget.style.display = "none";
                                   const fallback = e.currentTarget
                                     .nextElementSibling as HTMLElement;
-                                  if (fallback)
-                                    fallback.style.display = "block";
+                                  if (fallback) fallback.style.display = "flex";
                                 }}
                               />
                             ) : null}
                             <span
-                              className="text-gray-400 text-xl font-bold"
+                              className={`w-8 h-8 rounded-full bg-discord-dark-400 items-center justify-center ${color}`}
                               style={{
-                                display: canShowAvatar ? "none" : "block",
+                                display: canShowAvatar ? "none" : "flex",
                               }}
                             >
-                              #
+                              <Icon size={16} />
                             </span>
                           </>
                         );
@@ -556,9 +580,22 @@ const ChannelListModal: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {(() => {
+                            const { Icon, color, label } = channelTypeMeta(
+                              channel.channel,
+                            );
+                            return (
+                              <span
+                                title={`${label} channel`}
+                                className={`flex-shrink-0 ${color}`}
+                              >
+                                <Icon size={12} />
+                              </span>
+                            );
+                          })()}
                           <span className="text-white font-medium truncate">
                             {displayName ||
-                              getChannelDisplayName(channel.channel, {})}
+                              channel.channel.replace(/^[#^$]/, "")}
                           </span>
                           {hasMetadata &&
                             displayName &&

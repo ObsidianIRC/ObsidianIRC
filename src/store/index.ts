@@ -1689,6 +1689,32 @@ const useStore = create<AppState>((set, get) => ({
         const channelName =
           server?.channels.find((c) => c.id === channelId)?.name || null;
 
+        // Self-heal stale memberships: when the local cache says we're
+        // in a real (non-private) channel but the user list is empty,
+        // the server doesn't actually know about us (e.g. ircd was
+        // restarted, the channel was dropped because no one was in it,
+        // our cached entry is now a phantom). Send JOIN on select.
+        // For ^/$ channels we always send JOIN on select since the
+        // ircd treats already-in users as a no-op and these channels
+        // are commonly orphaned across restarts -- the cost of an
+        // extra JOIN line is nothing compared to the 401 the user
+        // sees today.
+        if (channelName && server) {
+          const ch = server.channels.find((c) => c.id === channelId);
+          const isVoiceOrStream =
+            channelName.startsWith("^") || channelName.startsWith("$");
+          const lostMembership =
+            !!ch && !ch.isPrivate && (ch.users?.length ?? 0) === 0;
+          if (
+            ch &&
+            !ch.isPrivate &&
+            (isVoiceOrStream || lostMembership) &&
+            ircClient.isCapNegotiationComplete(server.id)
+          ) {
+            ircClient.sendRaw(server.id, `JOIN ${channelName}`);
+          }
+        }
+
         // Update unread state in store
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {

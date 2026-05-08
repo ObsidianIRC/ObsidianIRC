@@ -6,6 +6,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaCog,
+  FaDesktop,
   FaHashtag,
   FaPlus,
   FaSpinner,
@@ -126,9 +127,11 @@ export const ChannelList: React.FC<{
 
   const [isTextChannelsOpen, setIsTextChannelsOpen] = useState(true);
   const [isVoiceChannelsOpen, setIsVoiceChannelsOpen] = useState(true);
+  const [isStreamChannelsOpen, setIsStreamChannelsOpen] = useState(true);
   const [isPrivateChatsOpen, setIsPrivateChatsOpen] = useState(true);
   const [newChannelName, setNewChannelName] = useState("");
   const [newVoiceChannelName, setNewVoiceChannelName] = useState("");
+  const [newStreamChannelName, setNewStreamChannelName] = useState("");
   const [isAddPrivateChatModalOpen, setIsAddPrivateChatModalOpen] =
     useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
@@ -380,6 +383,15 @@ export const ChannelList: React.FC<{
     }
   };
 
+  const handleAddStreamChannel = () => {
+    if (selectedServerId && newStreamChannelName.trim()) {
+      const raw = newStreamChannelName.trim();
+      const channelName = raw.startsWith("$") ? raw : `$${raw}`;
+      joinAndSelectChannel(selectedServerId, channelName);
+      setNewStreamChannelName("");
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -391,6 +403,13 @@ export const ChannelList: React.FC<{
     if (e.key === "Enter") {
       e.preventDefault();
       handleAddVoiceChannel();
+    }
+  };
+
+  const handleStreamKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddStreamChannel();
     }
   };
 
@@ -535,7 +554,11 @@ export const ChannelList: React.FC<{
                         index === self.findIndex((c) => c.id === channel.id), // Ensure unique channels by ID
                     )
                     .filter((channel) => !channel.isPrivate)
-                    .filter((channel) => !channel.name.startsWith("^"))
+                    .filter(
+                      (channel) =>
+                        !channel.name.startsWith("^") &&
+                        !channel.name.startsWith("$"),
+                    )
                     .map((channel) => (
                       <TouchableContextMenu
                         key={channel.id}
@@ -1450,6 +1473,151 @@ export const ChannelList: React.FC<{
                       </div>
                     </TouchableContextMenu>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Streams ($) -- voice channels with streamer/viewer split. */}
+            <div className="mb-2">
+              <div
+                className="flex items-center px-2 group cursor-pointer mb-1"
+                onClick={() => setIsStreamChannelsOpen(!isStreamChannelsOpen)}
+              >
+                {isStreamChannelsOpen ? (
+                  <FaChevronDown className="text-xs mr-1" />
+                ) : (
+                  <FaChevronRight className="text-xs mr-1" />
+                )}
+                <span className="uppercase text-xs font-semibold tracking-wide">
+                  Streams
+                </span>
+                <FaPlus
+                  className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (newStreamChannelName === "")
+                      setNewStreamChannelName("$");
+                  }}
+                />
+              </div>
+
+              {newStreamChannelName !== "" && (
+                <div className="px-2 py-1 mb-1">
+                  <div className="flex items-center bg-discord-dark-400 rounded overflow-hidden max-w-full">
+                    <span className="pl-2 pr-1 text-discord-channels-default">
+                      <FaDesktop />
+                    </span>
+                    <TextInput
+                      className="bg-transparent border-none outline-none py-1 w-full text-discord-channels-active"
+                      placeholder="stream-name"
+                      value={
+                        newStreamChannelName.startsWith("$")
+                          ? newStreamChannelName.slice(1)
+                          : newStreamChannelName
+                      }
+                      onChange={(e) =>
+                        setNewStreamChannelName(`$${e.target.value}`)
+                      }
+                      onKeyDown={handleStreamKeyDown}
+                      autoFocus
+                    />
+                    <button
+                      className="px-2 text-discord-green hover:bg-discord-dark-300"
+                      onClick={handleAddStreamChannel}
+                    >
+                      <FaPlus />
+                    </button>
+                    <button
+                      className="px-2 text-discord-red hover:bg-discord-dark-300"
+                      onClick={() => setNewStreamChannelName("")}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isStreamChannelsOpen && (
+                <div>
+                  {sortedChannels
+                    .filter(
+                      (channel, index, self) =>
+                        index === self.findIndex((c) => c.id === channel.id),
+                    )
+                    .filter((channel) => !channel.isPrivate)
+                    .filter((channel) => channel.name.startsWith("$"))
+                    .map((channel) => (
+                      <TouchableContextMenu
+                        key={channel.id}
+                        menuItems={
+                          isNarrowView
+                            ? []
+                            : [
+                                {
+                                  label: "Delete Channel",
+                                  icon: <FaTrash size={14} />,
+                                  onClick: () => {
+                                    if (selectedServerId) {
+                                      leaveChannel(
+                                        selectedServerId,
+                                        channel.name,
+                                      );
+                                    }
+                                  },
+                                  className: "text-red-400",
+                                },
+                              ]
+                        }
+                      >
+                        <div
+                          className={`
+                            group
+                            px-2 py-1 mb-1 rounded-md flex items-center justify-between
+                            transition-all duration-200 ease-in-out
+                            shadow-sm cursor-pointer
+                            ${
+                              selectedChannelId === channel.id
+                                ? "bg-black text-white"
+                                : `bg-discord-dark-400/50 ${hoverPrimary}`
+                            }
+                          `}
+                          onClick={() =>
+                            selectChannel(channel.id, { navigate: true })
+                          }
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <FaDesktop
+                              className={`flex-shrink-0 ${
+                                selectedChannelId === channel.id
+                                  ? "text-2xl text-discord-blue"
+                                  : "text-lg"
+                              }`}
+                            />
+                            <span className="truncate font-medium">
+                              {channel.name.replace(/^\$/, "")}
+                            </span>
+                          </div>
+                          {selectedChannelId === channel.id && (
+                            <button
+                              title="Leave channel"
+                              className={`text-discord-red hover:text-white ${
+                                isNarrowView
+                                  ? "block"
+                                  : "hidden group-hover:block"
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedServerId) {
+                                  leaveChannel(selectedServerId, channel.name);
+                                }
+                              }}
+                            >
+                              <FaTrash />
+                            </button>
+                          )}
+                        </div>
+                      </TouchableContextMenu>
+                    ))}
                 </div>
               )}
             </div>

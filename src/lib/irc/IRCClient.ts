@@ -950,7 +950,16 @@ export class IRCClient implements IRCClientContext {
     const server = this.servers.get(serverId);
     if (server) {
       const existing = server.channels.find((c) => c.name === channelName);
-      if (existing) return existing;
+      if (existing) {
+        // The cached entry persists across reconnects and through ircd
+        // restarts, but the server-side membership doesn't. Re-send the
+        // JOIN: the ircd treats already-in users as a no-op and stale
+        // memberships (e.g. cached `$test` from before a server restart)
+        // self-heal. Without this, PRIVMSG/TAGMSG to the cached channel
+        // returns 401 No such nick/channel because the server forgot.
+        this.sendRaw(serverId, `JOIN ${channelName}`);
+        return existing;
+      }
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
 
@@ -1025,6 +1034,20 @@ export class IRCClient implements IRCClientContext {
     if (!server) throw new Error(`Server ${serverId} not found`);
     const channel = server.channels.find((c) => c.id === channelId);
     if (!channel) throw new Error(`Channel ${channelId} not found`);
+
+    // Phantom-channel guard: if our local cache shows zero members
+    // for a non-private channel, the ircd doesn't actually have us
+    // in this channel (either the channel was destroyed when the
+    // last person left, or the ircd was restarted and we haven't
+    // re-JOINed). Send JOIN first so the PRIVMSG that follows lands
+    // somewhere instead of returning 401 No such nick/channel.
+    if (
+      !channel.isPrivate &&
+      (channel.users?.length ?? 0) === 0 &&
+      this.isCapNegotiationComplete(serverId)
+    ) {
+      this.sendRaw(serverId, `JOIN ${channel.name}`);
+    }
 
     // Check if server supports multiline and message has newlines
     // Note: We'll check server capabilities from the store later via helper function
@@ -1129,6 +1152,27 @@ export class IRCClient implements IRCClientContext {
   }
 
   sendTyping(serverId: string, target: string, isActive: boolean): void {
+    // Same phantom-channel guard as sendMessage: if we're typing into
+    // a channel whose local cache is empty (ircd doesn't actually
+    // have us in it), JOIN first so the typing TAGMSG lands instead
+    // of getting bounced with 401.
+    const server = this.servers.get(serverId);
+    if (
+      server &&
+      (target.startsWith("#") ||
+        target.startsWith("^") ||
+        target.startsWith("$"))
+    ) {
+      const ch = server.channels.find((c) => c.name === target);
+      if (
+        ch &&
+        !ch.isPrivate &&
+        (ch.users?.length ?? 0) === 0 &&
+        this.isCapNegotiationComplete(serverId)
+      ) {
+        this.sendRaw(serverId, `JOIN ${target}`);
+      }
+    }
     const typingState = isActive ? "active" : "done";
     this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
   }

@@ -14,6 +14,19 @@ import("highlight.js").then((m) => {
   hljsModule = m.default;
 });
 
+/** True when `target` is a channel name as opposed to a nick. Mirrors
+ * the ircd's CHANTYPES = "#^$" -- standard text (`#`), voice (`^`),
+ * and stream (`$`) channels. The receive path uses this to choose
+ * between the CHANMSG event (channel) and USERMSG event (DM); a
+ * hardcoded `startsWith("#")` here was silently routing every PRIVMSG
+ * to a $-channel as a DM-from-self, which is why messages on stream
+ * channels echoed back to the input but never appeared in the chat. */
+export function isChannelTarget(name: string | undefined | null): boolean {
+  if (!name) return false;
+  const c = name[0];
+  return c === "#" || c === "^" || c === "$";
+}
+
 export function parseNamesResponse(namesResponse: string): User[] {
   const users: User[] = [];
   for (const name of namesResponse.split(" ")) {

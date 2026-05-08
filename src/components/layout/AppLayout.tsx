@@ -49,7 +49,12 @@ export const AppLayout: React.FC = () => {
     const srv = s.servers.find((x) => x.id === selectedServerId);
     return srv?.channels.find((c) => c.id === selectedChannelId) ?? null;
   });
-  const isVoiceChannel = !!selectedChannel?.name.startsWith("^");
+  // Both ^ (voice) and $ (stream) channels render through VoiceChannelView.
+  // The view itself reads the room mode from VoiceState.mode and adapts
+  // its layout (publishing controls vs viewer chat).
+  const isVoiceChannel =
+    !!selectedChannel?.name.startsWith("^") ||
+    !!selectedChannel?.name.startsWith("$");
   const {
     isDarkMode,
     isMobileMenuOpen,
@@ -211,23 +216,64 @@ export const AppLayout: React.FC = () => {
           <div
             className={`${isNarrowView ? "w-full" : "flex-grow"} h-full bg-discord-dark-200 flex flex-col min-w-0 z-10`}
           >
-            {isVoiceChannel && selectedServerId && selectedChannel ? (
-              <VoiceChannelView
-                serverId={selectedServerId}
-                channelName={selectedChannel.name}
-              />
-            ) : (
-              <ChatArea
-                isChanListVisible={isChannelListVisible}
-                onToggleChanList={() => {
-                  if (isNarrowView) {
-                    setMobileViewActiveColumn("serverList");
-                  } else {
-                    toggleChannelList(!isChannelListVisible);
-                  }
-                }}
-              />
-            )}
+            {(() => {
+              const isStreamChan =
+                !!selectedChannel?.name.startsWith("$") &&
+                !!selectedServerId &&
+                !!selectedChannel;
+              const isVoiceOnly =
+                !!selectedChannel?.name.startsWith("^") &&
+                !!selectedServerId &&
+                !!selectedChannel;
+              if (isStreamChan) {
+                // $-channels: streamer/viewer video on top, regular IRC
+                // chat underneath. The chat is the same ChatArea every
+                // text channel uses -- the IRCd treats $foo like any
+                // other channel for PRIVMSG.
+                return (
+                  <div className="flex flex-col h-full">
+                    <div className="flex-[3] min-h-0 border-b border-discord-dark-300">
+                      <VoiceChannelView
+                        serverId={selectedServerId as string}
+                        channelName={(selectedChannel as { name: string }).name}
+                      />
+                    </div>
+                    <div className="flex-[2] min-h-0">
+                      <ChatArea
+                        isChanListVisible={isChannelListVisible}
+                        onToggleChanList={() => {
+                          if (isNarrowView) {
+                            setMobileViewActiveColumn("serverList");
+                          } else {
+                            toggleChannelList(!isChannelListVisible);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              if (isVoiceOnly) {
+                return (
+                  <VoiceChannelView
+                    serverId={selectedServerId as string}
+                    channelName={(selectedChannel as { name: string }).name}
+                  />
+                );
+              }
+              return (
+                <ChatArea
+                  isChanListVisible={isChannelListVisible}
+                  onToggleChanList={() => {
+                    if (isNarrowView) {
+                      setMobileViewActiveColumn("serverList");
+                    } else {
+                      toggleChannelList(!isChannelListVisible);
+                    }
+                  }}
+                />
+              );
+            })()}
           </div>
         );
       case "memberList":

@@ -1,3 +1,4 @@
+import { isChannelTarget } from "../../ircUtils";
 import type { IRCClientContext } from "../IRCClientContext";
 import { getNickFromNuh, getTimestampFromTags } from "../utils";
 
@@ -9,7 +10,7 @@ export function handlePrivmsg(
   mtags: Record<string, string> | undefined,
 ): void {
   const target = parv[0];
-  const isChannel = target.startsWith("#");
+  const isChannel = isChannelTarget(target);
   const sender = getNickFromNuh(source);
   const message = parv.slice(1).join(" ");
 
@@ -75,7 +76,7 @@ export function handleNotice(
   mtags: Record<string, string> | undefined,
 ): void {
   const target = parv[0];
-  const isChannel = target.startsWith("#");
+  const isChannel = isChannelTarget(target);
   const sender = getNickFromNuh(source);
   const message = parv.slice(1).join(" ");
 
@@ -212,7 +213,7 @@ export function handleBatch(
           batch.batchTags ||
           (batch.batchMsgId ? { msgid: batch.batchMsgId } : undefined),
         sender,
-        channelName: target.startsWith("#") ? target : undefined,
+        channelName: isChannelTarget(target) ? target : undefined,
         target,
         message: combinedMessage,
         lines: batch.messages,

@@ -49,10 +49,25 @@ export interface VoiceMember {
   videoTrack?: MediaStreamTrack;
 }
 
+export type VoiceMode = "voice" | "stream";
+export type VoiceRole = "streamer" | "viewer";
+
 export type VoiceState =
   | { phase: "idle" }
   | { phase: "joining" }
-  | { phase: "connected"; members: Record<string, VoiceMember> }
+  | {
+      phase: "connected";
+      members: Record<string, VoiceMember>;
+      // Room mode (voice ^ vs stream $) and the local user's role.
+      // Drives the view's choice between "everyone publishes" and the
+      // streamer/viewer split layout.
+      mode: VoiceMode;
+      role: VoiceRole;
+      // Nicks of current streamers, oldest first. The first entry is
+      // the host (only one who can demote others). In voice rooms this
+      // is a snapshot of every present nick.
+      streamers: string[];
+    }
   | { phase: "failed"; error: string };
 
 interface IceServerConfig {
@@ -78,7 +93,10 @@ interface SignalEnvelope {
     | "deaf"
     | "screen"
     | "hand"
-    | "react";
+    | "react"
+    | "promote"
+    | "demote"
+    | "role";
   channel?: string;
   sdp?: string;
   cand?: string;
@@ -108,6 +126,15 @@ interface SignalEnvelope {
   // so we can't resolve which member a track belongs to from the
   // browser-visible stream/track ids alone.
   tracks?: TrackHint[];
+
+  // Stream-channel ($) bookkeeping. Server sends `mode`/`role`/
+  // `streamers` in the "joined" reply and `role` envelopes when
+  // promotion/demotion happens.
+  mode?: VoiceMode;
+  role?: VoiceRole;
+  streamers?: string[];
+  // Promote/demote target nick (sender is the requesting streamer).
+  target?: string;
 }
 
 interface TrackHint {
@@ -217,9 +244,28 @@ export class VoiceClient {
   // was set. Drained by drainPendingIce() after every successful
   // setRemoteDescription.
   private pendingIce: RTCIceCandidateInit[] = [];
-  // Push-to-talk mode flag. Read by callers via the setPushToTalk
-  // toggle; assignment also flips the mic track immediately.
-  private pttMode = false;
+  // Room mode + own role. Default "voice"/"streamer" matches the old
+  // ^-channel behavior; overwritten by the SFU's "joined" reply for
+  // $-channels where viewers can't publish until promoted.
+  private mode: VoiceMode = "voice";
+  private role: VoiceRole = "streamer";
+  // Snapshot of streamer nicks (oldest first) maintained from the
+  // SFU's "joined" + "role" envelopes. Used by the view to know who to
+  // render as a streamer tile vs a viewer chip.
+  private streamers: string[] = [];
+  // Reassembly buffer for chunked offer/answer envelopes pushed by the
+  // SFU. Keyed by the envelope's `id` -- each chunk drops its `sdp`
+  // slice into `parts[seq]` and we fire the assembled envelope through
+  // onSignal once every slot is filled. Mirrors voice.go sendChunked.
+  private inboundChunks: Map<
+    string,
+    {
+      base: SignalEnvelope; // first chunk's envelope minus sdp slice
+      parts: string[]; // by seq
+      filled: number; // count of filled slots
+      total: number;
+    }
+  > = new Map();
   // Per-peer local mute set: nicks whose inbound audio is silenced
   // by toggling the MediaStreamTrack.enabled flag (silences only on
   // this client; the SFU continues to relay the track to others).
@@ -231,6 +277,7 @@ export class VoiceClient {
   private speakingTimer?: ReturnType<typeof setInterval>;
   private vadAudioCtx?: AudioContext;
   private isSpeakingNow = false;
+  private pttMode = false;
 
   constructor(opts: VoiceClientOptions) {
     this.opts = opts;
@@ -319,7 +366,7 @@ export class VoiceClient {
     m.handRaised = on;
     this.members[selfNick] = m;
     this.sendSignal({ type: "hand", state: on ? "on" : "off" });
-    this.setState({ phase: "connected", members: { ...this.members } });
+    this.pushConnected();
   }
 
   /** Locally mute / unmute a specific peer. Toggles the inbound
@@ -332,7 +379,7 @@ export class VoiceClient {
     else this.localMutes.delete(nick);
     m.volume = muted ? 0 : 1;
     if (m.audioTrack) m.audioTrack.enabled = !muted;
-    this.setState({ phase: "connected", members: { ...this.members } });
+    this.pushConnected();
   }
 
   /** Push-to-talk: when enabled the mic stays muted by default and
@@ -381,10 +428,7 @@ export class VoiceClient {
       await this.renegotiate();
     }
     this.sendSignal({ type: "video", state: on ? "on" : "off" });
-    this.setState({
-      phase: "connected",
-      members: { ...this.members },
-    });
+    this.pushConnected();
   }
 
   async setScreenShare(on: boolean): Promise<void> {
@@ -394,9 +438,16 @@ export class VoiceClient {
     if (on) {
       let screen: MediaStream;
       try {
+        // Request system/desktop audio along with the video. Browsers
+        // that support it (Chrome/Edge desktop with the "Share audio"
+        // checkbox; Edge for tab capture) will return audio tracks
+        // alongside the video; Firefox / Safari ignore the audio
+        // constraint and return video only -- in which case
+        // getAudioTracks() is empty and we simply skip the audio
+        // addTrack below.
         screen = await navigator.mediaDevices.getDisplayMedia({
           video: true,
-          audio: false,
+          audio: true,
         });
       } catch (err) {
         this.opts.onError(`screen: ${err}`);
@@ -412,21 +463,36 @@ export class VoiceClient {
         return;
       }
       this.screenStream = screen;
-      const track = screen.getVideoTracks()[0];
+      const videoTrack = screen.getVideoTracks()[0];
       try {
-        this.pc.addTrack(track, screen);
+        this.pc.addTrack(videoTrack, screen);
       } catch (err) {
         for (const t of screen.getTracks()) t.stop();
         this.screenStream = undefined;
         this.opts.onError(`screen: ${err}`);
         return;
       }
-      track.onended = () => this.setScreenShare(false);
+      // Add any captured desktop-audio tracks. Wrapped in its own
+      // try/catch so a failure here doesn't undo the video addTrack
+      // -- if audio mid-publish fails, the user still gets a working
+      // screen share, just silent.
+      for (const audioTrack of screen.getAudioTracks()) {
+        try {
+          this.pc.addTrack(audioTrack, screen);
+        } catch (err) {
+          console.warn("voice: screen audio addTrack failed", err);
+        }
+      }
+      // The video track is the one that fires `ended` when the user
+      // hits the browser's "Stop sharing" button -- audio tracks from
+      // getDisplayMedia don't fire ended on their own. Tear the whole
+      // share down on that single signal.
+      videoTrack.onended = () => this.setScreenShare(false);
       // Local self preview: piggy-back onto videoTrack so the
       // existing tile renderer shows what we're sharing. videoOn
       // already covers camera vs. nothing; screenSharing
       // distinguishes the two states for the UI.
-      selfMember.videoTrack = track;
+      selfMember.videoTrack = videoTrack;
       selfMember.screenSharing = true;
       this.members[selfNick] = selfMember;
       await this.renegotiate();
@@ -442,10 +508,7 @@ export class VoiceClient {
       await this.renegotiate();
     }
     this.sendSignal({ type: "screen", state: on ? "on" : "off" });
-    this.setState({
-      phase: "connected",
-      members: { ...this.members },
-    });
+    this.pushConnected();
   }
 
   /* ------- signaling ------- */
@@ -523,25 +586,68 @@ export class VoiceClient {
   }
 
   private async onSignal(sender: string, _target: string, env: SignalEnvelope) {
+    // Reassembly: SFU-pushed offer/answer SDPs above the wire-budget
+    // arrive as N chunks sharing an `id`. Buffer until complete, then
+    // continue dispatch with the assembled SDP.
+    let signal = env;
+    if (
+      signal.id &&
+      signal.total !== undefined &&
+      signal.seq !== undefined &&
+      signal.total > 1
+    ) {
+      const slot = this.inboundChunks.get(signal.id);
+      if (!slot) {
+        const fresh = {
+          base: { ...signal, sdp: undefined },
+          parts: new Array<string>(signal.total),
+          filled: 0,
+          total: signal.total,
+        };
+        fresh.parts[signal.seq] = signal.sdp ?? "";
+        fresh.filled = 1;
+        this.inboundChunks.set(signal.id, fresh);
+        if (fresh.filled < fresh.total) return;
+        this.inboundChunks.delete(signal.id);
+        signal = { ...fresh.base, sdp: fresh.parts.join("") };
+      } else {
+        if (slot.parts[signal.seq] === undefined) {
+          slot.parts[signal.seq] = signal.sdp ?? "";
+          slot.filled++;
+        }
+        // Track hints can ride along with chunk 0 only -- merge them
+        // into the buffered base envelope rather than dropping them.
+        if (
+          signal.tracks &&
+          (!slot.base.tracks || slot.base.tracks.length === 0)
+        ) {
+          slot.base.tracks = signal.tracks;
+        }
+        if (slot.filled < slot.total) return;
+        this.inboundChunks.delete(signal.id);
+        signal = { ...slot.base, sdp: slot.parts.join("") };
+      }
+    }
+
     // Any SDP-carrying envelope can ship a tracks-hint map. Merge it
     // into trackOwners so attachInboundTrack can resolve incoming
     // remote tracks to the right member without relying on browser
     // msid behavior.
-    if (env.tracks) {
-      for (const h of env.tracks) {
+    if (signal.tracks) {
+      for (const h of signal.tracks) {
         this.trackOwners[h.track_id] = h.member;
         if (h.mid) this.midOwners[h.mid] = h.member;
       }
     }
-    switch (env.type) {
+    switch (signal.type) {
       case "joined":
-        await this.onJoined(env);
+        await this.onJoined(signal);
         break;
       case "answer":
-        if (env.sdp && this.pc) {
+        if (signal.sdp && this.pc) {
           await this.pc.setRemoteDescription({
             type: "answer",
-            sdp: env.sdp,
+            sdp: signal.sdp,
           });
           await this.drainPendingIce();
         }
@@ -551,11 +657,11 @@ export class VoiceClient {
         // adds a new remote sender to our PC (e.g. another peer turned
         // on video / screen share). We always answer; the client never
         // initiates an SFU-bound offer except via this.renegotiate().
-        if (env.sdp && this.pc) {
+        if (signal.sdp && this.pc) {
           try {
             await this.pc.setRemoteDescription({
               type: "offer",
-              sdp: env.sdp,
+              sdp: signal.sdp,
             });
             await this.drainPendingIce();
             const answer = await this.pc.createAnswer();
@@ -567,23 +673,23 @@ export class VoiceClient {
         }
         break;
       case "ice":
-        if (env.cand && this.pc) {
+        if (signal.cand && this.pc) {
           // Buffer ICE that arrives before the first remoteDescription
           // is set (otherwise pion's eager candidate emit + IRC's
           // arbitrary delivery order can race ahead of the answer/
           // offer SDP and trip "DOMException: No remoteDescription").
           if (!this.pc.remoteDescription) {
             this.pendingIce.push({
-              candidate: env.cand,
-              sdpMid: env.mid ?? null,
-              sdpMLineIndex: env.mlineidx ?? null,
+              candidate: signal.cand,
+              sdpMid: signal.mid ?? null,
+              sdpMLineIndex: signal.mlineidx ?? null,
             });
           } else {
             try {
               await this.pc.addIceCandidate({
-                candidate: env.cand,
-                sdpMid: env.mid ?? null,
-                sdpMLineIndex: env.mlineidx ?? null,
+                candidate: signal.cand,
+                sdpMid: signal.mid ?? null,
+                sdpMLineIndex: signal.mlineidx ?? null,
               });
             } catch (err) {
               console.warn("voice: addIceCandidate failed", err);
@@ -592,18 +698,124 @@ export class VoiceClient {
         }
         break;
       case "presence":
-        this.applyPresence(env);
+        this.applyPresence(signal);
         break;
       case "react":
-        if (env.member && env.emoji) {
-          this.opts.onReaction?.(env.member, env.emoji);
+        if (signal.member && signal.emoji) {
+          this.opts.onReaction?.(signal.member, signal.emoji);
+        }
+        break;
+      case "role":
+        if (signal.member && signal.role) {
+          await this.applyRoleChange(signal.member, signal.role);
         }
         break;
       case "error":
-        this.setState({ phase: "failed", error: env.error ?? "unknown" });
-        this.teardown();
+        // Soft errors (e.g. "max 4 streamers" from a rejected promote)
+        // shouldn't kill the call -- only fail the state if there's
+        // no PC yet, i.e. the join itself errored. Anything else gets
+        // logged and surfaced via onError so the UI can toast it.
+        if (!this.pc) {
+          this.setState({ phase: "failed", error: signal.error ?? "unknown" });
+          this.teardown();
+        } else if (signal.error) {
+          this.opts.onError(signal.error);
+        }
         break;
     }
+  }
+
+  /** SFU told us a member's role changed (promote/demote, or auto-
+   *  promotion after the host left). Update the streamer list, and if
+   *  it's our own promotion, capture the mic and renegotiate so we
+   *  can actually publish. Demotion of self stops/removes our local
+   *  tracks. */
+  private async applyRoleChange(member: string, role: VoiceRole) {
+    if (role === "streamer") {
+      if (!this.streamers.includes(member)) this.streamers.push(member);
+    } else {
+      this.streamers = this.streamers.filter((n) => n !== member);
+    }
+    if (member === this.opts.selfNick) {
+      const wasStreamer = this.role === "streamer";
+      this.role = role;
+      if (role === "streamer" && !wasStreamer) {
+        await this.captureMicAndRenegotiate();
+      } else if (role === "viewer" && wasStreamer) {
+        await this.releaseLocalMedia();
+      }
+    }
+    this.pushConnected();
+  }
+
+  /** First-time mic capture for a freshly-promoted viewer. Mirrors the
+   *  initial-join branch in onJoined but runs against an existing PC,
+   *  so we addTrack + renegotiate instead of building from scratch. */
+  private async captureMicAndRenegotiate(): Promise<void> {
+    if (!this.pc || this.localStream) return;
+    let local: MediaStream;
+    try {
+      local = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+    } catch (err) {
+      this.opts.onError(`microphone: ${err}`);
+      return;
+    }
+    this.localStream = local;
+    for (const t of local.getAudioTracks()) this.pc.addTrack(t, local);
+    this.startVAD(local);
+    await this.renegotiate();
+  }
+
+  /** Stop and remove all local publishing tracks (mic + camera +
+   *  screen). Used when self is demoted back to viewer; fire a
+   *  renegotiate so the SFU drops our senders. */
+  private async releaseLocalMedia(): Promise<void> {
+    if (this.localStream) {
+      for (const t of this.localStream.getTracks()) t.stop();
+      this.localStream = undefined;
+    }
+    if (this.screenStream) {
+      for (const t of this.screenStream.getTracks()) t.stop();
+      this.screenStream = undefined;
+    }
+    if (this.speakingTimer) {
+      clearInterval(this.speakingTimer);
+      this.speakingTimer = undefined;
+    }
+    if (this.vadAudioCtx) {
+      void this.vadAudioCtx.close();
+      this.vadAudioCtx = undefined;
+    }
+    if (this.pc) {
+      // Remove every sender; viewers don't publish anything.
+      for (const s of this.pc.getSenders()) {
+        try {
+          this.pc.removeTrack(s);
+        } catch {}
+      }
+      await this.renegotiate();
+    }
+  }
+
+  /** Streamer-host action: promote a viewer to co-streamer. Server
+   *  enforces the 4-streamer cap and oper authorization; on success
+   *  every client receives a "role" envelope. */
+  promote(target: string): void {
+    if (this.role !== "streamer") return;
+    this.sendSignal({ type: "promote", target });
+  }
+
+  /** Demote a streamer back to viewer. Self-demotion always allowed;
+   *  demoting others is host-only (enforced server-side). */
+  demote(target?: string): void {
+    if (this.role !== "streamer") return;
+    this.sendSignal({
+      type: "demote",
+      target: target ?? this.opts.selfNick,
+    });
   }
 
   private async onJoined(env: SignalEnvelope) {
@@ -615,6 +827,20 @@ export class VoiceClient {
     if (this.pc) {
       console.warn("voice: ignoring duplicate 'joined' envelope");
       return;
+    }
+    // Stream-channel bookkeeping arrives in "joined". Defaults stay
+    // voice/streamer for ^-channels (server omits these fields).
+    this.mode = env.mode ?? "voice";
+    this.role = env.role ?? "streamer";
+    this.streamers = [...(env.streamers ?? [])];
+    if (
+      this.mode === "stream" &&
+      !this.streamers.includes(this.opts.selfNick) &&
+      this.role === "streamer"
+    ) {
+      // Server already counts us; this is a defense-in-depth so the
+      // initial UI doesn't render with the host missing.
+      this.streamers.push(this.opts.selfNick);
     }
     const iceServers: IceServerConfig[] = [
       { urls: "stun:stun.l.google.com:19302" },
@@ -642,23 +868,29 @@ export class VoiceClient {
       this.attachInboundTrack(e.track, e.streams[0], e.transceiver?.mid);
     };
 
-    // Capture mic.
-    let local: MediaStream;
-    try {
-      local = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-    } catch (err) {
-      this.setState({ phase: "failed", error: `microphone: ${err}` });
-      this.teardown();
-      return;
+    // Viewers in stream channels never publish: skip getUserMedia,
+    // skip addTrack, skip VAD. They get the regular receive-only PC
+    // and can chat via the standard IRC channel input. If they're
+    // promoted later, promoteToStreamer() captures the mic and
+    // renegotiates.
+    if (this.role === "streamer") {
+      let local: MediaStream;
+      try {
+        local = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false,
+        });
+      } catch (err) {
+        this.setState({ phase: "failed", error: `microphone: ${err}` });
+        this.teardown();
+        return;
+      }
+      this.localStream = local;
+      for (const t of local.getAudioTracks()) {
+        pc.addTrack(t, local);
+      }
+      this.startVAD(local);
     }
-    this.localStream = local;
-    for (const t of local.getAudioTracks()) {
-      pc.addTrack(t, local);
-    }
-    this.startVAD(local);
 
     // Pre-populate the member map from the join reply.
     const members: Record<string, VoiceMember> = {};
@@ -667,7 +899,7 @@ export class VoiceClient {
     }
     members[this.opts.selfNick] = blankMember(this.opts.selfNick);
     this.members = members;
-    this.setState({ phase: "connected", members: { ...members } });
+    this.pushConnected();
     this.startStatsPump();
 
     // Initial offer.
@@ -769,10 +1001,7 @@ export class VoiceClient {
       }
     }
 
-    this.setState({
-      phase: "connected",
-      members: { ...this.members },
-    });
+    this.pushConnected();
   }
 
   private applyPresence(env: SignalEnvelope) {
@@ -780,8 +1009,15 @@ export class VoiceClient {
     const m = this.members[env.member] ?? blankMember(env.member);
     if (env.state === "joined") {
       this.members[env.member] = m;
+      // For stream channels, the SFU sends `role` alongside the
+      // presence so the streamer list stays accurate as new viewers
+      // arrive.
+      if (env.role === "streamer" && !this.streamers.includes(env.member)) {
+        this.streamers.push(env.member);
+      }
     } else if (env.state === "left") {
       delete this.members[env.member];
+      this.streamers = this.streamers.filter((n) => n !== env.member);
     } else if (env.state === "on" || env.state === "off") {
       // mic / video / screen / hand toggles arrive as state on/off.
       // The Kind field carries which specific control changed (the
@@ -800,7 +1036,7 @@ export class VoiceClient {
       m.deafened = env.state === "deaf-on";
       this.members[env.member] = m;
     }
-    this.setState({ phase: "connected", members: { ...this.members } });
+    this.pushConnected();
   }
 
   /* ------- VAD: emit speaking / silent on threshold cross ------- */
@@ -860,6 +1096,20 @@ export class VoiceClient {
     this.opts.onState(next);
   }
 
+  // Build a fresh "connected" state from the current members map plus
+  // the room-mode bookkeeping. Use this everywhere instead of inline
+  // setState({ phase: "connected", members: {...} }) so role/mode/
+  // streamers stay in sync.
+  private pushConnected(): void {
+    this.setState({
+      phase: "connected",
+      members: { ...this.members },
+      mode: this.mode,
+      role: this.role,
+      streamers: [...this.streamers],
+    });
+  }
+
   private startStatsPump(): void {
     if (this.statsTimer) return;
     this.statsTimer = setInterval(async () => {
@@ -899,10 +1149,7 @@ export class VoiceClient {
           }
         }
         if (dirty) {
-          this.setState({
-            phase: "connected",
-            members: { ...this.members },
-          });
+          this.pushConnected();
         }
       } catch {
         // ignore -- transient errors during teardown etc.
