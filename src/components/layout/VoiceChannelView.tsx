@@ -171,6 +171,10 @@ export const VoiceChannelView: React.FC<Props> = ({
     clientRef.current?.setMemberMuted(nick, muted);
   }, []);
 
+  const setMemberVolume = useCallback((nick: string, volume: number) => {
+    clientRef.current?.setMemberVolume(nick, volume);
+  }, []);
+
   const members =
     state.phase === "connected" ? Object.values(state.members) : [];
   const mode = state.phase === "connected" ? state.mode : "voice";
@@ -266,6 +270,8 @@ export const VoiceChannelView: React.FC<Props> = ({
                 selfMicOn={micOn}
                 onClick={() => setFocusNick(null)}
                 onSetMuted={setMemberMuted}
+                onSetVolume={setMemberVolume}
+                showVolumeSlider={isStreamRoom}
                 reactions={reactions
                   .filter((r) => r.nick === focusMember.nick)
                   .map((r) => ({ id: r.id, emoji: r.emoji }))}
@@ -282,6 +288,8 @@ export const VoiceChannelView: React.FC<Props> = ({
                       selfMicOn={micOn}
                       onClick={() => setFocusNick(m.nick)}
                       onSetMuted={setMemberMuted}
+                      onSetVolume={setMemberVolume}
+                      showVolumeSlider={isStreamRoom}
                       reactions={reactions
                         .filter((r) => r.nick === m.nick)
                         .map((r) => ({ id: r.id, emoji: r.emoji }))}
@@ -302,6 +310,8 @@ export const VoiceChannelView: React.FC<Props> = ({
                   selfMicOn={micOn}
                   onClick={() => setFocusNick(m.nick)}
                   onSetMuted={setMemberMuted}
+                  onSetVolume={setMemberVolume}
+                  showVolumeSlider={isStreamRoom}
                   reactions={reactions
                     .filter((r) => r.nick === m.nick)
                     .map((r) => ({ id: r.id, emoji: r.emoji }))}
@@ -507,6 +517,8 @@ function ParticipantTile({
   selfMicOn,
   onClick,
   onSetMuted,
+  onSetVolume,
+  showVolumeSlider,
   reactions,
   large,
 }: {
@@ -515,6 +527,8 @@ function ParticipantTile({
   selfMicOn: boolean;
   onClick: () => void;
   onSetMuted: (nick: string, muted: boolean) => void;
+  onSetVolume: (nick: string, volume: number) => void;
+  showVolumeSlider: boolean;
   reactions: Array<{ id: number; emoji: string }>;
   large?: boolean;
 }) {
@@ -619,7 +633,21 @@ function ParticipantTile({
         {member.deafened && (
           <FaVolumeMute className="text-discord-red flex-shrink-0" />
         )}
-        {!isSelf && (
+        {!isSelf && showVolumeSlider && (
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={member.volume}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onSetVolume(member.nick, Number(e.target.value))}
+            className="w-20 h-1 accent-discord-primary flex-shrink-0 cursor-pointer"
+            title={`Volume: ${Math.round(member.volume * 100)}%`}
+            aria-label={`Volume for ${member.nick}`}
+          />
+        )}
+        {!isSelf && !showVolumeSlider && (
           <button
             type="button"
             onClick={onMuteClick}

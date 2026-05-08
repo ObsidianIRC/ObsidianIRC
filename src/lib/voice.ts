@@ -277,7 +277,14 @@ export class VoiceClient {
   private speakingTimer?: ReturnType<typeof setInterval>;
   private vadAudioCtx?: AudioContext;
   private isSpeakingNow = false;
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: read by future setMicTransient flow; setter is the public surface
   private pttMode = false;
+  // Per-peer audio playback sinks. Each member with an inbound audio
+  // track gets a dedicated hidden <audio> element so its volume can be
+  // controlled independently of other members. Mounted under the shared
+  // sink container so a single user-gesture chain unlocks autoplay for
+  // all of them.
+  private memberAudioSinks: Map<string, HTMLAudioElement> = new Map();
 
   constructor(opts: VoiceClientOptions) {
     this.opts = opts;
@@ -379,6 +386,29 @@ export class VoiceClient {
     else this.localMutes.delete(nick);
     m.volume = muted ? 0 : 1;
     if (m.audioTrack) m.audioTrack.enabled = !muted;
+    const sink = this.memberAudioSinks.get(nick);
+    if (sink) sink.volume = m.volume;
+    this.pushConnected();
+  }
+
+  /** Set a peer's local playback volume in [0, 1]. Independent of mute
+   *  -- adjusting volume above 0 also clears any local-mute flag, and
+   *  setting it to 0 marks the peer as locally muted (so the existing
+   *  unmute-via-button flow restores to 1). Affects this client only. */
+  setMemberVolume(nick: string, volume: number): void {
+    const m = this.members[nick];
+    if (!m) return;
+    const v = Math.max(0, Math.min(1, volume));
+    m.volume = v;
+    if (v === 0) {
+      this.localMutes.add(nick);
+      if (m.audioTrack) m.audioTrack.enabled = false;
+    } else {
+      this.localMutes.delete(nick);
+      if (m.audioTrack) m.audioTrack.enabled = true;
+    }
+    const sink = this.memberAudioSinks.get(nick);
+    if (sink) sink.volume = v;
     this.pushConnected();
   }
 
@@ -983,22 +1013,27 @@ export class VoiceClient {
     }
     this.members[nick] = member;
 
-    // Pipe inbound audio through the shared sink so Safari plays it.
+    // Pipe inbound audio through a per-peer hidden <audio> so each
+    // member's volume can be adjusted independently. We still keep the
+    // shared sink mounted under the document body to inherit the same
+    // user-gesture autoplay grant, but actual playback is per-peer.
     if (track.kind === "audio") {
-      const sink = this.opts.audioSink;
-      // Append the track to a continuous MediaStream on the sink.
-      let combined: MediaStream;
-      if (sink.srcObject instanceof MediaStream) {
-        combined = sink.srcObject;
-        for (const old of combined.getAudioTracks()) {
-          if (old === track) return;
-        }
-        combined.addTrack(track);
-      } else {
-        combined = new MediaStream([track]);
-        sink.srcObject = combined;
-        sink.play().catch(() => {});
+      // Make sure the shared sink exists in the DOM so the autoplay
+      // gesture chain stays intact across reconnects.
+      void this.opts.audioSink;
+      let sink = this.memberAudioSinks.get(nick);
+      if (!sink) {
+        sink = document.createElement("audio");
+        sink.autoplay = true;
+        sink.style.display = "none";
+        sink.setAttribute("data-obsidian-voice-peer", nick);
+        document.body.appendChild(sink);
+        this.memberAudioSinks.set(nick, sink);
       }
+      const stream = new MediaStream([track]);
+      sink.srcObject = stream;
+      sink.volume = member.volume;
+      sink.play().catch(() => {});
     }
 
     this.pushConnected();
@@ -1018,6 +1053,12 @@ export class VoiceClient {
     } else if (env.state === "left") {
       delete this.members[env.member];
       this.streamers = this.streamers.filter((n) => n !== env.member);
+      const sink = this.memberAudioSinks.get(env.member);
+      if (sink) {
+        sink.srcObject = null;
+        sink.remove();
+        this.memberAudioSinks.delete(env.member);
+      }
     } else if (env.state === "on" || env.state === "off") {
       // mic / video / screen / hand toggles arrive as state on/off.
       // The Kind field carries which specific control changed (the
@@ -1186,6 +1227,11 @@ export class VoiceClient {
       this.tagmsgUnsub();
       this.tagmsgUnsub = undefined;
     }
+    for (const sink of this.memberAudioSinks.values()) {
+      sink.srcObject = null;
+      sink.remove();
+    }
+    this.memberAudioSinks.clear();
     this.members = {};
     this.trackOwners = {};
     this.midOwners = {};
