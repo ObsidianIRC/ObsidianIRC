@@ -28,6 +28,7 @@ import {
   handleRplTopicWhoTime,
   handleTopic,
 } from "./channels";
+import { handleCmdslist } from "./cmdslist";
 import {
   handleCap,
   handleError,
@@ -291,6 +292,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleTwoFA(ctx, serverId, source, parv, mtags),
   EXTJWT: (ctx, serverId, source, parv, mtags) =>
     handleExtjwt(ctx, serverId, source, parv, mtags),
+  CMDSLIST: (ctx, serverId, source, parv, mtags) =>
+    handleCmdslist(ctx, serverId, source, parv, mtags),
 
   "730": (ctx, serverId, source, parv, mtags) =>
     handleMonOnline(ctx, serverId, source, parv, mtags),
