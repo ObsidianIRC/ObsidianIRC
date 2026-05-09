@@ -2,7 +2,8 @@ import type React from "react";
 import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
 import useStore, { loadSavedServers } from "../../store";
-import type { ServerConfig } from "../../types";
+import type { ServerConfig, ServerOAuthConfig } from "../../types";
+import { OAuthSection } from "./OAuthSection";
 import { TextInput } from "./TextInput";
 
 interface EditServerModalProps {
@@ -47,6 +48,10 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     serverConfig?.operOnConnect || false,
   );
   const [forgetOperCredentials, setForgetOperCredentials] = useState(false);
+
+  const [oauthConfig, setOauthConfig] = useState<ServerOAuthConfig | undefined>(
+    serverConfig?.oauth,
+  );
 
   const [showServerPassword, setShowServerPassword] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
@@ -109,6 +114,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               }
             : {}),
         operOnConnect,
+        oauth: oauthConfig,
       };
 
       updateServer(serverId, updatedConfig);
@@ -271,6 +277,8 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               </div>
             </div>
           )}
+
+          <OAuthSection initial={oauthConfig} onChange={setOauthConfig} />
 
           {/* IRC Operator Section */}
           <div className="mb-4 border-t border-discord-dark-300 pt-4">

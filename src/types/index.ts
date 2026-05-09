@@ -69,6 +69,20 @@ export interface ServerConfig {
   operPassword?: string;
   operOnConnect?: boolean;
   addedAt?: number; // Timestamp when server was added (ms since epoch)
+  oauth?: ServerOAuthConfig;
+}
+
+export interface ServerOAuthConfig {
+  enabled: boolean;
+  providerLabel: string;
+  issuer: string;
+  clientId: string;
+  scopes?: string;
+  redirectUri?: string;
+  accessToken?: string;
+  idToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: number;
 }
 
 export interface Channel {

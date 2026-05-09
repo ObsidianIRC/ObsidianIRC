@@ -985,6 +985,10 @@ const useStore = create<AppState>((set, get) => ({
         (s) => normalizeHost(s.host) === normalizeHost(host) && s.port === port,
       );
 
+      const oauthBearerEnabled = !!(
+        existingSavedServer?.oauth?.enabled &&
+        existingSavedServer.oauth.accessToken
+      );
       const server = await ircClient.connect(
         name,
         host,
@@ -994,6 +998,7 @@ const useStore = create<AppState>((set, get) => ({
         saslAccountName,
         saslPassword,
         existingSavedServer?.id, // Pass the saved server ID if it exists
+        oauthBearerEnabled,
       );
 
       // Save server to localStorage

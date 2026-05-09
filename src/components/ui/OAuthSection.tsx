@@ -1,0 +1,315 @@
+import type React from "react";
+import { useState } from "react";
+import { beginOauthLogin, OAUTH_PRESETS } from "../../lib/oauth";
+import type { ServerOAuthConfig } from "../../types";
+import { TextInput } from "./TextInput";
+
+interface OAuthSectionProps {
+  // Initial config loaded from the saved server (may be undefined for a
+  // freshly added server).
+  initial: ServerOAuthConfig | undefined;
+  // Called whenever any field changes; the parent persists on submit.
+  onChange: (next: ServerOAuthConfig | undefined) => void;
+}
+
+// In-modal panel: pick a provider preset, fill in issuer + clientId, hit
+// "Sign in" to run the popup OAuth flow, and persist the resulting tokens
+// alongside the rest of the server config. Tokens are written to the
+// outer config via onChange so the parent's submit picks them up.
+export const OAuthSection: React.FC<OAuthSectionProps> = ({
+  initial,
+  onChange,
+}) => {
+  const [enabled, setEnabled] = useState(initial?.enabled ?? false);
+  const [presetId, setPresetId] = useState<string>(() => {
+    if (!initial?.issuer) return "custom";
+    const lower = initial.issuer.toLowerCase();
+    if (lower.includes("logto")) return "logto";
+    if (lower.includes("auth0")) return "auth0";
+    if (lower.includes("/realms/")) return "keycloak";
+    return "custom";
+  });
+  const preset =
+    OAUTH_PRESETS.find((p) => p.id === presetId) ?? OAUTH_PRESETS[0];
+
+  const [providerLabel, setProviderLabel] = useState(
+    initial?.providerLabel ?? preset.label,
+  );
+  const [issuer, setIssuer] = useState(initial?.issuer ?? "");
+  const [clientId, setClientId] = useState(initial?.clientId ?? "");
+  const [scopes, setScopes] = useState(initial?.scopes ?? preset.defaultScopes);
+  const [redirectUri, setRedirectUri] = useState(initial?.redirectUri ?? "");
+  const [accessToken, setAccessToken] = useState(initial?.accessToken ?? "");
+  const [idToken, setIdToken] = useState(initial?.idToken ?? "");
+  const [refreshToken, setRefreshToken] = useState(initial?.refreshToken ?? "");
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<number | undefined>(
+    initial?.tokenExpiresAt,
+  );
+
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
+
+  // Centralize the parent notification so every state setter goes through
+  // the same shape. Pass overrides for the field that just changed, since
+  // useState's setters won't have flushed yet.
+  const emit = (patch: Partial<ServerOAuthConfig> = {}) => {
+    if (!enabled && patch.enabled !== true) {
+      onChange(undefined);
+      return;
+    }
+    onChange({
+      enabled: patch.enabled ?? enabled,
+      providerLabel: patch.providerLabel ?? providerLabel,
+      issuer: patch.issuer ?? issuer,
+      clientId: patch.clientId ?? clientId,
+      scopes: patch.scopes ?? scopes,
+      redirectUri: patch.redirectUri ?? redirectUri ?? undefined,
+      accessToken: patch.accessToken ?? accessToken ?? undefined,
+      idToken: patch.idToken ?? idToken ?? undefined,
+      refreshToken: patch.refreshToken ?? refreshToken ?? undefined,
+      tokenExpiresAt: patch.tokenExpiresAt ?? tokenExpiresAt,
+    });
+  };
+
+  const onPresetChange = (next: string) => {
+    setPresetId(next);
+    const np = OAUTH_PRESETS.find((p) => p.id === next) ?? OAUTH_PRESETS[0];
+    if (!providerLabel.trim() || providerLabel === preset.label) {
+      setProviderLabel(np.label);
+    }
+    if (!scopes.trim()) {
+      setScopes(np.defaultScopes);
+    }
+  };
+
+  const handleSignIn = async () => {
+    setSignInError(null);
+    if (!issuer.trim()) {
+      setSignInError("Issuer URL is required.");
+      return;
+    }
+    if (!clientId.trim()) {
+      setSignInError("Client ID is required.");
+      return;
+    }
+    setSigningIn(true);
+    try {
+      const result = await beginOauthLogin({
+        issuer: issuer.trim(),
+        clientId: clientId.trim(),
+        scopes: scopes.trim() || undefined,
+        redirectUri: redirectUri.trim() || undefined,
+      });
+      setAccessToken(result.accessToken);
+      setIdToken(result.idToken ?? "");
+      setRefreshToken(result.refreshToken ?? "");
+      setTokenExpiresAt(result.tokenExpiresAt);
+      setEnabled(true);
+      emit({
+        enabled: true,
+        accessToken: result.accessToken,
+        idToken: result.idToken ?? undefined,
+        refreshToken: result.refreshToken ?? undefined,
+        tokenExpiresAt: result.tokenExpiresAt,
+      });
+    } catch (err) {
+      setSignInError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    setAccessToken("");
+    setIdToken("");
+    setRefreshToken("");
+    setTokenExpiresAt(undefined);
+    emit({
+      accessToken: undefined,
+      idToken: undefined,
+      refreshToken: undefined,
+      tokenExpiresAt: undefined,
+    });
+  };
+
+  const tokenStatus = (() => {
+    if (!accessToken) return "Not signed in";
+    if (tokenExpiresAt) {
+      const remaining = tokenExpiresAt - Math.floor(Date.now() / 1000);
+      if (remaining <= 0) return "Signed in (token expired)";
+      const mins = Math.floor(remaining / 60);
+      return `Signed in (token expires in ~${mins}m)`;
+    }
+    return "Signed in";
+  })();
+
+  return (
+    <div className="mb-4 border-t border-discord-dark-300 pt-4">
+      <h3 className="text-discord-text-normal text-lg font-semibold mb-3">
+        OAuth2 / OIDC sign-in
+      </h3>
+
+      <div className="mb-3 flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="oauthEnabled"
+          checked={enabled}
+          onChange={(e) => {
+            setEnabled(e.target.checked);
+            emit({ enabled: e.target.checked });
+          }}
+          className="accent-discord-accent rounded"
+        />
+        <label
+          htmlFor="oauthEnabled"
+          className="text-discord-text-muted text-sm"
+        >
+          Use OAuth2 to sign in (SASL IRCV3BEARER)
+        </label>
+      </div>
+
+      {enabled && (
+        <>
+          <div className="mb-3">
+            <label className="block text-discord-text-muted text-sm font-medium mb-1">
+              Provider preset
+            </label>
+            <select
+              value={presetId}
+              onChange={(e) => onPresetChange(e.target.value)}
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+            >
+              {OAUTH_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            {preset.hint && (
+              <p className="text-discord-text-muted text-xs mt-1">
+                {preset.hint}
+              </p>
+            )}
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-discord-text-muted text-sm font-medium mb-1">
+              Display name
+            </label>
+            <TextInput
+              value={providerLabel}
+              onChange={(e) => {
+                setProviderLabel(e.target.value);
+                emit({ providerLabel: e.target.value });
+              }}
+              placeholder="Logto"
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-discord-text-muted text-sm font-medium mb-1">
+              Issuer URL
+            </label>
+            <TextInput
+              value={issuer}
+              onChange={(e) => {
+                setIssuer(e.target.value);
+                emit({ issuer: e.target.value });
+              }}
+              placeholder="https://my-tenant.logto.app/oidc"
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-discord-text-muted text-sm font-medium mb-1">
+              Client ID
+            </label>
+            <TextInput
+              value={clientId}
+              onChange={(e) => {
+                setClientId(e.target.value);
+                emit({ clientId: e.target.value });
+              }}
+              placeholder="m0obbyircd1234"
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-discord-text-muted text-sm font-medium mb-1">
+              Scopes (space-separated)
+            </label>
+            <TextInput
+              value={scopes}
+              onChange={(e) => {
+                setScopes(e.target.value);
+                emit({ scopes: e.target.value });
+              }}
+              placeholder="openid"
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-discord-text-muted text-sm font-medium mb-1">
+              Redirect URI override (optional)
+            </label>
+            <TextInput
+              value={redirectUri}
+              onChange={(e) => {
+                setRedirectUri(e.target.value);
+                emit({ redirectUri: e.target.value });
+              }}
+              placeholder={`${window.location.origin}/oauth/callback`}
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+            />
+            <p className="text-discord-text-muted text-xs mt-1">
+              Default: <code>{`${window.location.origin}/oauth/callback`}</code>
+              . Register this in your IdP.
+            </p>
+          </div>
+
+          <div className="mb-3 text-xs text-discord-text-muted">
+            {tokenStatus}
+          </div>
+
+          {signInError && (
+            <div className="mb-3 text-sm text-discord-red">{signInError}</div>
+          )}
+
+          <div className="mb-3 flex gap-2">
+            <button
+              type="button"
+              onClick={handleSignIn}
+              disabled={signingIn}
+              className={`px-3 py-1 text-sm rounded font-medium ${
+                signingIn
+                  ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                  : "bg-discord-primary text-white hover:bg-opacity-80"
+              }`}
+            >
+              {signingIn
+                ? "Signing in..."
+                : accessToken
+                  ? `Re-sign in with ${providerLabel || "OAuth"}`
+                  : `Sign in with ${providerLabel || "OAuth"}`}
+            </button>
+            {accessToken && (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="px-3 py-1 text-sm rounded font-medium bg-gray-600 text-gray-300 hover:bg-gray-500"
+              >
+                Sign out
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default OAuthSection;

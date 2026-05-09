@@ -1,10 +1,25 @@
 import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
-import type { Message } from "../../types";
+import {
+  buildIrcv3BearerPayload,
+  chunkSaslPayload,
+} from "../../lib/saslFrames";
+import type { Message, ServerConfig, ServerOAuthConfig } from "../../types";
 import { normalizeHost } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
+
+// OAuth path is active if the user enabled it AND we hold an access token.
+// We don't gate on local expiry: the server is the authority and surfaces a
+// useful 904 if the token is bad, prompting the user to re-authenticate.
+function getActiveOauth(
+  serv: ServerConfig | undefined,
+): ServerOAuthConfig | undefined {
+  if (!serv?.oauth?.enabled) return undefined;
+  if (!serv.oauth.accessToken) return undefined;
+  return serv.oauth;
+}
 
 export function registerAuthHandlers(store: StoreApi<AppState>): void {
   ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key, capabilities }) => {
@@ -30,11 +45,16 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     }
     if (key === "sasl") {
       const servers = storage.servers.load();
-      for (const serv of servers) {
-        if (serv.id !== serverId) continue;
-
-        if (!serv.saslEnabled) return;
+      const serv = servers.find((s) => s.id === serverId);
+      if (!serv) return;
+      if (getActiveOauth(serv)) {
+        // Flip the SASL-pending flag so IRCClient.onCapAck's race-y CAP END
+        // path waits for 903/904 before tearing down the negotiation.
+        ircClient.setSaslEnabled(serverId, true);
+        ircClient.sendRaw(serverId, "AUTHENTICATE IRCV3BEARER");
+        return;
       }
+      if (!serv.saslEnabled) return;
       ircClient.sendRaw(serverId, "AUTHENTICATE PLAIN");
     }
   });
@@ -45,30 +65,31 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     // Don't respond to AUTHENTICATE if CAP negotiation is already complete
     if (ircClient.isCapNegotiationComplete(serverId)) return;
 
-    let user: string | undefined;
-    let pass: string | undefined;
     const servers = storage.servers.load();
-    for (const serv of servers) {
-      if (serv.id !== serverId) continue;
+    const serv = servers.find((s) => s.id === serverId);
+    if (!serv) return;
 
-      if (!serv.saslEnabled) return;
-
-      user = serv.saslAccountName?.length
-        ? serv.saslAccountName
-        : serv.nickname;
-      pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
-    }
-    if (!user || !pass)
-      // wtf happened lol
+    const oauth = getActiveOauth(serv);
+    if (oauth?.accessToken) {
+      const b64 = buildIrcv3BearerPayload({ token: oauth.accessToken });
+      for (const chunk of chunkSaslPayload(b64)) {
+        ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
+      }
       return;
+    }
+
+    if (!serv.saslEnabled) return;
+    const user = serv.saslAccountName?.length
+      ? serv.saslAccountName
+      : serv.nickname;
+    const pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
+    if (!user || !pass) return;
 
     ircClient.sendRaw(
       serverId,
       `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
     );
     // Note: CAP END will be sent by the IRC client when SASL authentication completes (903/904-907 responses)
-    // ircClient.sendRaw(serverId, "CAP END");
-    // ircClient.userOnConnect(serverId);
   });
 
   // Handle CAP LS to get informational capabilities like unrealircd.org/link-security
@@ -179,10 +200,15 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
 
     // Check if SASL was requested and acknowledged, AND we have credentials
     if (caps.some((cap) => cap.startsWith("sasl"))) {
-      // Only prevent CAP END if we actually have SASL credentials
+      // Only prevent CAP END if we actually have SASL credentials --
+      // either a PLAIN password or an OAuth bearer token.
       const servers = storage.servers.load();
       const savedServer = servers.find((s) => s.id === serverId);
-      if (savedServer?.saslEnabled && savedServer?.saslPassword) {
+      const hasPlain =
+        savedServer?.saslEnabled && Boolean(savedServer?.saslPassword);
+      const hasOauth =
+        savedServer?.oauth?.enabled && Boolean(savedServer?.oauth?.accessToken);
+      if (hasPlain || hasOauth) {
         preventCapEnd = true;
       }
     }
