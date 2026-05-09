@@ -8,7 +8,6 @@ import { useEffect, useRef, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
-import OAuthCallback from "./components/OAuthCallback";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
@@ -295,7 +294,6 @@ const App: React.FC = () => {
     <div className="h-screen overflow-hidden">
       <Routes>
         <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/oauth/callback" element={<OAuthCallback />} />
         <Route
           path="/*"
           element={
