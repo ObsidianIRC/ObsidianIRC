@@ -16,6 +16,7 @@ import type {
 } from "../types";
 import { registerAllHandlers } from "./handlers";
 import { readyProcessedServers } from "./handlers/connection";
+import * as tictactoeActions from "./handlers/tictactoeActions";
 import { MAX_MESSAGES_PER_CHANNEL } from "./helpers";
 import * as storage from "./localStorage";
 import { runPendingMigrations } from "./migrations";
@@ -373,6 +374,8 @@ interface UIState {
   isAddServerModalOpen: boolean | undefined;
   isEditServerModalOpen: boolean;
   editServerId: string | null;
+  isTwoFactorSettingsOpen: boolean;
+  twoFactorSettingsServerId: string | null;
   isSettingsModalOpen: boolean;
   isQuickActionsOpen: boolean;
   isDarkMode: boolean;
@@ -525,6 +528,32 @@ export interface AppState {
     email: string;
     password: string;
   } | null;
+  // 2FA: SASL step-up modal trigger.  Set when the server replies
+  // `AUTHENTICATE 2FA-REQUIRED`; the modal observes this and prompts the
+  // user for a TOTP code.  Cleared on submit / cancel / SASL completion.
+  pendingTotpStepUp: { serverId: string; account: string } | null;
+  // 2FA management state per server (populated by `2FA LIST` / `2FA STATUS`).
+  twofaStatus: Record<string, "enabled" | "disabled" | "unknown">;
+  twofaCredentials: Record<
+    string,
+    Array<{ id: string; type: string; name: string; createdAt: string }>
+  >;
+  // Active enrolment challenge (server reply to `2FA CHALLENGE <type>`),
+  // base64-encoded JSON.  Consumed by the enrolment dialogs.
+  pendingTwofaChallenge: {
+    serverId: string;
+    type: string;
+    blob: string;
+  } | null;
+  // Tic-tac-toe games keyed serverId -> opponent-nick-lower.  Used by both
+  // the TAGMSG handler and the modal UI.
+  tictactoe: {
+    games: Record<
+      string,
+      Record<string, import("../lib/games/tictactoe").GameSnapshot>
+    >;
+    open: { serverId: string; opponent: string } | null;
+  };
   // Channel order persistence
   channelOrder: ChannelOrderMap; // serverId -> ordered array of channel names
   // Message deduplication tracking
@@ -567,6 +596,35 @@ export interface AppState {
     password: string,
   ) => void;
   verifyAccount: (serverId: string, account: string, code: string) => void;
+  // 2FA actions
+  twofaStatusQuery: (serverId: string) => void;
+  twofaListQuery: (serverId: string) => void;
+  twofaChallenge: (serverId: string, type: string) => void;
+  twofaAdd: (
+    serverId: string,
+    type: string,
+    name: string,
+    data: string,
+  ) => void;
+  twofaRemove: (serverId: string, id: string) => void;
+  twofaEnable: (serverId: string) => void;
+  twofaDisable: (serverId: string, type: string, data: string) => void;
+  submitTotpStepUp: (serverId: string, code: string) => void;
+  cancelTotpStepUp: (serverId: string) => void;
+  toggleTwoFactorSettings: (isOpen?: boolean, serverId?: string | null) => void;
+  // Tic-tac-toe actions
+  tictactoeInvite: (serverId: string, opponent: string) => void;
+  tictactoeAccept: (serverId: string, opponent: string) => void;
+  tictactoeDecline: (serverId: string, opponent: string) => void;
+  tictactoeMove: (
+    serverId: string,
+    opponent: string,
+    row: number,
+    col: number,
+  ) => void;
+  tictactoeTerminate: (serverId: string, opponent: string) => void;
+  tictactoeOpenModal: (serverId: string, opponent: string) => void;
+  tictactoeCloseModal: () => void;
   setAway: (serverId: string, message?: string) => void;
   clearAway: (serverId: string) => void;
   warnUser: (
@@ -847,6 +905,11 @@ const useStore = create<AppState>((set, get) => ({
   metadataChangeCounter: 0,
   whoisData: {},
   pendingRegistration: null,
+  pendingTotpStepUp: null,
+  twofaStatus: {},
+  twofaCredentials: {},
+  pendingTwofaChallenge: null,
+  tictactoe: { games: {}, open: null },
   channelOrder: loadChannelOrder(),
   processedMessageIds: new Set<string>(),
   hasConnectedToSavedServers: false,
@@ -862,6 +925,8 @@ const useStore = create<AppState>((set, get) => ({
     },
     isAddServerModalOpen: false,
     isEditServerModalOpen: false,
+    isTwoFactorSettingsOpen: false,
+    twoFactorSettingsServerId: null,
     editServerId: null,
     isSettingsModalOpen: false,
     isQuickActionsOpen: false,
@@ -1384,6 +1449,41 @@ const useStore = create<AppState>((set, get) => ({
 
   verifyAccount: (serverId: string, account: string, code: string) => {
     ircClient.verifyAccount(serverId, account, code);
+  },
+
+  twofaStatusQuery: (serverId) => {
+    ircClient.sendRaw(serverId, "2FA STATUS");
+  },
+  twofaListQuery: (serverId) => {
+    set((state) => ({
+      twofaCredentials: { ...state.twofaCredentials, [serverId]: [] },
+    }));
+    ircClient.sendRaw(serverId, "2FA LIST");
+  },
+  twofaChallenge: (serverId, type) => {
+    ircClient.sendRaw(serverId, `2FA CHALLENGE ${type}`);
+  },
+  twofaAdd: (serverId, type, name, data) => {
+    ircClient.sendRaw(serverId, `2FA ADD ${type} ${name} ${data}`);
+  },
+  twofaRemove: (serverId, id) => {
+    ircClient.sendRaw(serverId, `2FA REMOVE ${id}`);
+  },
+  twofaEnable: (serverId) => {
+    ircClient.sendRaw(serverId, "2FA ENABLE");
+  },
+  twofaDisable: (serverId, type, data) => {
+    ircClient.sendRaw(serverId, `2FA DISABLE ${type} ${data}`);
+  },
+  submitTotpStepUp: (serverId, code) => {
+    ircClient.sendRaw(serverId, "AUTHENTICATE TOTP");
+    const b64 = btoa(code.trim());
+    ircClient.sendRaw(serverId, `AUTHENTICATE ${b64}`);
+    set({ pendingTotpStepUp: null });
+  },
+  cancelTotpStepUp: (serverId) => {
+    ircClient.sendRaw(serverId, "AUTHENTICATE *");
+    set({ pendingTotpStepUp: null });
   },
 
   setAway: (serverId, message) => {
@@ -2608,6 +2708,37 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isEditServerModalOpen: isOpen ?? false,
         editServerId: serverId,
+      },
+    }));
+  },
+
+  tictactoeInvite: (serverId, opponent) =>
+    tictactoeActions.invite(set, get, serverId, opponent),
+  tictactoeAccept: (serverId, opponent) =>
+    tictactoeActions.accept(set, get, serverId, opponent),
+  tictactoeDecline: (serverId, opponent) =>
+    tictactoeActions.decline(set, get, serverId, opponent),
+  tictactoeMove: (serverId, opponent, row, col) =>
+    tictactoeActions.move(set, get, serverId, opponent, row, col),
+  tictactoeTerminate: (serverId, opponent) =>
+    tictactoeActions.terminate(set, get, serverId, opponent),
+  tictactoeOpenModal: (serverId, opponent) => {
+    set((state) => ({
+      tictactoe: { ...state.tictactoe, open: { serverId, opponent } },
+    }));
+  },
+  tictactoeCloseModal: () => {
+    set((state) => ({
+      tictactoe: { ...state.tictactoe, open: null },
+    }));
+  },
+
+  toggleTwoFactorSettings: (isOpen, serverId = null) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isTwoFactorSettingsOpen: isOpen ?? false,
+        twoFactorSettingsServerId: isOpen ? serverId : null,
       },
     }));
   },

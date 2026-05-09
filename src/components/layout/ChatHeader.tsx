@@ -317,6 +317,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       show: !!selectedChannel,
     },
     {
+      label: "Play Tic-Tac-Toe",
+      icon: <span aria-hidden="true">🎮</span>,
+      onClick: () => {
+        if (selectedServerId && selectedPrivateChat) {
+          useStore
+            .getState()
+            .tictactoeInvite(selectedServerId, selectedPrivateChat.username);
+        }
+      },
+      show: !!selectedPrivateChat,
+    },
+    {
       label: "Server Channels",
       icon: <FaList />,
       onClick: () => toggleChannelListModal(true),
@@ -819,6 +831,23 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <FaFilm />
                 </button>
               )}
+              <button
+                className="p-2 md:p-0 hover:text-discord-text-normal"
+                onClick={() => {
+                  if (selectedServerId && selectedPrivateChat) {
+                    useStore
+                      .getState()
+                      .tictactoeInvite(
+                        selectedServerId,
+                        selectedPrivateChat.username,
+                      );
+                  }
+                }}
+                aria-label="Play Tic-Tac-Toe"
+                title="Play Tic-Tac-Toe"
+              >
+                <span aria-hidden="true">🎮</span>
+              </button>
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsSearchExpanded(!isSearchExpanded)}

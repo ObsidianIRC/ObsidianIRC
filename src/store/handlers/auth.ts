@@ -2,6 +2,19 @@ import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import {
+  type ScramState,
+  sasl as saslChunk,
+  scramFinal,
+  scramStart,
+  scramVerifyServerFinal,
+} from "../../lib/sasl/scram";
+import {
+  b64StdDecode,
+  bytesToB64Std,
+  isWebAuthnAvailable,
+  webauthnAssert,
+} from "../../lib/sasl/webauthn";
+import {
   buildIrcv3BearerPayload,
   chunkSaslPayload,
 } from "../../lib/saslFrames";
@@ -10,9 +23,28 @@ import { normalizeHost } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
-// OAuth path is active if the user enabled it AND we hold any token to send.
-// We don't gate on local expiry: the server is the authority and surfaces a
-// useful 904 if the token is bad, prompting the user to re-authenticate.
+type SaslMech =
+  | "PLAIN"
+  | "SCRAM-SHA-256"
+  | "DRAFT-WEBAUTHN-BIO"
+  | "IRCV3BEARER";
+
+interface SaslSession {
+  mech: SaslMech;
+  username: string;
+  password?: string;
+  scram?: ScramState;
+  step: number;
+  // IRCV3BEARER-only: the bearer token + framing hints we'll emit when
+  // the server says AUTHENTICATE +.
+  oauthBearer?: string;
+  oauthTokenKind?: "jwt" | "opaque";
+  oauthProvider?: string;
+}
+
+// OAuth path is active when the server has oauth.enabled AND we hold any
+// bearer token. We don't gate on local expiry: the server is the
+// authority, surfaces a useful 904 if the token is bad.
 function getActiveOauth(
   serv: ServerConfig | undefined,
 ): ServerOAuthConfig | undefined {
@@ -21,14 +53,45 @@ function getActiveOauth(
   return serv.oauth;
 }
 
-// Pick the best bearer to send. For JWT-validated providers (Logto, Auth0,
-// Google id_token) the id_token is preferable since it's the JWT the
-// server can verify locally; access_token may be opaque even when the
-// IdP also issues a JWT id_token. For opaque providers (GitHub) we just
-// send the access_token raw and let the server hit userinfo.
 function pickBearer(oauth: ServerOAuthConfig): string | undefined {
   if (oauth.tokenKind === "opaque") return oauth.accessToken;
   return oauth.idToken ?? oauth.accessToken;
+}
+
+const sessions = new Map<string, SaslSession>();
+
+function chooseMechanism(
+  available: string[],
+  pref: "auto" | "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO" | undefined,
+): SaslMech {
+  if (pref === "DRAFT-WEBAUTHN-BIO" && available.includes("DRAFT-WEBAUTHN-BIO"))
+    return "DRAFT-WEBAUTHN-BIO";
+  if (pref === "PLAIN") return "PLAIN";
+  if (pref === "SCRAM-SHA-256" && available.includes("SCRAM-SHA-256"))
+    return "SCRAM-SHA-256";
+  // auto: prefer SCRAM-SHA-256 over PLAIN.
+  if (available.includes("SCRAM-SHA-256")) return "SCRAM-SHA-256";
+  return "PLAIN";
+}
+
+function loadCreds(
+  serverId: string,
+): { user: string; pass: string; mech: SaslMech } | null {
+  const servers = storage.servers.load();
+  const serv = servers.find((s) => s.id === serverId);
+  if (!serv?.saslEnabled) return null;
+  const user = serv.saslAccountName?.length
+    ? serv.saslAccountName
+    : serv.nickname;
+  const pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
+  if (!user || !pass) return null;
+  const available = ircClient.getSaslMechanisms(serverId);
+  const mech = chooseMechanism(available, serv.saslMechanism);
+  return { user, pass, mech };
+}
+
+function clearSession(serverId: string) {
+  sessions.delete(serverId);
 }
 
 export function registerAuthHandlers(store: StoreApi<AppState>): void {
@@ -49,101 +112,269 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
         ];
         store.getState().metadataSub(serverId, defaultKeys);
       }
-
-      // Note: Metadata restoration/sending is now handled in the "ready" event
-      // to ensure the server is ready to receive METADATA commands
     }
-    if (key === "sasl") {
-      const servers = storage.servers.load();
-      const serv = servers.find((s) => s.id === serverId);
-      if (!serv) return;
-      if (getActiveOauth(serv)) {
-        // Flip the SASL-pending flag so IRCClient.onCapAck's race-y CAP END
-        // path waits for 903/904 before tearing down the negotiation.
-        ircClient.setSaslEnabled(serverId, true);
-        ircClient.sendRaw(serverId, "AUTHENTICATE IRCV3BEARER");
-        return;
-      }
-      if (!serv.saslEnabled) return;
-      ircClient.sendRaw(serverId, "AUTHENTICATE PLAIN");
-    }
-  });
+    if (key !== "sasl") return;
 
-  ircClient.on("AUTHENTICATE", ({ serverId, param }) => {
-    if (param !== "+") return;
-
-    // Don't respond to AUTHENTICATE if CAP negotiation is already complete
-    if (ircClient.isCapNegotiationComplete(serverId)) return;
-
+    // Pick mechanism up-front so the AUTHENTICATE event handler knows what
+    // to do when the server says "+".
     const servers = storage.servers.load();
     const serv = servers.find((s) => s.id === serverId);
-    if (!serv) return;
-
     const oauth = getActiveOauth(serv);
-    if (oauth) {
-      const token = pickBearer(oauth);
-      if (token) {
-        const isOpaque = oauth.tokenKind === "opaque";
+    const bearer = oauth ? pickBearer(oauth) : undefined;
+    const available = ircClient.getSaslMechanisms(serverId);
+
+    // Prefer the OAuth bearer path when one is configured AND the server
+    // advertises IRCV3BEARER. Falls through to PLAIN/SCRAM/WebAuthn.
+    if (oauth && bearer && available.includes("IRCV3BEARER")) {
+      ircClient.setSaslEnabled(serverId, true);
+      sessions.set(serverId, {
+        mech: "IRCV3BEARER",
+        username: serv?.nickname ?? "",
+        step: 0,
+        oauthBearer: bearer,
+        oauthTokenKind: oauth.tokenKind === "opaque" ? "opaque" : "jwt",
+        oauthProvider: oauth.serverProvider,
+      });
+      ircClient.sendRaw(serverId, "AUTHENTICATE IRCV3BEARER");
+      return;
+    }
+
+    if (!serv?.saslEnabled) return;
+
+    const mech = chooseMechanism(available, serv.saslMechanism);
+    const username = serv.saslAccountName?.length
+      ? serv.saslAccountName
+      : serv.nickname;
+    const password = serv.saslPassword ? atob(serv.saslPassword) : undefined;
+
+    sessions.set(serverId, {
+      mech,
+      username,
+      password,
+      step: 0,
+    });
+    ircClient.sendRaw(serverId, `AUTHENTICATE ${mech}`);
+  });
+
+  ircClient.on("AUTHENTICATE", async ({ serverId, param }) => {
+    if (ircClient.isCapNegotiationComplete(serverId)) return;
+
+    // Synthetic step-up signal from the server (draft/account-2fa).
+    if (param === "2FA-REQUIRED") {
+      const session = sessions.get(serverId);
+      const acct = session?.username ?? "";
+      store.setState({ pendingTotpStepUp: { serverId, account: acct } });
+      return;
+    }
+
+    const session = sessions.get(serverId);
+    if (!session) {
+      // Either no SASL is in flight or a fresh PLAIN exchange started before
+      // our session was set up.  Fall back to the legacy PLAIN behaviour so
+      // older test fixtures still work.
+      if (param !== "+") return;
+      const creds = loadCreds(serverId);
+      if (!creds || creds.mech !== "PLAIN") return;
+      ircClient.sendRaw(
+        serverId,
+        `AUTHENTICATE ${btoa(`${creds.user}\x00${creds.user}\x00${creds.pass}`)}`,
+      );
+      return;
+    }
+
+    try {
+      if (session.mech === "IRCV3BEARER") {
+        if (param !== "+") return;
+        if (!session.oauthBearer) return;
+        const isOpaque = session.oauthTokenKind === "opaque";
         const b64 = buildIrcv3BearerPayload({
-          token,
+          token: session.oauthBearer,
           tokenType: isOpaque ? "opaque" : "jwt",
-          // Opaque tokens carry the provider name so the server can pick
-          // the right userinfo-url. JWT path doesn't need it (the server
-          // matches by `iss` claim).
-          authzid: isOpaque ? oauth.serverProvider : undefined,
+          authzid: isOpaque ? session.oauthProvider : undefined,
         });
         for (const chunk of chunkSaslPayload(b64)) {
           ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
         }
         return;
       }
+
+      if (session.mech === "PLAIN") {
+        if (param !== "+") return;
+        if (!session.password) return;
+        ircClient.sendRaw(
+          serverId,
+          `AUTHENTICATE ${btoa(`${session.username}\x00${session.username}\x00${session.password}`)}`,
+        );
+        return;
+      }
+
+      if (session.mech === "SCRAM-SHA-256") {
+        if (session.step === 0 && param === "+") {
+          if (!session.password) return;
+          const { state, message } = scramStart(
+            session.username,
+            session.password,
+          );
+          session.scram = state;
+          session.step = 1;
+          ircClient.sendRaw(
+            serverId,
+            `AUTHENTICATE ${saslChunk.encodeUtf8(message)}`,
+          );
+          return;
+        }
+        if (session.step === 1 && session.scram) {
+          const serverFirst = saslChunk.decodeUtf8(param);
+          const clientFinal = await scramFinal(session.scram, serverFirst);
+          session.step = 2;
+          ircClient.sendRaw(
+            serverId,
+            `AUTHENTICATE ${saslChunk.encodeUtf8(clientFinal)}`,
+          );
+          return;
+        }
+        if (session.step === 2 && session.scram) {
+          const serverFinal = saslChunk.decodeUtf8(param);
+          const ok = scramVerifyServerFinal(session.scram, serverFinal);
+          if (!ok) {
+            ircClient.sendRaw(serverId, "AUTHENTICATE *");
+          }
+          // On success the server completes the exchange itself by
+          // emitting 900/903 (normal) or AUTHENTICATE 2FA-REQUIRED
+          // (step-up). Sending another "AUTHENTICATE +" here is read
+          // as an empty/abort payload by saslserv and trips 904.
+          session.step = 3;
+          return;
+        }
+        return;
+      }
+
+      if (session.mech === "DRAFT-WEBAUTHN-BIO") {
+        if (session.step === 0 && param === "+") {
+          // Send hello identifying the account; the server will reply with
+          // a challenge JSON in the next AUTHENTICATE message.
+          const hello = JSON.stringify({ username: session.username });
+          session.step = 1;
+          ircClient.sendRaw(serverId, `AUTHENTICATE ${btoa(hello)}`);
+          return;
+        }
+        if (session.step === 1) {
+          if (!isWebAuthnAvailable()) {
+            ircClient.sendRaw(serverId, "AUTHENTICATE *");
+            return;
+          }
+          const challengeJson = JSON.parse(
+            new TextDecoder().decode(b64StdDecode(param)),
+          );
+          const assertion = await webauthnAssert(challengeJson);
+          const reply = JSON.stringify(assertion);
+          session.step = 2;
+          ircClient.sendRaw(
+            serverId,
+            `AUTHENTICATE ${bytesToB64Std(new TextEncoder().encode(reply))}`,
+          );
+          return;
+        }
+        return;
+      }
+    } catch (err) {
+      console.error("[SASL] error:", err);
+      ircClient.sendRaw(serverId, "AUTHENTICATE *");
+      clearSession(serverId);
     }
+  });
 
-    if (!serv.saslEnabled) return;
-    const user = serv.saslAccountName?.length
-      ? serv.saslAccountName
-      : serv.nickname;
-    const pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
-    if (!user || !pass) return;
+  // 2FA replies: server uses NOTE 2FA <code> <args...> :<desc>.
+  // `args` here is everything after the code; the trailing description is
+  // the LAST entry (parsed by the IRC layer as a single trailing param).
+  ircClient.on("TWOFA_NOTE", ({ serverId, code, args }) => {
+    // args[0..len-2] are positional, args[len-1] is the description.
+    const positional = args.slice(0, Math.max(0, args.length - 1));
+    if (code === "ENABLED") {
+      store.setState((s) => ({
+        twofaStatus: { ...s.twofaStatus, [serverId]: "enabled" },
+      }));
+    } else if (code === "DISABLED") {
+      store.setState((s) => ({
+        twofaStatus: { ...s.twofaStatus, [serverId]: "disabled" },
+      }));
+    } else if (code === "REGISTRATION_CHALLENGE") {
+      const type = positional[0] ?? "";
+      const blob = positional[1] ?? "";
+      store.setState({
+        pendingTwofaChallenge: { serverId, type, blob },
+      });
+    } else if (code === "CREDENTIAL") {
+      const id = positional[0] ?? "";
+      const credType = positional[1] ?? "";
+      const name = positional[2] ?? "";
+      const ts = positional[3] ?? "";
+      store.setState((s) => ({
+        twofaCredentials: {
+          ...s.twofaCredentials,
+          [serverId]: [
+            ...(s.twofaCredentials[serverId] ?? []),
+            { id, type: credType, name, createdAt: ts },
+          ],
+        },
+      }));
+    } else if (code === "NO_CREDENTIALS") {
+      store.setState((s) => ({
+        twofaCredentials: { ...s.twofaCredentials, [serverId]: [] },
+      }));
+    }
+  });
 
-    ircClient.sendRaw(
-      serverId,
-      `AUTHENTICATE ${btoa(`${user}\x00${user}\x00${pass}`)}`,
-    );
-    // Note: CAP END will be sent by the IRC client when SASL authentication completes (903/904-907 responses)
+  // `2FA <subcommand> SUCCESS ...` lands in the dedicated TWOFA event.
+  ircClient.on("TWOFA", ({ serverId, subcommand, status, args }) => {
+    if (status !== "SUCCESS") return;
+    if (subcommand === "ADD") {
+      // Args: <type> <id> :<description>
+      // We don't know the name from the success line alone; the LIST query
+      // below refreshes the table.
+      store.getState().twofaListQuery(serverId);
+      store.setState({ pendingTwofaChallenge: null });
+    } else if (subcommand === "REMOVE") {
+      const id = args[0] ?? "";
+      store.setState((s) => ({
+        twofaCredentials: {
+          ...s.twofaCredentials,
+          [serverId]: (s.twofaCredentials[serverId] ?? []).filter(
+            (c) => c.id !== id,
+          ),
+        },
+      }));
+    } else if (subcommand === "ENABLE") {
+      store.setState((s) => ({
+        twofaStatus: { ...s.twofaStatus, [serverId]: "enabled" },
+      }));
+    } else if (subcommand === "DISABLE") {
+      store.setState((s) => ({
+        twofaStatus: { ...s.twofaStatus, [serverId]: "disabled" },
+      }));
+    }
   });
 
   // Handle CAP LS to get informational capabilities like unrealircd.org/link-security
   ircClient.on("CAP LS", ({ serverId, cliCaps }) => {
-    // Parse link-security from CAP LS (informational capability)
     if (cliCaps.includes("unrealircd.org/link-security=")) {
       const match = cliCaps.match(/unrealircd\.org\/link-security=(\d+)/);
       if (match) {
         const linkSecurityValue = Number.parseInt(match[1], 10) || 0;
-
-        // Update server with link security value
         store.setState((state) => {
-          const updatedServers = state.servers.map((server) => {
-            if (server.id === serverId) {
-              return {
-                ...server,
-                linkSecurity: linkSecurityValue,
-              };
-            }
-            return server;
-          });
-
+          const updatedServers = state.servers.map((server) =>
+            server.id === serverId
+              ? { ...server, linkSecurity: linkSecurityValue }
+              : server,
+          );
           return { servers: updatedServers };
         });
 
-        // Show warning modal for low UnrealIRCd link-security value
         const currentState = store.getState();
         const currentServer = currentState.servers.find(
           (s) => s.id === serverId,
         );
         const hasLowLinkSecurity = linkSecurityValue < 2;
-
-        // Check if we should show warning based on individual skip preferences
         const savedServers = storage.servers.load();
         const serverConfig = currentServer
           ? savedServers.find(
@@ -152,20 +383,15 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
                 s.port === currentServer.port,
             )
           : undefined;
-
         const shouldWarnLinkSecurity =
           hasLowLinkSecurity && !serverConfig?.skipLinkSecurityWarning;
 
         if (shouldWarnLinkSecurity) {
           store.setState((state) => {
-            // Check if warning already exists for this server
             const existingWarning = state.ui.linkSecurityWarnings.find(
               (w) => w.serverId === serverId,
             );
-            if (existingWarning) {
-              return state; // Don't add duplicate warning
-            }
-
+            if (existingWarning) return state;
             return {
               ui: {
                 ...state.ui,
@@ -188,11 +414,9 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       const tok = cap.split("=");
       const capName = tok[0];
       const capValue = tok[1];
-
       ircClient.capAck(serverId, capName, capValue ?? null);
     }
 
-    // Update server capabilities in store (merge, don't overwrite)
     store.setState((state) => {
       const updatedServers = state.servers.map((server) => {
         if (server.id === serverId) {
@@ -200,29 +424,20 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
           const newCaps = cliCaps.split(" ");
           const merged = [...existing];
           for (const cap of newCaps) {
-            if (!merged.includes(cap)) {
-              merged.push(cap);
-            }
+            if (!merged.includes(cap)) merged.push(cap);
           }
-          return {
-            ...server,
-            capabilities: merged,
-          };
+          return { ...server, capabilities: merged };
         }
         return server;
       });
       return { servers: updatedServers };
     });
 
-    // Check if we should prevent CAP END (for SASL, account registration, or link security warning)
     const state = store.getState();
     const server = state.servers.find((s) => s.id === serverId);
     let preventCapEnd = false;
 
-    // Check if SASL was requested and acknowledged, AND we have credentials
     if (caps.some((cap) => cap.startsWith("sasl"))) {
-      // Only prevent CAP END if we actually have SASL credentials --
-      // either a PLAIN password or an OAuth bearer token.
       const servers = storage.servers.load();
       const savedServer = servers.find((s) => s.id === serverId);
       const hasPlain =
@@ -235,11 +450,9 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       }
     }
 
-    // Check if there's pending account registration
     const pendingReg = state.pendingRegistration;
     if (pendingReg && pendingReg.serverId === serverId) {
       preventCapEnd = true;
-      // Check if server supports account registration
       if (server?.capabilities?.includes("draft/account-registration")) {
         store
           .getState()
@@ -249,17 +462,13 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
             pendingReg.email,
             pendingReg.password,
           );
-        // Clear the pending registration
         store.setState({ pendingRegistration: null });
       } else {
-        // Clear the pending registration
         store.setState({ pendingRegistration: null });
-        // Send CAP END since registration is not possible
         preventCapEnd = false;
       }
     }
 
-    // Check if link security warning modal is showing - prevent CAP END until user responds
     if (state.ui.linkSecurityWarnings.some((w) => w.serverId === serverId)) {
       preventCapEnd = true;
     }
@@ -267,7 +476,6 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     if (!preventCapEnd) {
       ircClient.sendRaw(serverId, "CAP END");
       ircClient.userOnConnect(serverId);
-    } else {
     }
   });
 
@@ -275,31 +483,28 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
   ircClient.on("REGISTER_SUCCESS", ({ serverId, account, message }) => {
     const state = store.getState();
     const server = state.servers.find((s) => s.id === serverId);
-    if (server) {
-      const channel = server.channels[0];
-      if (channel) {
-        const notificationMessage: Message = {
-          id: uuidv4(),
-          type: "system",
-          content: `Account registration successful for ${account}: ${message}`,
-          timestamp: new Date(),
-          userId: "system",
-          channelId: channel.id,
-          serverId: serverId,
-          reactions: [],
-          replyMessage: null,
-          mentioned: [],
-        };
-
-        const key = `${serverId}-${channel.id}`;
-        store.setState((state) => ({
-          messages: {
-            ...state.messages,
-            [key]: [...(state.messages[key] || []), notificationMessage],
-          },
-        }));
-      }
-    }
+    if (!server) return;
+    const channel = server.channels[0];
+    if (!channel) return;
+    const notificationMessage: Message = {
+      id: uuidv4(),
+      type: "system",
+      content: `Account registration successful for ${account}: ${message}`,
+      timestamp: new Date(),
+      userId: "system",
+      channelId: channel.id,
+      serverId: serverId,
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+    };
+    const key = `${serverId}-${channel.id}`;
+    store.setState((s) => ({
+      messages: {
+        ...s.messages,
+        [key]: [...(s.messages[key] || []), notificationMessage],
+      },
+    }));
   });
 
   ircClient.on(
@@ -307,62 +512,56 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     ({ serverId, account, message }) => {
       const state = store.getState();
       const server = state.servers.find((s) => s.id === serverId);
-      if (server) {
-        const channel = server.channels[0];
-        if (channel) {
-          const notificationMessage: Message = {
-            id: uuidv4(),
-            type: "system",
-            content: `Account registration for ${account} requires verification: ${message}`,
-            timestamp: new Date(),
-            userId: "system",
-            channelId: channel.id,
-            serverId: serverId,
-            reactions: [],
-            replyMessage: null,
-            mentioned: [],
-          };
-
-          const key = `${serverId}-${channel.id}`;
-          store.setState((state) => ({
-            messages: {
-              ...state.messages,
-              [key]: [...(state.messages[key] || []), notificationMessage],
-            },
-          }));
-        }
-      }
+      if (!server) return;
+      const channel = server.channels[0];
+      if (!channel) return;
+      const notificationMessage: Message = {
+        id: uuidv4(),
+        type: "system",
+        content: `Account registration for ${account} requires verification: ${message}`,
+        timestamp: new Date(),
+        userId: "system",
+        channelId: channel.id,
+        serverId: serverId,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+      };
+      const key = `${serverId}-${channel.id}`;
+      store.setState((s) => ({
+        messages: {
+          ...s.messages,
+          [key]: [...(s.messages[key] || []), notificationMessage],
+        },
+      }));
     },
   );
 
   ircClient.on("VERIFY_SUCCESS", ({ serverId, account, message }) => {
     const state = store.getState();
     const server = state.servers.find((s) => s.id === serverId);
-    if (server) {
-      const channel = server.channels[0];
-      if (channel) {
-        const notificationMessage: Message = {
-          id: uuidv4(),
-          type: "system",
-          content: `Account verification successful for ${account}: ${message}`,
-          timestamp: new Date(),
-          userId: "system",
-          channelId: channel.id,
-          serverId: serverId,
-          reactions: [],
-          replyMessage: null,
-          mentioned: [],
-        };
-
-        const key = `${serverId}-${channel.id}`;
-        store.setState((state) => ({
-          messages: {
-            ...state.messages,
-            [key]: [...(state.messages[key] || []), notificationMessage],
-          },
-        }));
-      }
-    }
+    if (!server) return;
+    const channel = server.channels[0];
+    if (!channel) return;
+    const notificationMessage: Message = {
+      id: uuidv4(),
+      type: "system",
+      content: `Account verification successful for ${account}: ${message}`,
+      timestamp: new Date(),
+      userId: "system",
+      channelId: channel.id,
+      serverId: serverId,
+      reactions: [],
+      replyMessage: null,
+      mentioned: [],
+    };
+    const key = `${serverId}-${channel.id}`;
+    store.setState((s) => ({
+      messages: {
+        ...s.messages,
+        [key]: [...(s.messages[key] || []), notificationMessage],
+      },
+    }));
   });
 
   ircClient.on(
@@ -375,12 +574,9 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
         jwtToken: jwtToken ? "present" : "missing",
       });
       store.setState((state) => {
-        const updatedServers = state.servers.map((server) => {
-          if (server.id === serverId) {
-            return { ...server, jwtToken };
-          }
-          return server;
-        });
+        const updatedServers = state.servers.map((server) =>
+          server.id === serverId ? { ...server, jwtToken } : server,
+        );
         return { servers: updatedServers };
       });
     },

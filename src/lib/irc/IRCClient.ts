@@ -245,6 +245,15 @@ export interface EventMap {
     serviceName: string;
     jwtToken: string;
   };
+  TWOFA: EventWithTags & {
+    subcommand: string;
+    status: string;
+    args: string[];
+  };
+  TWOFA_NOTE: EventWithTags & {
+    code: string;
+    args: string[];
+  };
   // obsidianirc/cmdslist: server is reporting an add/remove delta of
   // commands the user can invoke right now.  Ops are individual
   // tokens of the form "+cmd" or "-cmd" (multiple per wire line).
@@ -467,6 +476,7 @@ export class IRCClient implements IRCClientContext {
     "draft/metadata-2",
     "draft/message-redaction",
     "draft/account-registration",
+    "draft/account-2fa",
     "batch",
     "draft/multiline",
     "draft/typing",
@@ -1382,6 +1392,10 @@ export class IRCClient implements IRCClientContext {
 
   isCapNegotiationComplete(serverId: string): boolean {
     return this.capNegotiationComplete.get(serverId) ?? false;
+  }
+
+  getSaslMechanisms(serverId: string): string[] {
+    return this.saslMechanisms.get(serverId) ?? [];
   }
 
   getNick(serverId: string): string | undefined {

@@ -6,6 +6,7 @@ import {
   handleNote,
   handleRegister,
   handleSuccess,
+  handleTwoFA,
   handleVerify,
   handleWarn,
 } from "./auth";
@@ -287,6 +288,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleRegister(ctx, serverId, source, parv, mtags),
   VERIFY: (ctx, serverId, source, parv, mtags) =>
     handleVerify(ctx, serverId, source, parv, mtags),
+  "2FA": (ctx, serverId, source, parv, mtags) =>
+    handleTwoFA(ctx, serverId, source, parv, mtags),
   EXTJWT: (ctx, serverId, source, parv, mtags) =>
     handleExtjwt(ctx, serverId, source, parv, mtags),
   CMDSLIST: (ctx, serverId, source, parv, mtags) =>
