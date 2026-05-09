@@ -10,15 +10,25 @@ import { normalizeHost } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
-// OAuth path is active if the user enabled it AND we hold an access token.
+// OAuth path is active if the user enabled it AND we hold any token to send.
 // We don't gate on local expiry: the server is the authority and surfaces a
 // useful 904 if the token is bad, prompting the user to re-authenticate.
 function getActiveOauth(
   serv: ServerConfig | undefined,
 ): ServerOAuthConfig | undefined {
   if (!serv?.oauth?.enabled) return undefined;
-  if (!serv.oauth.accessToken) return undefined;
+  if (!serv.oauth.accessToken && !serv.oauth.idToken) return undefined;
   return serv.oauth;
+}
+
+// Pick the best bearer to send. For JWT-validated providers (Logto, Auth0,
+// Google id_token) the id_token is preferable since it's the JWT the
+// server can verify locally; access_token may be opaque even when the
+// IdP also issues a JWT id_token. For opaque providers (GitHub) we just
+// send the access_token raw and let the server hit userinfo.
+function pickBearer(oauth: ServerOAuthConfig): string | undefined {
+  if (oauth.tokenKind === "opaque") return oauth.accessToken;
+  return oauth.idToken ?? oauth.accessToken;
 }
 
 export function registerAuthHandlers(store: StoreApi<AppState>): void {
@@ -70,12 +80,23 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     if (!serv) return;
 
     const oauth = getActiveOauth(serv);
-    if (oauth?.accessToken) {
-      const b64 = buildIrcv3BearerPayload({ token: oauth.accessToken });
-      for (const chunk of chunkSaslPayload(b64)) {
-        ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
+    if (oauth) {
+      const token = pickBearer(oauth);
+      if (token) {
+        const isOpaque = oauth.tokenKind === "opaque";
+        const b64 = buildIrcv3BearerPayload({
+          token,
+          tokenType: isOpaque ? "opaque" : "jwt",
+          // Opaque tokens carry the provider name so the server can pick
+          // the right userinfo-url. JWT path doesn't need it (the server
+          // matches by `iss` claim).
+          authzid: isOpaque ? oauth.serverProvider : undefined,
+        });
+        for (const chunk of chunkSaslPayload(b64)) {
+          ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
+        }
+        return;
       }
-      return;
     }
 
     if (!serv.saslEnabled) return;
@@ -207,7 +228,8 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       const hasPlain =
         savedServer?.saslEnabled && Boolean(savedServer?.saslPassword);
       const hasOauth =
-        savedServer?.oauth?.enabled && Boolean(savedServer?.oauth?.accessToken);
+        savedServer?.oauth?.enabled &&
+        Boolean(savedServer?.oauth?.accessToken || savedServer?.oauth?.idToken);
       if (hasPlain || hasOauth) {
         preventCapEnd = true;
       }

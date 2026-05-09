@@ -83,6 +83,24 @@ export interface ServerOAuthConfig {
   idToken?: string;
   refreshToken?: string;
   tokenExpiresAt?: number;
+  // "jwt" (default): the IRC server validates the bearer locally against
+  // its JWKS. The client sends idToken (preferred) or accessToken,
+  // whichever is a JWT. Works for Logto, Auth0, Keycloak, Okta, Google
+  // (id_token), Microsoft (id_token).
+  // "opaque": the IRC server hits the IdP's userinfo endpoint to resolve
+  // the bearer. The client sends accessToken plus a `serverProvider`
+  // hint so the server knows which oauth-provider {} block to consult.
+  // Required for GitHub, Discord, Slack, Reddit, Twitter.
+  tokenKind?: "jwt" | "opaque";
+  // Name the IRC server admin gave to the matching oauth-provider {}
+  // block. Sent as the IRCV3BEARER authzid (or OAUTHBEARER `provider=`
+  // k/v) in opaque mode so the server can pick the right userinfo URL.
+  serverProvider?: string;
+  // Manual auth/token endpoint overrides for non-OIDC providers like
+  // GitHub that don't publish a /.well-known/openid-configuration.
+  // When both are set, OIDC discovery is skipped.
+  authorizeEndpoint?: string;
+  tokenEndpoint?: string;
 }
 
 export interface Channel {

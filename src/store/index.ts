@@ -1001,7 +1001,8 @@ const useStore = create<AppState>((set, get) => ({
         }
       }
       const oauthBearerEnabled = !!(
-        mergedOauth?.enabled && mergedOauth.accessToken
+        mergedOauth?.enabled &&
+        (mergedOauth.accessToken || mergedOauth.idToken)
       );
       const server = await ircClient.connect(
         name,

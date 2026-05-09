@@ -30,6 +30,15 @@ describe("buildIrcv3BearerPayload", () => {
     expect(decodeB64(b64)).toBe("alice\\0oauth2\\0TOK");
   });
 
+  it("emits the opaque frame with provider hint in authzid", () => {
+    const b64 = buildIrcv3BearerPayload({
+      token: "gho_abc",
+      tokenType: "opaque",
+      authzid: "github",
+    });
+    expect(decodeB64(b64)).toBe("github\\0opaque\\0gho_abc");
+  });
+
   it("preserves multibyte UTF-8 in the token", () => {
     const b64 = buildIrcv3BearerPayload({ token: "héllo" });
     const bin = atob(b64);

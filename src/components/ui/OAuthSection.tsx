@@ -20,6 +20,10 @@ interface OAuthSectionProps {
     clientId: string;
     scopes?: string;
     redirectUri?: string;
+    tokenKind?: "jwt" | "opaque";
+    serverProvider?: string;
+    authorizeEndpoint?: string;
+    tokenEndpoint?: string;
   };
 }
 
@@ -71,6 +75,20 @@ export const OAuthSection: React.FC<OAuthSectionProps> = ({
   const [tokenExpiresAt, setTokenExpiresAt] = useState<number | undefined>(
     initial?.tokenExpiresAt,
   );
+  const [tokenKind, setTokenKind] = useState<"jwt" | "opaque">(
+    locked?.tokenKind ?? initial?.tokenKind ?? "jwt",
+  );
+  const [serverProvider, setServerProvider] = useState(
+    locked?.serverProvider ?? initial?.serverProvider ?? "",
+  );
+  // Non-OIDC providers (GitHub) supply explicit authorize/token URLs
+  // because there's no /.well-known/openid-configuration to discover.
+  const [authorizeEndpoint, setAuthorizeEndpoint] = useState(
+    locked?.authorizeEndpoint ?? initial?.authorizeEndpoint ?? "",
+  );
+  const [tokenEndpoint, setTokenEndpoint] = useState(
+    locked?.tokenEndpoint ?? initial?.tokenEndpoint ?? "",
+  );
 
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
@@ -94,6 +112,8 @@ export const OAuthSection: React.FC<OAuthSectionProps> = ({
       idToken: patch.idToken ?? idToken ?? undefined,
       refreshToken: patch.refreshToken ?? refreshToken ?? undefined,
       tokenExpiresAt: patch.tokenExpiresAt ?? tokenExpiresAt,
+      tokenKind: patch.tokenKind ?? tokenKind,
+      serverProvider: patch.serverProvider ?? serverProvider ?? undefined,
     });
   };
 
@@ -102,9 +122,37 @@ export const OAuthSection: React.FC<OAuthSectionProps> = ({
     const np = OAUTH_PRESETS.find((p) => p.id === next) ?? OAUTH_PRESETS[0];
     if (!providerLabel.trim() || providerLabel === preset.label) {
       setProviderLabel(np.label);
+      emit({ providerLabel: np.label });
     }
-    if (!scopes.trim()) {
+    if (!scopes.trim() || scopes === preset.defaultScopes) {
       setScopes(np.defaultScopes);
+      emit({ scopes: np.defaultScopes });
+    }
+    if (np.issuer && (!issuer.trim() || issuer === preset.issuer)) {
+      setIssuer(np.issuer);
+      emit({ issuer: np.issuer });
+    }
+    // Apply token kind + manual endpoints baked into the preset (GitHub
+    // is opaque + non-OIDC; Google is jwt + OIDC; etc.). For "custom"
+    // we don't override anything.
+    if (np.tokenKind && np.id !== "custom") {
+      setTokenKind(np.tokenKind);
+      emit({ tokenKind: np.tokenKind });
+    }
+    if (np.authorizeEndpoint !== undefined) {
+      setAuthorizeEndpoint(np.authorizeEndpoint);
+      emit({ authorizeEndpoint: np.authorizeEndpoint });
+    }
+    if (np.tokenEndpoint !== undefined) {
+      setTokenEndpoint(np.tokenEndpoint);
+      emit({ tokenEndpoint: np.tokenEndpoint });
+    }
+    // Default the server-provider hint to the preset id for opaque flows
+    // so the user sees a sensible default ("github") matching what
+    // obbyircd's oauth-provider {} block would typically be named.
+    if (np.tokenKind === "opaque" && !serverProvider.trim()) {
+      setServerProvider(np.id);
+      emit({ serverProvider: np.id });
     }
   };
 
@@ -125,6 +173,8 @@ export const OAuthSection: React.FC<OAuthSectionProps> = ({
         clientId: clientId.trim(),
         scopes: scopes.trim() || undefined,
         redirectUri: redirectUri.trim() || undefined,
+        authorizeEndpoint: authorizeEndpoint.trim() || undefined,
+        tokenEndpoint: tokenEndpoint.trim() || undefined,
       });
       setAccessToken(result.accessToken);
       setIdToken(result.idToken ?? "");
@@ -345,6 +395,52 @@ export const OAuthSection: React.FC<OAuthSectionProps> = ({
               . Register this in your IdP.
             </p>
           </div>
+
+          <div className="mb-3">
+            <label className="block text-discord-text-muted text-sm font-medium mb-1">
+              Token type
+            </label>
+            <select
+              value={tokenKind}
+              onChange={(e) => {
+                const v = e.target.value as "jwt" | "opaque";
+                setTokenKind(v);
+                emit({ tokenKind: v });
+              }}
+              className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+            >
+              <option value="jwt">
+                JWT — server validates locally (Logto / Auth0 / Keycloak /
+                Google id_token)
+              </option>
+              <option value="opaque">
+                Opaque — server hits userinfo endpoint (GitHub / Discord /
+                Slack)
+              </option>
+            </select>
+          </div>
+
+          {tokenKind === "opaque" && (
+            <div className="mb-3">
+              <label className="block text-discord-text-muted text-sm font-medium mb-1">
+                Server provider name
+              </label>
+              <TextInput
+                value={serverProvider}
+                onChange={(e) => {
+                  setServerProvider(e.target.value);
+                  emit({ serverProvider: e.target.value });
+                }}
+                placeholder="github"
+                className="w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-primary"
+              />
+              <p className="text-discord-text-muted text-xs mt-1">
+                Must match the <code>oauth-provider "name"</code> block on the
+                IRC server (obbyircd's <code>userinfo-url</code>
+                config).
+              </p>
+            </div>
+          )}
 
           <div className="mb-3 text-xs text-discord-text-muted">
             {tokenStatus}

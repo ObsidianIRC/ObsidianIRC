@@ -149,10 +149,24 @@ export interface OAuthCallbackMessage {
 export async function beginOauthLogin(
   cfg: Pick<
     ServerOAuthConfig,
-    "issuer" | "clientId" | "scopes" | "redirectUri"
+    | "issuer"
+    | "clientId"
+    | "scopes"
+    | "redirectUri"
+    | "authorizeEndpoint"
+    | "tokenEndpoint"
   >,
 ): Promise<OAuthLoginResult> {
-  const meta = await discoverOidc(cfg.issuer);
+  // GitHub and other non-OIDC providers don't publish a discovery
+  // document; admin supplies authorize/token URLs directly.
+  const meta: OidcMetadata =
+    cfg.authorizeEndpoint && cfg.tokenEndpoint
+      ? {
+          issuer: cfg.issuer,
+          authorization_endpoint: cfg.authorizeEndpoint,
+          token_endpoint: cfg.tokenEndpoint,
+        }
+      : await discoverOidc(cfg.issuer);
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await deriveCodeChallenge(codeVerifier);
   const state = generateCodeVerifier();
@@ -257,17 +271,28 @@ export function getBuiltinOAuthConfig():
       clientId: string;
       scopes?: string;
       redirectUri?: string;
+      tokenKind?: "jwt" | "opaque";
+      serverProvider?: string;
+      authorizeEndpoint?: string;
+      tokenEndpoint?: string;
     }
   | undefined {
   const issuer = __DEFAULT_OAUTH_ISSUER__;
   const clientId = __DEFAULT_OAUTH_CLIENT_ID__;
   if (!issuer || !clientId) return undefined;
+  const rawKind = __DEFAULT_OAUTH_TOKEN_KIND__;
+  const tokenKind: "jwt" | "opaque" | undefined =
+    rawKind === "opaque" || rawKind === "jwt" ? rawKind : undefined;
   return {
     providerLabel: __DEFAULT_OAUTH_PROVIDER_LABEL__ || "OAuth",
     issuer,
     clientId,
     scopes: __DEFAULT_OAUTH_SCOPES__ || undefined,
     redirectUri: __DEFAULT_OAUTH_REDIRECT_URI__ || undefined,
+    tokenKind,
+    serverProvider: __DEFAULT_OAUTH_SERVER_PROVIDER__ || undefined,
+    authorizeEndpoint: __DEFAULT_OAUTH_AUTHORIZE_URL__ || undefined,
+    tokenEndpoint: __DEFAULT_OAUTH_TOKEN_URL__ || undefined,
   };
 }
 
@@ -282,6 +307,13 @@ export interface OAuthProviderPreset {
   defaultScopes: string;
   // Helper text shown under the issuer field when this preset is picked.
   hint?: string;
+  // Token kind the IRC server expects. "jwt" (default) means the server
+  // validates locally against JWKS; "opaque" means it hits a userinfo
+  // endpoint.
+  tokenKind?: "jwt" | "opaque";
+  // Manual auth/token endpoints for non-OIDC providers (GitHub).
+  authorizeEndpoint?: string;
+  tokenEndpoint?: string;
 }
 
 export const OAUTH_PRESETS: OAuthProviderPreset[] = [
@@ -312,5 +344,23 @@ export const OAUTH_PRESETS: OAuthProviderPreset[] = [
     issuer: null,
     defaultScopes: "openid",
     hint: "Issuer is https://<host>/realms/<realm>",
+  },
+  {
+    id: "google",
+    label: "Google",
+    issuer: "https://accounts.google.com",
+    defaultScopes: "openid email profile",
+    hint: "Client ID from console.cloud.google.com -> APIs & Services -> Credentials. Server side: jwks-file from https://www.googleapis.com/oauth2/v3/certs.",
+    tokenKind: "jwt",
+  },
+  {
+    id: "github",
+    label: "GitHub",
+    issuer: "https://github.com",
+    defaultScopes: "read:user user:email",
+    hint: 'Client ID from github.com/settings/developers. Opaque tokens; server needs an oauth-provider with userinfo-url "https://api.github.com/user".',
+    tokenKind: "opaque",
+    authorizeEndpoint: "https://github.com/login/oauth/authorize",
+    tokenEndpoint: "https://github.com/login/oauth/access_token",
   },
 ];

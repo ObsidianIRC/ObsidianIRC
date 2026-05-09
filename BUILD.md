@@ -42,7 +42,63 @@ VITE_DEFAULT_OAUTH_CLIENT_ID="m0obbyircd1234"
 VITE_DEFAULT_OAUTH_SCOPES="openid"
 # Optional, defaults to <origin>/oauth/callback. Must be registered with the IdP.
 VITE_DEFAULT_OAUTH_REDIRECT_URI="https://chat.example.com/oauth/callback"
+# "jwt" (default) for Logto/Auth0/Keycloak/Google id_token.
+# "opaque" for GitHub/Discord/Slack -- IRC server hits userinfo endpoint.
+VITE_DEFAULT_OAUTH_TOKEN_KIND="jwt"
+# Opaque only: name of the matching oauth-provider {} on the IRC server,
+# so the server knows which userinfo URL to hit.
+VITE_DEFAULT_OAUTH_SERVER_PROVIDER="github"
+# Non-OIDC providers (GitHub) need explicit endpoints since they don't
+# publish /.well-known/openid-configuration.
+VITE_DEFAULT_OAUTH_AUTHORIZE_URL="https://github.com/login/oauth/authorize"
+VITE_DEFAULT_OAUTH_TOKEN_URL="https://github.com/login/oauth/access_token"
 ```
+
+#### Provider quick-reference
+
+**Sign in with Google**
+
+```sh
+VITE_DEFAULT_OAUTH_PROVIDER_LABEL=Google
+VITE_DEFAULT_OAUTH_ISSUER=https://accounts.google.com
+VITE_DEFAULT_OAUTH_CLIENT_ID=<your_client_id>.apps.googleusercontent.com
+VITE_DEFAULT_OAUTH_SCOPES="openid email profile"
+VITE_DEFAULT_OAUTH_TOKEN_KIND=jwt
+```
+
+obbyircd side:
+
+```
+oauth-provider "google" {
+    issuer        'https://accounts.google.com';
+    audience      '<your_client_id>.apps.googleusercontent.com';
+    jwks-file     "/etc/obbyircd/google-jwks.json";  # curl from https://www.googleapis.com/oauth2/v3/certs
+    subject-claim "sub";
+};
+```
+
+**Sign in with GitHub**
+
+```sh
+VITE_DEFAULT_OAUTH_PROVIDER_LABEL=GitHub
+VITE_DEFAULT_OAUTH_ISSUER=https://github.com
+VITE_DEFAULT_OAUTH_CLIENT_ID=<your_client_id>
+VITE_DEFAULT_OAUTH_SCOPES="read:user user:email"
+VITE_DEFAULT_OAUTH_TOKEN_KIND=opaque
+VITE_DEFAULT_OAUTH_SERVER_PROVIDER=github
+VITE_DEFAULT_OAUTH_AUTHORIZE_URL=https://github.com/login/oauth/authorize
+VITE_DEFAULT_OAUTH_TOKEN_URL=https://github.com/login/oauth/access_token
+```
+
+obbyircd side:
+
+```
+oauth-provider "github" {
+    userinfo-url   'https://api.github.com/user';
+    subject-claim  "login";    # or "id" for GitHub's stable user id
+};
+```
+
 
 ### Docker
 ```sh
