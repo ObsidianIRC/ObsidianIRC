@@ -30,6 +30,18 @@ VITE_HIDE_SERVER_LIST=true
 # Optional comma-separated list of trusted media URLs
 # Useful for chat bridges like Matterbridge or Matrix bridges that host media
 VITE_TRUSTED_MEDIA_URLS="https://matterbridge.example.com,https://matrix-media.example.com"
+
+# Optional OAuth2 / OIDC defaults. Only surfaced when VITE_HIDE_SERVER_LIST=true,
+# i.e. single-server lock-mode. Users see a "Sign in with <label>" button
+# instead of having to enter the issuer/client_id themselves. Requires the
+# IRC server to support SASL IRCV3BEARER (e.g. obbyircd's oauth-provider).
+VITE_DEFAULT_OAUTH_PROVIDER_LABEL="Logto"
+VITE_DEFAULT_OAUTH_ISSUER="https://my-tenant.logto.app/oidc"
+VITE_DEFAULT_OAUTH_CLIENT_ID="m0obbyircd1234"
+# Optional, defaults to "openid"
+VITE_DEFAULT_OAUTH_SCOPES="openid"
+# Optional, defaults to <origin>/oauth/callback. Must be registered with the IdP.
+VITE_DEFAULT_OAUTH_REDIRECT_URI="https://chat.example.com/oauth/callback"
 ```
 
 ### Docker
@@ -47,6 +59,9 @@ docker build \
   --build-arg VITE_DEFAULT_IRC_CHANNELS="#general,#random" \
   --build-arg VITE_HIDE_SERVER_LIST=false \
   --build-arg VITE_TRUSTED_MEDIA_URLS="https://matterbridge.example.com,https://matrix-media.example.com" \
+  --build-arg VITE_DEFAULT_OAUTH_PROVIDER_LABEL="Logto" \
+  --build-arg VITE_DEFAULT_OAUTH_ISSUER="https://my-tenant.logto.app/oidc" \
+  --build-arg VITE_DEFAULT_OAUTH_CLIENT_ID="m0obbyircd1234" \
   -t obsidianirc .
 ```
 

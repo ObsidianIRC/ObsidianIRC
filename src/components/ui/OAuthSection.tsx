@@ -10,17 +10,37 @@ interface OAuthSectionProps {
   initial: ServerOAuthConfig | undefined;
   // Called whenever any field changes; the parent persists on submit.
   onChange: (next: ServerOAuthConfig | undefined) => void;
+  // When provided, the panel runs in "locked" mode: the deployer baked
+  // these provider settings in via VITE_DEFAULT_OAUTH_* env vars, the
+  // editable issuer/client/scopes inputs are hidden, and OAuth is
+  // implicitly enabled. Used in __HIDE_SERVER_LIST__ deployments.
+  locked?: {
+    providerLabel: string;
+    issuer: string;
+    clientId: string;
+    scopes?: string;
+    redirectUri?: string;
+  };
 }
 
 // In-modal panel: pick a provider preset, fill in issuer + clientId, hit
 // "Sign in" to run the popup OAuth flow, and persist the resulting tokens
 // alongside the rest of the server config. Tokens are written to the
 // outer config via onChange so the parent's submit picks them up.
+//
+// In `locked` mode the provider fields are baked into the build; the user
+// only sees the Sign-in / Sign-out actions and a token status line.
 export const OAuthSection: React.FC<OAuthSectionProps> = ({
   initial,
   onChange,
+  locked,
 }) => {
-  const [enabled, setEnabled] = useState(initial?.enabled ?? false);
+  // In locked mode OAuth is implicit (always enabled) and the user can't
+  // toggle it off. In editable mode the checkbox controls visibility of
+  // the provider fields.
+  const [enabled, setEnabled] = useState(
+    locked ? true : (initial?.enabled ?? false),
+  );
   const [presetId, setPresetId] = useState<string>(() => {
     if (!initial?.issuer) return "custom";
     const lower = initial.issuer.toLowerCase();
@@ -33,12 +53,18 @@ export const OAuthSection: React.FC<OAuthSectionProps> = ({
     OAUTH_PRESETS.find((p) => p.id === presetId) ?? OAUTH_PRESETS[0];
 
   const [providerLabel, setProviderLabel] = useState(
-    initial?.providerLabel ?? preset.label,
+    locked?.providerLabel ?? initial?.providerLabel ?? preset.label,
   );
-  const [issuer, setIssuer] = useState(initial?.issuer ?? "");
-  const [clientId, setClientId] = useState(initial?.clientId ?? "");
-  const [scopes, setScopes] = useState(initial?.scopes ?? preset.defaultScopes);
-  const [redirectUri, setRedirectUri] = useState(initial?.redirectUri ?? "");
+  const [issuer, setIssuer] = useState(locked?.issuer ?? initial?.issuer ?? "");
+  const [clientId, setClientId] = useState(
+    locked?.clientId ?? initial?.clientId ?? "",
+  );
+  const [scopes, setScopes] = useState(
+    locked?.scopes ?? initial?.scopes ?? preset.defaultScopes,
+  );
+  const [redirectUri, setRedirectUri] = useState(
+    locked?.redirectUri ?? initial?.redirectUri ?? "",
+  );
   const [accessToken, setAccessToken] = useState(initial?.accessToken ?? "");
   const [idToken, setIdToken] = useState(initial?.idToken ?? "");
   const [refreshToken, setRefreshToken] = useState(initial?.refreshToken ?? "");
@@ -143,6 +169,55 @@ export const OAuthSection: React.FC<OAuthSectionProps> = ({
     return "Signed in";
   })();
 
+  // ---- Locked-mode render: provider settings are baked in, just show
+  // the Sign-in/Sign-out actions plus the current token status. ----
+  if (locked) {
+    return (
+      <div className="mb-4 border-t border-discord-dark-300 pt-4">
+        <h3 className="text-discord-text-normal text-lg font-semibold mb-1">
+          Sign in with {locked.providerLabel}
+        </h3>
+        <p className="text-discord-text-muted text-xs mb-3">
+          Configured by your network administrator.
+        </p>
+        <div className="mb-3 text-xs text-discord-text-muted">
+          {tokenStatus}
+        </div>
+        {signInError && (
+          <div className="mb-3 text-sm text-discord-red">{signInError}</div>
+        )}
+        <div className="mb-3 flex gap-2">
+          <button
+            type="button"
+            onClick={handleSignIn}
+            disabled={signingIn}
+            className={`px-3 py-1 text-sm rounded font-medium ${
+              signingIn
+                ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                : "bg-discord-primary text-white hover:bg-opacity-80"
+            }`}
+          >
+            {signingIn
+              ? "Signing in..."
+              : accessToken
+                ? `Re-sign in with ${locked.providerLabel}`
+                : `Sign in with ${locked.providerLabel}`}
+          </button>
+          {accessToken && (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="px-3 py-1 text-sm rounded font-medium bg-gray-600 text-gray-300 hover:bg-gray-500"
+            >
+              Sign out
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Editable-mode render (default, multi-server build). ----
   return (
     <div className="mb-4 border-t border-discord-dark-300 pt-4">
       <h3 className="text-discord-text-normal text-lg font-semibold mb-3">

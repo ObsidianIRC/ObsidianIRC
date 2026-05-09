@@ -5,6 +5,7 @@ import {
   deriveCodeChallenge,
   discoverOidc,
   generateCodeVerifier,
+  getBuiltinOAuthConfig,
 } from "../../src/lib/oauth";
 
 describe("generateCodeVerifier / deriveCodeChallenge", () => {
@@ -62,6 +63,49 @@ describe("defaultRedirectUri", () => {
     expect(defaultRedirectUri()).toBe(
       `${window.location.origin}/oauth/callback`,
     );
+  });
+});
+
+describe("getBuiltinOAuthConfig", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns undefined when issuer is missing", () => {
+    vi.stubGlobal("__DEFAULT_OAUTH_ISSUER__", undefined);
+    vi.stubGlobal("__DEFAULT_OAUTH_CLIENT_ID__", "abc");
+    expect(getBuiltinOAuthConfig()).toBeUndefined();
+  });
+
+  it("returns undefined when client_id is missing", () => {
+    vi.stubGlobal("__DEFAULT_OAUTH_ISSUER__", "https://idp.example/");
+    vi.stubGlobal("__DEFAULT_OAUTH_CLIENT_ID__", undefined);
+    expect(getBuiltinOAuthConfig()).toBeUndefined();
+  });
+
+  it("returns the baked-in config when both issuer and client_id are set", () => {
+    vi.stubGlobal("__DEFAULT_OAUTH_PROVIDER_LABEL__", "Logto");
+    vi.stubGlobal("__DEFAULT_OAUTH_ISSUER__", "https://my.logto.app/oidc");
+    vi.stubGlobal("__DEFAULT_OAUTH_CLIENT_ID__", "spa-id");
+    vi.stubGlobal("__DEFAULT_OAUTH_SCOPES__", "openid profile");
+    vi.stubGlobal(
+      "__DEFAULT_OAUTH_REDIRECT_URI__",
+      "https://app.example/oauth/callback",
+    );
+    expect(getBuiltinOAuthConfig()).toEqual({
+      providerLabel: "Logto",
+      issuer: "https://my.logto.app/oidc",
+      clientId: "spa-id",
+      scopes: "openid profile",
+      redirectUri: "https://app.example/oauth/callback",
+    });
+  });
+
+  it("falls back to a generic provider label", () => {
+    vi.stubGlobal("__DEFAULT_OAUTH_PROVIDER_LABEL__", undefined);
+    vi.stubGlobal("__DEFAULT_OAUTH_ISSUER__", "https://idp.example/");
+    vi.stubGlobal("__DEFAULT_OAUTH_CLIENT_ID__", "abc");
+    expect(getBuiltinOAuthConfig()?.providerLabel).toBe("OAuth");
   });
 });
 

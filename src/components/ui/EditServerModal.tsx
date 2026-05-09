@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { FaQuestionCircle, FaTimes } from "react-icons/fa";
+import { getBuiltinOAuthConfig } from "../../lib/oauth";
 import useStore, { loadSavedServers } from "../../store";
 import type { ServerConfig, ServerOAuthConfig } from "../../types";
 import { OAuthSection } from "./OAuthSection";
@@ -278,7 +279,11 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             </div>
           )}
 
-          <OAuthSection initial={oauthConfig} onChange={setOauthConfig} />
+          <OAuthSection
+            initial={oauthConfig}
+            onChange={setOauthConfig}
+            locked={__HIDE_SERVER_LIST__ ? getBuiltinOAuthConfig() : undefined}
+          />
 
           {/* IRC Operator Section */}
           <div className="mb-4 border-t border-discord-dark-300 pt-4">

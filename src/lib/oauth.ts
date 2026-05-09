@@ -242,6 +242,35 @@ export async function beginOauthLogin(
   };
 }
 
+// Build-time defaults baked in via VITE_DEFAULT_OAUTH_* env vars. Only
+// surfaced when __HIDE_SERVER_LIST__ is on (single-server lock mode). The
+// admin sets `issuer` + `clientId` in their .env at deploy time, and the
+// UI hides the editable provider fields and just shows a "Sign in with X"
+// button so users never have to copy/paste the OIDC settings themselves.
+//
+// Returns undefined when not configured (i.e. multi-server build) so the
+// per-server editable form stays in charge.
+export function getBuiltinOAuthConfig():
+  | {
+      providerLabel: string;
+      issuer: string;
+      clientId: string;
+      scopes?: string;
+      redirectUri?: string;
+    }
+  | undefined {
+  const issuer = __DEFAULT_OAUTH_ISSUER__;
+  const clientId = __DEFAULT_OAUTH_CLIENT_ID__;
+  if (!issuer || !clientId) return undefined;
+  return {
+    providerLabel: __DEFAULT_OAUTH_PROVIDER_LABEL__ || "OAuth",
+    issuer,
+    clientId,
+    scopes: __DEFAULT_OAUTH_SCOPES__ || undefined,
+    redirectUri: __DEFAULT_OAUTH_REDIRECT_URI__ || undefined,
+  };
+}
+
 // Provider presets surfaced in the UI dropdown. "custom" lets the admin type
 // any issuer URL.
 export interface OAuthProviderPreset {

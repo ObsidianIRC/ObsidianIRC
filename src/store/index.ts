@@ -10,6 +10,7 @@ import type {
   PrivateChat,
   Server,
   ServerConfig,
+  ServerOAuthConfig,
   User,
   WhoisData,
 } from "../types";
@@ -547,6 +548,7 @@ export interface AppState {
     registerEmail?: string,
     registerPassword?: string,
     isNewServer?: boolean,
+    oauthConfig?: ServerOAuthConfig,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
@@ -957,7 +959,8 @@ const useStore = create<AppState>((set, get) => ({
     registerAccount,
     registerEmail,
     registerPassword,
-    isNewServer = false,
+    isNewServer,
+    oauthConfig,
   ) => {
     // Check if already connected to this server
     const state = get();
@@ -985,9 +988,20 @@ const useStore = create<AppState>((set, get) => ({
         (s) => normalizeHost(s.host) === normalizeHost(host) && s.port === port,
       );
 
+      // Auth-handler reads OAuth out of localStorage when SASL fires, so
+      // persist any caller-supplied oauth config BEFORE opening the
+      // socket -- otherwise the first SASL turn would race past it.
+      const mergedOauth = oauthConfig ?? existingSavedServer?.oauth;
+      if (oauthConfig && existingSavedServer?.id) {
+        const pre = loadSavedServers();
+        const idx = pre.findIndex((s) => s.id === existingSavedServer.id);
+        if (idx !== -1) {
+          pre[idx] = { ...pre[idx], oauth: oauthConfig };
+          saveServersToLocalStorage(pre);
+        }
+      }
       const oauthBearerEnabled = !!(
-        existingSavedServer?.oauth?.enabled &&
-        existingSavedServer.oauth.accessToken
+        mergedOauth?.enabled && mergedOauth.accessToken
       );
       const server = await ircClient.connect(
         name,
@@ -1039,6 +1053,7 @@ const useStore = create<AppState>((set, get) => ({
         skipLinkSecurityWarning: savedServer?.skipLinkSecurityWarning,
         // Preserve existing addedAt timestamp or set current time for new servers
         addedAt: savedServer?.addedAt || Date.now(),
+        oauth: mergedOauth ?? savedServer?.oauth,
       });
       saveServersToLocalStorage(updatedServers);
 
