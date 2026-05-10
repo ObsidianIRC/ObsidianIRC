@@ -271,7 +271,6 @@ export const VoiceChannelView: React.FC<Props> = ({
                 onClick={() => setFocusNick(null)}
                 onSetMuted={setMemberMuted}
                 onSetVolume={setMemberVolume}
-                showVolumeSlider={isStreamRoom}
                 reactions={reactions
                   .filter((r) => r.nick === focusMember.nick)
                   .map((r) => ({ id: r.id, emoji: r.emoji }))}
@@ -289,7 +288,6 @@ export const VoiceChannelView: React.FC<Props> = ({
                       onClick={() => setFocusNick(m.nick)}
                       onSetMuted={setMemberMuted}
                       onSetVolume={setMemberVolume}
-                      showVolumeSlider={isStreamRoom}
                       reactions={reactions
                         .filter((r) => r.nick === m.nick)
                         .map((r) => ({ id: r.id, emoji: r.emoji }))}
@@ -311,7 +309,6 @@ export const VoiceChannelView: React.FC<Props> = ({
                   onClick={() => setFocusNick(m.nick)}
                   onSetMuted={setMemberMuted}
                   onSetVolume={setMemberVolume}
-                  showVolumeSlider={isStreamRoom}
                   reactions={reactions
                     .filter((r) => r.nick === m.nick)
                     .map((r) => ({ id: r.id, emoji: r.emoji }))}
@@ -518,7 +515,6 @@ function ParticipantTile({
   onClick,
   onSetMuted,
   onSetVolume,
-  showVolumeSlider,
   reactions,
   large,
 }: {
@@ -528,7 +524,6 @@ function ParticipantTile({
   onClick: () => void;
   onSetMuted: (nick: string, muted: boolean) => void;
   onSetVolume: (nick: string, volume: number) => void;
-  showVolumeSlider: boolean;
   reactions: Array<{ id: number; emoji: string }>;
   large?: boolean;
 }) {
@@ -633,7 +628,7 @@ function ParticipantTile({
         {member.deafened && (
           <FaVolumeMute className="text-discord-red flex-shrink-0" />
         )}
-        {!isSelf && showVolumeSlider && (
+        {!isSelf && (
           <input
             type="range"
             min={0}
@@ -647,7 +642,7 @@ function ParticipantTile({
             aria-label={`Volume for ${member.nick}`}
           />
         )}
-        {!isSelf && !showVolumeSlider && (
+        {!isSelf && (
           <button
             type="button"
             onClick={onMuteClick}
