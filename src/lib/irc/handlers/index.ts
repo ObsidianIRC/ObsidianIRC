@@ -67,6 +67,7 @@ import {
   handleMonOffline,
   handleMonOnline,
 } from "./monitoring";
+import { handleMarkread } from "./readMarker";
 import {
   handleAway,
   handleChghost,
@@ -295,6 +296,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleExtjwt(ctx, serverId, source, parv, mtags),
   PERSISTENCE: (ctx, serverId, source, parv, mtags) =>
     handlePersistence(ctx, serverId, source, parv, mtags),
+  MARKREAD: (ctx, serverId, source, parv, mtags) =>
+    handleMarkread(ctx, serverId, source, parv, mtags),
   CMDSLIST: (ctx, serverId, source, parv, mtags) =>
     handleCmdslist(ctx, serverId, source, parv, mtags),
 
