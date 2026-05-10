@@ -46,6 +46,12 @@ export interface Server {
   jwtToken?: string; // JWT token for filehost authentication
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // draft/persistence state (populated from PERSISTENCE STATUS replies).
+  // `preference` is what the user has explicitly set on this account
+  // (ON/OFF) or DEFAULT meaning "follow the server-wide default".
+  // `effective` is what the server is actually doing right now.
+  persistencePreference?: "ON" | "OFF" | "DEFAULT";
+  persistenceEffective?: "ON" | "OFF";
   // obsidianirc/cmdslist: lowercase set of commands this user can
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
@@ -65,7 +71,12 @@ export interface ServerConfig {
   saslEnabled: boolean;
   // "auto" prefers SCRAM-SHA-256 when the server advertises it and falls
   // back to PLAIN, "webauthn" uses DRAFT-WEBAUTHN-BIO directly.
-  saslMechanism?: "auto" | "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO";
+  saslMechanism?:
+    | "auto"
+    | "PLAIN"
+    | "SCRAM-SHA-256"
+    | "DRAFT-WEBAUTHN-BIO"
+    | "EXTERNAL";
   skipLinkSecurityWarning?: boolean;
   skipLocalhostWarning?: boolean;
   operUsername?: string;

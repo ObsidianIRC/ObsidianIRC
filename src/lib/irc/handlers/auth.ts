@@ -30,6 +30,15 @@ export function handleFail(
     target,
     message,
   });
+  // draft/account-recovery typed projections so components don't
+  // have to filter the FAIL stream by command on every render.
+  if (cmd === "RECOVER")
+    ctx.triggerEvent("RECOVER_FAIL", { serverId, mtags, code, message });
+  else if (cmd === "SETPASS")
+    ctx.triggerEvent("SETPASS_FAIL", { serverId, mtags, code, message });
+  // draft/persistence FAIL projection
+  else if (cmd === "PERSISTENCE")
+    ctx.triggerEvent("PERSISTENCE_FAIL", { serverId, mtags, code, message });
 }
 
 export function handleWarn(
@@ -74,6 +83,22 @@ export function handleNote(
   });
   if (cmd === "2FA") {
     ctx.triggerEvent("TWOFA_NOTE", {
+      serverId,
+      mtags,
+      code,
+      args: parv.slice(2),
+    });
+  }
+  // draft/account-recovery typed projections
+  if (cmd === "RECOVER") {
+    ctx.triggerEvent("RECOVER_NOTE", {
+      serverId,
+      mtags,
+      code,
+      args: parv.slice(2),
+    });
+  } else if (cmd === "SETPASS") {
+    ctx.triggerEvent("SETPASS_NOTE", {
       serverId,
       mtags,
       code,
@@ -189,4 +214,24 @@ export function handleExtjwt(
     serviceName,
     jwtToken,
   });
+}
+
+// draft/persistence: server reply to PERSISTENCE GET / SET
+//   :server PERSISTENCE STATUS <client-setting> <effective-setting>
+// where client-setting is ON | OFF | DEFAULT and effective is ON | OFF.
+export function handlePersistence(
+  ctx: IRCClientContext,
+  serverId: string,
+  _source: string,
+  parv: string[],
+  _mtags: Record<string, string> | undefined,
+): void {
+  const sub = parv[0]?.toUpperCase();
+  if (sub !== "STATUS") return;
+  const rawPref = (parv[1] ?? "").toUpperCase();
+  const rawEff = (parv[2] ?? "").toUpperCase();
+  const preference: "ON" | "OFF" | "DEFAULT" =
+    rawPref === "ON" || rawPref === "OFF" ? rawPref : "DEFAULT";
+  const effective: "ON" | "OFF" = rawEff === "ON" ? "ON" : "OFF";
+  ctx.triggerEvent("PERSISTENCE_STATUS", { serverId, preference, effective });
 }

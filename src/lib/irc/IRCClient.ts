@@ -254,6 +254,22 @@ export interface EventMap {
     code: string;
     args: string[];
   };
+  // draft/account-recovery: convenient typed projection of the
+  // generic NOTE/FAIL events for the RECOVER + SETPASS commands.
+  // The dispatch in handlers/auth.ts emits these alongside the
+  // generic NOTE/FAIL.
+  RECOVER_NOTE: EventWithTags & { code: string; args: string[] };
+  RECOVER_FAIL: EventWithTags & { code: string; message: string };
+  SETPASS_NOTE: EventWithTags & { code: string; args: string[] };
+  SETPASS_FAIL: EventWithTags & { code: string; message: string };
+  // draft/persistence: server reply
+  // `:server PERSISTENCE STATUS <client-setting> <effective-setting>`
+  // where each is one of ON | OFF | DEFAULT (effective is always ON|OFF).
+  PERSISTENCE_STATUS: BaseIRCEvent & {
+    preference: "ON" | "OFF" | "DEFAULT";
+    effective: "ON" | "OFF";
+  };
+  PERSISTENCE_FAIL: EventWithTags & { code: string; message: string };
   // obsidianirc/cmdslist: server is reporting an add/remove delta of
   // commands the user can invoke right now.  Ops are individual
   // tokens of the form "+cmd" or "-cmd" (multiple per wire line).
@@ -1338,6 +1354,32 @@ export class IRCClient implements IRCClientContext {
       ? `EXTJWT ${targetParam} ${serviceName}`
       : `EXTJWT ${targetParam}`;
     this.sendRaw(serverId, command);
+  }
+
+  // draft/account-recovery: forgotten-password flow.
+  recoverRequest(serverId: string, account: string): void {
+    this.sendRaw(serverId, `RECOVER REQUEST ${account}`);
+  }
+
+  recoverConfirm(serverId: string, account: string, code: string): void {
+    this.sendRaw(serverId, `RECOVER CONFIRM ${account} ${code}`);
+  }
+
+  // SETPASS lives in the same draft/account-recovery cap.  The new
+  // password is sent as the IRC trailing parameter so it MAY contain
+  // spaces (for passphrases).  No base64 -- the password is UTF-8.
+  setpass(serverId: string, newPassword: string): void {
+    this.sendRaw(serverId, `SETPASS :${newPassword}`);
+  }
+
+  // draft/persistence: read or set the per-account ghost-on-disconnect
+  // preference.  Server responds with PERSISTENCE STATUS.
+  persistenceGet(serverId: string): void {
+    this.sendRaw(serverId, "PERSISTENCE GET");
+  }
+
+  persistenceSet(serverId: string, value: "ON" | "OFF" | "DEFAULT"): void {
+    this.sendRaw(serverId, `PERSISTENCE SET ${value}`);
   }
 
   // MONITOR commands
