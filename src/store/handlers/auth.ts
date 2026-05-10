@@ -14,12 +14,21 @@ import {
   isWebAuthnAvailable,
   webauthnAssert,
 } from "../../lib/sasl/webauthn";
-import type { Message } from "../../types";
+import {
+  buildIrcv3BearerPayload,
+  chunkSaslPayload,
+} from "../../lib/saslFrames";
+import type { Message, ServerConfig, ServerOAuthConfig } from "../../types";
 import { normalizeHost } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
-type SaslMech = "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO" | "EXTERNAL";
+type SaslMech =
+  | "PLAIN"
+  | "SCRAM-SHA-256"
+  | "DRAFT-WEBAUTHN-BIO"
+  | "EXTERNAL"
+  | "IRCV3BEARER";
 
 interface SaslSession {
   mech: SaslMech;
@@ -27,6 +36,27 @@ interface SaslSession {
   password?: string;
   scram?: ScramState;
   step: number;
+  // IRCV3BEARER-only: the bearer token + framing hints we'll emit when
+  // the server says AUTHENTICATE +.
+  oauthBearer?: string;
+  oauthTokenKind?: "jwt" | "opaque";
+  oauthProvider?: string;
+}
+
+// OAuth path is active when the server has oauth.enabled AND we hold any
+// bearer token. We don't gate on local expiry: the server is the
+// authority, surfaces a useful 904 if the token is bad.
+function getActiveOauth(
+  serv: ServerConfig | undefined,
+): ServerOAuthConfig | undefined {
+  if (!serv?.oauth?.enabled) return undefined;
+  if (!serv.oauth.accessToken && !serv.oauth.idToken) return undefined;
+  return serv.oauth;
+}
+
+function pickBearer(oauth: ServerOAuthConfig): string | undefined {
+  if (oauth.tokenKind === "opaque") return oauth.accessToken;
+  return oauth.idToken ?? oauth.accessToken;
 }
 
 const sessions = new Map<string, SaslSession>();
@@ -100,20 +130,58 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     // to do when the server says "+".
     const servers = storage.servers.load();
     const serv = servers.find((s) => s.id === serverId);
+    const oauth = getActiveOauth(serv);
+    const bearer = oauth ? pickBearer(oauth) : undefined;
+    const available = ircClient.getSaslMechanisms(serverId);
+
+    // Pick the primary mech. Policy:
+    //   1. If a SASL password is configured AND an OAuth bearer is held,
+    //      use the password as primary (PLAIN/SCRAM) and let OAuth become
+    //      the second factor for the 2FA-REQUIRED step-up.
+    //   2. Else if only OAuth is configured, use IRCV3BEARER primary.
+    //   3. Else fall through to the existing PLAIN/SCRAM/WebAuthn path.
+    const hasPassword =
+      !!serv?.saslEnabled &&
+      Boolean(serv.saslAccountName?.length || serv.nickname) &&
+      Boolean(serv.saslPassword);
+    const hasOauth = !!(oauth && bearer && available.includes("IRCV3BEARER"));
+
+    if (hasOauth && !hasPassword) {
+      ircClient.setSaslEnabled(serverId, true);
+      sessions.set(serverId, {
+        mech: "IRCV3BEARER",
+        username: serv?.nickname ?? "",
+        step: 0,
+        oauthBearer: bearer,
+        oauthTokenKind: oauth.tokenKind === "opaque" ? "opaque" : "jwt",
+        oauthProvider: oauth.serverProvider,
+      });
+      ircClient.sendRaw(serverId, "AUTHENTICATE IRCV3BEARER");
+      return;
+    }
+
     if (!serv?.saslEnabled) return;
 
-    const available = ircClient.getSaslMechanisms(serverId);
     const mech = chooseMechanism(available, serv.saslMechanism);
     const username = serv.saslAccountName?.length
       ? serv.saslAccountName
       : serv.nickname;
     const password = serv.saslPassword ? atob(serv.saslPassword) : undefined;
 
+    // Stash OAuth context on the session so the 2FA-REQUIRED handler
+    // can autopilot the step-up without us having to re-read storage.
     sessions.set(serverId, {
       mech,
       username,
       password,
       step: 0,
+      oauthBearer: hasOauth ? bearer : undefined,
+      oauthTokenKind: hasOauth
+        ? oauth.tokenKind === "opaque"
+          ? "opaque"
+          : "jwt"
+        : undefined,
+      oauthProvider: hasOauth ? oauth.serverProvider : undefined,
     });
     ircClient.sendRaw(serverId, `AUTHENTICATE ${mech}`);
   });
@@ -124,6 +192,29 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     // Synthetic step-up signal from the server (draft/account-2fa).
     if (param === "2FA-REQUIRED") {
       const session = sessions.get(serverId);
+      // If primary was IRCV3BEARER, the OAuth bearer is already spent
+      // as the first factor -- replaying it for step-up is exactly
+      // the "same proof twice" failure the server rejects. Pop the
+      // TOTP/WebAuthn modal instead.
+      const bearer = session?.oauthBearer;
+      if (bearer && session.mech !== "IRCV3BEARER") {
+        // Step-up via IRCV3BEARER (the actual SASL mech name -- step-up
+        // and primary share the same mechanism, the server just routes
+        // by whether a stepup is in flight).
+        const isOpaque = session.oauthTokenKind === "opaque";
+        const b64 = buildIrcv3BearerPayload({
+          token: bearer,
+          tokenType: isOpaque ? "opaque" : "jwt",
+          authzid: isOpaque ? session.oauthProvider : undefined,
+        });
+        ircClient.sendRaw(serverId, "AUTHENTICATE IRCV3BEARER");
+        for (const chunk of chunkSaslPayload(b64)) {
+          ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
+        }
+        return;
+      }
+      // Otherwise pop the existing modal so the user can type a TOTP
+      // code or pick a different factor.
       const acct = session?.username ?? "";
       store.setState({ pendingTotpStepUp: { serverId, account: acct } });
       return;
@@ -150,6 +241,21 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
         // we reply with `+` to mean "use the identity already
         // established by the TLS cert".  No further frames.
         if (param === "+") ircClient.sendRaw(serverId, "AUTHENTICATE +");
+        return;
+      }
+
+      if (session.mech === "IRCV3BEARER") {
+        if (param !== "+") return;
+        if (!session.oauthBearer) return;
+        const isOpaque = session.oauthTokenKind === "opaque";
+        const b64 = buildIrcv3BearerPayload({
+          token: session.oauthBearer,
+          tokenType: isOpaque ? "opaque" : "jwt",
+          authzid: isOpaque ? session.oauthProvider : undefined,
+        });
+        for (const chunk of chunkSaslPayload(b64)) {
+          ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
+        }
         return;
       }
 
@@ -395,7 +501,12 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     if (caps.some((cap) => cap.startsWith("sasl"))) {
       const servers = storage.servers.load();
       const savedServer = servers.find((s) => s.id === serverId);
-      if (savedServer?.saslEnabled && savedServer?.saslPassword) {
+      const hasPlain =
+        savedServer?.saslEnabled && Boolean(savedServer?.saslPassword);
+      const hasOauth =
+        savedServer?.oauth?.enabled &&
+        Boolean(savedServer?.oauth?.accessToken || savedServer?.oauth?.idToken);
+      if (hasPlain || hasOauth) {
         preventCapEnd = true;
       }
     }
@@ -559,14 +670,26 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     if (key !== "draft/persistence") return;
     // Defer the GET until a tick later so SASL has had a chance to
     // complete; the server returns ACCOUNT_REQUIRED otherwise and
-    // we'd just have to retry.  A small delay is fine because the
-    // user can't open the settings panel before the modal is
-    // mounted anyway.
+    // we'd just have to retry.
     setTimeout(() => {
       const state = store.getState();
       const server = state.servers.find((s) => s.id === serverId);
       if (!server?.isConnected) return;
       ircClient.persistenceGet(serverId);
     }, 1500);
+  });
+  // obsidianirc/cmdslist: maintain a lowercase set of invocable
+  // commands per server.  Additions and removals can arrive in the
+  // same wire line, so apply both atomically.
+  ircClient.on("CMDSLIST", ({ serverId, additions, removals }) => {
+    store.setState((state) => ({
+      servers: state.servers.map((server) => {
+        if (server.id !== serverId) return server;
+        const next = new Set(server.cmdsAvailable ?? []);
+        for (const cmd of additions) next.add(cmd.toLowerCase());
+        for (const cmd of removals) next.delete(cmd.toLowerCase());
+        return { ...server, cmdsAvailable: Array.from(next).sort() };
+      }),
+    }));
   });
 }

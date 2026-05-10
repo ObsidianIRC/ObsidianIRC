@@ -10,6 +10,7 @@ import type {
   PrivateChat,
   Server,
   ServerConfig,
+  ServerOAuthConfig,
   User,
   WhoisData,
 } from "../types";
@@ -605,6 +606,7 @@ export interface AppState {
     registerEmail?: string,
     registerPassword?: string,
     isNewServer?: boolean,
+    oauthConfig?: ServerOAuthConfig,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
@@ -626,12 +628,28 @@ export interface AppState {
   // 2FA actions
   twofaStatusQuery: (serverId: string) => void;
   twofaListQuery: (serverId: string) => void;
-  twofaChallenge: (serverId: string, type: string) => void;
+  twofaChallenge: (serverId: string, type: string, arg?: string) => void;
+  // /2FA TOKEN :<chunk> -- streams an OAuth bearer to the server during
+  // an oauth enrolment session (since JWTs blow past the 512-byte IRC
+  // line limit).
+  twofaToken: (serverId: string, chunk: string) => void;
+  // High-level helper: take the OAuth bearer token we already obtained
+  // via the popup flow, run the full /2FA CHALLENGE oauth <provider> →
+  // /2FA TOKEN :<chunked> → /2FA ADD oauth <name> sequence.
+  linkOauthCredential: (
+    serverId: string,
+    provider: string,
+    bearerToken: string,
+    name: string,
+  ) => void;
   twofaAdd: (
     serverId: string,
     type: string,
     name: string,
-    data: string,
+    // OAuth ADD finalizes a previously-streamed token, so it has no
+    // inline data argument. TOTP/WebAuthn/external pass the credential
+    // payload here.
+    data?: string,
   ) => void;
   twofaRemove: (serverId: string, id: string) => void;
   twofaEnable: (serverId: string) => void;
@@ -1051,7 +1069,8 @@ const useStore = create<AppState>((set, get) => ({
     registerAccount,
     registerEmail,
     registerPassword,
-    isNewServer = false,
+    isNewServer,
+    oauthConfig,
   ) => {
     // Check if already connected to this server
     const state = get();
@@ -1079,6 +1098,22 @@ const useStore = create<AppState>((set, get) => ({
         (s) => normalizeHost(s.host) === normalizeHost(host) && s.port === port,
       );
 
+      // Auth-handler reads OAuth out of localStorage when SASL fires, so
+      // persist any caller-supplied oauth config BEFORE opening the
+      // socket -- otherwise the first SASL turn would race past it.
+      const mergedOauth = oauthConfig ?? existingSavedServer?.oauth;
+      if (oauthConfig && existingSavedServer?.id) {
+        const pre = loadSavedServers();
+        const idx = pre.findIndex((s) => s.id === existingSavedServer.id);
+        if (idx !== -1) {
+          pre[idx] = { ...pre[idx], oauth: oauthConfig };
+          saveServersToLocalStorage(pre);
+        }
+      }
+      const oauthBearerEnabled = !!(
+        mergedOauth?.enabled &&
+        (mergedOauth.accessToken || mergedOauth.idToken)
+      );
       const server = await ircClient.connect(
         name,
         host,
@@ -1088,6 +1123,7 @@ const useStore = create<AppState>((set, get) => ({
         saslAccountName,
         saslPassword,
         existingSavedServer?.id, // Pass the saved server ID if it exists
+        oauthBearerEnabled,
       );
 
       // Save server to localStorage
@@ -1128,6 +1164,7 @@ const useStore = create<AppState>((set, get) => ({
         skipLinkSecurityWarning: savedServer?.skipLinkSecurityWarning,
         // Preserve existing addedAt timestamp or set current time for new servers
         addedAt: savedServer?.addedAt || Date.now(),
+        oauth: mergedOauth ?? savedServer?.oauth,
       });
       saveServersToLocalStorage(updatedServers);
 
@@ -1468,11 +1505,40 @@ const useStore = create<AppState>((set, get) => ({
     }));
     ircClient.sendRaw(serverId, "2FA LIST");
   },
-  twofaChallenge: (serverId, type) => {
-    ircClient.sendRaw(serverId, `2FA CHALLENGE ${type}`);
+  twofaChallenge: (serverId, type, arg) => {
+    if (arg) {
+      ircClient.sendRaw(serverId, `2FA CHALLENGE ${type} ${arg}`);
+    } else {
+      ircClient.sendRaw(serverId, `2FA CHALLENGE ${type}`);
+    }
+  },
+  twofaToken: (serverId, chunk) => {
+    // The trailing-param form lets the chunk hold any printable byte
+    // including spaces and `=` -- IRC parsers treat everything after
+    // the first " :" as one parameter.
+    ircClient.sendRaw(serverId, `2FA TOKEN :${chunk}`);
+  },
+  linkOauthCredential: (serverId, provider, bearerToken, name) => {
+    // Order matches the obbyircd handler: open a session pinned to the
+    // provider, stream the bearer in <=400-byte chunks, then finalize
+    // by name. The server validates the buffered token (via JWKS or the
+    // userinfo endpoint depending on provider config) inside ADD.
+    ircClient.sendRaw(serverId, `2FA CHALLENGE oauth ${provider}`);
+    const CHUNK = 400;
+    for (let i = 0; i < bearerToken.length; i += CHUNK) {
+      ircClient.sendRaw(
+        serverId,
+        `2FA TOKEN :${bearerToken.slice(i, i + CHUNK)}`,
+      );
+    }
+    ircClient.sendRaw(serverId, `2FA ADD oauth ${name}`);
   },
   twofaAdd: (serverId, type, name, data) => {
-    ircClient.sendRaw(serverId, `2FA ADD ${type} ${name} ${data}`);
+    if (data === undefined) {
+      ircClient.sendRaw(serverId, `2FA ADD ${type} ${name}`);
+    } else {
+      ircClient.sendRaw(serverId, `2FA ADD ${type} ${name} ${data}`);
+    }
   },
   twofaRemove: (serverId, id) => {
     ircClient.sendRaw(serverId, `2FA REMOVE ${id}`);
@@ -1731,7 +1797,55 @@ const useStore = create<AppState>((set, get) => ({
         server?.privateChats?.find((pc) => pc.id === selectedPrivateChatId)
           ?.username || null;
 
+      // When the user switches *to* a server, the channel or PM that
+      // restores into focus has now been "looked at" -- clear its
+      // unread / mention indicators.  Without this the badge sticks
+      // on the just-foregrounded buffer until the user clicks somewhere
+      // else and back.
+      let updatedServers = state.servers;
+      if (selectedChannelId || selectedPrivateChatId) {
+        updatedServers = state.servers.map((s) => {
+          if (s.id !== serverId) return s;
+          let touched = false;
+          const channels = s.channels.map((ch) => {
+            if (ch.id !== selectedChannelId) return ch;
+            if (
+              ch.unreadCount === 0 &&
+              !ch.isMentioned &&
+              (ch.mentionCount ?? 0) === 0
+            )
+              return ch;
+            touched = true;
+            return {
+              ...ch,
+              unreadCount: 0,
+              mentionCount: 0,
+              isMentioned: false,
+            };
+          });
+          const privateChats = s.privateChats?.map((pc) => {
+            if (pc.id !== selectedPrivateChatId) return pc;
+            if (
+              pc.unreadCount === 0 &&
+              !pc.isMentioned &&
+              (pc.mentionCount ?? 0) === 0
+            )
+              return pc;
+            touched = true;
+            return {
+              ...pc,
+              unreadCount: 0,
+              mentionCount: 0,
+              isMentioned: false,
+            };
+          });
+          if (!touched) return s;
+          return { ...s, channels, privateChats };
+        });
+      }
+
       return {
+        servers: updatedServers,
         ui: {
           ...state.ui,
           selectedServerId: serverId,
@@ -1836,6 +1950,7 @@ const useStore = create<AppState>((set, get) => ({
                 return {
                   ...channel,
                   unreadCount: 0,
+                  mentionCount: 0,
                   isMentioned: false,
                 };
               }
@@ -1923,6 +2038,7 @@ const useStore = create<AppState>((set, get) => ({
               return {
                 ...channel,
                 unreadCount: 0,
+                mentionCount: 0,
                 isMentioned: false,
               };
             }
@@ -2042,6 +2158,7 @@ const useStore = create<AppState>((set, get) => ({
                   return {
                     ...privateChat,
                     unreadCount: 0,
+                    mentionCount: 0,
                     isMentioned: false,
                     // Mark as fetched so we don't spam GETs on every
                     // re-selection of the same PM.  The reply will

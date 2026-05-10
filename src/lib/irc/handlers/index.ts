@@ -29,6 +29,7 @@ import {
   handleRplTopicWhoTime,
   handleTopic,
 } from "./channels";
+import { handleCmdslist } from "./cmdslist";
 import {
   handleCap,
   handleError,
@@ -297,6 +298,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handlePersistence(ctx, serverId, source, parv, mtags),
   MARKREAD: (ctx, serverId, source, parv, mtags) =>
     handleMarkread(ctx, serverId, source, parv, mtags),
+  CMDSLIST: (ctx, serverId, source, parv, mtags) =>
+    handleCmdslist(ctx, serverId, source, parv, mtags),
 
   "730": (ctx, serverId, source, parv, mtags) =>
     handleMonOnline(ctx, serverId, source, parv, mtags),

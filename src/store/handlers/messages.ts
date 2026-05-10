@@ -151,6 +151,8 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                     return {
                       ...ch,
                       unreadCount: ch.unreadCount + 1,
+                      mentionCount:
+                        (ch.mentionCount ?? 0) + (hasMention ? 1 : 0),
                       isMentioned: hasMention || ch.isMentioned,
                     };
                   }
@@ -906,13 +908,12 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                     const isActive =
                       getCurrentSelection(state).selectedPrivateChatId ===
                       pc.id;
+                    const reset = isActive || isHistoricalMessage;
                     return {
                       ...pc,
                       lastActivity: new Date(),
-                      unreadCount:
-                        isActive || isHistoricalMessage
-                          ? 0
-                          : pc.unreadCount + 1,
+                      unreadCount: reset ? 0 : pc.unreadCount + 1,
+                      mentionCount: reset ? 0 : (pc.mentionCount ?? 0) + 1,
                       isMentioned: !isHistoricalMessage && true, // All PMs are considered mentions (except historical)
                     };
                   }
@@ -1337,11 +1338,12 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                 if (pc.id === privateChat.id) {
                   const isActive =
                     getCurrentSelection(state).selectedPrivateChatId === pc.id;
+                  const reset = isActive || isHistoricalMessage;
                   return {
                     ...pc,
                     lastActivity: new Date(),
-                    unreadCount:
-                      isActive || isHistoricalMessage ? 0 : pc.unreadCount + 1,
+                    unreadCount: reset ? 0 : pc.unreadCount + 1,
+                    mentionCount: reset ? 0 : (pc.mentionCount ?? 0) + 1,
                     isMentioned: !isHistoricalMessage && true, // All PMs are considered mentions (except historical)
                   };
                 }

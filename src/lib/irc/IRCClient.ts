@@ -282,6 +282,13 @@ export interface EventMap {
     target?: string;
     message: string;
   };
+  // obsidianirc/cmdslist: server is reporting an add/remove delta of
+  // commands the user can invoke right now.  Ops are individual
+  // tokens of the form "+cmd" or "-cmd" (multiple per wire line).
+  CMDSLIST: BaseIRCEvent & {
+    additions: string[];
+    removals: string[];
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -509,6 +516,7 @@ export class IRCClient implements IRCClientContext {
     "monitor",
     "extended-monitor",
     "draft/read-marker",
+    "obsidianirc/cmdslist",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -527,6 +535,7 @@ export class IRCClient implements IRCClientContext {
     _saslAccountName?: string,
     _saslPassword?: string,
     serverId?: string,
+    oauthBearerEnabled?: boolean,
   ): Promise<Server> {
     const connectionKey = `${host}:${port}`;
 
@@ -635,8 +644,20 @@ export class IRCClient implements IRCClientContext {
         saslAccountName: _saslAccountName,
         saslPassword: _saslPassword,
       });
-      // Only enable SASL if we have both account name AND password
-      this.saslEnabled.set(server.id, !!(_saslAccountName && _saslPassword));
+      // Enable SASL if we have either PLAIN credentials or an OAuth bearer
+      // path. OAuth path is signaled by the caller; tokens themselves are
+      // read from storage by the auth handler at AUTHENTICATE time. On
+      // internal reconnect (oauthBearerEnabled === undefined) preserve the
+      // previously-set value so the OAuth flag survives reconnects.
+      const priorSaslEnabled = this.saslEnabled.get(server.id) ?? false;
+      const wantOauth =
+        oauthBearerEnabled === undefined
+          ? priorSaslEnabled
+          : !!oauthBearerEnabled;
+      this.saslEnabled.set(
+        server.id,
+        !!(_saslAccountName && _saslPassword) || wantOauth,
+      );
 
       // Store SASL credentials if provided
       if (_saslAccountName && _saslPassword) {
@@ -1427,6 +1448,13 @@ export class IRCClient implements IRCClientContext {
 
   capAck(serverId: string, key: string, capabilities: string): void {
     this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, key, capabilities });
+  }
+
+  // Allow handlers (e.g. the OAuth path) to flip the SASL-pending flag
+  // before onCapAck's auto-send-CAP-END check runs. Called from the
+  // CAP_ACKNOWLEDGED listener that initiates AUTHENTICATE IRCV3BEARER.
+  setSaslEnabled(serverId: string, enabled: boolean): void {
+    this.saslEnabled.set(serverId, enabled);
   }
 
   capEnd(_serverId: string) {}
