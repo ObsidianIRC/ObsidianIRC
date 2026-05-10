@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { isUrlFromFilehost } from "../../lib/ircUtils";
+import { isUrlFromTrustedSource } from "../../lib/ircUtils";
 import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import useStore from "../../store";
 
@@ -40,13 +40,11 @@ export const MessageAvatar: React.FC<MessageAvatarProps> = ({
     ? useStore.getState().servers.find((s) => s.id === serverId)
     : null;
 
-  const isFilehostAvatar =
-    avatarUrl &&
-    server?.filehost &&
-    isUrlFromFilehost(avatarUrl, server.filehost);
+  const isTrustedAvatar =
+    avatarUrl && isUrlFromTrustedSource(avatarUrl, server?.filehost);
   const shouldShowAvatar =
     avatarUrl &&
-    ((isFilehostAvatar && showSafeMedia) ||
+    ((isTrustedAvatar && showSafeMedia) ||
       showTrustedSourcesMedia ||
       showExternalContent);
 

@@ -56,7 +56,8 @@ async function tryHttpFetch(
     clearTimeout(timer);
     const ct = (response.headers.get("Content-Type") ?? "")
       .split(";")[0]
-      .trim();
+      .trim()
+      .toLowerCase();
     if (!ct) return null;
     const lengthHeader = response.headers.get("Content-Length");
     const contentLength =

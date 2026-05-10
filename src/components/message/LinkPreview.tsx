@@ -1,5 +1,7 @@
 import type React from "react";
 import { useState } from "react";
+import { isUrlFromTrustedSource } from "../../lib/ircUtils";
+import { mediaLevelToSettings } from "../../lib/mediaUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
 import { openExternalUrl } from "../../lib/openUrl";
 import useStore from "../../store";
@@ -11,6 +13,7 @@ interface LinkPreviewProps {
   imageUrl?: string;
   theme: string;
   messageContent: string;
+  serverId?: string;
 }
 
 export const LinkPreview: React.FC<LinkPreviewProps> = ({
@@ -19,11 +22,16 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
   imageUrl,
   theme,
   messageContent,
+  serverId,
 }) => {
   const [showWarningModal, setShowWarningModal] = useState(false);
 
-  const showExternalContent =
-    useStore((state) => state.globalSettings.mediaVisibilityLevel) >= 3;
+  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+    useStore((state) => state.globalSettings.mediaVisibilityLevel),
+  );
+  const server = serverId
+    ? useStore.getState().servers.find((s) => s.id === serverId)
+    : null;
 
   // Don't render if there's no content to show
   if (!title && !snippet && !imageUrl) {
@@ -36,6 +44,13 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
   const urlRegex = /\b(?:https?):\/\/[^\s<>"']+/i;
   const match = cleanContent.match(urlRegex);
   const firstUrl = match ? match[0] : undefined;
+
+  // Check if image is from a trusted source (server filehost or globally configured trusted URLs)
+  const isTrustedImage =
+    imageUrl && isUrlFromTrustedSource(imageUrl, server?.filehost);
+  // Show image if it's from a trusted source and safe media is enabled, or if external content is allowed
+  const shouldShowImage =
+    imageUrl && ((isTrustedImage && showSafeMedia) || showExternalContent);
 
   const handleClick = () => {
     if (firstUrl) {
@@ -76,7 +91,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
         }}
       >
         <div className="flex items-start h-full">
-          {imageUrl && showExternalContent && (
+          {shouldShowImage && (
             <div
               className="relative inline-block h-full"
               style={{ verticalAlign: "top" }}

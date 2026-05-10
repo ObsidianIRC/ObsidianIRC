@@ -52,6 +52,10 @@ export interface Server {
   // `effective` is what the server is actually doing right now.
   persistencePreference?: "ON" | "OFF" | "DEFAULT";
   persistenceEffective?: "ON" | "OFF";
+  // obsidianirc/cmdslist: lowercase set of commands this user can
+  // currently invoke on this server.  Used to drive the slash-command
+  // suggestion popover.  undefined = the cap is not negotiated.
+  cmdsAvailable?: string[];
 }
 
 export interface ServerConfig {
@@ -79,6 +83,38 @@ export interface ServerConfig {
   operPassword?: string;
   operOnConnect?: boolean;
   addedAt?: number; // Timestamp when server was added (ms since epoch)
+  oauth?: ServerOAuthConfig;
+}
+
+export interface ServerOAuthConfig {
+  enabled: boolean;
+  providerLabel: string;
+  issuer: string;
+  clientId: string;
+  scopes?: string;
+  redirectUri?: string;
+  accessToken?: string;
+  idToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: number;
+  // "jwt" (default): the IRC server validates the bearer locally against
+  // its JWKS. The client sends idToken (preferred) or accessToken,
+  // whichever is a JWT. Works for Logto, Auth0, Keycloak, Okta, Google
+  // (id_token), Microsoft (id_token).
+  // "opaque": the IRC server hits the IdP's userinfo endpoint to resolve
+  // the bearer. The client sends accessToken plus a `serverProvider`
+  // hint so the server knows which oauth-provider {} block to consult.
+  // Required for GitHub, Discord, Slack, Reddit, Twitter.
+  tokenKind?: "jwt" | "opaque";
+  // Name the IRC server admin gave to the matching oauth-provider {}
+  // block. Sent as the IRCV3BEARER authzid (or OAUTHBEARER `provider=`
+  // k/v) in opaque mode so the server can pick the right userinfo URL.
+  serverProvider?: string;
+  // Manual auth/token endpoint overrides for non-OIDC providers like
+  // GitHub that don't publish a /.well-known/openid-configuration.
+  // When both are set, OIDC discovery is skipped.
+  authorizeEndpoint?: string;
+  tokenEndpoint?: string;
 }
 
 export interface Channel {
@@ -88,6 +124,11 @@ export interface Channel {
   isPrivate: boolean;
   serverId: string;
   unreadCount: number;
+  // Number of *highlight* events since the channel was last marked
+  // read.  Distinct from unreadCount (every message) so the badge
+  // can show "you were pinged 3 times" instead of "33 messages
+  // happened since your first ping".
+  mentionCount?: number;
   isMentioned: boolean;
   messages: Message[];
   users: User[];
@@ -109,6 +150,8 @@ export interface PrivateChat {
   username: string;
   serverId: string;
   unreadCount: number;
+  // Highlight counter (PMs always count as mentions; this is per-PM).
+  mentionCount?: number;
   isMentioned: boolean;
   lastActivity?: Date;
   isPinned?: boolean;
