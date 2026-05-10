@@ -158,24 +158,28 @@ export interface EventMap {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   WARN: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   NOTE: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   SUCCESS: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   REGISTER_SUCCESS: EventWithTags & {
