@@ -599,12 +599,28 @@ export interface AppState {
   // 2FA actions
   twofaStatusQuery: (serverId: string) => void;
   twofaListQuery: (serverId: string) => void;
-  twofaChallenge: (serverId: string, type: string) => void;
+  twofaChallenge: (serverId: string, type: string, arg?: string) => void;
+  // /2FA TOKEN :<chunk> -- streams an OAuth bearer to the server during
+  // an oauth enrolment session (since JWTs blow past the 512-byte IRC
+  // line limit).
+  twofaToken: (serverId: string, chunk: string) => void;
+  // High-level helper: take the OAuth bearer token we already obtained
+  // via the popup flow, run the full /2FA CHALLENGE oauth <provider> →
+  // /2FA TOKEN :<chunked> → /2FA ADD oauth <name> sequence.
+  linkOauthCredential: (
+    serverId: string,
+    provider: string,
+    bearerToken: string,
+    name: string,
+  ) => void;
   twofaAdd: (
     serverId: string,
     type: string,
     name: string,
-    data: string,
+    // OAuth ADD finalizes a previously-streamed token, so it has no
+    // inline data argument. TOTP/WebAuthn/external pass the credential
+    // payload here.
+    data?: string,
   ) => void;
   twofaRemove: (serverId: string, id: string) => void;
   twofaEnable: (serverId: string) => void;
@@ -1460,11 +1476,40 @@ const useStore = create<AppState>((set, get) => ({
     }));
     ircClient.sendRaw(serverId, "2FA LIST");
   },
-  twofaChallenge: (serverId, type) => {
-    ircClient.sendRaw(serverId, `2FA CHALLENGE ${type}`);
+  twofaChallenge: (serverId, type, arg) => {
+    if (arg) {
+      ircClient.sendRaw(serverId, `2FA CHALLENGE ${type} ${arg}`);
+    } else {
+      ircClient.sendRaw(serverId, `2FA CHALLENGE ${type}`);
+    }
+  },
+  twofaToken: (serverId, chunk) => {
+    // The trailing-param form lets the chunk hold any printable byte
+    // including spaces and `=` -- IRC parsers treat everything after
+    // the first " :" as one parameter.
+    ircClient.sendRaw(serverId, `2FA TOKEN :${chunk}`);
+  },
+  linkOauthCredential: (serverId, provider, bearerToken, name) => {
+    // Order matches the obbyircd handler: open a session pinned to the
+    // provider, stream the bearer in <=400-byte chunks, then finalize
+    // by name. The server validates the buffered token (via JWKS or the
+    // userinfo endpoint depending on provider config) inside ADD.
+    ircClient.sendRaw(serverId, `2FA CHALLENGE oauth ${provider}`);
+    const CHUNK = 400;
+    for (let i = 0; i < bearerToken.length; i += CHUNK) {
+      ircClient.sendRaw(
+        serverId,
+        `2FA TOKEN :${bearerToken.slice(i, i + CHUNK)}`,
+      );
+    }
+    ircClient.sendRaw(serverId, `2FA ADD oauth ${name}`);
   },
   twofaAdd: (serverId, type, name, data) => {
-    ircClient.sendRaw(serverId, `2FA ADD ${type} ${name} ${data}`);
+    if (data === undefined) {
+      ircClient.sendRaw(serverId, `2FA ADD ${type} ${name}`);
+    } else {
+      ircClient.sendRaw(serverId, `2FA ADD ${type} ${name} ${data}`);
+    }
   },
   twofaRemove: (serverId, id) => {
     ircClient.sendRaw(serverId, `2FA REMOVE ${id}`);

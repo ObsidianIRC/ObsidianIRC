@@ -123,9 +123,19 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     const bearer = oauth ? pickBearer(oauth) : undefined;
     const available = ircClient.getSaslMechanisms(serverId);
 
-    // Prefer the OAuth bearer path when one is configured AND the server
-    // advertises IRCV3BEARER. Falls through to PLAIN/SCRAM/WebAuthn.
-    if (oauth && bearer && available.includes("IRCV3BEARER")) {
+    // Pick the primary mech. Policy:
+    //   1. If a SASL password is configured AND an OAuth bearer is held,
+    //      use the password as primary (PLAIN/SCRAM) and let OAuth become
+    //      the second factor for the 2FA-REQUIRED step-up.
+    //   2. Else if only OAuth is configured, use IRCV3BEARER primary.
+    //   3. Else fall through to the existing PLAIN/SCRAM/WebAuthn path.
+    const hasPassword =
+      !!serv?.saslEnabled &&
+      Boolean(serv.saslAccountName?.length || serv.nickname) &&
+      Boolean(serv.saslPassword);
+    const hasOauth = !!(oauth && bearer && available.includes("IRCV3BEARER"));
+
+    if (hasOauth && !hasPassword) {
       ircClient.setSaslEnabled(serverId, true);
       sessions.set(serverId, {
         mech: "IRCV3BEARER",
@@ -147,11 +157,20 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       : serv.nickname;
     const password = serv.saslPassword ? atob(serv.saslPassword) : undefined;
 
+    // Stash OAuth context on the session so the 2FA-REQUIRED handler
+    // can autopilot the step-up without us having to re-read storage.
     sessions.set(serverId, {
       mech,
       username,
       password,
       step: 0,
+      oauthBearer: hasOauth ? bearer : undefined,
+      oauthTokenKind: hasOauth
+        ? oauth.tokenKind === "opaque"
+          ? "opaque"
+          : "jwt"
+        : undefined,
+      oauthProvider: hasOauth ? oauth.serverProvider : undefined,
     });
     ircClient.sendRaw(serverId, `AUTHENTICATE ${mech}`);
   });
@@ -162,6 +181,29 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     // Synthetic step-up signal from the server (draft/account-2fa).
     if (param === "2FA-REQUIRED") {
       const session = sessions.get(serverId);
+      // If primary was IRCV3BEARER, the OAuth bearer is already spent
+      // as the first factor -- replaying it for step-up is exactly
+      // the "same proof twice" failure the server rejects. Pop the
+      // TOTP/WebAuthn modal instead.
+      const bearer = session?.oauthBearer;
+      if (bearer && session.mech !== "IRCV3BEARER") {
+        // Step-up via IRCV3BEARER (the actual SASL mech name -- step-up
+        // and primary share the same mechanism, the server just routes
+        // by whether a stepup is in flight).
+        const isOpaque = session.oauthTokenKind === "opaque";
+        const b64 = buildIrcv3BearerPayload({
+          token: bearer,
+          tokenType: isOpaque ? "opaque" : "jwt",
+          authzid: isOpaque ? session.oauthProvider : undefined,
+        });
+        ircClient.sendRaw(serverId, "AUTHENTICATE IRCV3BEARER");
+        for (const chunk of chunkSaslPayload(b64)) {
+          ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
+        }
+        return;
+      }
+      // Otherwise pop the existing modal so the user can type a TOTP
+      // code or pick a different factor.
       const acct = session?.username ?? "";
       store.setState({ pendingTotpStepUp: { serverId, account: acct } });
       return;

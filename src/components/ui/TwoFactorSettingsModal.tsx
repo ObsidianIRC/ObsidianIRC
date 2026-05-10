@@ -2,16 +2,23 @@ import QRCode from "qrcode";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  beginOauthLogin,
+  getBuiltinOAuthConfig,
+  OAUTH_PRESETS,
+} from "../../lib/oauth";
+import {
   b64StdDecode,
   bytesToB64Std,
   isWebAuthnAvailable,
   webauthnRegister,
 } from "../../lib/sasl/webauthn";
-import useStore from "../../store";
+import useStore, { loadSavedServers } from "../../store";
 
 const TYPE_LABELS: Record<string, string> = {
   totp: "Authenticator app (TOTP)",
   webauthn: "Biometric / security key",
+  oauth: "OAuth identity",
+  external: "TLS certificate fingerprint",
 };
 
 function decodeChallenge(blob: string): unknown {
@@ -46,6 +53,24 @@ export const TwoFactorSettingsModal: React.FC<Props> = ({
   const twofaRemove = useStore((s) => s.twofaRemove);
   const twofaEnable = useStore((s) => s.twofaEnable);
   const twofaDisable = useStore((s) => s.twofaDisable);
+  const linkOauthCredential = useStore((s) => s.linkOauthCredential);
+
+  // OAuth identity providers the admin has surfaced. In a build with
+  // VITE_HIDE_SERVER_LIST + VITE_DEFAULT_OAUTH_* set, there's exactly
+  // one (the deployer's pinned provider). In a multi-server build we
+  // pull the per-server config from localStorage. Either way the shape
+  // we need is just `{ providerLabel, serverProvider, ... }`.
+  const oauthProviders = useMemo(() => {
+    const builtin = __HIDE_SERVER_LIST__ ? getBuiltinOAuthConfig() : undefined;
+    if (builtin) return [builtin];
+    const saved = loadSavedServers().find((s) => s.id === serverId);
+    if (saved?.oauth?.enabled && saved.oauth.issuer && saved.oauth.clientId) {
+      return [saved.oauth];
+    }
+    return [];
+  }, [serverId]);
+  const [oauthBusy, setOauthBusy] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
 
   const supportsWebAuthn =
     server?.capabilities?.some(
@@ -99,6 +124,48 @@ export const TwoFactorSettingsModal: React.FC<Props> = ({
     setEnrollName("");
     setEnrollCode("");
     twofaChallenge(serverId, "totp");
+  };
+
+  // "Link with <provider>" -- runs the popup OAuth flow to grab a fresh
+  // bearer, then fires the /2FA CHALLENGE oauth + /2FA TOKEN + /2FA ADD
+  // sequence so the server stores the resulting (provider, subject) row
+  // against this account.
+  const onLinkOauth = async (
+    provider: (typeof oauthProviders)[number],
+    name: string,
+  ) => {
+    setOauthError(null);
+    const tag = provider.serverProvider || provider.providerLabel;
+    setOauthBusy(tag);
+    try {
+      const result = await beginOauthLogin({
+        issuer: provider.issuer,
+        clientId: provider.clientId,
+        scopes: provider.scopes || undefined,
+        redirectUri: provider.redirectUri || undefined,
+        authorizeEndpoint: provider.authorizeEndpoint || undefined,
+        tokenEndpoint: provider.tokenEndpoint || undefined,
+      });
+      const isOpaque = provider.tokenKind === "opaque";
+      const bearer = isOpaque
+        ? result.accessToken
+        : (result.idToken ?? result.accessToken);
+      if (!bearer) throw new Error("Provider returned no bearer token.");
+      const serverProvider =
+        provider.serverProvider ||
+        // Fall back to the preset id (e.g. "github") so the obbyircd
+        // oauth-provider {} block name lines up with what the user
+        // probably typed on the server.
+        OAUTH_PRESETS.find(
+          (p) => p.label.toLowerCase() === provider.providerLabel.toLowerCase(),
+        )?.id ||
+        provider.providerLabel.toLowerCase();
+      linkOauthCredential(serverId, serverProvider, bearer, name);
+    } catch (err) {
+      setOauthError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setOauthBusy(null);
+    }
   };
 
   const onAddWebAuthn = async () => {
@@ -329,6 +396,43 @@ export const TwoFactorSettingsModal: React.FC<Props> = ({
             Add biometric / security key
           </button>
         </div>
+
+        {oauthProviders.length > 0 && (
+          <div className="mb-4 p-3 rounded bg-discord-dark-300 space-y-2">
+            <div className="text-sm text-white font-medium">
+              Link an OAuth identity
+            </div>
+            <p className="text-xs text-discord-text-muted">
+              Sign in with the provider, then we'll bind the resulting identity
+              to your account so SASL OAUTHBEARER / IRCV3BEARER works on
+              subsequent connections.
+            </p>
+            {oauthProviders.map((p) => {
+              const tag = p.serverProvider || p.providerLabel;
+              const busy = oauthBusy === tag;
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onLinkOauth(p, p.providerLabel.toLowerCase())}
+                  className={`w-full px-3 py-2 rounded text-white text-sm font-medium ${
+                    busy
+                      ? "bg-gray-600 cursor-not-allowed"
+                      : "bg-discord-primary hover:bg-opacity-80"
+                  }`}
+                >
+                  {busy
+                    ? "Waiting for sign-in..."
+                    : `Link with ${p.providerLabel}`}
+                </button>
+              );
+            })}
+            {oauthError && (
+              <p className="text-discord-red text-xs">{oauthError}</p>
+            )}
+          </div>
+        )}
 
         {inflightTotp && qrSvg && (
           <form
