@@ -245,6 +245,13 @@ export interface EventMap {
     serviceName: string;
     jwtToken: string;
   };
+  // obsidianirc/cmdslist: server is reporting an add/remove delta of
+  // commands the user can invoke right now.  Ops are individual
+  // tokens of the form "+cmd" or "-cmd" (multiple per wire line).
+  CMDSLIST: BaseIRCEvent & {
+    additions: string[];
+    removals: string[];
+  };
   WHOIS_BOT: {
     serverId: string;
     nick: string;
@@ -472,6 +479,7 @@ export class IRCClient implements IRCClientContext {
     "monitor",
     "extended-monitor",
     "obsidianirc/voice",
+    "obsidianirc/cmdslist",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
