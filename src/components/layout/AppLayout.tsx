@@ -217,25 +217,18 @@ export const AppLayout: React.FC = () => {
             className={`${isNarrowView ? "w-full" : "flex-grow"} h-full bg-discord-dark-200 flex flex-col min-w-0 z-10`}
           >
             {(() => {
-              const isStreamChan =
-                !!selectedChannel?.name.startsWith("$") &&
-                !!selectedServerId &&
-                !!selectedChannel;
-              const isVoiceOnly =
-                !!selectedChannel?.name.startsWith("^") &&
-                !!selectedServerId &&
-                !!selectedChannel;
-              if (isStreamChan) {
-                // $-channels: streamer/viewer video on top, regular IRC
-                // chat underneath. The chat is the same ChatArea every
-                // text channel uses -- the IRCd treats $foo like any
-                // other channel for PRIVMSG.
+              // Both `^` (voice) and `$` (stream) channels use the same
+              // split layout: VoiceChannelView on top, the regular text
+              // ChatArea below. The IRCd treats both like any other
+              // channel for PRIVMSG, so chat is just the standard
+              // ChatArea wired to the same channel id.
+              if (isVoiceChannel && selectedServerId && selectedChannel) {
                 return (
                   <div className="flex flex-col h-full">
                     <div className="flex-[3] min-h-0 border-b border-discord-dark-300">
                       <VoiceChannelView
-                        serverId={selectedServerId as string}
-                        channelName={(selectedChannel as { name: string }).name}
+                        serverId={selectedServerId}
+                        channelName={selectedChannel.name}
                       />
                     </div>
                     <div className="flex-[2] min-h-0">
@@ -251,14 +244,6 @@ export const AppLayout: React.FC = () => {
                       />
                     </div>
                   </div>
-                );
-              }
-              if (isVoiceOnly) {
-                return (
-                  <VoiceChannelView
-                    serverId={selectedServerId as string}
-                    channelName={(selectedChannel as { name: string }).name}
-                  />
                 );
               }
               return (
