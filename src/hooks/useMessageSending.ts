@@ -5,6 +5,7 @@
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import ircClient from "../lib/ircClient";
+import { makeLabel, withLabel } from "../lib/labeledResponse";
 import {
   type FormattingType,
   formatMessageForIrc,
@@ -12,6 +13,32 @@ import {
 import { createBatchId, splitLongMessage } from "../lib/messageProtocol";
 import useStore, { serverSupportsMultiline } from "../store";
 import type { Channel, Message, PrivateChat, User } from "../types";
+
+/**
+ * labeled-response is only useful when the server will also echo our
+ * own messages back: without echo-message, no echo arrives, no
+ * acknowledgment, and the placeholder would hang forever.
+ */
+function shouldUseLabeledResponse(serverId: string): boolean {
+  return (
+    ircClient.hasCapability(serverId, "labeled-response") &&
+    ircClient.hasCapability(serverId, "echo-message") &&
+    ircClient.hasCapability(serverId, "batch")
+  );
+}
+
+/** How long to wait before flipping a pending message to "failed". */
+const PENDING_TIMEOUT_MS = 30_000;
+
+function arm_pending_timeout(
+  serverId: string,
+  bufferId: string,
+  label: string,
+) {
+  setTimeout(() => {
+    useStore.getState().failPendingMessage(serverId, bufferId, label);
+  }, PENDING_TIMEOUT_MS);
+}
 
 interface UseMessageSendingOptions {
   selectedServerId: string | null;
@@ -412,6 +439,48 @@ export function useMessageSending({
 
       const whisperContext = getWhisperContext(localReplyTo, currentUser);
 
+      // labeled-response: when the cap is acked, we generate one label
+      // for the whole send (even when split across multiple PRIVMSGs by
+      // splitLongMessage; the spec lets us reuse the same label across
+      // them as long as we don't reuse before the response completes).
+      const useLabel =
+        !whisperContext && shouldUseLabeledResponse(selectedServerId);
+      const label = useLabel ? makeLabel() : null;
+
+      // Buffer id for the pending placeholder.  Channels are matched
+      // by id from the store; PMs use the PrivateChat record's id.
+      const bufferId = selectedChannel
+        ? selectedChannel.id
+        : selectedPrivateChat
+          ? selectedPrivateChat.id
+          : null;
+
+      // Insert pending placeholder (only when we have a label *and* a
+      // store buffer to put it in -- whisper has neither).
+      if (label && bufferId && currentUser && selectedServerId) {
+        const placeholder: Message = {
+          id: uuidv4(),
+          content: cleanedText,
+          timestamp: new Date(),
+          userId: currentUser.username || currentUser.id,
+          channelId: bufferId,
+          serverId: selectedServerId,
+          type: "message",
+          reactions: [],
+          replyMessage: localReplyTo,
+          mentioned: [],
+          pendingLabel: label,
+          status: "pending",
+        };
+        useStore.getState().addMessage(placeholder);
+        arm_pending_timeout(selectedServerId, bufferId, label);
+      }
+
+      const replyPrefix = localReplyTo?.msgid
+        ? `@+reply=${localReplyTo.msgid};+draft/reply=${localReplyTo.msgid} `
+        : "";
+      const tagPrefix = withLabel(replyPrefix, label);
+
       sendViaWhisperOrRegular(
         selectedServerId,
         whisperContext,
@@ -421,7 +490,7 @@ export function useMessageSending({
           splitLines.forEach((line: string) => {
             ircClient.sendRaw(
               selectedServerId,
-              `${localReplyTo?.msgid ? `@+reply=${localReplyTo.msgid};+draft/reply=${localReplyTo.msgid} ` : ""}PRIVMSG ${target} :${line}`,
+              `${tagPrefix}PRIVMSG ${target} :${line}`,
             );
           });
         },
@@ -433,6 +502,8 @@ export function useMessageSending({
       selectedFormatting,
       localReplyTo,
       currentUser,
+      selectedChannel,
+      selectedPrivateChat,
     ],
   );
 

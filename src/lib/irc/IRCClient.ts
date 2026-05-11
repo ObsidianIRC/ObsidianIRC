@@ -528,6 +528,7 @@ export class IRCClient implements IRCClientContext {
     "invite-notify",
     "monitor",
     "extended-monitor",
+    "labeled-response",
     "draft/read-marker",
     "obsidianirc/cmdslist",
     // Note: unrealircd.org/link-security is informational only, don't request it
