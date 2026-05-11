@@ -1,5 +1,5 @@
 import type { IRCClientContext } from "../IRCClientContext";
-import { getNickFromNuh } from "../utils";
+import { getHostFromNuh, getNickFromNuh, getUserFromNuh } from "../utils";
 
 export function handleNick(
   ctx: IRCClientContext,
@@ -79,6 +79,11 @@ export function handleChghost(
   const username = getNickFromNuh(source);
   const newUser = parv[0];
   const newHost = parv[1];
+  // Track our own ident/host — works with chghost alone, and is guaranteed with draft/whoami
+  if (username === ctx.nicks.get(serverId)) {
+    ctx.myIdents.set(serverId, newUser);
+    ctx.myHosts.set(serverId, newHost);
+  }
   ctx.triggerEvent("CHGHOST", {
     serverId,
     username,
@@ -207,10 +212,16 @@ export function handleSetname(
 ): void {
   const user = getNickFromNuh(source);
   const realname = parv.join(" ");
+  // Pass ident+host from the source NUH so the store can initialise self-prefix
+  // on the draft/whoami registration-burst SETNAME (source is a full nick!ident@host)
+  const ident = source.includes("!") ? getUserFromNuh(source) : undefined;
+  const host = source.includes("@") ? getHostFromNuh(source) : undefined;
   ctx.triggerEvent("SETNAME", {
     serverId,
     user,
     realname,
+    ident,
+    host,
   });
 }
 
