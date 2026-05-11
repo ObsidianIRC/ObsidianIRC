@@ -14,6 +14,12 @@ import { useReactions } from "../../hooks/useReactions";
 import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
+import { waitForAuthToken } from "../../lib/authToken";
+import { useEmojiResolver } from "../../lib/customEmoji";
+import {
+  emojiClickValue,
+  packEntriesForPicker,
+} from "../../lib/customEmojiPicker";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
 import {
@@ -452,8 +458,30 @@ export const ChatArea: React.FC<{
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
+  // draft/custom-emoji: gather pack URLs (channel-scoped first so it
+  // shadows the network-wide pack on shortcode collisions) and surface
+  // the resulting shortcodes to the emoji picker + completion.
+  const networkEmojiPackUrl = useMemo(
+    () => servers.find((s) => s.id === selectedServerId)?.emojiPackUrl,
+    [servers, selectedServerId],
+  );
+  const channelEmojiPackUrl = useMemo(() => {
+    const srv = servers.find((s) => s.id === selectedServerId);
+    return srv?.channels.find((c) => c.id === selectedChannelId)?.metadata?.[
+      "draft/emoji"
+    ]?.value;
+  }, [servers, selectedServerId, selectedChannelId]);
+  const { shortcodes: customEmojiShortcodes } = useEmojiResolver([
+    channelEmojiPackUrl,
+    networkEmojiPackUrl,
+  ]);
+  const pickerCustomEmojis = useMemo(
+    () => packEntriesForPicker(customEmojiShortcodes),
+    [customEmojiShortcodes],
+  );
+
   // Emoji completion hook
-  const emojiCompletion = useEmojiCompletion();
+  const emojiCompletion = useEmojiCompletion(customEmojiShortcodes);
 
   // Typing notification hook
   const typingNotification = useTypingNotification({
@@ -871,66 +899,41 @@ export const ChatArea: React.FC<{
   const handleImageUpload = async (file: File) => {
     if (!selectedServer?.filehost || !selectedServerId) return;
 
-    const filehostUrl = selectedServer.filehost;
-
-    // Check if we have a JWT token, request one if not
-    let jwtToken = selectedServer?.jwtToken;
-    if (!jwtToken) {
-      // Clear any existing JWT token to ensure we get a fresh one
-      useStore.setState((state) => ({
-        servers: state.servers.map((server) =>
-          server.id === selectedServerId
-            ? { ...server, jwtToken: undefined }
-            : server,
-        ),
-      }));
-
-      // Request JWT token from IRC server
-      console.log(
-        '🔑 Requesting fresh JWT token from IRC server for service "filehost"',
-      );
-      ircClient.requestExtJwt(selectedServerId, "*", "filehost");
-
-      // Wait a bit for the token to arrive (this is a simple approach)
-      // In a production app, you'd want to listen for the EXTJWT event
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Check again after waiting
-      const updatedServer = useStore
-        .getState()
-        .servers.find((s) => s.id === selectedServerId);
-      jwtToken = updatedServer?.jwtToken;
-
-      console.log(
-        "🔑 After waiting, JWT token:",
-        jwtToken ? `${jwtToken.substring(0, 20)}...` : "still null/undefined",
-      );
-
-      if (!jwtToken) {
-        console.error("Failed to obtain JWT token for image upload");
-        // TODO: Show error to user
-        return;
-      }
+    // draft/authtoken: always mint a fresh token per upload, since the
+    // server may scope or expire them aggressively.  The reply URL is
+    // what the server tells us to talk to; fall back to filehost.
+    useStore.setState((state) => ({
+      servers: state.servers.map((server) =>
+        server.id === selectedServerId
+          ? {
+              ...server,
+              authToken: undefined,
+              authTokenUrl: undefined,
+              authTokenService: undefined,
+            }
+          : server,
+      ),
+    }));
+    ircClient.requestToken(selectedServerId, "filehost");
+    const authToken = await waitForAuthToken(selectedServerId);
+    if (!authToken) {
+      console.error("draft/authtoken: server did not return a filehost token");
+      return;
     }
+    const refreshed = useStore
+      .getState()
+      .servers.find((s) => s.id === selectedServerId);
+    const baseUrl = refreshed?.authTokenUrl || refreshed?.filehost || "";
 
     const formData = new FormData();
     formData.append("image", file);
 
     try {
-      // Upload directly to the filehost URL with JWT authentication
-      const uploadUrl = `${filehostUrl}/upload`;
-      console.log("🔄 Image upload: Starting upload to", uploadUrl);
-      console.log("🔑 JWT token present:", !!jwtToken);
-      console.log(
-        "� JWT token value:",
-        jwtToken ? `${jwtToken.substring(0, 20)}...` : "null/undefined",
-      );
-      console.log("�📦 File size:", file.size, "bytes");
-
+      const uploadUrl = `${baseUrl}/upload`;
       const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${jwtToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: formData,
       });
@@ -951,8 +954,9 @@ export const ChatArea: React.FC<{
       const data = await response.json();
       console.log("✅ Upload successful:", data);
       if (data.saved_url) {
-        // Create the full URL by prepending the filehost
-        const fullImageUrl = `${filehostUrl}${data.saved_url}`;
+        // saved_url is a path under the filehost the server told us to
+        // use, so prepend the same base we uploaded to.
+        const fullImageUrl = `${baseUrl}${data.saved_url}`;
 
         // Send the link directly to the current channel/user
         const target =
@@ -1932,7 +1936,7 @@ export const ChatArea: React.FC<{
   );
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
-    applyText(messageTextRef.current + emojiData.emoji);
+    applyText(messageTextRef.current + emojiClickValue(emojiData));
     setIsEmojiSelectorOpen(false);
   };
 
@@ -2266,6 +2270,7 @@ export const ChatArea: React.FC<{
                   onEmojiClick={handleEmojiSelect}
                   onClose={() => setIsEmojiSelectorOpen(false)}
                   onBackdropClick={handleEmojiModalBackdropClick}
+                  customEmojis={pickerCustomEmojis}
                 />
               )}
 
@@ -2294,9 +2299,10 @@ export const ChatArea: React.FC<{
                 <EmojiPickerInline
                   isOpen={isEmojiSelectorOpen}
                   onEmojiClick={(e) =>
-                    applyText(messageTextRef.current + e.emoji)
+                    applyText(messageTextRef.current + emojiClickValue(e))
                   }
                   onClose={() => setIsEmojiSelectorOpen(false)}
+                  customEmojis={pickerCustomEmojis}
                 />
               )}
 

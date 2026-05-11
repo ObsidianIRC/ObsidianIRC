@@ -1,5 +1,6 @@
 import type { EmojiClickData } from "emoji-picker-react";
 import { createPortal } from "react-dom";
+import type { PickerCustomEmoji } from "../../lib/customEmojiPicker";
 import { AppEmojiPicker } from "./AppEmojiPicker";
 
 interface EmojiPickerModalProps {
@@ -9,6 +10,7 @@ interface EmojiPickerModalProps {
   onBackdropClick: (e: React.MouseEvent) => void;
   /** Override z-index when rendering inside a high-z-index overlay (e.g. media viewer at 9998) */
   zIndex?: number;
+  customEmojis?: PickerCustomEmoji[];
 }
 
 export function EmojiPickerModal({
@@ -17,6 +19,7 @@ export function EmojiPickerModal({
   onClose,
   onBackdropClick,
   zIndex,
+  customEmojis,
 }: EmojiPickerModalProps) {
   if (!isOpen) return null;
 
@@ -28,7 +31,10 @@ export function EmojiPickerModal({
     >
       <div className="bg-discord-dark-400 rounded-lg shadow-lg border border-discord-dark-300 max-w-sm w-full mx-4 max-h-[90vh] overflow-hidden">
         <div className="p-2">
-          <AppEmojiPicker onEmojiClick={onEmojiClick} />
+          <AppEmojiPicker
+            onEmojiClick={onEmojiClick}
+            customEmojis={customEmojis}
+          />
         </div>
         <div className="p-2 border-t border-discord-dark-300">
           <button

@@ -121,6 +121,33 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           tags: mtags,
         };
 
+        // labeled-response: if this is the echo of a message we just
+        // sent, the server MUST repeat the same label tag back.  Find
+        // the local pending placeholder by label and update it in
+        // place with the server's authoritative msgid + content.
+        if (mtags?.label && isOwnMessage) {
+          const matched = store
+            .getState()
+            .confirmPendingMessage(server.id, channel.id, mtags.label, {
+              msgid: mtags.msgid,
+              content: message,
+              userId: response.sender,
+              timestamp,
+              tags: mtags,
+            });
+          if (matched) {
+            // Track the msgid so subsequent duplicate-echo guards work.
+            if (mtags.msgid) {
+              store.setState((state) => ({
+                processedMessageIds: new Set(state.processedMessageIds).add(
+                  mtags.msgid as string,
+                ),
+              }));
+            }
+            return;
+          }
+        }
+
         // Update channel unread count and mention flag if not the active channel
         const isActiveChannel =
           getCurrentSelection(currentState).selectedChannelId === channel.id &&
@@ -467,6 +494,37 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
             (pc) => pc.username.toLowerCase() === target.toLowerCase(),
           );
           if (privateChat) {
+            // labeled-response: confirm the pending placeholder when
+            // a matching label tag is on the BATCH-wrapped echo.
+            if (mtags?.label) {
+              const matched = store
+                .getState()
+                .confirmPendingMessage(server.id, privateChat.id, mtags.label, {
+                  msgid: mtags.msgid,
+                  multilineMessageIds: messageIds,
+                  content: message,
+                  userId: sender,
+                  timestamp,
+                  tags: mtags,
+                });
+              if (matched) {
+                const idsToTrack =
+                  messageIds?.length > 0
+                    ? messageIds
+                    : mtags?.msgid
+                      ? [mtags.msgid]
+                      : [];
+                if (idsToTrack.length > 0) {
+                  store.setState((state) => ({
+                    processedMessageIds: new Set([
+                      ...state.processedMessageIds,
+                      ...idsToTrack,
+                    ]),
+                  }));
+                }
+                return;
+              }
+            }
             const privateChatKey = `${server.id}-${privateChat.id}`;
             const newMessage = {
               id: uuidv4(),
@@ -747,6 +805,30 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           (pc) => pc.username.toLowerCase() === target.toLowerCase(),
         );
         if (privateChat) {
+          // labeled-response: replace the pending placeholder we
+          // inserted on send instead of appending a new entry.
+          if (mtags?.label) {
+            const matched = store
+              .getState()
+              .confirmPendingMessage(server.id, privateChat.id, mtags.label, {
+                msgid: mtags.msgid,
+                content: message,
+                userId: sender,
+                timestamp,
+                tags: mtags,
+              });
+            if (matched) {
+              if (mtags.msgid) {
+                store.setState((state) => ({
+                  processedMessageIds: new Set(state.processedMessageIds).add(
+                    mtags.msgid as string,
+                  ),
+                }));
+              }
+              return;
+            }
+          }
+
           const privateChatKey = `${server.id}-${privateChat.id}`;
           const newMessage = {
             id: uuidv4(),

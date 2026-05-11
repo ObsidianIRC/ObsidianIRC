@@ -99,5 +99,21 @@ export function registerISupportHandler(
       });
       return;
     }
+
+    // draft/custom-emoji ISUPPORT token: value is the URL of the
+    // network-wide pack JSON document.  Stored on the server so the
+    // pack fetcher can pick it up after CAP negotiation completes.
+    if (key === "draft/EMOJI") {
+      useStore.setState((state) => {
+        const updatedServers = state.servers.map((server: Server) => {
+          if (server.id === serverId) {
+            return { ...server, emojiPackUrl: value };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+      return;
+    }
   });
 }

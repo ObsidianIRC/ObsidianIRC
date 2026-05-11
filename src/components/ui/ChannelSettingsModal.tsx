@@ -77,6 +77,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelDisplayName, setChannelDisplayName] = useState("");
   const [channelTopic, setChannelTopic] = useState("");
+  // draft/custom-emoji: URL to a per-channel emoji pack JSON document.
+  // Stored as the `draft/emoji` channel metadata key per the spec.
+  const [channelEmojiPack, setChannelEmojiPack] = useState("");
   const [newChannelName, setNewChannelName] = useState("");
   const [renameReason, setRenameReason] = useState("");
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
@@ -636,6 +639,18 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         );
       }
 
+      // draft/custom-emoji: apply emoji pack URL change
+      if (
+        channelEmojiPack !== (channel?.metadata?.["draft/emoji"]?.value || "")
+      ) {
+        await metadataSet(
+          serverId,
+          channelName,
+          "draft/emoji",
+          channelEmojiPack.trim() || undefined,
+        );
+      }
+
       // Apply channel rename
       if (newChannelName.trim() && newChannelName.trim() !== channel?.name) {
         ircClient.renameChannel(
@@ -992,6 +1007,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     if (isOpen && channel) {
       setChannelAvatar(channel.metadata?.avatar?.value || "");
       setChannelDisplayName(channel.metadata?.["display-name"]?.value || "");
+      setChannelEmojiPack(channel.metadata?.["draft/emoji"]?.value || "");
       setChannelTopic(channel.topic || "");
       setNewChannelName(channel.name);
       setRenameReason("");
@@ -1233,6 +1249,25 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   value={channelDisplayName}
                   onChange={(e) => setChannelDisplayName(e.target.value)}
                   placeholder="General Support Channel"
+                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                />
+              </div>
+
+              {/* draft/custom-emoji: per-channel pack URL */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">
+                  Channel Custom Emoji Pack
+                </label>
+                <p className="text-xs text-discord-text-muted mb-2">
+                  URL of an IRCv3 custom-emoji pack JSON document. Shortcodes
+                  defined here override the network-wide pack for this channel.
+                  Leave blank to use the network default.
+                </p>
+                <input
+                  type="url"
+                  value={channelEmojiPack}
+                  onChange={(e) => setChannelEmojiPack(e.target.value)}
+                  placeholder="https://example.com/emoji/channel/general.json"
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>

@@ -43,9 +43,19 @@ export interface Server {
   botMode?: string;
   filehost?: string;
   linkSecurity?: number; // Link security level from unrealircd.org/link-security
-  jwtToken?: string; // JWT token for filehost authentication
+  jwtToken?: string; // JWT token for filehost authentication (from EXTJWT)
+  // Bearer token from draft/authtoken (TOKEN GENERATE).  Used as the
+  // `Authorization: Bearer <token>` header for the per-network filehost.
+  authToken?: string;
+  // URL the token is bound to (returned alongside the token).  Falls
+  // back to `filehost` for older servers.
+  authTokenUrl?: string;
+  // Service the token was minted for, e.g. "filehost".
+  authTokenService?: string;
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // draft/EMOJI ISUPPORT: URL to the network-wide pack document.
+  emojiPackUrl?: string;
   // draft/persistence state (populated from PERSISTENCE STATUS replies).
   // `preference` is what the user has explicitly set on this account
   // (ON/OFF) or DEFAULT meaning "follow the server-wide default".
@@ -239,6 +249,17 @@ export interface Message {
   jsonLogData?: JsonValue;
   // True when the message was replayed from chathistory (not a live event)
   fromHistory?: boolean;
+  // labeled-response: when the user sends a message with the
+  // labeled-response cap acked, we insert a local placeholder
+  // immediately and wait for the server's echo to match it back.
+  // `pendingLabel` is the label tag value we attached on send, set
+  // only on the local placeholder until the echo arrives.
+  pendingLabel?: string;
+  // labeled-response: lifecycle state of an outgoing message.
+  // - "pending": placeholder awaiting server echo
+  // - "failed": no echo / FAIL arrived in the timeout window
+  // undefined => normal received message (no pending lifecycle).
+  status?: "pending" | "failed";
 }
 
 // Alias for backwards compatibility

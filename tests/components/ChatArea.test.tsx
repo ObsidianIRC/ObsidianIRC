@@ -14,6 +14,7 @@ vi.mock("../../src/lib/ircClient", () => ({
     on: vi.fn(),
     getCurrentUser: vi.fn(() => ({ id: "test-user", username: "tester" })),
     getNick: vi.fn(() => "tester"),
+    hasCapability: vi.fn(() => false),
     version: "1.0.0",
   },
 }));

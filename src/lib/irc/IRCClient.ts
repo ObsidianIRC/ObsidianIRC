@@ -250,10 +250,18 @@ export interface EventMap {
     limit: number;
     targets: string[];
   };
-  EXTJWT: BaseIRCEvent & {
-    requestedTarget: string;
-    serviceName: string;
-    jwtToken: string;
+  // draft/authtoken: server reply to TOKEN GENERATE.
+  TOKEN_GENERATE: BaseIRCEvent & {
+    service: string;
+    url: string;
+    token: string;
+  };
+  // draft/authtoken: TOKEN SERVICE entry inside a draft/authtoken BATCH
+  // (sent in reply to TOKEN SERVICELIST). One event per service.
+  TOKEN_SERVICE: BaseIRCEvent & {
+    service: string;
+    url: string;
+    description: string;
   };
   TWOFA: EventWithTags & {
     subcommand: string;
@@ -298,6 +306,11 @@ export interface EventMap {
   CMDSLIST: BaseIRCEvent & {
     additions: string[];
     removals: string[];
+  };
+  EXTJWT: BaseIRCEvent & {
+    requestedTarget: string;
+    serviceName: string;
+    jwtToken: string;
   };
   WHOIS_BOT: {
     serverId: string;
@@ -529,6 +542,7 @@ export class IRCClient implements IRCClientContext {
     "monitor",
     "extended-monitor",
     "obsidianirc/voice",
+    "labeled-response",
     "draft/read-marker",
     "obsidianirc/cmdslist",
     // Note: unrealircd.org/link-security is informational only, don't request it
@@ -1414,14 +1428,28 @@ export class IRCClient implements IRCClientContext {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
   }
 
+  // draft/authtoken: ask the server to mint a bearer token for `service`.
+  // Server reply is `:server TOKEN GENERATE <service> <url> :<token>`.
+  requestToken(serverId: string, service: string, scope?: string): void {
+    const command = scope
+      ? `TOKEN GENERATE ${service} ${scope}`
+      : `TOKEN GENERATE ${service}`;
+    this.sendRaw(serverId, command);
+  }
+
+  // draft/authtoken: list services the server can mint tokens for.
+  requestTokenServiceList(serverId: string): void {
+    this.sendRaw(serverId, "TOKEN SERVICELIST");
+  }
+
   // EXTJWT commands
   requestExtJwt(serverId: string, target?: string, serviceName?: string): void {
     // EXTJWT ( <channel> | * ) [service_name]
-    const targetParam = target || "*";
-    const command = serviceName
+    const targetParam = target ?? "*";
+    const cmd = serviceName
       ? `EXTJWT ${targetParam} ${serviceName}`
       : `EXTJWT ${targetParam}`;
-    this.sendRaw(serverId, command);
+    this.sendRaw(serverId, cmd);
   }
 
   // draft/account-recovery: forgotten-password flow.
