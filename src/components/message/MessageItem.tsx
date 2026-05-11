@@ -520,6 +520,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
             code={message.standardReplyCode}
             message={message.standardReplyMessage}
             target={message.standardReplyTarget}
+            context={message.standardReplyContext}
             timestamp={new Date(message.timestamp)}
             onIrcLinkClick={onIrcLinkClick}
           />
