@@ -11,7 +11,6 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FaCircle,
-  FaCog,
   FaDesktop,
   FaHandPaper,
   FaMicrophone,
@@ -31,7 +30,6 @@ import {
   type VoiceState,
 } from "../../lib/voice";
 import useStore from "../../store";
-import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 
 interface Props {
   serverId: string;
@@ -55,7 +53,6 @@ export const VoiceChannelView: React.FC<Props> = ({
   const [deafened, setDeafened] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [pttMode, setPttMode] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   // Nick of the currently spotlighted member, or null for grid view.
   const [focusNick, setFocusNick] = useState<string | null>(null);
   // Per-member ephemeral reactions: each entry animates briefly then is dropped.
@@ -208,56 +205,44 @@ export const VoiceChannelView: React.FC<Props> = ({
     ? focusPool.filter((m) => m.nick !== focusMember.nick)
     : focusPool;
 
+  // Voice-specific status banner: rendered above the grid only while the
+  // connection is mid-flight or failed. The channel name + topic live
+  // in the main ChatHeader at the top of the panel, so there's no need
+  // for a second header here.
+  const statusBanner =
+    state.phase === "joining"
+      ? "Connecting…"
+      : state.phase === "failed"
+        ? `Connection failed: ${state.error}`
+        : null;
+
   return (
     <div className="w-full h-full flex flex-col bg-discord-dark-200">
-      <header className="px-4 py-3 border-b border-discord-dark-300 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-white text-lg font-medium truncate flex items-center gap-2">
-            {isStreamRoom ? (
-              <FaDesktop className="text-discord-blue" />
-            ) : (
-              <FaVolumeUp className="text-discord-green" />
+      {(statusBanner || isStreamRoom || focusMember) && (
+        <div className="px-4 py-1 border-b border-discord-dark-300 flex items-center justify-between gap-4 text-xs">
+          <div className="text-discord-text-muted truncate min-w-0">
+            {statusBanner}
+            {!statusBanner && isStreamRoom && state.phase === "connected" && (
+              <>
+                <span className="px-1.5 py-0.5 rounded bg-discord-blue text-white mr-2">
+                  {role}
+                </span>
+                {streamerMembers.length}/{streamMaxStreamers} streaming ·{" "}
+                {viewerMembers.length} watching
+              </>
             )}
-            <span className="truncate">
-              {channelName.replace(/^[\^$]/, "")}
-            </span>
-            {isStreamRoom && (
-              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-discord-blue text-white align-middle">
-                {role}
-              </span>
-            )}
-          </h2>
-          <p className="text-xs text-discord-text-muted">
-            {state.phase === "joining" && "Connecting…"}
-            {state.phase === "connected" &&
-              (isStreamRoom
-                ? `${streamerMembers.length}/${streamMaxStreamers} streaming · ${viewerMembers.length} watching`
-                : `${members.length} ${members.length === 1 ? "member" : "members"}`)}
-            {state.phase === "failed" && `Connection failed: ${state.error}`}
-            {state.phase === "idle" && "Ready"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+          </div>
           {focusMember && (
             <button
               type="button"
               onClick={() => setFocusNick(null)}
-              className="px-3 py-1 rounded text-xs bg-discord-dark-300 text-discord-text-normal hover:bg-discord-dark-400"
+              className="px-2 py-0.5 rounded bg-discord-dark-300 text-discord-text-normal hover:bg-discord-dark-400 flex-shrink-0"
             >
               Exit spotlight
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            title="Channel settings (topic, metadata, avatar)"
-            aria-label="Channel settings"
-            className="w-8 h-8 rounded-full bg-discord-dark-300 hover:bg-discord-dark-400 text-discord-text-muted hover:text-white flex items-center justify-center"
-          >
-            <FaCog />
-          </button>
         </div>
-      </header>
+      )}
 
       <main className="flex-1 overflow-hidden p-4 flex flex-col gap-3 min-h-0">
         {focusMember ? (
@@ -464,13 +449,6 @@ export const VoiceChannelView: React.FC<Props> = ({
       {/* Inbound audio is rendered via a hidden <audio> owned by
           voice.ts so it survives this component unmounting (e.g. when
           the user navigates to a text channel without hanging up). */}
-
-      <ChannelSettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        serverId={serverId}
-        channelName={channelName}
-      />
     </div>
   );
 };
