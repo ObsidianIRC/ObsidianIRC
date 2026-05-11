@@ -99,7 +99,7 @@ export function handleNote(
     context,
     message,
   });
-  if (cmd === "2FA") {
+  if (command === "2FA") {
     ctx.triggerEvent("TWOFA_NOTE", {
       serverId,
       mtags,
