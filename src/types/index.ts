@@ -56,6 +56,8 @@ export interface Server {
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
   // draft/EMOJI ISUPPORT: URL to the network-wide pack document.
   emojiPackUrl?: string;
+  myIdent?: string; // Our own ident on this server (draft/whoami SETNAME burst or CHGHOST)
+  myHost?: string; // Our own hostname on this server (draft/whoami SETNAME burst or CHGHOST)
   // obsidianirc/cmdslist: lowercase set of commands this user can
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
