@@ -158,24 +158,28 @@ export interface EventMap {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   WARN: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   NOTE: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   SUCCESS: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   REGISTER_SUCCESS: EventWithTags & {
@@ -252,6 +256,18 @@ export interface EventMap {
     service: string;
     url: string;
     description: string;
+  };
+  // obsidianirc/cmdslist: server is reporting an add/remove delta of
+  // commands the user can invoke right now.  Ops are individual
+  // tokens of the form "+cmd" or "-cmd" (multiple per wire line).
+  CMDSLIST: BaseIRCEvent & {
+    additions: string[];
+    removals: string[];
+  };
+  EXTJWT: BaseIRCEvent & {
+    requestedTarget: string;
+    serviceName: string;
+    jwtToken: string;
   };
   WHOIS_BOT: {
     serverId: string;
@@ -478,6 +494,7 @@ export class IRCClient implements IRCClientContext {
     "invite-notify",
     "monitor",
     "extended-monitor",
+    "obsidianirc/cmdslist",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -1319,6 +1336,16 @@ export class IRCClient implements IRCClientContext {
   // draft/authtoken: list services the server can mint tokens for.
   requestTokenServiceList(serverId: string): void {
     this.sendRaw(serverId, "TOKEN SERVICELIST");
+  }
+
+  // EXTJWT commands
+  requestExtJwt(serverId: string, target?: string, serviceName?: string): void {
+    // EXTJWT ( <channel> | * ) [service_name]
+    const targetParam = target ?? "*";
+    const cmd = serviceName
+      ? `EXTJWT ${targetParam} ${serviceName}`
+      : `EXTJWT ${targetParam}`;
+    this.sendRaw(serverId, cmd);
   }
 
   // MONITOR commands

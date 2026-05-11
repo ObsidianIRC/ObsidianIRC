@@ -752,9 +752,9 @@ export const ChannelList: React.FC<{
                             ) : (
                               selectedChannelId !== channel.id &&
                               (channel.isMentioned &&
-                              channel.unreadCount > 0 ? (
+                              (channel.mentionCount ?? 0) > 0 ? (
                                 <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
-                                  {channel.unreadCount}
+                                  {channel.mentionCount}
                                 </span>
                               ) : channel.unreadCount > 0 ? (
                                 <span className="w-2 h-2 bg-blue-500 rounded-full" />
@@ -1202,9 +1202,9 @@ export const ChannelList: React.FC<{
                           {/* Unread/Mention indicators */}
                           {selectedPrivateChatId !== privateChat.id &&
                             (privateChat.isMentioned &&
-                            privateChat.unreadCount > 0 ? (
+                            (privateChat.mentionCount ?? 0) > 0 ? (
                               <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
-                                {privateChat.unreadCount}
+                                {privateChat.mentionCount}
                               </span>
                             ) : privateChat.unreadCount > 0 ? (
                               <span className="w-2 h-2 bg-blue-500 rounded-full" />

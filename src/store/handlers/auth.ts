@@ -337,4 +337,40 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       ),
     }));
   });
+
+  ircClient.on(
+    "EXTJWT",
+    ({ serverId, requestedTarget, serviceName, jwtToken }) => {
+      console.log("🔑 EXTJWT received:", {
+        serverId,
+        requestedTarget,
+        serviceName,
+        jwtToken: jwtToken ? "present" : "missing",
+      });
+      store.setState((state) => {
+        const updatedServers = state.servers.map((server) => {
+          if (server.id === serverId) {
+            return { ...server, jwtToken };
+          }
+          return server;
+        });
+        return { servers: updatedServers };
+      });
+    },
+  );
+
+  // obsidianirc/cmdslist: maintain a lowercase set of invocable
+  // commands per server.  Additions and removals can arrive in the
+  // same wire line, so apply both atomically.
+  ircClient.on("CMDSLIST", ({ serverId, additions, removals }) => {
+    store.setState((state) => ({
+      servers: state.servers.map((server) => {
+        if (server.id !== serverId) return server;
+        const next = new Set(server.cmdsAvailable ?? []);
+        for (const cmd of additions) next.add(cmd.toLowerCase());
+        for (const cmd of removals) next.delete(cmd.toLowerCase());
+        return { ...server, cmdsAvailable: Array.from(next).sort() };
+      }),
+    }));
+  });
 }
