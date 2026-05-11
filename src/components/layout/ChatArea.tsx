@@ -107,7 +107,12 @@ const isMac =
 export const ChatArea: React.FC<{
   onToggleChanList: () => void;
   isChanListVisible: boolean;
-}> = ({ onToggleChanList, isChanListVisible }) => {
+  /** Rendered between ChatHeader and TopicMediaStrip. Used by voice/stream
+   * channels to inject the VoiceChannelView so the channel header stays
+   * at the very top of the panel instead of getting sandwiched between
+   * the voice grid and the chat scroll. */
+  topSlot?: React.ReactNode;
+}> = ({ onToggleChanList, isChanListVisible, topSlot }) => {
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [navHighlightedMsgId, setNavHighlightedMsgId] = useState<string | null>(
     null,
@@ -2006,6 +2011,12 @@ export const ChatArea: React.FC<{
         onOpenChannelSettings={() => setChannelSettingsModalOpen(true)}
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
+
+      {topSlot && (
+        <div className="flex-shrink-0 h-[55%] min-h-0 border-b border-discord-dark-300 overflow-hidden">
+          {topSlot}
+        </div>
+      )}
 
       <TopicMediaStrip />
       <MiniMediaPlayer />

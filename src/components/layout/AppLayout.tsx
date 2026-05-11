@@ -217,35 +217,18 @@ export const AppLayout: React.FC = () => {
             className={`${isNarrowView ? "w-full" : "flex-grow"} h-full bg-discord-dark-200 flex flex-col min-w-0 z-10`}
           >
             {(() => {
-              // Both `^` (voice) and `$` (stream) channels use the same
-              // split layout: VoiceChannelView on top, the regular text
-              // ChatArea below. The IRCd treats both like any other
-              // channel for PRIVMSG, so chat is just the standard
-              // ChatArea wired to the same channel id.
-              if (isVoiceChannel && selectedServerId && selectedChannel) {
-                return (
-                  <div className="flex flex-col h-full">
-                    <div className="flex-[3] min-h-0 border-b border-discord-dark-300">
-                      <VoiceChannelView
-                        serverId={selectedServerId}
-                        channelName={selectedChannel.name}
-                      />
-                    </div>
-                    <div className="flex-[2] min-h-0">
-                      <ChatArea
-                        isChanListVisible={isChannelListVisible}
-                        onToggleChanList={() => {
-                          if (isNarrowView) {
-                            setMobileViewActiveColumn("serverList");
-                          } else {
-                            toggleChannelList(!isChannelListVisible);
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              }
+              // Both `^` (voice) and `$` (stream) channels render through
+              // ChatArea with the VoiceChannelView injected as a topSlot,
+              // so the channel's ChatHeader stays at the very top of the
+              // panel and the voice grid + chat live beneath it as one
+              // continuous column.
+              const voiceTopSlot =
+                isVoiceChannel && selectedServerId && selectedChannel ? (
+                  <VoiceChannelView
+                    serverId={selectedServerId}
+                    channelName={selectedChannel.name}
+                  />
+                ) : undefined;
               return (
                 <ChatArea
                   isChanListVisible={isChannelListVisible}
@@ -256,6 +239,7 @@ export const AppLayout: React.FC = () => {
                       toggleChannelList(!isChannelListVisible);
                     }
                   }}
+                  topSlot={voiceTopSlot}
                 />
               );
             })()}
