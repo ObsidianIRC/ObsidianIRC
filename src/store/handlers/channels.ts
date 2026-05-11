@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
+import { isChannelTarget } from "../../lib/ircUtils";
 import type { Message } from "../../types";
 import { resolveUserMetadata, serverSupportsMetadata } from "../helpers";
 import type { AppState } from "../index";
@@ -29,7 +30,7 @@ function applyUserModeDelta(prev: string, delta: string): string {
 export function registerChannelHandlers(store: StoreApi<AppState>): void {
   ircClient.on("MODE", ({ serverId, sender, target, modestring, modeargs }) => {
     // Channel modes are handled via RPL_CHANNELMODEIS (324); only handle user modes here
-    if (!target.startsWith("#")) {
+    if (!isChannelTarget(target)) {
       store.setState((state) => {
         const currentUser = state.currentUser;
         if (

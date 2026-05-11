@@ -2132,7 +2132,7 @@ export const ChatArea: React.FC<{
                   spellCheck={true}
                   placeholder={
                     selectedChannel
-                      ? `Message #${selectedChannel.name.replace(/^#/, "")}${
+                      ? `Message ${selectedChannel.name}${
                           globalSettings.enableMultilineInput &&
                           !isNativeMobile &&
                           !isCompactInput

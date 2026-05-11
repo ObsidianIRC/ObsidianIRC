@@ -7,11 +7,13 @@ import {
   FaCheckCircle,
   FaChevronLeft,
   FaChevronRight,
+  FaDesktop,
   FaEllipsisV,
   FaFilm,
   FaHashtag,
   FaInfoCircle,
   FaList,
+  FaMicrophone,
   FaPenAlt,
   FaSearch,
   FaThumbtack,
@@ -330,7 +332,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       {isSearchExpanded && (selectedChannel || selectedPrivateChat) && (
         <div className="md:hidden absolute inset-0 z-10 flex items-center gap-2 px-2 bg-discord-dark-500">
           {selectedChannel ? (
-            <FaHashtag className="text-discord-text-muted text-lg flex-shrink-0" />
+            selectedChannel.name.startsWith("^") ? (
+              <FaMicrophone className="text-discord-text-muted text-lg flex-shrink-0" />
+            ) : selectedChannel.name.startsWith("$") ? (
+              <FaDesktop className="text-discord-text-muted text-lg flex-shrink-0" />
+            ) : (
+              <FaHashtag className="text-discord-text-muted text-lg flex-shrink-0" />
+            )
           ) : (
             <FaUser className="text-discord-text-muted text-lg flex-shrink-0" />
           )}
@@ -419,29 +427,38 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 />
               ) : null;
             })()}
-            <FaHashtag
-              className="text-discord-text-muted fallback-hash-icon flex-shrink-0 text-3xl"
-              style={{
-                display: (() => {
-                  const avatarUrl = getChannelAvatarUrl(
-                    selectedChannel.metadata,
-                    50,
-                  );
-                  const selectedServer = servers.find(
-                    (s) => s.id === selectedServerId,
-                  );
-                  const isFilehostAvatar =
-                    avatarUrl &&
-                    selectedServer?.filehost &&
-                    isUrlFromFilehost(avatarUrl, selectedServer.filehost);
-                  const shouldShowAvatar =
-                    avatarUrl &&
-                    ((isFilehostAvatar && showSafeMedia) ||
-                      showExternalContent);
-                  return shouldShowAvatar ? "none" : "inline-block";
-                })(),
-              }}
-            />
+            {(() => {
+              const ChannelIcon = selectedChannel.name.startsWith("^")
+                ? FaMicrophone
+                : selectedChannel.name.startsWith("$")
+                  ? FaDesktop
+                  : FaHashtag;
+              return (
+                <ChannelIcon
+                  className="text-discord-text-muted fallback-hash-icon flex-shrink-0 text-3xl"
+                  style={{
+                    display: (() => {
+                      const avatarUrl = getChannelAvatarUrl(
+                        selectedChannel.metadata,
+                        50,
+                      );
+                      const selectedServer = servers.find(
+                        (s) => s.id === selectedServerId,
+                      );
+                      const isFilehostAvatar =
+                        avatarUrl &&
+                        selectedServer?.filehost &&
+                        isUrlFromFilehost(avatarUrl, selectedServer.filehost);
+                      const shouldShowAvatar =
+                        avatarUrl &&
+                        ((isFilehostAvatar && showSafeMedia) ||
+                          showExternalContent);
+                      return shouldShowAvatar ? "none" : "inline-block";
+                    })(),
+                  }}
+                />
+              );
+            })()}
           </div>
 
           {/* Center: Title and Topic stacked */}

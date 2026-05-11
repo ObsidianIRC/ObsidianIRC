@@ -12,7 +12,7 @@ import type {
   User,
 } from "../../types";
 import { parseIrcUrl } from "../ircUrlParser";
-import { parseMessageTags } from "../ircUtils";
+import { isChannelTarget, parseMessageTags } from "../ircUtils";
 import { createSocket, type ISocket } from "../socket";
 import { IRC_DISPATCH } from "./handlers";
 import type { IRCClientContext } from "./IRCClientContext";
@@ -1165,12 +1165,7 @@ export class IRCClient implements IRCClientContext {
     // have us in it), JOIN first so the typing TAGMSG lands instead
     // of getting bounced with 401.
     const server = this.servers.get(serverId);
-    if (
-      server &&
-      (target.startsWith("#") ||
-        target.startsWith("^") ||
-        target.startsWith("$"))
-    ) {
+    if (server && isChannelTarget(target)) {
       const ch = server.channels.find((c) => c.name === target);
       if (
         ch &&

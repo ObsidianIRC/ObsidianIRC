@@ -1,5 +1,6 @@
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
+import { isChannelTarget } from "../../lib/ircUtils";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
@@ -144,7 +145,7 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
       storage.metadata.save(savedMetadata);
 
       // Update channel metadata cache if this is for a channel
-      if (resolvedTarget.startsWith("#")) {
+      if (isChannelTarget(resolvedTarget)) {
         const cache = state.channelMetadataCache[serverId] || {};
         const channelCache = cache[resolvedTarget] || { fetchedAt: Date.now() };
 
@@ -376,7 +377,7 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
         }
 
         // Update channel metadata cache if this is for a channel
-        if (resolvedTarget.startsWith("#")) {
+        if (isChannelTarget(resolvedTarget)) {
           const cache = state.channelMetadataCache[serverId] || {};
           const channelCache = cache[resolvedTarget] || {
             fetchedAt: Date.now(),
@@ -518,7 +519,7 @@ export function registerMetadataHandlers(store: StoreApi<AppState>): void {
       }
 
       let updatedChannelMetadataCache = state.channelMetadataCache;
-      if (resolvedTarget.startsWith("#")) {
+      if (isChannelTarget(resolvedTarget)) {
         const serverCache = state.channelMetadataCache[serverId];
         if (serverCache?.[resolvedTarget]) {
           const channelCache = { ...serverCache[resolvedTarget] };

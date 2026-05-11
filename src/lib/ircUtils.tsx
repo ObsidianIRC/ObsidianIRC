@@ -15,16 +15,17 @@ import("highlight.js").then((m) => {
 });
 
 /** True when `target` is a channel name as opposed to a nick. Mirrors
- * the ircd's CHANTYPES = "#^$" -- standard text (`#`), voice (`^`),
- * and stream (`$`) channels. The receive path uses this to choose
- * between the CHANMSG event (channel) and USERMSG event (DM); a
- * hardcoded `startsWith("#")` here was silently routing every PRIVMSG
- * to a $-channel as a DM-from-self, which is why messages on stream
- * channels echoed back to the input but never appeared in the chat. */
+ * the ircd's CHANTYPES -- standard text (`#`), local text (`&` per
+ * RFC 1459/2811), voice (`^`), and stream (`$`) channels. The receive
+ * path uses this to choose between the CHANMSG event (channel) and
+ * USERMSG event (DM); a hardcoded `startsWith("#")` here was silently
+ * routing every PRIVMSG to a $-channel as a DM-from-self, which is
+ * why messages on stream channels echoed back to the input but never
+ * appeared in the chat. */
 export function isChannelTarget(name: string | undefined | null): boolean {
   if (!name) return false;
   const c = name[0];
-  return c === "#" || c === "^" || c === "$";
+  return c === "#" || c === "&" || c === "^" || c === "$";
 }
 
 export function parseNamesResponse(namesResponse: string): User[] {
@@ -961,8 +962,11 @@ export function getChannelDisplayName(
   if (displayName) {
     return displayName;
   }
-  // Remove the # prefix if present
-  return channelName.replace(/^#/, "");
+  // Strip the leading channel-type prefix for display (e.g. "#foo", "^bar",
+  // "$baz", "&local" all render as the bare name). The prefix is shown by
+  // the channel-type icon next to the title, so leaving it in the text
+  // would be redundant.
+  return channelName.replace(/^[#&^$]/, "");
 }
 
 /**

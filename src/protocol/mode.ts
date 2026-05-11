@@ -1,4 +1,5 @@
 import type { IRCClient } from "../lib/ircClient";
+import { isChannelTarget } from "../lib/ircUtils";
 import type AppState from "../store/";
 import type { Channel, Message, Server } from "../types/";
 
@@ -11,8 +12,7 @@ export function registerModeHandler(
     const server = state.servers.find((s: Server) => s.id === serverId);
     if (!server) return;
 
-    // Check if target is a channel
-    if (target.startsWith("#")) {
+    if (isChannelTarget(target)) {
       handleChannelMode(
         serverId,
         server,
