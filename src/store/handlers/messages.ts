@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import { isUserIgnored } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
+import { isChannelTarget } from "../../lib/ircUtils";
 import {
   playNotificationSound,
   shouldPlayNotificationSound,
@@ -1503,7 +1504,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       let key: string;
       let user: User;
 
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         const channel = server.channels.find((c) => c.name === channelName);
         if (!channel) return;
@@ -1639,7 +1640,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return;
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === channelName);
       } else {
@@ -1725,7 +1726,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return;
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === channelName);
       } else {
@@ -1790,7 +1791,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return;
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === channelName);
       } else {
@@ -1858,7 +1859,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return {};
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = target.startsWith("#");
+      const isChannel = isChannelTarget(target);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === target);
       } else {

@@ -14,6 +14,20 @@ import("highlight.js").then((m) => {
   hljsModule = m.default;
 });
 
+/** True when `target` is a channel name as opposed to a nick. Mirrors
+ * the ircd's CHANTYPES -- standard text (`#`), local text (`&` per
+ * RFC 1459/2811), voice (`^`), and stream (`$`) channels. The receive
+ * path uses this to choose between the CHANMSG event (channel) and
+ * USERMSG event (DM); a hardcoded `startsWith("#")` here was silently
+ * routing every PRIVMSG to a $-channel as a DM-from-self, which is
+ * why messages on stream channels echoed back to the input but never
+ * appeared in the chat. */
+export function isChannelTarget(name: string | undefined | null): boolean {
+  if (!name) return false;
+  const c = name[0];
+  return c === "#" || c === "&" || c === "^" || c === "$";
+}
+
 /** Split an IRCv3 named-modes mode name into its vendor prefix and a
  * human-readable display label.
  *
@@ -85,13 +99,61 @@ function parseStatus(
   return "offline"; // Default
 }
 
+// Inverse of UnrealIRCd's `message_tag_escape`. Per IRCv3:
+//   \:  -> ;
+//   \s  -> space
+//   \\  -> \
+//   \r  -> CR
+//   \n  -> LF
+// A trailing lone backslash is dropped; a backslash followed by any
+// other char is collapsed to that char (per spec, "drop the preceding
+// backslash").
+function unescapeTagValue(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c !== "\\") {
+      out += c;
+      continue;
+    }
+    const next = s[++i];
+    if (next === undefined) break;
+    switch (next) {
+      case ":":
+        out += ";";
+        break;
+      case "s":
+        out += " ";
+        break;
+      case "\\":
+        out += "\\";
+        break;
+      case "r":
+        out += "\r";
+        break;
+      case "n":
+        out += "\n";
+        break;
+      default:
+        out += next;
+        break;
+    }
+  }
+  return out;
+}
+
 export function parseMessageTags(tags: string): Record<string, string> {
   const parsedTags: Record<string, string> = {};
   const tagPairs = tags.substring(1).split(";");
 
   for (const tag of tagPairs) {
-    const [key, value] = tag.split("=");
-    parsedTags[key] = value?.trim() ?? ""; // empty string fallback
+    const eq = tag.indexOf("=");
+    if (eq < 0) {
+      parsedTags[tag] = "";
+    } else {
+      const key = tag.substring(0, eq);
+      parsedTags[key] = unescapeTagValue(tag.substring(eq + 1));
+    }
   }
 
   return parsedTags;
@@ -935,8 +997,11 @@ export function getChannelDisplayName(
   if (displayName) {
     return displayName;
   }
-  // Remove the # prefix if present
-  return channelName.replace(/^#/, "");
+  // Strip the leading channel-type prefix for display (e.g. "#foo", "^bar",
+  // "$baz", "&local" all render as the bare name). The prefix is shown by
+  // the channel-type icon next to the title, so leaving it in the text
+  // would be redundant.
+  return channelName.replace(/^[#&^$]/, "");
 }
 
 /**
