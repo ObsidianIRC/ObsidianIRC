@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
-import type { Message, User } from "../../types";
+import type { Message } from "../../types";
 import {
   generateDeterministicId,
   getCurrentSelection,
@@ -146,45 +146,26 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
         });
         // Fall through to shared message creation below — same JOIN event, same path.
       } else {
-        store.setState((state) => {
-          const updatedServers = state.servers.map((server) => {
-            if (server.id !== serverId) return server;
+        const state = store.getState();
+        const server = state.servers.find((s) => s.id === serverId);
+        if (server) {
+          // Restore metadata so live joins show avatars immediately.
+          const savedMetadata = storage.metadata.load();
+          const serverMetadata = savedMetadata[serverId];
+          const joinedUserMetadata = resolveUserMetadata(
+            username,
+            serverMetadata,
+            server.channels,
+          );
 
-            // Restore metadata so live joins show avatars immediately.
-            const savedMetadata = storage.metadata.load();
-            const serverMetadata = savedMetadata[serverId];
-            const joinedUserMetadata = resolveUserMetadata(
-              username,
-              serverMetadata,
-              server.channels,
-            );
-
-            const updatedChannels = server.channels.map((channel) => {
-              if (channel.name.toLowerCase() !== channelName.toLowerCase())
-                return channel;
-
-              const alreadyIn = channel.users.some(
-                (u) => u.username.toLowerCase() === username.toLowerCase(),
-              );
-              if (alreadyIn) return channel;
-
-              const newUser: User = {
-                id: uuidv4(),
-                username,
-                isOnline: true,
-                account: account || undefined,
-                realname: realname || undefined,
-                metadata: joinedUserMetadata,
-              };
-
-              return { ...channel, users: [...channel.users, newUser] };
-            });
-
-            return { ...server, channels: updatedChannels };
+          state.updateGlobalUser(serverId, {
+            username,
+            account: account || undefined,
+            realname: realname || undefined,
+            metadata: joinedUserMetadata,
+            isOnline: true,
           });
-
-          return { servers: updatedServers };
-        });
+        }
       }
 
       const state = store.getState();
@@ -220,7 +201,6 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
       const state = store.getState();
       const batch = state.activeBatches[serverId]?.[batchTag];
       if (batch?.type === "chathistory") {
-        // Historical nick change from event-playback — create a message record, skip live mutation.
         if (
           state.globalSettings.showEvents &&
           state.globalSettings.showNickChanges
@@ -257,48 +237,10 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
         return;
       }
     }
-    store.setState((state) => {
-      const updatedServers = state.servers.map((server) => {
-        if (server.id === serverId) {
-          const updatedChannels = server.channels.map((channel) => {
-            const updatedUsers = channel.users.map((user) => {
-              if (user.username === oldNick) {
-                return { ...user, username: newNick };
-              }
-              return user;
-            });
-            return { ...channel, users: updatedUsers };
-          });
-          return { ...server, channels: updatedChannels };
-        }
-        return server;
-      });
-
-      // Update currentUser only if this nick change is for the currently selected server
-      // and it's our own nick that changed
-      let updatedCurrentUser = state.currentUser;
-      const isSelectedServer = state.ui.selectedServerId === serverId;
-      const serverCurrentUser = ircClient.getCurrentUser(serverId);
-      const isOurNick =
-        serverCurrentUser?.username === oldNick ||
-        serverCurrentUser?.username === newNick;
-
-      if (
-        isSelectedServer &&
-        isOurNick &&
-        state.currentUser &&
-        state.currentUser.username === oldNick
-      ) {
-        updatedCurrentUser = { ...state.currentUser, username: newNick };
-      }
-
-      return {
-        servers: updatedServers,
-        currentUser: updatedCurrentUser,
-      };
-    });
 
     const state = store.getState();
+    state.changeGlobalNick(serverId, oldNick, newNick);
+
     const server = state.servers.find((s) => s.id === serverId);
     if (
       server &&
@@ -323,7 +265,7 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
             makeEventMessage(
               "nick",
               nickContent,
-              oldNick, // userId is old nick so the message avatar/link resolves correctly
+              oldNick,
               channel.id,
               serverId,
               new Date(),
@@ -331,43 +273,18 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
           );
         }
       });
+    }
 
-      const privateChat = server.privateChats?.find(
-        (pc) =>
-          pc.username.toLowerCase() === oldNick.toLowerCase() ||
-          pc.username.toLowerCase() === newNick.toLowerCase(),
-      );
-      if (privateChat) {
-        store.setState((state) => {
-          const updatedServers = state.servers.map((s) => {
-            if (s.id === serverId) {
-              const updatedPrivateChats = s.privateChats?.map((pc) => {
-                if (pc.username.toLowerCase() === oldNick.toLowerCase()) {
-                  return { ...pc, username: newNick };
-                }
-                return pc;
-              });
-              return { ...s, privateChats: updatedPrivateChats };
-            }
-            return s;
-          });
-          return { servers: updatedServers };
-        });
-
-        appendMessage(
-          store,
-          serverId,
-          privateChat.id,
-          makeEventMessage(
-            "nick",
-            nickContent,
-            oldNick,
-            privateChat.id,
-            serverId,
-            new Date(),
-          ),
-        );
-      }
+    // Update currentUser if it's our nick
+    if (
+      state.ui.selectedServerId === serverId &&
+      state.currentUser?.username === oldNick
+    ) {
+      store.setState((s) => ({
+        currentUser: s.currentUser
+          ? { ...s.currentUser, username: newNick }
+          : null,
+      }));
     }
   });
 

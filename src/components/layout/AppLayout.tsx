@@ -159,11 +159,11 @@ export const AppLayout: React.FC = () => {
           return (
             <div className="flex w-full h-full">
               {__HIDE_SERVER_LIST__ ? null : (
-                <div className="w-[72px] flex-shrink-0 h-full bg-discord-dark-300 select-none">
+                <div className="w-[72px] flex-shrink-0 h-full glass select-none z-30">
                   <ServerList />
                 </div>
               )}
-              <div className="w-[calc(100vw-72px)] h-full bg-discord-dark-100">
+              <div className="w-[calc(100vw-72px)] h-full glass border-l border-white/5">
                 <ChannelList
                   onToggle={() => toggleChannelList(!isChannelListVisible)}
                 />
@@ -174,7 +174,7 @@ export const AppLayout: React.FC = () => {
         return (
           <>
             {__HIDE_SERVER_LIST__ ? null : (
-              <div className="server-list flex-shrink-0 h-full bg-discord-dark-300 z-30 w-[72px] select-none">
+              <div className="server-list flex-shrink-0 h-full glass z-30 w-[72px] select-none">
                 <ServerList />
               </div>
             )}
@@ -189,7 +189,7 @@ export const AppLayout: React.FC = () => {
               onMinReached={() => toggleChannelList(false)}
               onWidthChange={handleChannelListWidthChange}
             >
-              <div className="channel-list w-full h-full bg-discord-dark-100 md:block z-20">
+              <div className="channel-list w-full h-full glass border-l border-white/5 md:block z-20">
                 <ChannelList
                   onToggle={() => toggleChannelList(!isChannelListVisible)}
                 />
@@ -217,7 +217,7 @@ export const AppLayout: React.FC = () => {
       case "memberList":
         if (isNarrowView) {
           return (
-            <div className="w-full h-full bg-discord-dark-100">
+            <div className="w-full h-full glass border-l border-white/5">
               <MemberList />
             </div>
           );
@@ -234,7 +234,7 @@ export const AppLayout: React.FC = () => {
             onMinReached={() => toggleMemberList(false)}
             onWidthChange={handleMemberListWidthChange}
           >
-            <div className="flex-1 overflow-hidden h-full bg-discord-dark-100">
+            <div className="flex-1 overflow-hidden h-full glass border-l border-white/5">
               <MemberList />
             </div>
           </ResizableSidebar>

@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
+import { Virtuoso } from "react-virtuoso";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
 import {
@@ -152,7 +153,7 @@ const UserItem: React.FC<{
 
   return (
     <div
-      className="flex items-center gap-3 py-2 px-3 mx-2 mb-1 rounded cursor-pointer bg-discord-dark-400/30 hover:bg-discord-dark-400/50 transition-colors"
+      className="flex items-center gap-3 py-2 px-3 mx-2 mb-1 rounded cursor-pointer glass hover:bg-white/10 hover:-translate-y-0.5 transition-all duration-200"
       onClick={(e) => {
         const avatarElement = e.currentTarget.querySelector(".w-10.h-10");
         onContextMenu(e, user.username, serverId, channelId, avatarElement);
@@ -519,7 +520,7 @@ export const MemberList: React.FC = () => {
 
   const isMobileView = useMediaQuery();
   return (
-    <div className="px-1 py-3 h-full overflow-y-auto">
+    <div className="px-1 py-3 h-full flex flex-col overflow-hidden">
       {isMobileView && (
         <button
           onClick={() => toggleMemberList(false)}
@@ -531,16 +532,22 @@ export const MemberList: React.FC = () => {
       <h3 className="text-xs font-semibold text-discord-channels-default uppercase mb-2 px-2">
         Members — {sortedUsers?.length || 0}
       </h3>
-      {sortedUsers?.map((user) => (
-        <UserItem
-          key={user.id}
-          user={user}
-          serverId={selectedServerId || ""}
-          channelId={selectedChannelId || ""}
-          currentUser={currentUser}
-          onContextMenu={handleUsernameClick}
+      <div className="flex-1 min-h-0">
+        <Virtuoso
+          style={{ height: "100%" }}
+          data={sortedUsers || []}
+          itemContent={(index, user) => (
+            <UserItem
+              key={user.id}
+              user={user}
+              serverId={selectedServerId || ""}
+              channelId={selectedChannelId || ""}
+              currentUser={currentUser}
+              onContextMenu={handleUsernameClick}
+            />
+          )}
         />
-      ))}
+      </div>
 
       <UserContextMenu
         isOpen={userContextMenu.isOpen}

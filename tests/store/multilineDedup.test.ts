@@ -23,7 +23,7 @@ describe("Multiline message deduplication", () => {
     // Reset messages and processedMessageIds
     useStore.setState({
       messages: {},
-      processedMessageIds: new Set(),
+      processedMessageIds: new Map(),
     });
   });
 
@@ -87,12 +87,13 @@ describe("Multiline message deduplication", () => {
       const idsToTrack =
         messageIds.length > 0 ? messageIds : mtags?.msgid ? [mtags.msgid] : [];
 
-      useStore.setState((state) => ({
-        processedMessageIds: new Set([
-          ...state.processedMessageIds,
-          ...idsToTrack,
-        ]),
-      }));
+      useStore.setState((state) => {
+        const newMap = new Map(state.processedMessageIds);
+        for (const id of idsToTrack) {
+          newMap.set(id, Date.now());
+        }
+        return { processedMessageIds: newMap };
+      });
 
       const state = useStore.getState();
       expect(state.processedMessageIds.has(batchMsgId)).toBe(true);
@@ -102,12 +103,11 @@ describe("Multiline message deduplication", () => {
       const batchMsgId = "dmsurc3xgc5v3nufdga8ag2xnw";
 
       // First call: track the batch msgid
-      useStore.setState((state) => ({
-        processedMessageIds: new Set([
-          ...state.processedMessageIds,
-          batchMsgId,
-        ]),
-      }));
+      useStore.setState((state) => {
+        const newMap = new Map(state.processedMessageIds);
+        newMap.set(batchMsgId, Date.now());
+        return { processedMessageIds: newMap };
+      });
 
       // Second call: check dedup
       const currentState = useStore.getState();
@@ -166,12 +166,13 @@ describe("Multiline message deduplication", () => {
       const messageIds = ["dm-msg-1", "dm-msg-2"];
 
       const idsToTrack = messageIds.length > 0 ? messageIds : [batchMsgId];
-      useStore.setState((state) => ({
-        processedMessageIds: new Set([
-          ...state.processedMessageIds,
-          ...idsToTrack,
-        ]),
-      }));
+      useStore.setState((state) => {
+        const newMap = new Map(state.processedMessageIds);
+        for (const id of idsToTrack) {
+          newMap.set(id, Date.now());
+        }
+        return { processedMessageIds: newMap };
+      });
 
       addMessage(
         makeDmMessage({
@@ -201,9 +202,13 @@ describe("Multiline message deduplication", () => {
       );
       expect(shouldSkip1).toBe(false);
 
-      useStore.setState((s) => ({
-        processedMessageIds: new Set([...s.processedMessageIds, ...messageIds]),
-      }));
+      useStore.setState((s) => {
+        const newMap = new Map(s.processedMessageIds);
+        for (const id of messageIds) {
+          newMap.set(id, Date.now());
+        }
+        return { processedMessageIds: newMap };
+      });
       addMessage(
         makeDmMessage({
           id: "dm-stored-1",
@@ -289,12 +294,13 @@ describe("Multiline message deduplication", () => {
             ? [mtags.msgid]
             : [];
       if (idsToTrack1.length > 0) {
-        useStore.setState((s) => ({
-          processedMessageIds: new Set([
-            ...s.processedMessageIds,
-            ...idsToTrack1,
-          ]),
-        }));
+        useStore.setState((s) => {
+          const newMap = new Map(s.processedMessageIds);
+          for (const id of idsToTrack1) {
+            newMap.set(id, Date.now());
+          }
+          return { processedMessageIds: newMap };
+        });
       }
       addMessage(makeMessage({ id: "msg-1", msgid: batchMsgId }));
 

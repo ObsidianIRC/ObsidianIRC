@@ -26,12 +26,20 @@
 }
 
 body {
-  font-family: 'Roboto Mono', monospace;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   width: 100%;
   height: 100%;
   overflow: hidden;
   font-size: 14px;
-  background-color: #202225;
+  background-color: #0f1113;
+  color: #f2f3f5;
+}
+
+.glass {
+  background: rgba(32, 34, 37, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* iOS safe area support for modals */

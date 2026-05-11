@@ -277,7 +277,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   ) {
     const title = selectedServerId ? "Select a channel" : "Home";
     return (
-      <div className="px-4 py-2.5 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12">
+      <div className="px-4 py-2.5 glass border-b border-white/5 shadow-sm flex items-center min-h-12">
         {(isNarrowView || !isChanListVisible) && (
           <button
             onClick={onToggleChanList}
@@ -325,7 +325,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   ].filter((item) => item.show);
 
   return (
-    <div className="pl-4 pr-0 md:px-4 border-b border-discord-dark-400 shadow-sm flex items-center min-h-12 relative">
+    <div className="pl-4 pr-0 md:px-4 glass border-b border-white/5 shadow-sm flex items-center min-h-12 relative">
       {/* Full-width search overlay (narrow view only) */}
       {isSearchExpanded && (selectedChannel || selectedPrivateChat) && (
         <div className="md:hidden absolute inset-0 z-10 flex items-center gap-2 px-2 bg-discord-dark-500">
@@ -345,7 +345,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 onSearchQueryChange("");
               }
             }}
-            className="flex-1 bg-discord-dark-400 text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link min-w-0"
+            className="flex-1 glass text-white text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-discord-text-link min-w-0"
           />
           <button
             className="p-2 text-discord-text-muted hover:text-white flex-shrink-0"
@@ -595,7 +595,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
-                  className="bg-discord-dark-400 text-discord-text-muted text-sm rounded px-2 py-1 pr-14 w-32 focus:outline-none focus:ring-1 focus:ring-discord-text-link"
+                  className="glass text-discord-text-muted text-sm rounded px-3 py-1.5 pr-14 w-40 focus:outline-none focus:ring-1 focus:ring-discord-text-link transition-all focus:w-64"
                 />
                 {searchQuery && (
                   <button

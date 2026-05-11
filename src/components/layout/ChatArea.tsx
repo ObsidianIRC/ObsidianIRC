@@ -2012,7 +2012,7 @@ export const ChatArea: React.FC<{
 
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}
       {showMemberListOverlay && (
-        <div className="flex-grow overflow-hidden bg-discord-dark-100">
+        <div className="flex-grow overflow-hidden glass border-l border-white/5">
           <MemberList />
         </div>
       )}
@@ -2024,7 +2024,7 @@ export const ChatArea: React.FC<{
             !selectedChannel &&
             !selectedPrivateChat &&
             selectedChannelId !== "server-notices" && (
-              <div className="flex-grow flex flex-col items-center justify-center bg-discord-dark-200">
+              <div className="flex-grow flex flex-col items-center justify-center bg-[#0f1113]">
                 <BlankPage />
               </div>
             )}
@@ -2111,7 +2111,7 @@ export const ChatArea: React.FC<{
                 channelId={selectedChannelId || selectedPrivateChatId || ""}
               />
               <div
-                className={`bg-discord-dark-100 ${localReplyTo ? "rounded-b-lg" : "rounded-lg"} flex items-center relative flex-nowrap`}
+                className={`glass border border-white/5 shadow-2xl ${localReplyTo ? "rounded-b-lg" : "rounded-lg"} flex items-center relative flex-nowrap`}
               >
                 <button
                   className="px-2 sm:px-4 text-discord-text-muted hover:text-discord-text-normal flex-shrink-0"
@@ -2185,7 +2185,7 @@ export const ChatArea: React.FC<{
               {/* Plus menu */}
               {showPlusMenu && (
                 <div
-                  className="plus-menu absolute bg-discord-dark-200 rounded-lg shadow-lg border border-discord-dark-300 min-w-48 z-50"
+                  className="plus-menu absolute glass rounded-lg shadow-2xl border border-white/10 min-w-48 z-50"
                   style={{
                     bottom: "calc(100% + 8px)",
                     left: "16px",

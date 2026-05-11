@@ -2,7 +2,6 @@ import type * as React from "react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import ircClient from "../../lib/ircClient";
 import {
   isUrlFromFilehost,
   isUserVerified,
@@ -16,8 +15,8 @@ import {
   mediaLevelToSettings,
 } from "../../lib/mediaUtils";
 import { stripIrcFormatting } from "../../lib/messageFormatter";
-import useStore, { loadSavedMetadata } from "../../store";
-import type { MessageType, PrivateChat, User } from "../../types";
+import useStore, { type AppState, loadSavedMetadata } from "../../store";
+import type { MessageType, User } from "../../types";
 import MessageBottomSheet from "../mobile/MessageBottomSheet";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
@@ -97,23 +96,14 @@ const getUserMetadata = (username: string, serverId: string) => {
   return null;
 };
 
-// Helper function to get full user object from shared channels
-const getUserFromChannels = (username: string, serverId: string) => {
-  const state = useStore.getState();
-  const server = state.servers.find((s) => s.id === serverId);
-  if (!server) return null;
-
-  // Search through all channels for this user
-  for (const channel of server.channels) {
-    const user = channel.users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase(),
-    );
-    if (user) {
-      return user;
-    }
-  }
-
-  return null;
+// Helper function to get user from global normalization store
+const getUserFromGlobal = (
+  state: AppState,
+  serverId: string,
+  username: string,
+) => {
+  const key = `${serverId}-${username.toLowerCase()}`;
+  return state.globalUsers[key];
 };
 
 // When index 0 has no preview (type null), the first known-type entry must be shown
@@ -196,117 +186,19 @@ export const MessageItem = memo((props: MessageItemProps) => {
     }
   };
 
-  const ircCurrentUser = ircClient.getCurrentUser(message.serverId);
-  const isCurrentUser = ircCurrentUser?.username === message.userId;
-
-  // Get the user key using reactive selector
-  const userKey = useStore(
+  const messageUser: User | undefined = useStore(
     useCallback(
       (state) => {
-        if (!serverId) return "none";
-
-        if (!channelId) {
-          const server = state.servers.find((s) => s.id === serverId);
-          // Prefer channel user — covers current user who has no PrivateChat entry
-          if (server) {
-            const user = server.channels
-              .flatMap((c) => c.users)
-              .find(
-                (u) =>
-                  u.username.toLowerCase() === message.userId.toLowerCase(),
-              );
-            if (user) {
-              return `channel-${user.id}`;
-            }
-          }
-          const privateChat = server?.privateChats?.find(
-            (pc) => pc.username === message.userId,
-          );
-          if (privateChat) {
-            return `pm-${privateChat.id}`;
-          }
-          return "none";
-        }
-
-        const server = state.servers.find((s) => s.id === serverId);
-        const channel = server?.channels.find((c) => c.id === channelId);
-        const user = channel?.users.find(
-          (user) => user.username === message.userId,
-        );
-        return user ? `channel-${user.id}` : "none";
+        const key = `${serverId}-${message.userId.toLowerCase()}`;
+        return state.globalUsers[key];
       },
-      [serverId, channelId, message.userId],
+      [serverId, message.userId],
     ),
   );
 
-  const rawMessageUser = useStore(
-    useCallback(
-      (state) => {
-        if (userKey === "none") return undefined;
-
-        if (userKey.startsWith("pm-")) {
-          const privateChatId = userKey.slice(3);
-          const privateChat = state.servers
-            .find((s) => s.id === serverId)
-            ?.privateChats?.find((pc) => pc.id === privateChatId);
-          if (privateChat) return privateChat;
-        } else if (userKey.startsWith("channel-")) {
-          const userId = userKey.slice(8);
-          const server = state.servers.find((s) => s.id === serverId);
-          if (channelId) {
-            const channel = server?.channels.find((c) => c.id === channelId);
-            return channel?.users.find((user) => user.id === userId);
-          }
-          // DM context: no channelId, search all channels
-          return server?.channels
-            .flatMap((c) => c.users)
-            .find((user) => user.id === userId);
-        }
-
-        return undefined;
-      },
-      [userKey, serverId, channelId],
-    ),
-  );
-
-  const metadataChangeCounter = useStore(
-    (state) => state.metadataChangeCounter,
-  );
-
-  // useMemo instead of useStore — safe to read localStorage without infinite loop via useSyncExternalStore
-  // biome-ignore lint/correctness/useExhaustiveDependencies: metadataChangeCounter is intentional reactive trigger
-  const pmUserMetadata = useMemo(() => {
-    if (!userKey.startsWith("pm-")) return null;
-    const pmUsername = (rawMessageUser as PrivateChat)?.username;
-    if (!pmUsername || !serverId) return null;
-    return getUserMetadata(pmUsername, serverId);
-  }, [metadataChangeCounter, userKey, rawMessageUser, serverId]);
-
-  const messageUser: User | undefined = useMemo(() => {
-    if (!rawMessageUser) return undefined;
-
-    // For PM users, rawMessageUser is the privateChat object
-    // We need to construct a proper User object
-    if (userKey.startsWith("pm-")) {
-      const privateChat = rawMessageUser as PrivateChat;
-      const user: User = {
-        id: privateChat.id,
-        username: privateChat.username,
-        realname: "",
-        account: "",
-        isOnline: privateChat.isOnline ?? true,
-        isAway: privateChat.isAway ?? false,
-        status: "",
-        isBot: false,
-        isIrcOp: false,
-        metadata: pmUserMetadata || {},
-      };
-      return user;
-    }
-
-    // For channel users, rawMessageUser is already a proper User object
-    return rawMessageUser as User;
-  }, [rawMessageUser, pmUserMetadata, userKey]);
+  const ircCurrentUser = useStore((state) => state.currentUser);
+  const isCurrentUser =
+    ircCurrentUser?.username.toLowerCase() === message.userId.toLowerCase();
 
   const avatarUrl = messageUser?.metadata?.avatar?.value;
   const displayName = messageUser?.metadata?.["display-name"]?.value;

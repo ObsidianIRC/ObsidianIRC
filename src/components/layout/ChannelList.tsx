@@ -408,7 +408,7 @@ export const ChannelList: React.FC<{
   return (
     <div className="h-full flex flex-col text-discord-channels-default">
       {/* Server header */}
-      <div className="px-4 h-12 shadow-md flex items-center justify-between border-b border-discord-dark-400">
+      <div className="px-4 h-12 glass shadow-md flex items-center justify-between border-b border-white/5">
         <div className="flex flex-col min-w-0 flex-1">
           <h1 className="font-bold text-white truncate">
             {selectedServer?.networkName || selectedServer?.name || "Home"}
@@ -477,7 +477,7 @@ export const ChannelList: React.FC<{
               {/* Add Channel Input */}
               {newChannelName !== "" && (
                 <div className="px-2 py-1 mb-1">
-                  <div className="flex items-center bg-discord-dark-400 rounded overflow-hidden max-w-full">
+                  <div className="flex items-center glass rounded overflow-hidden max-w-full">
                     <span className="pl-2 pr-1 text-discord-channels-default">
                       <FaHashtag />
                     </span>
@@ -551,8 +551,8 @@ export const ChannelList: React.FC<{
                           shadow-sm
                           ${
                             selectedChannelId === channel.id
-                              ? "bg-black text-white"
-                              : `bg-discord-dark-400/50 ${hoverPrimary}`
+                              ? "bg-black/40 text-white shadow-lg shadow-black/20"
+                              : `glass ${hoverPrimary}`
                           }
                           ${
                             prevItemId === channel.id &&
