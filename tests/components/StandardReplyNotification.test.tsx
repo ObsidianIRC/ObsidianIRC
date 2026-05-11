@@ -2,13 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { StandardReplyNotification } from "../../src/components/ui/StandardReplyNotification";
 
-// Mock the IRC utilities
 vi.mock("../../src/lib/ircUtils", () => ({
   mircToHtml: vi.fn((text: string) => `<span>${text}</span>`),
   processMarkdownInText: vi.fn((text: string) => `<span>${text}</span>`),
 }));
 
-// Mock the LinkWrapper component
 vi.mock("../../src/components/ui/LinkWrapper", () => ({
   EnhancedLinkWrapper: ({
     children,
@@ -32,7 +30,7 @@ describe("StandardReplyNotification", () => {
     timestamp: new Date("2023-01-01T12:00:00Z"),
   };
 
-  test("renders FAIL notification with correct styling and icon", () => {
+  test("renders the human-readable description as the body", () => {
     render(
       <StandardReplyNotification
         {...baseProps}
@@ -40,89 +38,81 @@ describe("StandardReplyNotification", () => {
         onIrcLinkClick={mockOnIrcLinkClick}
       />,
     );
-
-    // Check that the notification is rendered
-    expect(
-      screen.getByText("FAIL AUTHENTICATE INVALID_CREDENTIALS"),
-    ).toBeInTheDocument();
-
-    // Check FAIL-specific styling (red colors) - find the main container by class
-    const mainContainer = document.querySelector(".bg-red-100");
-    expect(mainContainer).toHaveClass("bg-red-100", "border-red-300");
-    expect(mainContainer).toHaveClass(
-      "dark:bg-red-950/50",
-      "dark:border-red-700",
+    expect(screen.getByTestId("enhanced-link-wrapper")).toHaveTextContent(
+      "Authentication failed",
     );
-
-    // Check that the red icon is present (FaTimesCircle)
-    const iconContainer = screen.getByText(
-      "FAIL AUTHENTICATE INVALID_CREDENTIALS",
-    ).parentElement?.previousElementSibling;
-    expect(iconContainer).toBeInTheDocument();
   });
 
-  test("renders WARN notification with correct styling and icon", () => {
+  test("does NOT render command/code as visible text (computer-readable only)", () => {
     render(
       <StandardReplyNotification
         {...baseProps}
-        type="WARN"
+        type="FAIL"
         onIrcLinkClick={mockOnIrcLinkClick}
       />,
     );
-
-    expect(
-      screen.getByText("WARN AUTHENTICATE INVALID_CREDENTIALS"),
-    ).toBeInTheDocument();
-
-    // Check WARN-specific styling (yellow colors)
-    const mainContainer = document.querySelector(".bg-yellow-100");
-    expect(mainContainer).toHaveClass("bg-yellow-100", "border-yellow-300");
-    expect(mainContainer).toHaveClass(
-      "dark:bg-yellow-950/50",
-      "dark:border-yellow-700",
-    );
+    // Description text is what users see; command/code/type must not appear
+    // in any visible label.
+    expect(screen.queryByText(/AUTHENTICATE/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/INVALID_CREDENTIALS/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^FAIL$/)).not.toBeInTheDocument();
   });
 
-  test("renders NOTE notification with correct styling and icon", () => {
-    render(
-      <StandardReplyNotification
-        {...baseProps}
-        type="NOTE"
-        onIrcLinkClick={mockOnIrcLinkClick}
-      />,
-    );
-
-    expect(
-      screen.getByText("NOTE AUTHENTICATE INVALID_CREDENTIALS"),
-    ).toBeInTheDocument();
-
-    // Check NOTE-specific styling (blue colors)
-    const mainContainer = document.querySelector(".bg-blue-100");
-    expect(mainContainer).toHaveClass("bg-blue-100", "border-blue-300");
-    expect(mainContainer).toHaveClass(
-      "dark:bg-blue-950/50",
-      "dark:border-blue-700",
-    );
-  });
-
-  test("displays target when provided", () => {
-    render(
-      <StandardReplyNotification {...baseProps} type="FAIL" target="user123" />,
-    );
-
-    expect(screen.getByText(/FAIL/)).toBeInTheDocument();
-    expect(screen.getByText(/AUTHENTICATE/)).toBeInTheDocument();
-    expect(screen.getByText(/INVALID_CREDENTIALS/)).toBeInTheDocument();
-    expect(screen.getByText(/user123/)).toBeInTheDocument();
-  });
-
-  test("does not display target when not provided", () => {
+  test("FAIL applies red severity styling", () => {
     render(<StandardReplyNotification {...baseProps} type="FAIL" />);
+    const card = document.querySelector(".bg-red-100");
+    expect(card).toHaveClass("bg-red-100", "border-red-300");
+    expect(card).toHaveClass("dark:bg-red-950/50", "dark:border-red-700");
+  });
 
-    expect(
-      screen.getByText("FAIL AUTHENTICATE INVALID_CREDENTIALS"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("•")).not.toBeInTheDocument();
+  test("WARN applies yellow severity styling", () => {
+    render(<StandardReplyNotification {...baseProps} type="WARN" />);
+    const card = document.querySelector(".bg-yellow-100");
+    expect(card).toHaveClass("bg-yellow-100", "border-yellow-300");
+  });
+
+  test("NOTE applies blue severity styling", () => {
+    render(<StandardReplyNotification {...baseProps} type="NOTE" />);
+    const card = document.querySelector(".bg-blue-100");
+    expect(card).toHaveClass("bg-blue-100", "border-blue-300");
+  });
+
+  test("renders context strings as chips alongside the description", () => {
+    render(
+      <StandardReplyNotification
+        {...baseProps}
+        type="FAIL"
+        context={["#foo", "alice"]}
+      />,
+    );
+    expect(screen.getByText("#foo")).toBeInTheDocument();
+    expect(screen.getByText("alice")).toBeInTheDocument();
+  });
+
+  test("legacy `target` is rendered as a chip when no `context` is supplied", () => {
+    render(
+      <StandardReplyNotification {...baseProps} type="FAIL" target="#foo" />,
+    );
+    expect(screen.getByText("#foo")).toBeInTheDocument();
+  });
+
+  test("falls back to '(no description)' when message is empty", () => {
+    render(<StandardReplyNotification {...baseProps} type="FAIL" message="" />);
+    expect(screen.getByText("(no description)")).toBeInTheDocument();
+  });
+
+  test("exposes computer-readable info via the title attribute", () => {
+    render(
+      <StandardReplyNotification
+        {...baseProps}
+        type="FAIL"
+        context={["#foo"]}
+      />,
+    );
+    const card = document.querySelector("[title]") as HTMLElement | null;
+    expect(card?.getAttribute("title")).toBe(
+      "FAIL AUTHENTICATE INVALID_CREDENTIALS #foo",
+    );
   });
 
   test("displays formatted timestamp", () => {
@@ -134,36 +124,14 @@ describe("StandardReplyNotification", () => {
         timestamp={testDate}
       />,
     );
-
-    // Should display time in 12-hour format with 2 digits (in local timezone)
-    const expectedTime = new Intl.DateTimeFormat("en-US", {
+    const expected = new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     }).format(testDate);
-
-    expect(screen.getByText(expectedTime)).toBeInTheDocument();
+    expect(screen.getByText(expected)).toBeInTheDocument();
   });
 
-  test("renders message content through EnhancedLinkWrapper", () => {
-    render(
-      <StandardReplyNotification
-        {...baseProps}
-        type="WARN"
-        message="Warning: Invalid command"
-        onIrcLinkClick={mockOnIrcLinkClick}
-      />,
-    );
-
-    // Check that the message is wrapped in EnhancedLinkWrapper
-    const linkWrapper = screen.getByTestId("enhanced-link-wrapper");
-    expect(linkWrapper).toBeInTheDocument();
-    expect(linkWrapper).toHaveAttribute("data-onclick", "true");
-
-    // Check that mircToHtml was called and the result is displayed
-    expect(linkWrapper).toHaveTextContent("Warning: Invalid command");
-  });
-
-  test("handles onIrcLinkClick callback", () => {
+  test("passes onIrcLinkClick into EnhancedLinkWrapper", () => {
     render(
       <StandardReplyNotification
         {...baseProps}
@@ -171,37 +139,13 @@ describe("StandardReplyNotification", () => {
         onIrcLinkClick={mockOnIrcLinkClick}
       />,
     );
-
-    const linkWrapper = screen.getByTestId("enhanced-link-wrapper");
-    expect(linkWrapper).toHaveAttribute("data-onclick", "true");
+    const wrapper = screen.getByTestId("enhanced-link-wrapper");
+    expect(wrapper).toHaveAttribute("data-onclick", "true");
   });
 
   test("works without onIrcLinkClick callback", () => {
     render(<StandardReplyNotification {...baseProps} type="FAIL" />);
-
-    const linkWrapper = screen.getByTestId("enhanced-link-wrapper");
-    expect(linkWrapper).toHaveAttribute("data-onclick", "false");
-  });
-
-  test("applies correct text colors for each type", () => {
-    const { rerender } = render(
-      <StandardReplyNotification {...baseProps} type="FAIL" />,
-    );
-
-    // FAIL should have red text
-    let header = screen.getByText("FAIL AUTHENTICATE INVALID_CREDENTIALS");
-    expect(header).toHaveClass("text-red-800", "dark:text-red-200");
-
-    // Re-render with WARN
-    rerender(<StandardReplyNotification {...baseProps} type="WARN" />);
-
-    header = screen.getByText("WARN AUTHENTICATE INVALID_CREDENTIALS");
-    expect(header).toHaveClass("text-yellow-800", "dark:text-yellow-200");
-
-    // Re-render with NOTE
-    rerender(<StandardReplyNotification {...baseProps} type="NOTE" />);
-
-    header = screen.getByText("NOTE AUTHENTICATE INVALID_CREDENTIALS");
-    expect(header).toHaveClass("text-blue-800", "dark:text-blue-200");
+    const wrapper = screen.getByTestId("enhanced-link-wrapper");
+    expect(wrapper).toHaveAttribute("data-onclick", "false");
   });
 });
