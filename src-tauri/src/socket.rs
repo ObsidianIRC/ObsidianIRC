@@ -51,6 +51,14 @@ struct MessageData {
     data: Vec<u8>,
 }
 
+async fn take_connection(
+    state: &Arc<Mutex<HashMap<String, ConnectionHandle>>>,
+    client_id: &str,
+) -> Option<ConnectionHandle> {
+    let mut connections = state.lock().await;
+    connections.remove(client_id)
+}
+
 /// Read task for handling incoming data from the socket
 async fn read_task<R>(
     client_id: String,
@@ -66,6 +74,11 @@ async fn read_task<R>(
     loop {
         match reader.read(&mut read_buf).await {
             Ok(0) => {
+                let was_tracked = take_connection(&state, &client_id).await.is_some();
+                if !was_tracked {
+                    break;
+                }
+
                 // Connection closed by server
                 // Emit any remaining partial data as a final message
                 if !line_buffer.is_empty() {
@@ -87,10 +100,6 @@ async fn read_task<R>(
                         connected: Some(false),
                     },
                 });
-
-                // Remove connection from state
-                let mut connections = state.lock().await;
-                connections.remove(&client_id);
                 break;
             }
             Ok(n) => {
@@ -122,6 +131,11 @@ async fn read_task<R>(
                 }
             }
             Err(e) => {
+                let was_tracked = take_connection(&state, &client_id).await.is_some();
+                if !was_tracked {
+                    break;
+                }
+
                 // Read error - emit error event and stop
                 let _ = app_handle.emit("tcp-message", ReceivedPayload {
                     id: client_id.clone(),
@@ -131,10 +145,6 @@ async fn read_task<R>(
                         connected: Some(false),
                     },
                 });
-
-                // Remove connection from state
-                let mut connections = state.lock().await;
-                connections.remove(&client_id);
                 break;
             }
         }
@@ -340,16 +350,14 @@ fn parse_host_port(host_port: &str, default_port: u16) -> Result<(String, u16), 
 /// Disconnect a specific client connection
 #[tauri::command]
 pub async fn disconnect(client_id: String, state: State<'_, SocketState>) -> Result<(), String> {
-    let mut connections = state.0.lock().await;
-    if let Some(mut handle) = connections.remove(&client_id) {
+    if let Some(mut handle) = take_connection(&state.0, &client_id).await {
         // Send shutdown signal if available
         if let Some(shutdown_tx) = handle.shutdown_tx.take() {
             let _ = shutdown_tx.send(());
         }
-        Ok(())
-    } else {
-        Err(format!("No connection found for client_id: {}", client_id))
     }
+
+    Ok(())
 }
 
 /// Start listening for messages from all active connections
@@ -386,5 +394,33 @@ pub async fn send(
         Ok(())
     } else {
         Err(format!("No connection found for client_id: {}", client_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_connection_handle() -> ConnectionHandle {
+        let (write_tx, _write_rx) = mpsc::channel(1);
+        let (shutdown_tx, _shutdown_rx) = oneshot::channel();
+
+        ConnectionHandle {
+            write_tx,
+            shutdown_tx: Some(shutdown_tx),
+        }
+    }
+
+    #[tokio::test]
+    async fn take_connection_is_idempotent() {
+        let state = Arc::new(Mutex::new(HashMap::new()));
+
+        {
+            let mut connections = state.lock().await;
+            connections.insert("client-1".to_string(), make_connection_handle());
+        }
+
+        assert!(take_connection(&state, "client-1").await.is_some());
+        assert!(take_connection(&state, "client-1").await.is_none());
     }
 }

@@ -2,6 +2,16 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { parseIrcUrl } from "./ircUrlParser";
+
+type SocketProtocol = "wss" | "irc" | "ircs";
+
+export interface ResolvedSocketTarget {
+  url: string;
+  host: string;
+  port: number;
+  protocol: SocketProtocol;
+}
 
 export interface ISocket {
   onopen: (() => void) | null;
@@ -14,11 +24,20 @@ export interface ISocket {
   readyState: number;
 }
 
+export interface SocketFactoryContext {
+  url: string;
+  protocol: SocketProtocol;
+}
+
+export type SocketFactory = (context: SocketFactoryContext) => ISocket;
+
 export class TCPSocket implements ISocket {
   private clientId: string;
   private isConnected = false;
   private _readyState = 0; // 0: CONNECTING, 1: OPEN, 2: CLOSING, 3: CLOSED
   private unlisten?: () => void;
+  private closeRequested = false;
+  private closeFinalized = false;
 
   public onopen: (() => void) | null = null;
   public onmessage: ((event: { data: string }) => void) | null = null;
@@ -43,6 +62,8 @@ export class TCPSocket implements ISocket {
       // Only handle messages for this client
       if (payload.id !== this.clientId) return;
 
+      if (this.closeFinalized) return;
+
       if (payload.event.message) {
         // Convert byte array to string
         const data = new TextDecoder().decode(
@@ -56,14 +77,15 @@ export class TCPSocket implements ISocket {
       }
 
       if (payload.event.connected === false) {
-        this.isConnected = false;
-        this._readyState = 3; // CLOSED
-        this.onclose?.();
-        this.unlisten?.();
-        this.unlisten = undefined;
+        this.finalizeClose();
       }
     })
       .then((unlistenFn) => {
+        if (this.closeFinalized) {
+          unlistenFn();
+          return;
+        }
+
         this.unlisten = unlistenFn;
       })
       .catch((error: unknown) => {
@@ -74,6 +96,23 @@ export class TCPSocket implements ISocket {
 
     invoke("connect", { clientId: this.clientId, address })
       .then(() => {
+        if (this.closeFinalized) {
+          return;
+        }
+
+        if (this.closeRequested) {
+          this.isConnected = true;
+
+          return invoke("disconnect", { clientId: this.clientId })
+            .then(() => {
+              this.finalizeClose();
+            })
+            .catch((error: unknown) => {
+              this.onerror?.(new Error(`Failed to disconnect: ${error}`));
+              this.finalizeClose();
+            });
+        }
+
         this.isConnected = true;
         this._readyState = 1; // OPEN
         // Start listening for messages
@@ -82,6 +121,11 @@ export class TCPSocket implements ISocket {
         this.onopen?.();
       })
       .catch((error: unknown) => {
+        if (this.closeRequested) {
+          this.finalizeClose();
+          return;
+        }
+
         this._readyState = 3; // CLOSED
         this.onerror?.(new Error(`Failed to connect: ${error}`));
       });
@@ -92,7 +136,7 @@ export class TCPSocket implements ISocket {
   }
 
   send(data: string): void {
-    if (!this.isConnected) {
+    if (!this.isConnected || this._readyState !== 1) {
       throw new Error("Socket is not connected");
     }
 
@@ -104,20 +148,42 @@ export class TCPSocket implements ISocket {
   }
 
   close(): void {
-    if (this.isConnected) {
+    if (this.closeRequested || this.closeFinalized) {
+      return;
+    }
+
+    this.closeRequested = true;
+
+    if (this._readyState !== 3) {
       this._readyState = 2; // CLOSING
+    }
+
+    if (this.isConnected) {
+      this.isConnected = false;
+
       invoke("disconnect", { clientId: this.clientId })
         .then(() => {
-          this.isConnected = false;
-          this._readyState = 3; // CLOSED
-          this.onclose?.();
-          this.unlisten?.();
-          this.unlisten = undefined;
+          this.finalizeClose();
         })
         .catch((error: unknown) => {
           this.onerror?.(new Error(`Failed to disconnect: ${error}`));
+          this.finalizeClose();
         });
     }
+  }
+
+  private finalizeClose(): void {
+    if (this.closeFinalized) {
+      return;
+    }
+
+    this.closeFinalized = true;
+    this.closeRequested = false;
+    this.isConnected = false;
+    this._readyState = 3;
+    this.onclose?.();
+    this.unlisten?.();
+    this.unlisten = undefined;
   }
 }
 
@@ -161,12 +227,78 @@ export class WebSocketWrapper implements ISocket {
   }
 }
 
-export function createSocket(url: string): ISocket {
+export function resolveSocketProtocol(url: string): SocketProtocol {
   if (url.startsWith("wss://")) {
+    return "wss";
+  }
+
+  if (url.startsWith("irc://")) {
+    return "irc";
+  }
+
+  if (url.startsWith("ircs://")) {
+    return "ircs";
+  }
+
+  throw new Error("Unsupported socket protocol");
+}
+
+export function resolveSocketTarget(
+  rawHost: string,
+  port: number,
+): ResolvedSocketTarget {
+  let protocol: SocketProtocol = "wss";
+  let host = rawHost;
+  let resolvedPort = port;
+  let path = "";
+
+  if (rawHost.startsWith("irc://") || rawHost.startsWith("ircs://")) {
+    const parsed = parseIrcUrl(rawHost);
+    protocol = parsed.scheme;
+    host = parsed.host;
+    resolvedPort = parsed.port;
+  } else if (rawHost.startsWith("wss://") || rawHost.startsWith("ws://")) {
+    try {
+      const parsed = new URL(rawHost);
+      host = parsed.hostname;
+      resolvedPort = parsed.port ? Number.parseInt(parsed.port, 10) : port;
+      path =
+        parsed.pathname !== "/"
+          ? parsed.pathname + parsed.search
+          : parsed.search;
+    } catch {
+      // Keep the original host/port if the explicit websocket URL is malformed.
+    }
+  }
+
+  return {
+    url: `${protocol}://${host}:${resolvedPort}${path}`,
+    host,
+    port: resolvedPort,
+    protocol,
+  };
+}
+
+const defaultSocketFactory: SocketFactory = ({ url, protocol }) => {
+  if (protocol === "wss") {
     return new WebSocketWrapper(url);
   }
-  if (url.startsWith("irc://") || url.startsWith("ircs://")) {
-    return new TCPSocket(url);
-  }
-  throw new Error("Unsupported socket protocol");
+
+  return new TCPSocket(url);
+};
+
+let socketFactory: SocketFactory = defaultSocketFactory;
+
+export function setSocketFactory(factory: SocketFactory): void {
+  socketFactory = factory;
+}
+
+export function resetSocketFactory(): void {
+  socketFactory = defaultSocketFactory;
+}
+
+export function createSocket(url: string): ISocket {
+  const protocol = resolveSocketProtocol(url);
+
+  return socketFactory({ url, protocol });
 }

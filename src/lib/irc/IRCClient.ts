@@ -11,9 +11,8 @@ import type {
   Server,
   User,
 } from "../../types";
-import { parseIrcUrl } from "../ircUrlParser";
 import { parseMessageTags } from "../ircUtils";
-import { createSocket, type ISocket } from "../socket";
+import { createSocket, type ISocket, resolveSocketTarget } from "../socket";
 import { IRC_DISPATCH } from "./handlers";
 import type { IRCClientContext } from "./IRCClientContext";
 
@@ -398,6 +397,7 @@ type EventCallback<K extends EventKey> = (data: EventMap[K]) => void;
 
 export class IRCClient implements IRCClientContext {
   private sockets: Map<string, ISocket> = new Map();
+  private intentionalDisconnects: Set<string> = new Set();
   servers: Map<string, Server> = new Map();
   nicks: Map<string, string> = new Map();
   currentUsers: Map<string, User | null> = new Map(); // Per-server current users
@@ -499,6 +499,10 @@ export class IRCClient implements IRCClientContext {
   ): Promise<Server> {
     const connectionKey = `${host}:${port}`;
 
+    if (serverId) {
+      this.intentionalDisconnects.delete(serverId);
+    }
+
     // Check if there's already a pending connection to this server
     const existingConnection = this.pendingConnections.get(connectionKey);
     if (existingConnection) {
@@ -517,47 +521,10 @@ export class IRCClient implements IRCClientContext {
 
     // Create a new connection promise and store it
     const connectionPromise = new Promise<Server>((resolve, reject) => {
-      let protocol: "wss" | "ircs" | "irc" = "wss";
-      let actualHost = host;
-      let actualPort = port;
-      let actualPath = "";
-
-      if (host.startsWith("irc://") || host.startsWith("ircs://")) {
-        // Parse the IRC URL using centralized parser (Android-compatible)
-        const parsed = parseIrcUrl(host);
-
-        protocol = parsed.scheme;
-        actualHost = parsed.host;
-        actualPort = parsed.port;
-      } else if (host.startsWith("wss://")) {
-        // Use URL constructor to preserve path/query (e.g. wss://host/websocket?token=...)
-        try {
-          const parsed = new URL(host);
-          actualHost = parsed.hostname;
-          actualPort = parsed.port ? Number.parseInt(parsed.port, 10) : port;
-          actualPath =
-            parsed.pathname !== "/"
-              ? parsed.pathname + parsed.search
-              : parsed.search;
-        } catch {
-          // malformed URL — leave actualHost/Port from the default
-        }
-      } else if (host.startsWith("ws://")) {
-        // Upgrade legacy ws:// to wss:// — unencrypted WebSockets are no longer supported
-        try {
-          const parsed = new URL(host);
-          actualHost = parsed.hostname;
-          actualPort = parsed.port ? Number.parseInt(parsed.port, 10) : port;
-          actualPath =
-            parsed.pathname !== "/"
-              ? parsed.pathname + parsed.search
-              : parsed.search;
-        } catch {
-          // malformed URL — leave actualHost/Port from the default
-        }
-      }
-
-      const url = `${protocol}://${actualHost}:${actualPort}${actualPath}`;
+      const target = resolveSocketTarget(host, port);
+      const url = target.url;
+      const actualHost = target.host;
+      const actualPort = target.port;
       const socket = createSocket(url);
 
       // Create server object immediately and add to servers map
@@ -657,6 +624,14 @@ export class IRCClient implements IRCClientContext {
         // to ensure connection is fully established before sending PINGs
 
         socket.onclose = () => {
+          if (this.intentionalDisconnects.has(server.id)) {
+            this.intentionalDisconnects.delete(server.id);
+            this.stopWebSocketPing(server.id);
+            this.sockets.delete(server.id);
+            this.pendingConnections.delete(connectionKey);
+            return;
+          }
+
           if (!this.servers.has(server.id)) {
             return;
           }
@@ -720,13 +695,27 @@ export class IRCClient implements IRCClientContext {
 
   disconnect(serverId: string, quitMessage?: string): void {
     const socket = this.sockets.get(serverId);
+    const server = this.servers.get(serverId);
+
     if (socket) {
-      const message = quitMessage || "ObsidianIRC - Bringing IRC to the future";
-      socket.send(`QUIT :${message}`);
-      socket.close();
+      const CONNECTING = 0;
+      const OPEN = 1;
+
+      this.intentionalDisconnects.add(serverId);
+
+      if (socket.readyState === OPEN && server?.isConnected) {
+        const message =
+          quitMessage || "ObsidianIRC - Bringing IRC to the future";
+        socket.send(`QUIT :${message}`);
+      }
+
+      if (socket.readyState === CONNECTING || socket.readyState === OPEN) {
+        socket.close();
+      }
+
       this.sockets.delete(serverId);
     }
-    const server = this.servers.get(serverId);
+
     if (server) {
       server.isConnected = false;
       server.connectionState = "disconnected";
@@ -750,6 +739,7 @@ export class IRCClient implements IRCClientContext {
 
   removeServer(serverId: string): void {
     this.disconnect(serverId);
+    this.intentionalDisconnects.delete(serverId);
     this.servers.delete(serverId);
     this.capNegotiationComplete.delete(serverId);
     this.pendingCapReqs.delete(serverId);

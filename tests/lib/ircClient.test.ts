@@ -102,6 +102,30 @@ describe("IRCClient", () => {
       expect(mockSocket.sentMessages).toContain("CAP LS 302");
     });
 
+    test("preserves secure websocket paths and query strings through the transport seam", async () => {
+      const mockSocket = new MockWebSocket(
+        "wss://irc.example.com:443/webirc?token=abc",
+      );
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const connectionPromise = client.connect(
+        "WebIRC",
+        "wss://irc.example.com/webirc?token=abc",
+        443,
+        "testuser",
+      );
+
+      mockSocket.simulateOpen();
+      const server = await connectionPromise;
+
+      expect(MockWebSocketSpy).toHaveBeenCalledWith(
+        "wss://irc.example.com:443/webirc?token=abc",
+      );
+      expect(server.host).toBe("irc.example.com");
+      expect(server.port).toBe(443);
+      expect(server.name).toBe("WebIRC");
+    });
+
     test.skip("should handle connection errors", async () => {
       vi.useFakeTimers();
 
@@ -163,6 +187,102 @@ describe("IRCClient", () => {
 
       // Should not have created a new WebSocket
       expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("disconnect", () => {
+    test("does not send QUIT while socket is still connecting", () => {
+      const mockSocket = new MockWebSocket("wss://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+        undefined,
+        undefined,
+        undefined,
+        "server-1",
+      );
+
+      client.disconnect("server-1");
+
+      expect(mockSocket.sentMessages).toEqual([]);
+      expect(mockSocket.readyState).toBe(WebSocket.CLOSED);
+    });
+
+    test("does not start reconnection after an intentional disconnect", async () => {
+      vi.useFakeTimers();
+
+      const mockSocket = new MockWebSocket("wss://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const states: string[] = [];
+      client.on("connectionStateChange", ({ connectionState }) => {
+        states.push(connectionState);
+      });
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+        undefined,
+        undefined,
+        undefined,
+        "server-2",
+      );
+
+      mockSocket.simulateOpen();
+      await connectionPromise;
+
+      client.disconnect("server-2");
+      vi.runOnlyPendingTimers();
+
+      expect(states).toEqual(["connected", "disconnected"]);
+      expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
+
+      vi.useRealTimers();
+    });
+
+    test("treats closing sockets as intentional disconnects", async () => {
+      vi.useFakeTimers();
+
+      const mockSocket = new MockWebSocket("wss://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      const states: string[] = [];
+      client.on("connectionStateChange", ({ connectionState }) => {
+        states.push(connectionState);
+      });
+
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+        undefined,
+        undefined,
+        undefined,
+        "server-3",
+      );
+
+      mockSocket.simulateOpen();
+      await connectionPromise;
+
+      mockSocket.readyState = WebSocket.CLOSING;
+      client.disconnect("server-3");
+      mockSocket.onclose?.(new CloseEvent("close"));
+      vi.runOnlyPendingTimers();
+
+      expect(states).toEqual(["connected", "disconnected"]);
+      expect(mockSocket.sentMessages).not.toContain(
+        "QUIT :ObsidianIRC - Bringing IRC to the future",
+      );
+      expect(MockWebSocketSpy).toHaveBeenCalledTimes(1);
+
+      vi.useRealTimers();
     });
   });
 
