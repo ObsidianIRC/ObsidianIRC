@@ -2,6 +2,7 @@ import type * as React from "react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { renderWithCustomEmoji, useEmojiResolver } from "../../lib/customEmoji";
 import ircClient from "../../lib/ircClient";
 import {
   isUrlFromFilehost,
@@ -348,22 +349,40 @@ export const MessageItem = memo((props: MessageItemProps) => {
   // message.content is already combined for multiline messages by the IRC client
   const messageContent = message.content;
 
-  const htmlContent = useMemo(
-    () =>
-      processMarkdownInText(
-        messageContent,
-        showExternalContent,
-        enableMarkdownRendering,
-        message.id || message.msgid || "msg",
-      ),
-    [
+  // draft/custom-emoji: gather pack URLs for this message's channel +
+  // network in priority order so a channel pack can shadow a network
+  // shortcode of the same name.
+  const channelEmojiUrl = useMemo(() => {
+    const ch = server?.channels.find((c) => c.id === channelId);
+    return ch?.metadata?.["draft/emoji"]?.value;
+  }, [server, channelId]);
+  const { resolve: resolveEmoji } = useEmojiResolver([
+    channelEmojiUrl,
+    server?.emojiPackUrl,
+  ]);
+
+  const htmlContent = useMemo(() => {
+    const keyPrefix = message.id || message.msgid || "msg";
+    return renderWithCustomEmoji(
       messageContent,
-      showExternalContent,
-      enableMarkdownRendering,
-      message.id,
-      message.msgid,
-    ],
-  );
+      resolveEmoji,
+      (subtext, key) =>
+        processMarkdownInText(
+          subtext,
+          showExternalContent,
+          enableMarkdownRendering,
+          key,
+        ),
+      `${keyPrefix}-em`,
+    );
+  }, [
+    messageContent,
+    showExternalContent,
+    enableMarkdownRendering,
+    message.id,
+    message.msgid,
+    resolveEmoji,
+  ]);
 
   // Create collapsible content wrapper
   const collapsibleContent = (

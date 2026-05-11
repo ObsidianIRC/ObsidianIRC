@@ -120,6 +120,9 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
           "color",
           "display-name",
           "bot",
+          // draft/custom-emoji: channel-scoped pack URL.  Subscribing
+          // here so we get notified when a channel ops sets a new pack.
+          "draft/emoji",
         ];
         store.getState().metadataSub(serverId, defaultKeys);
       }
@@ -622,6 +625,24 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
         ...s.messages,
         [key]: [...(s.messages[key] || []), notificationMessage],
       },
+    }));
+  });
+
+  // draft/authtoken: cache the bearer token + bound URL on the server
+  // record.  Components wait on `authToken` to flip from undefined to a
+  // string after they call requestToken().
+  ircClient.on("TOKEN_GENERATE", ({ serverId, service, url, token }) => {
+    store.setState((state) => ({
+      servers: state.servers.map((server) =>
+        server.id === serverId
+          ? {
+              ...server,
+              authToken: token,
+              authTokenUrl: url,
+              authTokenService: service,
+            }
+          : server,
+      ),
     }));
   });
 

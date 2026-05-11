@@ -429,4 +429,55 @@ describe("IRCClient", () => {
       return setnamePromise;
     });
   });
+
+  describe("draft/authtoken", () => {
+    let mockSocket: MockWebSocket;
+    let server: Server;
+
+    beforeEach(async () => {
+      mockSocket = new MockWebSocket("ws://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+      const connectionPromise = client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+      );
+      mockSocket.simulateOpen();
+      server = await connectionPromise;
+    });
+
+    test("requestToken sends TOKEN GENERATE", () => {
+      client.requestToken(server.id, "filehost");
+      expect(mockSocket.sentMessages).toContain("TOKEN GENERATE filehost");
+    });
+
+    test("requestToken with scope appends scope", () => {
+      client.requestToken(server.id, "filehost", "channel:#foo");
+      expect(mockSocket.sentMessages).toContain(
+        "TOKEN GENERATE filehost channel:#foo",
+      );
+    });
+
+    test("parses TOKEN GENERATE reply", async () => {
+      const got = new Promise<{ service: string; url: string; token: string }>(
+        (resolve) => {
+          client.on("TOKEN_GENERATE", (data) => {
+            resolve({
+              service: data.service,
+              url: data.url,
+              token: data.token,
+            });
+          });
+        },
+      );
+      mockSocket.simulateMessage(
+        ":irc.example.com TOKEN GENERATE filehost https://files.example.com :abc123\r\n",
+      );
+      const out = await got;
+      expect(out.service).toBe("filehost");
+      expect(out.url).toBe("https://files.example.com");
+      expect(out.token).toBe("abc123");
+    });
+  });
 });
