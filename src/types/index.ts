@@ -46,6 +46,14 @@ export interface Server {
   jwtToken?: string; // JWT token for filehost authentication
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // draft/persistence state (populated from PERSISTENCE STATUS replies).
+  // `preference` is what the user has explicitly set on this account
+  // (ON/OFF) or DEFAULT meaning "follow the server-wide default".
+  // `effective` is what the server is actually doing right now.
+  persistencePreference?: "ON" | "OFF" | "DEFAULT";
+  persistenceEffective?: "ON" | "OFF";
+  myIdent?: string; // Our own ident on this server (draft/whoami SETNAME burst or CHGHOST)
+  myHost?: string; // Our own hostname on this server (draft/whoami SETNAME burst or CHGHOST)
   // obsidianirc/cmdslist: lowercase set of commands this user can
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
@@ -65,7 +73,12 @@ export interface ServerConfig {
   saslEnabled: boolean;
   // "auto" prefers SCRAM-SHA-256 when the server advertises it and falls
   // back to PLAIN, "webauthn" uses DRAFT-WEBAUTHN-BIO directly.
-  saslMechanism?: "auto" | "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO";
+  saslMechanism?:
+    | "auto"
+    | "PLAIN"
+    | "SCRAM-SHA-256"
+    | "DRAFT-WEBAUTHN-BIO"
+    | "EXTERNAL";
   skipLinkSecurityWarning?: boolean;
   skipLocalhostWarning?: boolean;
   operUsername?: string;
@@ -132,6 +145,10 @@ export interface Channel {
   bans?: Array<{ mask: string; setter: string; timestamp: number }>;
   invites?: Array<{ mask: string; setter: string; timestamp: number }>;
   exceptions?: Array<{ mask: string; setter: string; timestamp: number }>;
+  // draft/read-marker: ISO-8601 timestamp of the latest message the
+  // user has marked as read in this channel (mirrored across all of
+  // the user's connected sessions).  null = no marker on file yet.
+  readMarker?: string | null;
 }
 
 export interface PrivateChat {
@@ -153,6 +170,12 @@ export interface PrivateChat {
   isBot?: boolean; // Bot status from WHO/WHOX or message tags
   isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
+  // draft/read-marker: see Channel.readMarker.
+  readMarker?: string | null;
+  // draft/read-marker: have we issued an initial MARKREAD GET for this
+  // PM yet?  PMs are not auto-pushed by the server, so we need to
+  // explicitly fetch on first open.
+  readMarkerFetched?: boolean;
 }
 
 export interface Reaction {

@@ -27,6 +27,7 @@ type SaslMech =
   | "PLAIN"
   | "SCRAM-SHA-256"
   | "DRAFT-WEBAUTHN-BIO"
+  | "EXTERNAL"
   | "IRCV3BEARER";
 
 interface SaslSession {
@@ -62,8 +63,17 @@ const sessions = new Map<string, SaslSession>();
 
 function chooseMechanism(
   available: string[],
-  pref: "auto" | "PLAIN" | "SCRAM-SHA-256" | "DRAFT-WEBAUTHN-BIO" | undefined,
+  pref:
+    | "auto"
+    | "PLAIN"
+    | "SCRAM-SHA-256"
+    | "DRAFT-WEBAUTHN-BIO"
+    | "EXTERNAL"
+    | undefined,
 ): SaslMech {
+  // EXTERNAL is a deliberate user choice (the cert is on this device,
+  // typically) -- never picked under "auto".
+  if (pref === "EXTERNAL" && available.includes("EXTERNAL")) return "EXTERNAL";
   if (pref === "DRAFT-WEBAUTHN-BIO" && available.includes("DRAFT-WEBAUTHN-BIO"))
     return "DRAFT-WEBAUTHN-BIO";
   if (pref === "PLAIN") return "PLAIN";
@@ -84,10 +94,11 @@ function loadCreds(
     ? serv.saslAccountName
     : serv.nickname;
   const pass = serv.saslPassword ? atob(serv.saslPassword) : undefined;
-  if (!user || !pass) return null;
+  // EXTERNAL has no password -- the TLS cert is the proof.
+  if (!user || (serv.saslMechanism !== "EXTERNAL" && !pass)) return null;
   const available = ircClient.getSaslMechanisms(serverId);
   const mech = chooseMechanism(available, serv.saslMechanism);
-  return { user, pass, mech };
+  return { user, pass: pass ?? "", mech };
 }
 
 function clearSession(serverId: string) {
@@ -225,6 +236,14 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     }
 
     try {
+      if (session.mech === "EXTERNAL") {
+        // SASL EXTERNAL: server sends `+` to acknowledge the mechanism,
+        // we reply with `+` to mean "use the identity already
+        // established by the TLS cert".  No further frames.
+        if (param === "+") ircClient.sendRaw(serverId, "AUTHENTICATE +");
+        return;
+      }
+
       if (session.mech === "IRCV3BEARER") {
         if (param !== "+") return;
         if (!session.oauthBearer) return;
@@ -624,6 +643,41 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     },
   );
 
+  // draft/persistence: cache the server's reported preference + effective
+  // setting so the UI can render a tri-state toggle without re-querying
+  // the server every time the panel opens.
+  ircClient.on("PERSISTENCE_STATUS", ({ serverId, preference, effective }) => {
+    store.setState((state) => ({
+      servers: state.servers.map((server) =>
+        server.id === serverId
+          ? {
+              ...server,
+              persistencePreference: preference,
+              persistenceEffective: effective,
+            }
+          : server,
+      ),
+    }));
+  });
+
+  // After CAP ACK we know whether the server supports draft/persistence.
+  // Issue an initial PERSISTENCE GET so the settings panel has fresh
+  // state by the time the user opens it.  We only do this once per
+  // (serverId, account) login -- the spec gates the command on
+  // IsLoggedIn, so we wait for the SASL success path to mark the
+  // session complete.
+  ircClient.on("CAP_ACKNOWLEDGED", ({ serverId, key }) => {
+    if (key !== "draft/persistence") return;
+    // Defer the GET until a tick later so SASL has had a chance to
+    // complete; the server returns ACCOUNT_REQUIRED otherwise and
+    // we'd just have to retry.
+    setTimeout(() => {
+      const state = store.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server?.isConnected) return;
+      ircClient.persistenceGet(serverId);
+    }, 1500);
+  });
   // obsidianirc/cmdslist: maintain a lowercase set of invocable
   // commands per server.  Additions and removals can arrive in the
   // same wire line, so apply both atomically.

@@ -16,7 +16,9 @@ import { useModalBehavior } from "../../hooks/useModalBehavior";
 import { getBuiltinOAuthConfig } from "../../lib/oauth";
 import useStore, { loadSavedServers } from "../../store";
 import type { ServerConfig, ServerOAuthConfig } from "../../types";
+import ChangePasswordModal from "./ChangePasswordModal";
 import { OAuthSection } from "./OAuthSection";
+import PasswordRecoveryModal from "./PasswordRecoveryModal";
 import { TextInput } from "./TextInput";
 
 interface EditServerModalProps {
@@ -72,6 +74,10 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const [oauthConfig, setOauthConfig] = useState<ServerOAuthConfig | undefined>(
     serverConfig?.oauth,
   );
+  // draft/account-recovery: opens the matching modals from the
+  // Authentication tab when the server advertises the cap.
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -288,6 +294,36 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           className={inputClass}
         />
       </section>
+
+      {server?.capabilities?.includes("draft/account-recovery") && (
+        <section>
+          <h4 className="text-discord-text-normal font-medium mb-2">
+            Account password
+          </h4>
+          <p className="text-discord-text-muted text-xs mb-3">
+            Server supports draft/account-recovery -- change or reset the
+            password tied to your account.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {server.isConnected && (
+              <button
+                type="button"
+                onClick={() => setShowChangePassword(true)}
+                className="px-3 py-2 rounded bg-discord-dark-400 text-discord-text-normal hover:bg-discord-dark-300 text-sm"
+              >
+                Change password
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowRecovery(true)}
+              className="px-3 py-2 rounded bg-discord-dark-400 text-discord-text-muted hover:bg-discord-dark-300 hover:text-white text-sm"
+            >
+              Forgot password?
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 
@@ -590,6 +626,19 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           {footer}
         </div>
       </div>
+      {showRecovery && (
+        <PasswordRecoveryModal
+          serverId={serverId}
+          initialAccount={saslAccountName || nickname}
+          onClose={() => setShowRecovery(false)}
+        />
+      )}
+      {showChangePassword && (
+        <ChangePasswordModal
+          serverId={serverId}
+          onClose={() => setShowChangePassword(false)}
+        />
+      )}
     </div>,
     document.body,
   );
