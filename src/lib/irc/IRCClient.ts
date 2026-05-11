@@ -557,6 +557,14 @@ export class IRCClient implements IRCClientContext {
     "server-time",
     "echo-message",
     "userhost-in-names",
+    // We populate the member list from WHO/WHOX on JOIN (see
+    // store/handlers/messages.ts and store/index.ts), so we don't need
+    // -- and don't want -- the implicit RPL_NAMREPLY burst the server
+    // would otherwise emit. The ratified `no-implicit-names` cap tells
+    // the server to skip it; we also REQ the original draft name for
+    // back-compat with servers that haven't moved to the ratified form.
+    "no-implicit-names",
+    "draft/no-implicit-names",
     "draft/chathistory",
     "draft/event-playback",
     "draft/extended-isupport",
