@@ -16,6 +16,7 @@ import {
 } from "../../lib/sasl/webauthn";
 import {
   buildIrcv3BearerPayload,
+  buildOauthBearerPayload,
   chunkSaslPayload,
 } from "../../lib/saslFrames";
 import type { Message, ServerConfig, ServerOAuthConfig } from "../../types";
@@ -28,7 +29,8 @@ type SaslMech =
   | "SCRAM-SHA-256"
   | "DRAFT-WEBAUTHN-BIO"
   | "EXTERNAL"
-  | "IRCV3BEARER";
+  | "IRCV3BEARER"
+  | "OAUTHBEARER";
 
 interface SaslSession {
   mech: SaslMech;
@@ -36,11 +38,15 @@ interface SaslSession {
   password?: string;
   scram?: ScramState;
   step: number;
-  // IRCV3BEARER-only: the bearer token + framing hints we'll emit when
-  // the server says AUTHENTICATE +.
+  // IRCV3BEARER / OAUTHBEARER state: the bearer token + framing hints
+  // we'll emit when the server says AUTHENTICATE +.
   oauthBearer?: string;
   oauthTokenKind?: "jwt" | "opaque";
   oauthProvider?: string;
+  // OAUTHBEARER (RFC 7628) optional gs2-header host/port hints. Captured
+  // from the active server config at SASL start.
+  oauthHost?: string;
+  oauthPort?: number;
   // Set once the server has prompted for 2FA step-up. Used by the
   // delayed SCRAM-completion ack so we don't send "AUTHENTICATE +"
   // (which UnrealIRCd's saslserv would read as an empty TOTP code).
@@ -155,19 +161,33 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       !!serv?.saslEnabled &&
       Boolean(serv.saslAccountName?.length || serv.nickname) &&
       Boolean(serv.saslPassword);
-    const hasOauth = !!(oauth && bearer && available.includes("IRCV3BEARER"));
+    // Prefer IRCV3BEARER (richer: carries token_type + provider, used for
+    // 2FA step-up) when the server advertises it. Fall back to OAUTHBEARER
+    // (RFC 7628 standard, bearer-only) for networks that only ship the
+    // SASL-WG mech.
+    const oauthMech: SaslMech | undefined =
+      oauth && bearer
+        ? available.includes("IRCV3BEARER")
+          ? "IRCV3BEARER"
+          : available.includes("OAUTHBEARER")
+            ? "OAUTHBEARER"
+            : undefined
+        : undefined;
+    const hasOauth = !!oauthMech;
 
-    if (hasOauth && !hasPassword) {
+    if (oauth && oauthMech && !hasPassword) {
       ircClient.setSaslEnabled(serverId, true);
       sessions.set(serverId, {
-        mech: "IRCV3BEARER",
+        mech: oauthMech,
         username: serv?.nickname ?? "",
         step: 0,
         oauthBearer: bearer,
         oauthTokenKind: oauth.tokenKind === "opaque" ? "opaque" : "jwt",
         oauthProvider: oauth.serverProvider,
+        oauthHost: serv?.host,
+        oauthPort: serv?.port,
       });
-      ircClient.sendRaw(serverId, "AUTHENTICATE IRCV3BEARER");
+      ircClient.sendRaw(serverId, `AUTHENTICATE ${oauthMech}`);
       return;
     }
 
@@ -186,13 +206,14 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       username,
       password,
       step: 0,
-      oauthBearer: hasOauth ? bearer : undefined,
-      oauthTokenKind: hasOauth
-        ? oauth.tokenKind === "opaque"
-          ? "opaque"
-          : "jwt"
-        : undefined,
-      oauthProvider: hasOauth ? oauth.serverProvider : undefined,
+      oauthBearer: oauth && hasOauth ? bearer : undefined,
+      oauthTokenKind:
+        oauth && hasOauth
+          ? oauth.tokenKind === "opaque"
+            ? "opaque"
+            : "jwt"
+          : undefined,
+      oauthProvider: oauth && hasOauth ? oauth.serverProvider : undefined,
     });
     ircClient.sendRaw(serverId, `AUTHENTICATE ${mech}`);
   });
@@ -264,6 +285,24 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
           token: session.oauthBearer,
           tokenType: isOpaque ? "opaque" : "jwt",
           authzid: isOpaque ? session.oauthProvider : undefined,
+        });
+        for (const chunk of chunkSaslPayload(b64)) {
+          ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
+        }
+        return;
+      }
+
+      if (session.mech === "OAUTHBEARER") {
+        if (param !== "+") return;
+        if (!session.oauthBearer) return;
+        // RFC 7628: send the GS2-framed bearer + optional host/port,
+        // chunked into 400-byte AUTHENTICATE blocks like every other
+        // multi-line SASL mech.
+        const b64 = buildOauthBearerPayload({
+          token: session.oauthBearer,
+          authzid: session.username || undefined,
+          host: session.oauthHost,
+          port: session.oauthPort,
         });
         for (const chunk of chunkSaslPayload(b64)) {
           ircClient.sendRaw(serverId, `AUTHENTICATE ${chunk}`);
