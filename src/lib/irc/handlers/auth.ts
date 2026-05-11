@@ -11,23 +11,46 @@ export function handleAuthenticate(
   ctx.triggerEvent("AUTHENTICATE", { serverId, param });
 }
 
+// IRCv3 standard-replies wire form:
+//   <prefix> {FAIL,WARN,NOTE,SUCCESS} <command> <code> [<context>...] :<description>
+// `description` is the human-readable text, always the trailing param.
+// `context` is zero or more identifiers (channel, nick, account) the
+// description refers to. `command` and `code` are computer-readable tokens.
+function splitStandardReply(
+  parv: string[],
+  trailing: string,
+): { command: string; code: string; context: string[]; message: string } {
+  const command = parv[0];
+  const code = parv[1];
+  // The parser pushes the trailing param onto parv as its last element when
+  // present. Pop it back off so context = the strings strictly between code
+  // and the description.
+  const hasTrailing = trailing.length > 0;
+  const ctxEnd = hasTrailing ? parv.length - 1 : parv.length;
+  const context = parv.slice(2, ctxEnd);
+  const message = hasTrailing ? trailing : parv.slice(2).join(" ");
+  return { command, code, context, message };
+}
+
 export function handleFail(
   ctx: IRCClientContext,
   serverId: string,
   _source: string,
   parv: string[],
   mtags: Record<string, string> | undefined,
+  trailing = "",
 ): void {
-  const cmd = parv[0];
-  const code = parv[1];
-  const target = parv[2] || undefined;
-  const message = parv.slice(3).join(" ").substring(1);
+  const { command, code, context, message } = splitStandardReply(
+    parv,
+    trailing,
+  );
   ctx.triggerEvent("FAIL", {
     serverId,
     mtags,
-    command: cmd,
+    command,
     code,
-    target,
+    target: context[0],
+    context,
     message,
   });
 }
@@ -38,17 +61,19 @@ export function handleWarn(
   _source: string,
   parv: string[],
   mtags: Record<string, string> | undefined,
+  trailing = "",
 ): void {
-  const cmd = parv[0];
-  const code = parv[1];
-  const target = parv[2] || undefined;
-  const message = parv.slice(3).join(" ").substring(1);
+  const { command, code, context, message } = splitStandardReply(
+    parv,
+    trailing,
+  );
   ctx.triggerEvent("WARN", {
     serverId,
     mtags,
-    command: cmd,
+    command,
     code,
-    target,
+    target: context[0],
+    context,
     message,
   });
 }
@@ -59,17 +84,19 @@ export function handleNote(
   _source: string,
   parv: string[],
   mtags: Record<string, string> | undefined,
+  trailing = "",
 ): void {
-  const cmd = parv[0];
-  const code = parv[1];
-  const target = parv[2] || undefined;
-  const message = parv.slice(3).join(" ").substring(1);
+  const { command, code, context, message } = splitStandardReply(
+    parv,
+    trailing,
+  );
   ctx.triggerEvent("NOTE", {
     serverId,
     mtags,
-    command: cmd,
+    command,
     code,
-    target,
+    target: context[0],
+    context,
     message,
   });
 }
@@ -80,17 +107,19 @@ export function handleSuccess(
   _source: string,
   parv: string[],
   mtags: Record<string, string> | undefined,
+  trailing = "",
 ): void {
-  const cmd = parv[0];
-  const code = parv[1];
-  const target = parv[2] || undefined;
-  const message = parv.slice(3).join(" ").substring(1);
+  const { command, code, context, message } = splitStandardReply(
+    parv,
+    trailing,
+  );
   ctx.triggerEvent("SUCCESS", {
     serverId,
     mtags,
-    command: cmd,
+    command,
     code,
-    target,
+    target: context[0],
+    context,
     message,
   });
 }
@@ -101,20 +130,16 @@ export function handleRegister(
   _source: string,
   parv: string[],
   mtags: Record<string, string> | undefined,
+  trailing = "",
 ): void {
   const subcommand = parv[0];
+  // REGISTER replies: REGISTER {SUCCESS,VERIFICATION_REQUIRED} <account> :<description>
+  // The description is the trailing param.
+  const account = parv[1];
+  const message = trailing || parv.slice(2).join(" ");
   if (subcommand === "SUCCESS") {
-    const account = parv[1];
-    const message = parv.slice(2).join(" ").substring(1);
-    ctx.triggerEvent("REGISTER_SUCCESS", {
-      serverId,
-      mtags,
-      account,
-      message,
-    });
+    ctx.triggerEvent("REGISTER_SUCCESS", { serverId, mtags, account, message });
   } else if (subcommand === "VERIFICATION_REQUIRED") {
-    const account = parv[1];
-    const message = parv.slice(2).join(" ").substring(1);
     ctx.triggerEvent("REGISTER_VERIFICATION_REQUIRED", {
       serverId,
       mtags,
