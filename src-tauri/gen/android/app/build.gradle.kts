@@ -61,7 +61,18 @@ android {
         }
         getByName("release") {
             isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("release")
+            // Only attach the release signingConfig when a real keystore was
+            // resolved above. On CI runners that ship without ~/.android/
+            // debug.keystore and don't write keystore.properties (the
+            // workflow signs the AAB/APK afterwards via apksigner), the
+            // signingConfig is half-initialised (storeFile == null) and
+            // packageUniversalRelease fails with `SigningConfig "release"
+            // is missing required property "storeFile"`. Leaving it unset
+            // produces an unsigned artifact, which the workflow then signs.
+            val releaseSign = signingConfigs.getByName("release")
+            if (releaseSign.storeFile != null) {
+                signingConfig = releaseSign
+            }
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
