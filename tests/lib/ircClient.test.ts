@@ -166,6 +166,29 @@ describe("IRCClient", () => {
     });
   });
 
+  describe("disconnect", () => {
+    test("does not send QUIT while socket is still connecting", () => {
+      const mockSocket = new MockWebSocket("wss://irc.example.com:443");
+      MockWebSocketSpy.mockReturnValue(mockSocket);
+
+      client.connect(
+        "Test Server",
+        "irc.example.com",
+        443,
+        "testuser",
+        undefined,
+        undefined,
+        undefined,
+        "server-1",
+      );
+
+      client.disconnect("server-1");
+
+      expect(mockSocket.sentMessages).toEqual([]);
+      expect(mockSocket.readyState).toBe(WebSocket.CLOSED);
+    });
+  });
+
   describe("message handling", () => {
     test("should handle PRIVMSG correctly", async () => {
       const mockSocket = new MockWebSocket("ws://irc.example.com:443");

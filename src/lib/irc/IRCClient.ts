@@ -721,9 +721,19 @@ export class IRCClient implements IRCClientContext {
   disconnect(serverId: string, quitMessage?: string): void {
     const socket = this.sockets.get(serverId);
     if (socket) {
-      const message = quitMessage || "ObsidianIRC - Bringing IRC to the future";
-      socket.send(`QUIT :${message}`);
-      socket.close();
+      const CONNECTING = 0;
+      const OPEN = 1;
+
+      if (socket.readyState === OPEN) {
+        const message =
+          quitMessage || "ObsidianIRC - Bringing IRC to the future";
+        socket.send(`QUIT :${message}`);
+      }
+
+      if (socket.readyState === CONNECTING || socket.readyState === OPEN) {
+        socket.close();
+      }
+
       this.sockets.delete(serverId);
     }
     const server = this.servers.get(serverId);
