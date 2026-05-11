@@ -41,6 +41,14 @@ interface SaslSession {
   oauthBearer?: string;
   oauthTokenKind?: "jwt" | "opaque";
   oauthProvider?: string;
+  // Set once the server has prompted for 2FA step-up. Used by the
+  // delayed SCRAM-completion ack so we don't send "AUTHENTICATE +"
+  // (which UnrealIRCd's saslserv would read as an empty TOTP code).
+  stepupStarted?: boolean;
+  // Marker the delayed-ack timer reads to decide whether to fire.
+  // Incremented every time the session enters a state that should
+  // make the timer abort.
+  pendingAckEpoch?: number;
 }
 
 // OAuth path is active when the server has oauth.enabled AND we hold any
@@ -195,6 +203,7 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     // Synthetic step-up signal from the server (draft/account-2fa).
     if (param === "2FA-REQUIRED") {
       const session = sessions.get(serverId);
+      if (session) session.stepupStarted = true;
       // If primary was IRCV3BEARER, the OAuth bearer is already spent
       // as the first factor -- replaying it for step-up is exactly
       // the "same proof twice" failure the server rejects. Pop the
@@ -302,12 +311,33 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
           const ok = scramVerifyServerFinal(session.scram, serverFinal);
           if (!ok) {
             ircClient.sendRaw(serverId, "AUTHENTICATE *");
+            session.step = 3;
+            return;
           }
-          // On success the server completes the exchange itself by
-          // emitting 900/903 (normal) or AUTHENTICATE 2FA-REQUIRED
-          // (step-up). Sending another "AUTHENTICATE +" here is read
-          // as an empty/abort payload by saslserv and trips 904.
           session.step = 3;
+          // Per IRCv3 SASL-3.1, after the server's last data message
+          // the client should send "AUTHENTICATE +" to indicate it has
+          // no more data. Ergo follows this strictly and waits for the
+          // ack before emitting 903. UnrealIRCd's saslserv, on the
+          // other hand, immediately follows server-final with either
+          // 903 OR "AUTHENTICATE 2FA-REQUIRED"; if the latter, sending
+          // "+" would be read as an empty TOTP code and trip 904.
+          //
+          // So schedule the ack for ~750 ms later and skip if either
+          // happens before the timer fires:
+          //   - CAP negotiation completed (903 arrived and CAP END was sent)
+          //   - The 2FA step-up handler marked stepupStarted on the session
+          // Epoch handshake guards against a fresh session reusing the
+          // serverId before the timer fires.
+          const epoch = (session.pendingAckEpoch ?? 0) + 1;
+          session.pendingAckEpoch = epoch;
+          setTimeout(() => {
+            const cur = sessions.get(serverId);
+            if (!cur || cur.pendingAckEpoch !== epoch) return;
+            if (cur.stepupStarted) return;
+            if (ircClient.isCapNegotiationComplete(serverId)) return;
+            ircClient.sendRaw(serverId, "AUTHENTICATE +");
+          }, 750);
           return;
         }
         return;
