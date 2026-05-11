@@ -212,11 +212,13 @@ export interface Message {
   tags?: Record<string, string>;
   // Whisper fields (for draft/channel-context)
   whisperTarget?: string; // The recipient of a whisper
-  // Standard reply fields
+  // Standard reply fields. `command`, `code`, and `context` are
+  // computer-readable; only `message` is intended for human display.
   standardReplyType?: "FAIL" | "WARN" | "NOTE";
   standardReplyCommand?: string;
   standardReplyCode?: string;
   standardReplyTarget?: string;
+  standardReplyContext?: string[];
   standardReplyMessage?: string;
   // Batch-related fields for netsplit/netjoin
   batchId?: string;
