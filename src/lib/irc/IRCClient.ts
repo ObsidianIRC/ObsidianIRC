@@ -12,7 +12,7 @@ import type {
   User,
 } from "../../types";
 import { parseIrcUrl } from "../ircUrlParser";
-import { parseMessageTags } from "../ircUtils";
+import { escapeTagValue, parseMessageTags } from "../ircUtils";
 import { createSocket, type ISocket } from "../socket";
 import { IRC_DISPATCH } from "./handlers";
 import type { IRCClientContext } from "./IRCClientContext";
@@ -1018,6 +1018,23 @@ export class IRCClient implements IRCClientContext {
     );
   }
 
+  // Issues CHATHISTORY AFTER for a specific msgid. Used by webxdc to replay
+  // app updates emitted since the .xdc was shared. Returns silently if the
+  // server doesn't support draft/chathistory.
+  requestChathistoryAfterMsgid(
+    serverId: string,
+    target: string,
+    msgid: string,
+    limit = 200,
+  ): void {
+    const server = this.servers.get(serverId);
+    if (!server?.capabilities?.includes("draft/chathistory")) return;
+    this.sendRaw(
+      serverId,
+      `CHATHISTORY AFTER ${target} msgid=${msgid} ${limit}`,
+    );
+  }
+
   leaveChannel(serverId: string, channelName: string): void {
     const server = this.servers.get(serverId);
     if (server) {
@@ -1135,8 +1152,22 @@ export class IRCClient implements IRCClientContext {
   }
 
   sendTyping(serverId: string, target: string, isActive: boolean): void {
-    const typingState = isActive ? "active" : "done";
-    this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
+    this.sendTagmsg(serverId, target, {
+      "+typing": isActive ? "active" : "done",
+    });
+  }
+
+  sendTagmsg(
+    serverId: string,
+    target: string,
+    tags: Record<string, string>,
+  ): void {
+    const entries = Object.entries(tags);
+    if (entries.length === 0) return;
+    const tagStr = entries
+      .map(([k, v]) => (v === "" ? k : `${k}=${escapeTagValue(v)}`))
+      .join(";");
+    this.sendRaw(serverId, `@${tagStr} TAGMSG ${target}`);
   }
 
   sendRedact(

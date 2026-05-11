@@ -1037,6 +1037,212 @@ const PdfPreview: React.FC<{
   );
 };
 
+const WebxdcPreview: React.FC<{
+  url: string;
+  msgid?: string;
+  serverId?: string;
+  channelId?: string;
+}> = ({ url, msgid, serverId, channelId }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [appName, setAppName] = useState<string>("");
+  const appNameRef = useRef("");
+  appNameRef.current = appName;
+  const [iconUrl, setIconUrl] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const nick = serverId
+    ? (ircClient.getCurrentUser(serverId)?.username ?? "anonymous")
+    : "anonymous";
+
+  useEffect(() => {
+    if (!running) return;
+    let cancelled = false;
+    let loaded: import("../../lib/webxdc").LoadedXdc | null = null;
+    let bundle: import("../../lib/webxdc").XdcBundle | null = null;
+
+    (async () => {
+      try {
+        const mod = await import("../../lib/webxdc");
+        const b = await mod.fetchAndUnzipXdc(url);
+        if (cancelled) {
+          mod.disposeBundle(b);
+          return;
+        }
+        bundle = b;
+        setAppName(b.manifest.name ?? "Webxdc App");
+        setIconUrl(b.iconUrl);
+        const shim = mod.buildShimSource({
+          instanceId: msgid ?? url,
+          selfAddr: nick,
+          selfName: nick,
+          sendUpdateMaxSize: 3000,
+          sendUpdateInterval: 1000,
+        });
+        loaded = mod.buildIframeSrc(b, shim);
+        if (cancelled) {
+          mod.disposeBlobs(loaded);
+          return;
+        }
+        setIframeSrc(loaded.iframeSrc);
+      } catch (e) {
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "Failed to load .xdc");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      void (async () => {
+        const mod = await import("../../lib/webxdc");
+        if (loaded) mod.disposeBlobs(loaded);
+        if (bundle) mod.disposeBundle(bundle);
+      })();
+    };
+  }, [running, url, msgid, nick]);
+
+  useEffect(() => {
+    if (!running || !iframeSrc) return;
+    const iframe = iframeRef.current;
+    if (!iframe || !msgid || !serverId || !channelId) return;
+
+    // Resolve the channel NAME (e.g. "#dev") — outbound TAGMSGs need this on
+    // the wire. The channelId is an internal UUID and the server would reject
+    // it as a target with 401 No such nick.
+    const state = useStore.getState();
+    const channel = state.servers
+      .find((s) => s.id === serverId)
+      ?.channels.find((c) => c.id === channelId);
+    if (!channel) return;
+    const channelName = channel.name;
+
+    void (async () => {
+      const mod = await import("../../lib/webxdc");
+      mod.registerInstance(msgid, serverId, channelName, iframe);
+    })();
+
+    // Replay any updates emitted since this .xdc was shared. Server preserves
+    // client-only tags on chathistory replay (per IRCv3 chathistory spec), so
+    // +webxdc/payload tagged TAGMSGs come back through the normal handler and
+    // get deduped by serial+sender in the manager.
+    ircClient.requestChathistoryAfterMsgid(serverId, channelName, msgid, 200);
+
+    const onMessage = async (ev: MessageEvent) => {
+      // Reject messages from anything other than this instance's own iframe.
+      // Without this, sibling iframes (or any frame on the page) could spoof
+      // updates by posting matching {__webxdc, instance} payloads.
+      if (ev.source !== iframeRef.current?.contentWindow) return;
+      const data = ev.data;
+      if (!data || data.__webxdc !== true || data.instance !== msgid) return;
+      const mod = await import("../../lib/webxdc");
+      if (data.kind === "sendUpdate") {
+        mod.handleOutboundUpdate(msgid, data.payload, data.descr ?? "");
+      } else if (data.kind === "sendToChat") {
+        // App pushes a chat message back to the channel. Text-only for now;
+        // file transport is not implemented. Cap length so an app can't spam
+        // the channel with megabyte payloads. Use ref for appName so closure
+        // doesn't capture a stale (loading) value.
+        const text =
+          typeof data.text === "string" ? data.text.slice(0, 400) : null;
+        if (text) {
+          const label = appNameRef.current || "webxdc";
+          ircClient.sendMessage(serverId, channelId, `[${label}] ${text}`);
+        }
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      void (async () => {
+        const mod = await import("../../lib/webxdc");
+        mod.unregisterInstance(msgid);
+      })();
+    };
+  }, [running, iframeSrc, msgid, serverId, channelId]);
+
+  if (!running) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRunning(true)}
+        className="mt-1 flex items-center gap-3 rounded-lg border border-discord-dark-300 bg-discord-dark-200 px-4 py-3 hover:bg-discord-dark-300 transition-colors text-left max-w-md"
+      >
+        <div className="text-2xl" aria-hidden="true">
+          📦
+        </div>
+        <div className="flex flex-col">
+          <span className="font-semibold text-sm text-discord-text">
+            Webxdc app
+          </span>
+          <span className="text-xs text-discord-text-muted">
+            Click to start · sandboxed, no network
+          </span>
+        </div>
+      </button>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-1 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300 max-w-md">
+        Failed to load .xdc: {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1 rounded-lg border border-discord-dark-300 bg-discord-dark-200 overflow-hidden max-w-2xl">
+      <div className="flex items-center gap-2 px-3 py-2 bg-discord-dark-300 border-b border-discord-dark-400">
+        {iconUrl ? (
+          <img src={iconUrl} alt="" className="w-5 h-5 rounded" />
+        ) : (
+          <span className="text-base" aria-hidden="true">
+            📦
+          </span>
+        )}
+        <span className="text-sm font-semibold text-discord-text truncate">
+          {appName || "Loading…"}
+        </span>
+        <span className="ml-auto text-[10px] text-discord-text-muted uppercase tracking-wide">
+          webxdc
+        </span>
+        <button
+          type="button"
+          onClick={() => setRunning(false)}
+          title="Collapse"
+          aria-label="Collapse webxdc app"
+          className="text-discord-text-muted hover:text-discord-text text-sm leading-none px-1"
+        >
+          ✕
+        </button>
+      </div>
+      {iframeSrc && (
+        <iframe
+          ref={iframeRef}
+          src={iframeSrc}
+          title={appName || "Webxdc app"}
+          sandbox="allow-scripts"
+          data-webxdc-instance={msgid}
+          className="w-full bg-white"
+          style={{ height: "480px", border: "none" }}
+          onLoad={() => {
+            // iframe fully parsed → inline shim's message listener is now attached.
+            // Replay any updates that arrived during fetch/unzip and unblock the
+            // live dispatch path. Posting before this drops on the floor —
+            // browser doesn't queue postMessages for unattached listeners.
+            if (!msgid) return;
+            void (async () => {
+              const mod = await import("../../lib/webxdc");
+              mod.markInstanceReady(msgid);
+            })();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
 // Probes a URL whose type is unknown, then renders the appropriate preview.
 // Probe is deferred until the element is near the viewport (IntersectionObserver).
 // Callers must pre-filter URLs through canShowMedia() — probe runs unconditionally here.
@@ -1142,6 +1348,15 @@ const ProbeablePreview: React.FC<{
         channelId={channelId}
       />
     );
+  } else if (resolvedType === "webxdc") {
+    preview = (
+      <WebxdcPreview
+        url={url}
+        msgid={msgid}
+        serverId={serverId}
+        channelId={channelId}
+      />
+    );
   }
 
   return (
@@ -1237,6 +1452,15 @@ export const MediaPreview: React.FC<{
       }
       return (
         <EmbedPreview
+          url={entry.url}
+          msgid={msgid}
+          serverId={serverId}
+          channelId={channelId}
+        />
+      );
+    case "webxdc":
+      return (
+        <WebxdcPreview
           url={entry.url}
           msgid={msgid}
           serverId={serverId}

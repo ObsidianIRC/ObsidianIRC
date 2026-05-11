@@ -10,6 +10,19 @@ async fn download_image(app: tauri::AppHandle, url: String) -> Result<String, St
     download_image_impl(app, url).await
 }
 
+// Fetches arbitrary URL bytes (bypasses browser CORS). Used by webxdc to download
+// .xdc bundles from filehosts that don't send Access-Control-Allow-Origin headers.
+// Returns raw bytes; Tauri's IPC serialises Vec<u8> as a number array on the JS side.
+#[tauri::command]
+async fn fetch_bytes(url: String) -> Result<Vec<u8>, String> {
+    let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()));
+    }
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    Ok(bytes.to_vec())
+}
+
 fn extract_filename(url: &str) -> String {
     url.split('/')
         .next_back()
@@ -244,7 +257,7 @@ pub fn run() {
             Ok(())
         })
         .manage(SocketState(Arc::new(Mutex::new(HashMap::new()))))
-        .invoke_handler(tauri::generate_handler![connect, disconnect, listen, send, download_image])
+        .invoke_handler(tauri::generate_handler![connect, disconnect, listen, send, download_image, fetch_bytes])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

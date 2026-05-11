@@ -11,6 +11,7 @@ import {
   extractMentions,
   showMentionNotification,
 } from "../../lib/notifications";
+import { handleInboundUpdate } from "../../lib/webxdc";
 import type { Channel, Message, PrivateChat, User } from "../../types";
 import {
   generateDeterministicId,
@@ -1394,6 +1395,17 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
   // TAGMSG typing
   ircClient.on("TAGMSG", (response) => {
     const { sender, mtags, channelName } = response;
+
+    const webxdcInstance = mtags?.["+webxdc/instance"];
+    if (webxdcInstance && mtags?.["+webxdc/payload"] !== undefined) {
+      const serial = Number(mtags["+webxdc/serial"] ?? "0");
+      handleInboundUpdate(
+        webxdcInstance,
+        serial,
+        mtags["+webxdc/payload"],
+        sender,
+      );
+    }
 
     const globalSettingsForTagmsg = store.getState().globalSettings;
     if (

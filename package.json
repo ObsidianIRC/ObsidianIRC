@@ -39,6 +39,7 @@
     "@tauri-apps/plugin-opener": "^2.0.0",
     "@tauri-apps/plugin-os": "^2.2.1",
     "@types/uuid": "^10.0.0",
+    "@webxdc/types": "^2.1.2",
     "buffer": "^6.0.3",
     "clsx": "^2.1.1",
     "daisyui": "^5.5.19",

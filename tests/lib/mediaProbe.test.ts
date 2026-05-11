@@ -247,7 +247,7 @@ describe("probeMediaUrl", () => {
     expect(result).toBeNull();
   });
 
-  test(".svg URL with video/mp4 content-type → type video (HEAD wins over extension)", async () => {
+  test(".svg URL → null (extension rejected before HEAD, regardless of MIME)", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeResponse({
         "content-type": "video/mp4",
@@ -255,7 +255,7 @@ describe("probeMediaUrl", () => {
       }),
     );
     const result = await probeMediaUrl(uniqueUrl(".svg"));
-    expect(result?.type).toBe("video");
+    expect(result).toBeNull();
   });
 
   test("fetch fails + .svg extension → null", async () => {

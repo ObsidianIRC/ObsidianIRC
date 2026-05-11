@@ -50,13 +50,51 @@ function parseStatus(
   return "offline"; // Default
 }
 
+export function unescapeTagValue(value: string): string {
+  let out = "";
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (c !== "\\" || i + 1 >= value.length) {
+      out += c;
+      continue;
+    }
+    const next = value[++i];
+    if (next === ":") out += ";";
+    else if (next === "s") out += " ";
+    else if (next === "r") out += "\r";
+    else if (next === "n") out += "\n";
+    else if (next === "\\") out += "\\";
+    else out += next;
+  }
+  return out;
+}
+
+export function escapeTagValue(value: string): string {
+  let out = "";
+  for (const c of value) {
+    if (c === "\\") out += "\\\\";
+    else if (c === ";") out += "\\:";
+    else if (c === " ") out += "\\s";
+    else if (c === "\r") out += "\\r";
+    else if (c === "\n") out += "\\n";
+    else out += c;
+  }
+  return out;
+}
+
 export function parseMessageTags(tags: string): Record<string, string> {
   const parsedTags: Record<string, string> = {};
   const tagPairs = tags.substring(1).split(";");
 
   for (const tag of tagPairs) {
-    const [key, value] = tag.split("=");
-    parsedTags[key] = value?.trim() ?? ""; // empty string fallback
+    const eq = tag.indexOf("=");
+    if (eq === -1) {
+      parsedTags[tag] = "";
+    } else {
+      const key = tag.substring(0, eq);
+      const value = tag.substring(eq + 1).trim();
+      parsedTags[key] = unescapeTagValue(value);
+    }
   }
 
   return parsedTags;

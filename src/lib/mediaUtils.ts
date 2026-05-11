@@ -2,7 +2,13 @@ import type { Message } from "../types/index";
 import { isUrlFromFilehost } from "./ircUtils";
 import { stripIrcFormatting } from "./messageFormatter";
 
-export type MediaType = "image" | "video" | "audio" | "pdf" | "embed";
+export type MediaType =
+  | "image"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "embed"
+  | "webxdc";
 
 export interface MediaEntry {
   url: string;
@@ -81,6 +87,7 @@ export function detectMediaType(url: string): MediaType | null {
   if (/\.(mp3|ogg|wav|flac|aac|m4a)$/.test(lower)) return "audio";
   if (/\.pdf$/.test(lower)) return "pdf";
   if (/\.(jpg|jpeg|png|gif|webp|bmp)$/.test(lower)) return "image";
+  if (/\.xdc$/.test(lower)) return "webxdc";
 
   return null;
 }
@@ -178,9 +185,25 @@ export function extractMediaFromText(text: string): MediaEntry[] {
   return entries;
 }
 
-/** Returns all media entries found in a message's content. */
+/** Returns all media entries found in a message's content.
+ *
+ *  When the message carries a `+webxdc/app=<url>` tag, that URL is forced to
+ *  type "webxdc" regardless of file extension or MIME type. Filehosts often
+ *  serve .xdc as application/zip, so the tag is the authoritative signal. */
 export function extractMediaFromMessage(message: Message): MediaEntry[] {
-  return extractMediaFromText(message.content);
+  const entries = extractMediaFromText(message.content);
+  const tagUrl = message.tags?.["+webxdc/app"];
+  if (!tagUrl) return entries;
+
+  // Force the tagged URL to type "webxdc". Inject if the body didn't already
+  // include it (e.g. when the bot only emits the tag and a friendly text).
+  const idx = entries.findIndex((e) => e.url === tagUrl);
+  if (idx === -1) {
+    entries.unshift({ url: tagUrl, type: "webxdc" });
+  } else {
+    entries[idx] = { ...entries[idx], type: "webxdc" };
+  }
+  return entries;
 }
 
 export interface MediaSettings {
