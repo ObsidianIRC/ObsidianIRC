@@ -67,7 +67,6 @@ import {
   handleMonOffline,
   handleMonOnline,
 } from "./monitoring";
-import { handleMarkread } from "./readMarker";
 import {
   handleProp,
   handleRplChmodelist,
@@ -77,6 +76,7 @@ import {
   handleRplProplist,
   handleRplUmodelist,
 } from "./named-modes";
+import { handleMarkread } from "./readMarker";
 import {
   handleAway,
   handleChghost,
