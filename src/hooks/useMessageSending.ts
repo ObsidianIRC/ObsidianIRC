@@ -298,7 +298,10 @@ export function useMessageSending({
             10;
 
           if (formattedLine.length > maxLineLengthForTarget) {
-            const splitLines = splitLongMessage(formattedLine, target);
+            // preserveBoundarySpace=true so concat reconstructs the
+            // original spacing.  Without it the receiver sees
+            // "AAA BBBCCC" instead of "AAA BBB CCC".
+            const splitLines = splitLongMessage(formattedLine, target, true);
             splitLines.forEach((splitLine: string, index: number) => {
               if (index === 0) {
                 ircClient.sendRaw(
@@ -325,7 +328,7 @@ export function useMessageSending({
           formatting: selectedFormatting,
         });
 
-        const splitLines = splitLongMessage(formattedText, target);
+        const splitLines = splitLongMessage(formattedText, target, true);
         splitLines.forEach((splitLine: string, index: number) => {
           if (index === 0) {
             ircClient.sendRaw(

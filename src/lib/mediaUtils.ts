@@ -281,8 +281,12 @@ export function canShowMedia(
   filehost?: string | null,
 ): boolean {
   if (settings.showExternalContent) return true;
-  if (settings.showSafeMedia && filehost && isUrlFromFilehost(url, filehost))
-    return true;
+  if (settings.showSafeMedia) {
+    if (filehost && isUrlFromFilehost(url, filehost)) return true;
+    for (const trustedUrl of __TRUSTED_MEDIA_URLS__) {
+      if (trustedUrl && isUrlFromFilehost(url, trustedUrl)) return true;
+    }
+  }
   if (settings.showTrustedSourcesMedia) {
     const hostname = extractHostname(url);
     if (hostname === null) return false;
