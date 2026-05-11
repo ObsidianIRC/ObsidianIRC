@@ -55,11 +55,55 @@ export function parseMessageTags(tags: string): Record<string, string> {
   const tagPairs = tags.substring(1).split(";");
 
   for (const tag of tagPairs) {
-    const [key, value] = tag.split("=");
-    parsedTags[key] = value?.trim() ?? ""; // empty string fallback
+    const separatorIndex = tag.indexOf("=");
+    const key = separatorIndex === -1 ? tag : tag.slice(0, separatorIndex);
+    const rawValue = separatorIndex === -1 ? "" : tag.slice(separatorIndex + 1);
+
+    parsedTags[key] = unescapeIrcMessageTagValue(rawValue);
   }
 
   return parsedTags;
+}
+
+function unescapeIrcMessageTagValue(value: string): string {
+  let unescaped = "";
+
+  for (let index = 0; index < value.length; index += 1) {
+    const current = value[index];
+
+    if (current !== "\\") {
+      unescaped += current;
+      continue;
+    }
+
+    const next = value[index + 1];
+    if (next === undefined) break;
+
+    index += 1;
+
+    switch (next) {
+      case ":":
+        unescaped += ";";
+        break;
+      case "s":
+        unescaped += " ";
+        break;
+      case "\\":
+        unescaped += "\\";
+        break;
+      case "r":
+        unescaped += "\r";
+        break;
+      case "n":
+        unescaped += "\n";
+        break;
+      default:
+        unescaped += next;
+        break;
+    }
+  }
+
+  return unescaped;
 }
 
 /**
@@ -84,13 +128,13 @@ export function parseIsupport(tokens: string): Record<string, string> {
   const tokenPairs = tokens.split(" ");
 
   for (const token of tokenPairs) {
-    const [key, value] = token.split("=");
-    if (value) {
-      // Replace \x20 with actual space character
-      tokenMap[key] = value.replace(/\\x20/g, " ");
-    } else {
-      tokenMap[key] = ""; // empty string fallback
-    }
+    const separatorIndex = token.indexOf("=");
+    const key = separatorIndex === -1 ? token : token.slice(0, separatorIndex);
+    const rawValue =
+      separatorIndex === -1 ? "" : token.slice(separatorIndex + 1);
+
+    // Replace \x20 with actual space character
+    tokenMap[key] = rawValue.replace(/\\x20/g, " ");
   }
 
   return tokenMap;
