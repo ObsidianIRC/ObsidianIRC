@@ -1,6 +1,7 @@
 import type React from "react";
 import { useRef, useState } from "react";
 import { FaSpinner, FaTimes, FaUpload } from "react-icons/fa";
+import { waitForAuthToken } from "../../lib/authToken";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import { TextInput } from "./TextInput";
@@ -66,49 +67,48 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     setUploadError(null);
 
     try {
-      // Clear any existing JWT token to ensure we get a fresh one
+      // draft/authtoken: clear any cached token and ask for a fresh one.
+      // The server scopes per-token to (account, channel) so we always
+      // re-mint when target changes.
       useStore.setState((state) => ({
         servers: state.servers.map((server) =>
-          server.id === serverId ? { ...server, jwtToken: undefined } : server,
+          server.id === serverId
+            ? {
+                ...server,
+                authToken: undefined,
+                authTokenUrl: undefined,
+                authTokenService: undefined,
+              }
+            : server,
         ),
       }));
 
-      // Request a fresh JWT token with the correct target
-      const target = channelName || "*";
-      console.log(
-        "🔑 Requesting fresh JWT token for avatar upload, target:",
-        target,
-      );
-      ircClient.requestExtJwt(serverId, target, "filehost");
-
-      // Wait for token
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const updatedServer = useStore
+      const scope = channelName ? `channel:${channelName}` : undefined;
+      ircClient.requestToken(serverId, "filehost", scope);
+      const authToken = await waitForAuthToken(serverId, "filehost");
+      if (!authToken) {
+        throw new Error(
+          "draft/authtoken: server did not return a filehost token",
+        );
+      }
+      const refreshed = useStore
         .getState()
         .servers.find((s) => s.id === serverId);
-      const jwtToken = updatedServer?.jwtToken;
-
-      if (!jwtToken) {
-        throw new Error("Failed to obtain JWT token for avatar upload");
-      }
+      const baseUrl = refreshed?.authTokenUrl || refreshed?.filehost || "";
 
       const formData = new FormData();
       formData.append("image", file);
 
-      // Determine upload endpoint
       const endpoint = channelName
         ? `/upload/avatar/channel/${encodeURIComponent(channelName)}`
         : "/upload/avatar/user";
 
-      const uploadUrl = `${filehostUrl}${endpoint}`;
-
-      console.log("🔄 Avatar upload: Starting upload to", uploadUrl);
+      const uploadUrl = `${baseUrl}${endpoint}`;
 
       const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${jwtToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: formData,
       });
@@ -141,9 +141,9 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
       console.log("📡 Avatar upload response:", data);
 
       if (data.saved_url) {
-        const fullUrl = `${filehostUrl}${data.saved_url}`;
+        const fullUrl = `${baseUrl}${data.saved_url}`;
         onAvatarUrlChange(fullUrl);
-        setPreviewUrl(null); // Clear preview since we have the uploaded URL
+        setPreviewUrl(null);
       } else {
         throw new Error("Invalid response: no saved_url");
       }

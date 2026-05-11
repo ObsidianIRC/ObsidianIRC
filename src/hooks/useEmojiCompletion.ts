@@ -1,11 +1,19 @@
 import emojiData from "emoji-datasource";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { ResolvedShortcode } from "../lib/customEmoji";
 
 interface EmojiItem {
   unified: string;
   short_names: string[];
   category: string;
+  // For Unicode emoji this is the literal character; for custom
+  // (draft/custom-emoji) entries it's `:shortcode:` so the renderer
+  // downstream resolves it via the trusted pack image URL.
   emoji: string;
+  // draft/custom-emoji: present for entries sourced from a network
+  // or channel pack.  Drives the dropdown row preview.
+  imageUrl?: string;
+  isCustom?: boolean;
 }
 
 interface RawEmojiData {
@@ -56,7 +64,34 @@ const processedEmojiData: EmojiItem[] = (emojiData as RawEmojiData[]).map(
   }),
 );
 
-export function useEmojiCompletion(): EmojiCompletionResult {
+export function useEmojiCompletion(
+  customShortcodes: ResolvedShortcode[] = [],
+): EmojiCompletionResult {
+  // Mix custom (draft/custom-emoji) shortcodes into the searchable
+  // pool.  Custom entries always win over Unicode entries with the
+  // same name -- network packs typically intend to override.
+  const customEmojiData = useMemo<EmojiItem[]>(
+    () =>
+      customShortcodes.map((sc) => ({
+        unified: `custom-${sc.packId}-${sc.shortcode}`,
+        short_names: [sc.shortcode],
+        category: "Custom",
+        emoji: `:${sc.shortcode}:`,
+        imageUrl: sc.url,
+        isCustom: true,
+      })),
+    [customShortcodes],
+  );
+  const allEmojiData = useMemo<EmojiItem[]>(() => {
+    const customNames = new Set(
+      customEmojiData.flatMap((e) => e.short_names.map((n) => n.toLowerCase())),
+    );
+    const filteredUnicode = processedEmojiData.filter(
+      (u) => !u.short_names.some((n) => customNames.has(n.toLowerCase())),
+    );
+    return [...customEmojiData, ...filteredUnicode];
+  }, [customEmojiData]);
+
   const [state, setState] = useState<EmojiCompletionState>({
     isActive: false,
     matches: [],
@@ -127,7 +162,7 @@ export function useEmojiCompletion(): EmojiCompletionResult {
         }
 
         // Find matching emojis
-        const matches = processedEmojiData
+        const matches = allEmojiData
           .filter((emoji) =>
             emoji.short_names.some((name) =>
               name.toLowerCase().includes(emojiQuery.toLowerCase()),
@@ -182,7 +217,7 @@ export function useEmojiCompletion(): EmojiCompletionResult {
       previousTextRef.current = newText;
       return { newText, newCursorPosition };
     },
-    [state, resetCompletion],
+    [state, resetCompletion, allEmojiData],
   );
 
   return {

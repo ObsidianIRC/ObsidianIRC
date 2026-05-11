@@ -6,6 +6,11 @@ interface EmojiItem {
   short_names: string[];
   category: string;
   emoji: string;
+  // draft/custom-emoji: when set, the dropdown row shows the image
+  // instead of the unicode glyph and the inserted text is `:shortcode:`
+  // (already encoded into `emoji` by the completion hook).
+  imageUrl?: string;
+  isCustom?: boolean;
 }
 
 interface EmojiAutocompleteDropdownProps {
@@ -148,7 +153,17 @@ export const EmojiAutocompleteDropdown: React.FC<
             onMouseEnter={() => setSelectedIndex(index)}
           >
             <div className="text-xl flex-shrink-0 w-6 h-6 flex items-center justify-center">
-              {emojiItem.emoji}
+              {emojiItem.imageUrl ? (
+                <img
+                  src={emojiItem.imageUrl}
+                  alt={`:${emojiItem.short_names[0]}:`}
+                  className="max-w-full max-h-full object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                emojiItem.emoji
+              )}
             </div>
             <div className="flex flex-col flex-1 min-w-0">
               <span className="truncate font-medium text-sm">

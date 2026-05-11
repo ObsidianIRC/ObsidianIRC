@@ -737,6 +737,20 @@ export interface AppState {
   setName: (serverId: string, realname: string) => void;
   changeNick: (serverId: string, newNick: string) => void;
   addMessage: (message: Message) => void;
+  // labeled-response: replace a local pending placeholder (matched by
+  // pendingLabel) with the server's echo.  Returns true if a match was
+  // found.  Caller falls back to addMessage on miss.
+  confirmPendingMessage: (
+    serverId: string,
+    bufferId: string,
+    label: string,
+    updates: Partial<Message>,
+  ) => boolean;
+  failPendingMessage: (
+    serverId: string,
+    bufferId: string,
+    label: string,
+  ) => void;
   addGlobalNotification: (notification: {
     type: "fail" | "warn" | "note";
     command: string;
@@ -1702,6 +1716,54 @@ const useStore = create<AppState>((set, get) => ({
         messages: {
           ...state.messages,
           [channelKey]: cappedMessages,
+        },
+      };
+    });
+  },
+
+  confirmPendingMessage: (serverId, bufferId, label, updates) => {
+    const channelKey = `${serverId}-${bufferId}`;
+    let matched = false;
+    set((state) => {
+      const list = state.messages[channelKey];
+      if (!list) return state;
+      const next = list.map((msg) => {
+        if (msg.pendingLabel !== label) return msg;
+        matched = true;
+        return {
+          ...msg,
+          ...updates,
+          pendingLabel: undefined,
+          status: undefined,
+        };
+      });
+      if (!matched) return state;
+      return {
+        messages: {
+          ...state.messages,
+          [channelKey]: next,
+        },
+      };
+    });
+    return matched;
+  },
+
+  failPendingMessage: (serverId, bufferId, label) => {
+    const channelKey = `${serverId}-${bufferId}`;
+    set((state) => {
+      const list = state.messages[channelKey];
+      if (!list) return state;
+      let touched = false;
+      const next = list.map((msg) => {
+        if (msg.pendingLabel !== label) return msg;
+        touched = true;
+        return { ...msg, status: "failed" as const };
+      });
+      if (!touched) return state;
+      return {
+        messages: {
+          ...state.messages,
+          [channelKey]: next,
         },
       };
     });

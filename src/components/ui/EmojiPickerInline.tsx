@@ -1,17 +1,20 @@
 import type { EmojiClickData } from "emoji-picker-react";
 import { useEffect, useRef } from "react";
+import type { PickerCustomEmoji } from "../../lib/customEmojiPicker";
 import { AppEmojiPicker } from "./AppEmojiPicker";
 
 interface EmojiPickerInlineProps {
   isOpen: boolean;
   onEmojiClick: (emojiData: EmojiClickData) => void;
   onClose: () => void;
+  customEmojis?: PickerCustomEmoji[];
 }
 
 export function EmojiPickerInline({
   isOpen,
   onEmojiClick,
   onClose,
+  customEmojis,
 }: EmojiPickerInlineProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -38,7 +41,7 @@ export function EmojiPickerInline({
       ref={ref}
       className="absolute bottom-full right-0 z-30 mb-2 bg-discord-dark-300 rounded-lg shadow-lg border border-discord-dark-200 overflow-hidden"
     >
-      <AppEmojiPicker onEmojiClick={onEmojiClick} />
+      <AppEmojiPicker onEmojiClick={onEmojiClick} customEmojis={customEmojis} />
     </div>
   );
 }

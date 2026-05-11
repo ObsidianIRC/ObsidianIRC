@@ -7,6 +7,7 @@ import {
   handlePersistence,
   handleRegister,
   handleSuccess,
+  handleToken,
   handleTwoFA,
   handleVerify,
   handleWarn,
@@ -299,6 +300,8 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
     handleRegister(ctx, serverId, source, parv, mtags, trailing),
   VERIFY: (ctx, serverId, source, parv, mtags) =>
     handleVerify(ctx, serverId, source, parv, mtags),
+  TOKEN: (ctx, serverId, source, parv, mtags) =>
+    handleToken(ctx, serverId, source, parv, mtags),
   "2FA": (ctx, serverId, source, parv, mtags) =>
     handleTwoFA(ctx, serverId, source, parv, mtags),
   EXTJWT: (ctx, serverId, source, parv, mtags) =>

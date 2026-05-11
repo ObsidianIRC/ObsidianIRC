@@ -1,10 +1,16 @@
 import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import { useEffect, useRef } from "react";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import type { PickerCustomEmoji } from "../../lib/customEmojiPicker";
 
 interface AppEmojiPickerProps {
   onEmojiClick: (emojiData: EmojiClickData) => void;
   reactedEmojis?: string[];
+  // draft/custom-emoji: optional list of network/channel-scoped
+  // emojis to surface in the picker as a separate category.  Click
+  // result will have `isCustom: true` and `names[0]` set to the
+  // shortcode -- callers should funnel through emojiClickValue().
+  customEmojis?: PickerCustomEmoji[];
 }
 
 const toUnified = (emoji: string) =>
@@ -20,6 +26,7 @@ const toUnified = (emoji: string) =>
 export function AppEmojiPicker({
   onEmojiClick,
   reactedEmojis,
+  customEmojis,
 }: AppEmojiPickerProps) {
   const isMobile = useMediaQuery();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -59,6 +66,7 @@ export function AppEmojiPicker({
         skinTonesDisabled={false}
         lazyLoadEmojis={true}
         autoFocusSearch={!isMobile}
+        customEmojis={customEmojis}
       />
     </div>
   );
