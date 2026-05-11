@@ -46,6 +46,12 @@ export interface Server {
   jwtToken?: string; // JWT token for filehost authentication
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // draft/persistence state (populated from PERSISTENCE STATUS replies).
+  // `preference` is what the user has explicitly set on this account
+  // (ON/OFF) or DEFAULT meaning "follow the server-wide default".
+  // `effective` is what the server is actually doing right now.
+  persistencePreference?: "ON" | "OFF" | "DEFAULT";
+  persistenceEffective?: "ON" | "OFF";
   myIdent?: string; // Our own ident on this server (draft/whoami SETNAME burst or CHGHOST)
   myHost?: string; // Our own hostname on this server (draft/whoami SETNAME burst or CHGHOST)
   // obsidianirc/cmdslist: lowercase set of commands this user can
@@ -65,12 +71,52 @@ export interface ServerConfig {
   saslAccountName?: string;
   saslPassword?: string;
   saslEnabled: boolean;
+  // "auto" prefers SCRAM-SHA-256 when the server advertises it and falls
+  // back to PLAIN, "webauthn" uses DRAFT-WEBAUTHN-BIO directly.
+  saslMechanism?:
+    | "auto"
+    | "PLAIN"
+    | "SCRAM-SHA-256"
+    | "DRAFT-WEBAUTHN-BIO"
+    | "EXTERNAL";
   skipLinkSecurityWarning?: boolean;
   skipLocalhostWarning?: boolean;
   operUsername?: string;
   operPassword?: string;
   operOnConnect?: boolean;
   addedAt?: number; // Timestamp when server was added (ms since epoch)
+  oauth?: ServerOAuthConfig;
+}
+
+export interface ServerOAuthConfig {
+  enabled: boolean;
+  providerLabel: string;
+  issuer: string;
+  clientId: string;
+  scopes?: string;
+  redirectUri?: string;
+  accessToken?: string;
+  idToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: number;
+  // "jwt" (default): the IRC server validates the bearer locally against
+  // its JWKS. The client sends idToken (preferred) or accessToken,
+  // whichever is a JWT. Works for Logto, Auth0, Keycloak, Okta, Google
+  // (id_token), Microsoft (id_token).
+  // "opaque": the IRC server hits the IdP's userinfo endpoint to resolve
+  // the bearer. The client sends accessToken plus a `serverProvider`
+  // hint so the server knows which oauth-provider {} block to consult.
+  // Required for GitHub, Discord, Slack, Reddit, Twitter.
+  tokenKind?: "jwt" | "opaque";
+  // Name the IRC server admin gave to the matching oauth-provider {}
+  // block. Sent as the IRCV3BEARER authzid (or OAUTHBEARER `provider=`
+  // k/v) in opaque mode so the server can pick the right userinfo URL.
+  serverProvider?: string;
+  // Manual auth/token endpoint overrides for non-OIDC providers like
+  // GitHub that don't publish a /.well-known/openid-configuration.
+  // When both are set, OIDC discovery is skipped.
+  authorizeEndpoint?: string;
+  tokenEndpoint?: string;
 }
 
 export interface Channel {
@@ -99,6 +145,10 @@ export interface Channel {
   bans?: Array<{ mask: string; setter: string; timestamp: number }>;
   invites?: Array<{ mask: string; setter: string; timestamp: number }>;
   exceptions?: Array<{ mask: string; setter: string; timestamp: number }>;
+  // draft/read-marker: ISO-8601 timestamp of the latest message the
+  // user has marked as read in this channel (mirrored across all of
+  // the user's connected sessions).  null = no marker on file yet.
+  readMarker?: string | null;
 }
 
 export interface PrivateChat {
@@ -120,6 +170,12 @@ export interface PrivateChat {
   isBot?: boolean; // Bot status from WHO/WHOX or message tags
   isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
+  // draft/read-marker: see Channel.readMarker.
+  readMarker?: string | null;
+  // draft/read-marker: have we issued an initial MARKREAD GET for this
+  // PM yet?  PMs are not auto-pushed by the server, so we need to
+  // explicitly fetch on first open.
+  readMarkerFetched?: boolean;
 }
 
 export interface Reaction {
