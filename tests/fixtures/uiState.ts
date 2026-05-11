@@ -5,4 +5,6 @@ export const defaultUIExtensions = {
   inviteUserRequest: null,
   openedMedia: null,
   activeMedia: null,
+  isTwoFactorSettingsOpen: false,
+  twoFactorSettingsServerId: null,
 };
