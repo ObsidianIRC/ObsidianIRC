@@ -55,21 +55,21 @@ export function handleFail(
   });
   // draft/account-recovery typed projections so components don't
   // have to filter the FAIL stream by command on every render.
-  if (cmd === "RECOVER")
+  if (command === "RECOVER")
     ctx.triggerEvent("RECOVER_FAIL", { serverId, mtags, code, message });
-  else if (cmd === "SETPASS")
+  else if (command === "SETPASS")
     ctx.triggerEvent("SETPASS_FAIL", { serverId, mtags, code, message });
   // draft/persistence FAIL projection
-  else if (cmd === "PERSISTENCE")
+  else if (command === "PERSISTENCE")
     ctx.triggerEvent("PERSISTENCE_FAIL", { serverId, mtags, code, message });
   // draft/read-marker FAIL projection.  The MARKREAD FAIL form has
   // an optional <target> in parv[2]; the message is whatever's left.
-  else if (cmd === "MARKREAD") {
+  else if (command === "MARKREAD") {
     ctx.triggerEvent("MARKREAD_FAIL", {
       serverId,
       mtags,
       code,
-      target,
+      target: context[0],
       message,
     });
   }
@@ -119,7 +119,7 @@ export function handleNote(
     context,
     message,
   });
-  if (cmd === "2FA") {
+  if (command === "2FA") {
     ctx.triggerEvent("TWOFA_NOTE", {
       serverId,
       mtags,
@@ -128,14 +128,14 @@ export function handleNote(
     });
   }
   // draft/account-recovery typed projections
-  if (cmd === "RECOVER") {
+  if (command === "RECOVER") {
     ctx.triggerEvent("RECOVER_NOTE", {
       serverId,
       mtags,
       code,
       args: parv.slice(2),
     });
-  } else if (cmd === "SETPASS") {
+  } else if (command === "SETPASS") {
     ctx.triggerEvent("SETPASS_NOTE", {
       serverId,
       mtags,
