@@ -46,6 +46,8 @@ export interface Server {
   jwtToken?: string; // JWT token for filehost authentication
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  myIdent?: string; // Our own ident on this server (draft/whoami SETNAME burst or CHGHOST)
+  myHost?: string; // Our own hostname on this server (draft/whoami SETNAME burst or CHGHOST)
   // obsidianirc/cmdslist: lowercase set of commands this user can
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
