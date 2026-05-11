@@ -210,10 +210,16 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
   });
 
   ircClient.on("RPL_YOURHOST", ({ serverId, serverName, version }) => {
-    // Check if the server is running UnrealIRCd
-    const isUnrealIRCd = version.includes("UnrealIRCd");
+    // The `isUnrealIRCd` flag gates UI surfaces that lean on the
+    // UnrealIRCd module-driven chanmode set (the "Advanced" tab in
+    // ChannelSettingsModal, etc.). ObbyIRCd is a downstream fork that
+    // advertises its own name in 002 but inherits that chanmode set,
+    // so it satisfies the same UI gate. Any features ObbyIRCd adds on
+    // top (e.g. named-modes) are detected separately through their
+    // own caps and shouldn't be conflated with UnrealIRCd parity.
+    const isUnrealIRCd =
+      version.includes("UnrealIRCd") || version.includes("ObbyIRCd");
 
-    // Update the server with the UnrealIRCd information
     store.setState((state) => ({
       servers: state.servers.map((server) =>
         server.id === serverId ? { ...server, isUnrealIRCd } : server,
