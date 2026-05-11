@@ -520,6 +520,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
             code={message.standardReplyCode}
             message={message.standardReplyMessage}
             target={message.standardReplyTarget}
+            context={message.standardReplyContext}
             timestamp={new Date(message.timestamp)}
             onIrcLinkClick={onIrcLinkClick}
           />
@@ -840,6 +841,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
                 imageUrl={message.linkPreviewMeta}
                 theme={theme}
                 messageContent={message.content}
+                serverId={serverId}
               />
             )}
           </div>

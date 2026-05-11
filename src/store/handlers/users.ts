@@ -861,21 +861,20 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
     });
   });
 
-  ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
-    const state = store.getState();
-    const server = state.servers.find((s) => s.id === serverId);
-    if (server) {
-      let channel = server.channels.find(
-        (c) => c.id === getCurrentSelection(state).selectedChannelId,
-      );
-      if (!channel) {
-        channel = server.channels[0];
-      }
+  ircClient.on(
+    "WARN",
+    ({ serverId, command, code, target, context, message }) => {
+      const state = store.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return;
+      const selectedId = getCurrentSelection(state).selectedChannelId;
+      const channel =
+        server.channels.find((c) => c.id === selectedId) ?? server.channels[0];
       if (channel) {
         const notificationMessage: Message = {
           ...makeEventMessage(
             "standard-reply",
-            `WARN ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+            message,
             "system",
             channel.id,
             serverId,
@@ -885,28 +884,39 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
           standardReplyCommand: command,
           standardReplyCode: code,
           standardReplyTarget: target,
+          standardReplyContext: context,
           standardReplyMessage: message,
         };
         appendMessage(store, serverId, channel.id, notificationMessage);
+      } else {
+        // No channels yet (pre-join WARN): surface as a global notification
+        // instead of dropping it.
+        state.addGlobalNotification({
+          type: "warn",
+          command,
+          code,
+          message,
+          target,
+          serverId,
+        });
       }
-    }
-  });
+    },
+  );
 
-  ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
-    const state = store.getState();
-    const server = state.servers.find((s) => s.id === serverId);
-    if (server) {
-      let channel = server.channels.find(
-        (c) => c.id === getCurrentSelection(state).selectedChannelId,
-      );
-      if (!channel) {
-        channel = server.channels[0];
-      }
+  ircClient.on(
+    "NOTE",
+    ({ serverId, command, code, target, context, message }) => {
+      const state = store.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return;
+      const selectedId = getCurrentSelection(state).selectedChannelId;
+      const channel =
+        server.channels.find((c) => c.id === selectedId) ?? server.channels[0];
       if (channel) {
         const notificationMessage: Message = {
           ...makeEventMessage(
             "standard-reply",
-            `NOTE ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+            message,
             "system",
             channel.id,
             serverId,
@@ -916,12 +926,22 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
           standardReplyCommand: command,
           standardReplyCode: code,
           standardReplyTarget: target,
+          standardReplyContext: context,
           standardReplyMessage: message,
         };
         appendMessage(store, serverId, channel.id, notificationMessage);
+      } else {
+        state.addGlobalNotification({
+          type: "note",
+          command,
+          code,
+          message,
+          target,
+          serverId,
+        });
       }
-    }
-  });
+    },
+  );
 
   ircClient.on("RENAME", ({ serverId, oldName, newName, reason, user }) => {
     store.setState((state) => {

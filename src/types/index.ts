@@ -48,6 +48,10 @@ export interface Server {
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
   myIdent?: string; // Our own ident on this server (draft/whoami SETNAME burst or CHGHOST)
   myHost?: string; // Our own hostname on this server (draft/whoami SETNAME burst or CHGHOST)
+  // obsidianirc/cmdslist: lowercase set of commands this user can
+  // currently invoke on this server.  Used to drive the slash-command
+  // suggestion popover.  undefined = the cap is not negotiated.
+  cmdsAvailable?: string[];
 }
 
 export interface ServerConfig {
@@ -76,6 +80,11 @@ export interface Channel {
   isPrivate: boolean;
   serverId: string;
   unreadCount: number;
+  // Number of *highlight* events since the channel was last marked
+  // read.  Distinct from unreadCount (every message) so the badge
+  // can show "you were pinged 3 times" instead of "33 messages
+  // happened since your first ping".
+  mentionCount?: number;
   isMentioned: boolean;
   messages: Message[];
   users: User[];
@@ -97,6 +106,8 @@ export interface PrivateChat {
   username: string;
   serverId: string;
   unreadCount: number;
+  // Highlight counter (PMs always count as mentions; this is per-PM).
+  mentionCount?: number;
   isMentioned: boolean;
   lastActivity?: Date;
   isPinned?: boolean;
@@ -147,11 +158,13 @@ export interface Message {
   tags?: Record<string, string>;
   // Whisper fields (for draft/channel-context)
   whisperTarget?: string; // The recipient of a whisper
-  // Standard reply fields
+  // Standard reply fields. `command`, `code`, and `context` are
+  // computer-readable; only `message` is intended for human display.
   standardReplyType?: "FAIL" | "WARN" | "NOTE";
   standardReplyCommand?: string;
   standardReplyCode?: string;
   standardReplyTarget?: string;
+  standardReplyContext?: string[];
   standardReplyMessage?: string;
   // Batch-related fields for netsplit/netjoin
   batchId?: string;
