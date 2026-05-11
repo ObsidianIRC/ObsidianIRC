@@ -217,7 +217,7 @@ export const VoiceChannelView: React.FC<Props> = ({
         : null;
 
   return (
-    <div className="w-full h-full flex flex-col bg-discord-dark-200">
+    <div className="w-full flex flex-col bg-discord-dark-200">
       {(statusBanner || isStreamRoom || focusMember) && (
         <div className="px-4 py-1 border-b border-discord-dark-300 flex items-center justify-between gap-4 text-xs">
           <div className="text-discord-text-muted truncate min-w-0">
@@ -244,7 +244,7 @@ export const VoiceChannelView: React.FC<Props> = ({
         </div>
       )}
 
-      <main className="flex-1 overflow-hidden p-4 flex flex-col gap-3 min-h-0">
+      <main className="p-4 flex flex-col gap-3">
         {focusMember ? (
           <>
             <div className="flex-1 min-h-0">
@@ -265,7 +265,7 @@ export const VoiceChannelView: React.FC<Props> = ({
             {sideMembers.length > 0 && (
               <div className="flex gap-2 overflow-x-auto pb-1 flex-shrink-0">
                 {sideMembers.map((m) => (
-                  <div key={m.nick} className="w-40 h-24 flex-shrink-0">
+                  <div key={m.nick} className="w-40 flex-shrink-0">
                     <ParticipantTile
                       member={m}
                       isSelf={m.nick === selfNick}
@@ -283,41 +283,23 @@ export const VoiceChannelView: React.FC<Props> = ({
             )}
           </>
         ) : (
-          <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
-            {(() => {
-              const count = streamerMembers.length;
-              // Pick column count so tiles stay roughly square at full
-              // height: 1→1, 2→2, 3-4→2, 5-9→3, 10+→4. Rows fall out of
-              // ceil(count/cols), and the grid uses `1fr` for both axes
-              // so tiles fill the available area instead of collapsing
-              // to aspect-video at the top with empty space beneath.
-              const cols = count <= 1 ? 1 : count <= 4 ? 2 : count <= 9 ? 3 : 4;
-              const rows = Math.max(1, Math.ceil(count / cols));
-              return (
-                <div
-                  className="grid gap-3 flex-1 min-h-0"
-                  style={{
-                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                    gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {streamerMembers.map((m) => (
-                    <ParticipantTile
-                      key={m.nick}
-                      member={m}
-                      isSelf={m.nick === selfNick}
-                      selfMicOn={micOn}
-                      onClick={() => setFocusNick(m.nick)}
-                      onSetMuted={setMemberMuted}
-                      onSetVolume={setMemberVolume}
-                      reactions={reactions
-                        .filter((r) => r.nick === m.nick)
-                        .map((r) => ({ id: r.id, emoji: r.emoji }))}
-                    />
-                  ))}
-                </div>
-              );
-            })()}
+          <div className="overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {streamerMembers.map((m) => (
+                <ParticipantTile
+                  key={m.nick}
+                  member={m}
+                  isSelf={m.nick === selfNick}
+                  selfMicOn={micOn}
+                  onClick={() => setFocusNick(m.nick)}
+                  onSetMuted={setMemberMuted}
+                  onSetVolume={setMemberVolume}
+                  reactions={reactions
+                    .filter((r) => r.nick === m.nick)
+                    .map((r) => ({ id: r.id, emoji: r.emoji }))}
+                />
+              ))}
+            </div>
             {state.phase === "connected" &&
               streamerMembers.length === 0 &&
               !isStreamRoom && (
@@ -537,6 +519,7 @@ function ParticipantTile({
 
   const showSpeakingRing = member.speaking && (isSelf ? selfMicOn : true);
   const muted = member.volume === 0;
+  const aspect = large ? "" : "aspect-video";
 
   const onMuteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -548,7 +531,7 @@ function ParticipantTile({
     <button
       type="button"
       onClick={onClick}
-      className={`relative bg-discord-dark-300 rounded-lg w-full h-full min-h-0 overflow-hidden flex items-center justify-center text-left ${
+      className={`relative bg-discord-dark-300 rounded-lg ${aspect} ${large ? "w-full h-full" : ""} overflow-hidden flex items-center justify-center text-left ${
         showSpeakingRing
           ? "ring-2 ring-discord-green"
           : "ring-1 ring-discord-dark-200"

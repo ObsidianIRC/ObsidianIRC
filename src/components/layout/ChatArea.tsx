@@ -2013,7 +2013,7 @@ export const ChatArea: React.FC<{
       />
 
       {topSlot && (
-        <div className="flex-shrink-0 h-[55%] min-h-0 border-b border-discord-dark-300 overflow-hidden">
+        <div className="flex-shrink-0 max-h-[60%] overflow-y-auto border-b border-discord-dark-300">
           {topSlot}
         </div>
       )}
