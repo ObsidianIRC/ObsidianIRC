@@ -84,6 +84,7 @@ describe("ChannelSettingsModal", () => {
       enableNotifications: true,
       notificationSound: "default",
       notificationVolume: 0.8,
+      translationTargetLanguage: "",
     },
     ui: {
       selectedServerId: null,

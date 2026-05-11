@@ -127,6 +127,7 @@ describe("LinkSecurityWarningModal", () => {
         notificationSound: "default",
         notificationVolume: 0.8,
         skipLinkSecurityWarnings: false,
+        translationTargetLanguage: "",
       },
     };
 

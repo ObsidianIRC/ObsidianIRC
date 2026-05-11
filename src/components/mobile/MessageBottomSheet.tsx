@@ -1,5 +1,11 @@
 import type React from "react";
-import { FaExpand, FaGrinAlt, FaReply, FaTimes } from "react-icons/fa";
+import {
+  FaExpand,
+  FaGrinAlt,
+  FaLanguage,
+  FaReply,
+  FaTimes,
+} from "react-icons/fa";
 import BottomSheet from "./BottomSheet";
 
 interface MessageBottomSheetProps {
@@ -7,12 +13,15 @@ interface MessageBottomSheetProps {
   onClose: () => void;
   onReply?: () => void;
   onReact?: (buttonElement: Element) => void;
+  onTranslate?: () => void;
   onDelete?: () => void;
   onOpenMedia?: () => void;
   canReply: boolean;
   canReact: boolean;
+  canTranslate: boolean;
   canDelete: boolean;
   canOpenMedia?: boolean;
+  isTranslating?: boolean;
 }
 
 const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
@@ -20,18 +29,22 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
   onClose,
   onReply,
   onReact,
+  onTranslate,
   onDelete,
   onOpenMedia,
   canReply,
   canReact,
+  canTranslate,
   canDelete,
   canOpenMedia = false,
+  isTranslating = false,
 }) => {
   const actions: {
     label: string;
     icon: React.ReactNode;
     onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
     className?: string;
+    disabled?: boolean;
   }[] = [];
 
   if (canReply && onReply) {
@@ -53,6 +66,20 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
         onReact(e.currentTarget);
         onClose();
       },
+    });
+  }
+
+  if (canTranslate && onTranslate) {
+    actions.push({
+      label: isTranslating ? "Translating" : "Translate",
+      icon: <FaLanguage />,
+      onClick: () => {
+        if (isTranslating) return;
+        onTranslate();
+        onClose();
+      },
+      className: isTranslating ? "text-sky-300/70" : undefined,
+      disabled: isTranslating,
     });
   }
 
@@ -90,6 +117,7 @@ const MessageBottomSheet: React.FC<MessageBottomSheetProps> = ({
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg active:bg-discord-dark-400 text-left ${action.className || "text-white"}`}
             style={{ minHeight: "48px" }}
             onClick={action.onClick}
+            disabled={action.disabled}
           >
             <span className="text-lg">{action.icon}</span>
             <span className="text-sm font-medium">{action.label}</span>

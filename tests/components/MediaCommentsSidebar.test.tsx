@@ -53,7 +53,10 @@ vi.mock("../../src/store", () => ({
       const state = {
         servers: [{ id: "s1", channels: [mockChannel] }],
         messages: {},
-        globalSettings: { mediaVisibilityLevel: 3 },
+        globalSettings: {
+          mediaVisibilityLevel: 3,
+          translationTargetLanguage: "",
+        },
       };
       return selector(state);
     }),

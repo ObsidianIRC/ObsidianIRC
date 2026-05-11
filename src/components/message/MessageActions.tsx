@@ -1,5 +1,5 @@
 import type React from "react";
-import { FaExpand, FaReply, FaTrash } from "react-icons/fa";
+import { FaExpand, FaLanguage, FaReply, FaTrash } from "react-icons/fa";
 import type { MessageType } from "../../types";
 import { MdAddReaction } from "./icons";
 
@@ -7,11 +7,14 @@ interface MessageActionsProps {
   message: MessageType;
   onReplyClick: () => void;
   onReactClick: (buttonElement: Element) => void;
+  onTranslateClick?: () => void;
   onRedactClick?: () => void;
   onOpenMedia?: () => void;
   canRedact?: boolean;
   canReply?: boolean;
+  canTranslate?: boolean;
   canOpenMedia?: boolean;
+  isTranslating?: boolean;
   inline?: boolean;
 }
 
@@ -19,11 +22,14 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   message,
   onReplyClick,
   onReactClick,
+  onTranslateClick,
   onRedactClick,
   onOpenMedia,
   canRedact = false,
   canReply = !!message.msgid,
+  canTranslate = false,
   canOpenMedia = false,
+  isTranslating = false,
   inline = false,
 }) => {
   return (
@@ -60,6 +66,20 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           title="Reply"
         >
           <FaReply className="w-4 h-4" />
+        </button>
+      )}
+      {canTranslate && onTranslateClick && (
+        <button
+          type="button"
+          className="px-2.5 py-1.5 text-sky-300/80 hover:text-sky-200 hover:bg-white/10 transition-colors first:rounded-l-lg last:rounded-r-lg disabled:opacity-60 disabled:cursor-wait"
+          onClick={onTranslateClick}
+          title={isTranslating ? "Translating" : "Translate message"}
+          aria-label={
+            isTranslating ? "Translating message" : "Translate message"
+          }
+          disabled={isTranslating}
+        >
+          <FaLanguage className="w-4 h-4" />
         </button>
       )}
       <button

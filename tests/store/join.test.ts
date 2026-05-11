@@ -38,6 +38,7 @@ function setupServer(channelOverrides: Partial<Channel> = {}) {
     globalSettings: {
       showEvents: true,
       showJoinsParts: true,
+      translationTargetLanguage: "",
     },
   } as unknown as AppState);
 }

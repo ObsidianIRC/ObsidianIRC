@@ -72,6 +72,12 @@ describe("settings.load migration", () => {
     // Old flag is left as-is when not migrating (no need to clean it up)
   });
 
+  test("preserves explicit translation target language", () => {
+    mockStored({ translationTargetLanguage: "es" });
+    const result = settings.load();
+    expect(result.translationTargetLanguage).toBe("es");
+  });
+
   test("returns empty object on invalid JSON", () => {
     vi.mocked(window.localStorage.getItem).mockReturnValue("not-json");
     const result = settings.load();
