@@ -52,6 +52,8 @@ export interface Server {
   // `effective` is what the server is actually doing right now.
   persistencePreference?: "ON" | "OFF" | "DEFAULT";
   persistenceEffective?: "ON" | "OFF";
+  myIdent?: string; // Our own ident on this server (draft/whoami SETNAME burst or CHGHOST)
+  myHost?: string; // Our own hostname on this server (draft/whoami SETNAME burst or CHGHOST)
   // obsidianirc/cmdslist: lowercase set of commands this user can
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
