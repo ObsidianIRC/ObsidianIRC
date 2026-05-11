@@ -54,6 +54,11 @@ export interface Server {
   authTokenService?: string;
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // IRCv3 draft/named-modes: server-advertised long-form mode names.
+  // Populated from RPL_CHMODELIST (964) / RPL_UMODELIST (965) at
+  // connect time; consumed by the mode-rendering paths so MODE +o /
+  // PROP +op stay interchangeable in the UI.
+  namedModes?: NamedModes;
   // draft/EMOJI ISUPPORT: URL to the network-wide pack document.
   emojiPackUrl?: string;
   // draft/persistence state (populated from PERSISTENCE STATUS replies).
@@ -68,6 +73,22 @@ export interface Server {
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
   cmdsAvailable?: string[];
+}
+
+export interface NamedModeSpec {
+  /** Spec type: 1=list, 2=param-set+unset, 3=param-set, 4=flag, 5=prefix. */
+  type: 1 | 2 | 3 | 4 | 5;
+  /** IRCv3 long-form name, e.g. "op", "topiclock", "obsidianirc/floodprot". */
+  name: string;
+  /** Legacy MODE letter (omitted for name-only modes). */
+  letter?: string;
+}
+
+export interface NamedModes {
+  /** Capability negotiated with server; if false, registry is empty. */
+  supported: boolean;
+  channelModes: NamedModeSpec[];
+  userModes: NamedModeSpec[];
 }
 
 export interface ServerConfig {
