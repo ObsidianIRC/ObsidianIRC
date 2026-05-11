@@ -143,7 +143,13 @@ export interface EventMap {
     reason: string;
     user: string;
   };
-  SETNAME: { serverId: string; user: string; realname: string };
+  SETNAME: {
+    serverId: string;
+    user: string;
+    realname: string;
+    ident?: string;
+    host?: string;
+  };
   INVITE: EventWithTags & {
     inviter: string;
     target: string;
@@ -248,6 +254,43 @@ export interface EventMap {
     requestedTarget: string;
     serviceName: string;
     jwtToken: string;
+  };
+  TWOFA: EventWithTags & {
+    subcommand: string;
+    status: string;
+    args: string[];
+  };
+  TWOFA_NOTE: EventWithTags & {
+    code: string;
+    args: string[];
+  };
+  // draft/account-recovery: convenient typed projection of the
+  // generic NOTE/FAIL events for the RECOVER + SETPASS commands.
+  // The dispatch in handlers/auth.ts emits these alongside the
+  // generic NOTE/FAIL.
+  RECOVER_NOTE: EventWithTags & { code: string; args: string[] };
+  RECOVER_FAIL: EventWithTags & { code: string; message: string };
+  SETPASS_NOTE: EventWithTags & { code: string; args: string[] };
+  SETPASS_FAIL: EventWithTags & { code: string; message: string };
+  // draft/persistence: server reply
+  // `:server PERSISTENCE STATUS <client-setting> <effective-setting>`
+  // where each is one of ON | OFF | DEFAULT (effective is always ON|OFF).
+  PERSISTENCE_STATUS: BaseIRCEvent & {
+    preference: "ON" | "OFF" | "DEFAULT";
+    effective: "ON" | "OFF";
+  };
+  PERSISTENCE_FAIL: EventWithTags & { code: string; message: string };
+  // draft/read-marker: server reply
+  // `:server MARKREAD <target> {timestamp=<ts>|*}`.  `timestamp` is null
+  // when the server reports "*" (no marker on file yet).
+  MARKREAD: BaseIRCEvent & {
+    target: string;
+    timestamp: string | null;
+  };
+  MARKREAD_FAIL: EventWithTags & {
+    code: string;
+    target?: string;
+    message: string;
   };
   // obsidianirc/cmdslist: server is reporting an add/remove delta of
   // commands the user can invoke right now.  Ops are individual
@@ -404,6 +447,8 @@ export class IRCClient implements IRCClientContext {
   private sockets: Map<string, ISocket> = new Map();
   servers: Map<string, Server> = new Map();
   nicks: Map<string, string> = new Map();
+  myIdents: Map<string, string> = new Map(); // Our own ident per server, populated by draft/whoami SETNAME burst and CHGHOST
+  myHosts: Map<string, string> = new Map(); // Our own hostname per server, populated by draft/whoami SETNAME burst and CHGHOST
   currentUsers: Map<string, User | null> = new Map(); // Per-server current users
   private saslMechanisms: Map<string, string[]> = new Map();
   private capLsAccumulated: Map<string, Set<string>> = new Map();
@@ -468,6 +513,7 @@ export class IRCClient implements IRCClientContext {
     "extended-join",
     "away-notify",
     "chghost",
+    "draft/whoami",
     "draft/metadata-2",
     "draft/message-redaction",
     "draft/account-registration",
@@ -483,6 +529,7 @@ export class IRCClient implements IRCClientContext {
     "monitor",
     "extended-monitor",
     "obsidianirc/voice",
+    "draft/read-marker",
     "obsidianirc/cmdslist",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
@@ -502,6 +549,7 @@ export class IRCClient implements IRCClientContext {
     _saslAccountName?: string,
     _saslPassword?: string,
     serverId?: string,
+    oauthBearerEnabled?: boolean,
   ): Promise<Server> {
     const connectionKey = `${host}:${port}`;
 
@@ -610,8 +658,20 @@ export class IRCClient implements IRCClientContext {
         saslAccountName: _saslAccountName,
         saslPassword: _saslPassword,
       });
-      // Only enable SASL if we have both account name AND password
-      this.saslEnabled.set(server.id, !!(_saslAccountName && _saslPassword));
+      // Enable SASL if we have either PLAIN credentials or an OAuth bearer
+      // path. OAuth path is signaled by the caller; tokens themselves are
+      // read from storage by the auth handler at AUTHENTICATE time. On
+      // internal reconnect (oauthBearerEnabled === undefined) preserve the
+      // previously-set value so the OAuth flag survives reconnects.
+      const priorSaslEnabled = this.saslEnabled.get(server.id) ?? false;
+      const wantOauth =
+        oauthBearerEnabled === undefined
+          ? priorSaslEnabled
+          : !!oauthBearerEnabled;
+      this.saslEnabled.set(
+        server.id,
+        !!(_saslAccountName && _saslPassword) || wantOauth,
+      );
 
       // Store SASL credentials if provided
       if (_saslAccountName && _saslPassword) {
@@ -761,6 +821,8 @@ export class IRCClient implements IRCClientContext {
     this.pendingCapReqs.delete(serverId);
     this.capLsAccumulated.delete(serverId);
     this.saslMechanisms.delete(serverId);
+    this.myIdents.delete(serverId);
+    this.myHosts.delete(serverId);
   }
 
   private startReconnection(
@@ -1362,6 +1424,46 @@ export class IRCClient implements IRCClientContext {
     this.sendRaw(serverId, command);
   }
 
+  // draft/account-recovery: forgotten-password flow.
+  recoverRequest(serverId: string, account: string): void {
+    this.sendRaw(serverId, `RECOVER REQUEST ${account}`);
+  }
+
+  recoverConfirm(serverId: string, account: string, code: string): void {
+    this.sendRaw(serverId, `RECOVER CONFIRM ${account} ${code}`);
+  }
+
+  // SETPASS lives in the same draft/account-recovery cap.  The new
+  // password is sent as the IRC trailing parameter so it MAY contain
+  // spaces (for passphrases).  No base64 -- the password is UTF-8.
+  setpass(serverId: string, newPassword: string): void {
+    this.sendRaw(serverId, `SETPASS :${newPassword}`);
+  }
+
+  // draft/persistence: read or set the per-account ghost-on-disconnect
+  // preference.  Server responds with PERSISTENCE STATUS.
+  persistenceGet(serverId: string): void {
+    this.sendRaw(serverId, "PERSISTENCE GET");
+  }
+
+  persistenceSet(serverId: string, value: "ON" | "OFF" | "DEFAULT"): void {
+    this.sendRaw(serverId, `PERSISTENCE SET ${value}`);
+  }
+
+  // draft/read-marker: ask the server for the stored marker for a
+  // target.  Channels are auto-pushed on JOIN, so this is mostly used
+  // when a PM buffer is opened for the first time.
+  markreadGet(serverId: string, target: string): void {
+    this.sendRaw(serverId, `MARKREAD ${target}`);
+  }
+
+  // draft/read-marker: tell the server the user has read up to
+  // `timestamp` in `target`.  Server clamps to monotonically-increasing
+  // values and replies with MARKREAD echoing whatever it stored.
+  markreadSet(serverId: string, target: string, timestamp: string): void {
+    this.sendRaw(serverId, `MARKREAD ${target} timestamp=${timestamp}`);
+  }
+
   // MONITOR commands
   monitorAdd(serverId: string, targets: string[]): void {
     const targetsStr = targets.join(",");
@@ -1403,14 +1505,33 @@ export class IRCClient implements IRCClientContext {
     this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, key, capabilities });
   }
 
+  // Allow handlers (e.g. the OAuth path) to flip the SASL-pending flag
+  // before onCapAck's auto-send-CAP-END check runs. Called from the
+  // CAP_ACKNOWLEDGED listener that initiates AUTHENTICATE IRCV3BEARER.
+  setSaslEnabled(serverId: string, enabled: boolean): void {
+    this.saslEnabled.set(serverId, enabled);
+  }
+
   capEnd(_serverId: string) {}
 
   isCapNegotiationComplete(serverId: string): boolean {
     return this.capNegotiationComplete.get(serverId) ?? false;
   }
 
+  getSaslMechanisms(serverId: string): string[] {
+    return this.saslMechanisms.get(serverId) ?? [];
+  }
+
   getNick(serverId: string): string | undefined {
     return this.nicks.get(serverId);
+  }
+
+  getMyIdent(serverId: string): string | undefined {
+    return this.myIdents.get(serverId);
+  }
+
+  getMyHost(serverId: string): string | undefined {
+    return this.myHosts.get(serverId);
   }
 
   userOnConnect(serverId: string) {

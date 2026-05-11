@@ -15,6 +15,9 @@ import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
 import QuickActions from "./components/ui/QuickActions";
+import { TicTacToeModal } from "./components/ui/TicTacToeModal";
+import { TotpStepUpModal } from "./components/ui/TotpStepUpModal";
+import { TwoFactorSettingsModal } from "./components/ui/TwoFactorSettingsModal";
 import UserProfileModal from "./components/ui/UserProfileModal";
 import UserSettings from "./components/ui/UserSettings";
 import { useChannelTabSwitching } from "./hooks/useChannelTabSwitching";
@@ -80,6 +83,7 @@ const App: React.FC = () => {
     toggleAddServerModal,
     toggleEditServerModal,
     toggleQuickActions,
+    toggleTwoFactorSettings,
     ui: {
       isAddServerModalOpen,
       isChannelListModalOpen,
@@ -88,7 +92,9 @@ const App: React.FC = () => {
       isSettingsModalOpen,
       isQuickActionsOpen,
       isUserProfileModalOpen,
+      isTwoFactorSettingsOpen,
       editServerId,
+      twoFactorSettingsServerId,
       linkSecurityWarnings,
       profileViewRequest,
       prefillServerDetails,
@@ -306,6 +312,14 @@ const App: React.FC = () => {
                   onClose={() => toggleEditServerModal(false)}
                 />
               )}
+              {isTwoFactorSettingsOpen && twoFactorSettingsServerId && (
+                <TwoFactorSettingsModal
+                  serverId={twoFactorSettingsServerId}
+                  onClose={() => toggleTwoFactorSettings(false)}
+                />
+              )}
+              <TotpStepUpModal />
+              <TicTacToeModal />
               {isSettingsModalOpen && <UserSettings />}
               {isQuickActionsOpen && <QuickActions />}
               {isChannelListModalOpen && <ChannelListModal />}

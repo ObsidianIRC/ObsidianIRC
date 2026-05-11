@@ -10,11 +10,13 @@ import type {
   PrivateChat,
   Server,
   ServerConfig,
+  ServerOAuthConfig,
   User,
   WhoisData,
 } from "../types";
 import { registerAllHandlers } from "./handlers";
 import { readyProcessedServers } from "./handlers/connection";
+import * as tictactoeActions from "./handlers/tictactoeActions";
 import { MAX_MESSAGES_PER_CHANNEL } from "./helpers";
 import * as storage from "./localStorage";
 import { runPendingMigrations } from "./migrations";
@@ -111,6 +113,35 @@ export const getChannelMessages = (serverId: string, channelId: string) => {
   const key = `${serverId}-${channelId}`;
   return state.messages[key] || [];
 };
+
+// draft/read-marker: find the latest message timestamp (across normal
+// chat messages -- system / event rows are ignored so reading a "X
+// joined" line doesn't move the marker).  Returns an ISO 8601 string
+// in the spec's format, or null if there's nothing to mark.
+const ISO_DROP_END_RX = /Z?$/;
+function _toMarkreadIso(d: Date): string {
+  // The spec mandates "YYYY-MM-DDThh:mm:ss.sssZ" -- exactly the form
+  // toISOString() emits.
+  return d.toISOString().replace(ISO_DROP_END_RX, "Z");
+}
+
+export function getLatestMessageTimestampIso(
+  serverId: string,
+  bufferId: string,
+): string | null {
+  const state = useStore.getState();
+  const key = `${serverId}-${bufferId}`;
+  const messages = state.messages[key];
+  if (!messages || messages.length === 0) return null;
+  let latest: number | null = null;
+  for (const msg of messages) {
+    if (msg.type !== "message" && msg.type !== undefined) continue;
+    const t = msg.timestamp ? new Date(msg.timestamp).getTime() : Number.NaN;
+    if (Number.isNaN(t)) continue;
+    if (latest === null || t > latest) latest = t;
+  }
+  return latest === null ? null : _toMarkreadIso(new Date(latest));
+}
 
 export const findChannelMessageById = (
   serverId: string,
@@ -372,6 +403,8 @@ interface UIState {
   isAddServerModalOpen: boolean | undefined;
   isEditServerModalOpen: boolean;
   editServerId: string | null;
+  isTwoFactorSettingsOpen: boolean;
+  twoFactorSettingsServerId: string | null;
   isSettingsModalOpen: boolean;
   isQuickActionsOpen: boolean;
   isDarkMode: boolean;
@@ -524,6 +557,32 @@ export interface AppState {
     email: string;
     password: string;
   } | null;
+  // 2FA: SASL step-up modal trigger.  Set when the server replies
+  // `AUTHENTICATE 2FA-REQUIRED`; the modal observes this and prompts the
+  // user for a TOTP code.  Cleared on submit / cancel / SASL completion.
+  pendingTotpStepUp: { serverId: string; account: string } | null;
+  // 2FA management state per server (populated by `2FA LIST` / `2FA STATUS`).
+  twofaStatus: Record<string, "enabled" | "disabled" | "unknown">;
+  twofaCredentials: Record<
+    string,
+    Array<{ id: string; type: string; name: string; createdAt: string }>
+  >;
+  // Active enrolment challenge (server reply to `2FA CHALLENGE <type>`),
+  // base64-encoded JSON.  Consumed by the enrolment dialogs.
+  pendingTwofaChallenge: {
+    serverId: string;
+    type: string;
+    blob: string;
+  } | null;
+  // Tic-tac-toe games keyed serverId -> opponent-nick-lower.  Used by both
+  // the TAGMSG handler and the modal UI.
+  tictactoe: {
+    games: Record<
+      string,
+      Record<string, import("../lib/games/tictactoe").GameSnapshot>
+    >;
+    open: { serverId: string; opponent: string } | null;
+  };
   // Channel order persistence
   channelOrder: ChannelOrderMap; // serverId -> ordered array of channel names
   // Message deduplication tracking
@@ -547,6 +606,7 @@ export interface AppState {
     registerEmail?: string,
     registerPassword?: string,
     isNewServer?: boolean,
+    oauthConfig?: ServerOAuthConfig,
   ) => Promise<Server>;
   disconnect: (serverId: string) => void;
   joinChannel: (serverId: string, channelName: string) => void;
@@ -565,6 +625,51 @@ export interface AppState {
     password: string,
   ) => void;
   verifyAccount: (serverId: string, account: string, code: string) => void;
+  // 2FA actions
+  twofaStatusQuery: (serverId: string) => void;
+  twofaListQuery: (serverId: string) => void;
+  twofaChallenge: (serverId: string, type: string, arg?: string) => void;
+  // /2FA TOKEN :<chunk> -- streams an OAuth bearer to the server during
+  // an oauth enrolment session (since JWTs blow past the 512-byte IRC
+  // line limit).
+  twofaToken: (serverId: string, chunk: string) => void;
+  // High-level helper: take the OAuth bearer token we already obtained
+  // via the popup flow, run the full /2FA CHALLENGE oauth <provider> →
+  // /2FA TOKEN :<chunked> → /2FA ADD oauth <name> sequence.
+  linkOauthCredential: (
+    serverId: string,
+    provider: string,
+    bearerToken: string,
+    name: string,
+  ) => void;
+  twofaAdd: (
+    serverId: string,
+    type: string,
+    name: string,
+    // OAuth ADD finalizes a previously-streamed token, so it has no
+    // inline data argument. TOTP/WebAuthn/external pass the credential
+    // payload here.
+    data?: string,
+  ) => void;
+  twofaRemove: (serverId: string, id: string) => void;
+  twofaEnable: (serverId: string) => void;
+  twofaDisable: (serverId: string, type: string, data: string) => void;
+  submitTotpStepUp: (serverId: string, code: string) => void;
+  cancelTotpStepUp: (serverId: string) => void;
+  toggleTwoFactorSettings: (isOpen?: boolean, serverId?: string | null) => void;
+  // Tic-tac-toe actions
+  tictactoeInvite: (serverId: string, opponent: string) => void;
+  tictactoeAccept: (serverId: string, opponent: string) => void;
+  tictactoeDecline: (serverId: string, opponent: string) => void;
+  tictactoeMove: (
+    serverId: string,
+    opponent: string,
+    row: number,
+    col: number,
+  ) => void;
+  tictactoeTerminate: (serverId: string, opponent: string) => void;
+  tictactoeOpenModal: (serverId: string, opponent: string) => void;
+  tictactoeCloseModal: () => void;
   setAway: (serverId: string, message?: string) => void;
   clearAway: (serverId: string) => void;
   warnUser: (
@@ -845,6 +950,11 @@ const useStore = create<AppState>((set, get) => ({
   metadataChangeCounter: 0,
   whoisData: {},
   pendingRegistration: null,
+  pendingTotpStepUp: null,
+  twofaStatus: {},
+  twofaCredentials: {},
+  pendingTwofaChallenge: null,
+  tictactoe: { games: {}, open: null },
   channelOrder: loadChannelOrder(),
   processedMessageIds: new Set<string>(),
   hasConnectedToSavedServers: false,
@@ -860,6 +970,8 @@ const useStore = create<AppState>((set, get) => ({
     },
     isAddServerModalOpen: false,
     isEditServerModalOpen: false,
+    isTwoFactorSettingsOpen: false,
+    twoFactorSettingsServerId: null,
     editServerId: null,
     isSettingsModalOpen: false,
     isQuickActionsOpen: false,
@@ -957,7 +1069,8 @@ const useStore = create<AppState>((set, get) => ({
     registerAccount,
     registerEmail,
     registerPassword,
-    isNewServer = false,
+    isNewServer,
+    oauthConfig,
   ) => {
     // Check if already connected to this server
     const state = get();
@@ -985,6 +1098,22 @@ const useStore = create<AppState>((set, get) => ({
         (s) => normalizeHost(s.host) === normalizeHost(host) && s.port === port,
       );
 
+      // Auth-handler reads OAuth out of localStorage when SASL fires, so
+      // persist any caller-supplied oauth config BEFORE opening the
+      // socket -- otherwise the first SASL turn would race past it.
+      const mergedOauth = oauthConfig ?? existingSavedServer?.oauth;
+      if (oauthConfig && existingSavedServer?.id) {
+        const pre = loadSavedServers();
+        const idx = pre.findIndex((s) => s.id === existingSavedServer.id);
+        if (idx !== -1) {
+          pre[idx] = { ...pre[idx], oauth: oauthConfig };
+          saveServersToLocalStorage(pre);
+        }
+      }
+      const oauthBearerEnabled = !!(
+        mergedOauth?.enabled &&
+        (mergedOauth.accessToken || mergedOauth.idToken)
+      );
       const server = await ircClient.connect(
         name,
         host,
@@ -994,6 +1123,7 @@ const useStore = create<AppState>((set, get) => ({
         saslAccountName,
         saslPassword,
         existingSavedServer?.id, // Pass the saved server ID if it exists
+        oauthBearerEnabled,
       );
 
       // Save server to localStorage
@@ -1034,6 +1164,7 @@ const useStore = create<AppState>((set, get) => ({
         skipLinkSecurityWarning: savedServer?.skipLinkSecurityWarning,
         // Preserve existing addedAt timestamp or set current time for new servers
         addedAt: savedServer?.addedAt || Date.now(),
+        oauth: mergedOauth ?? savedServer?.oauth,
       });
       saveServersToLocalStorage(updatedServers);
 
@@ -1363,6 +1494,70 @@ const useStore = create<AppState>((set, get) => ({
 
   verifyAccount: (serverId: string, account: string, code: string) => {
     ircClient.verifyAccount(serverId, account, code);
+  },
+
+  twofaStatusQuery: (serverId) => {
+    ircClient.sendRaw(serverId, "2FA STATUS");
+  },
+  twofaListQuery: (serverId) => {
+    set((state) => ({
+      twofaCredentials: { ...state.twofaCredentials, [serverId]: [] },
+    }));
+    ircClient.sendRaw(serverId, "2FA LIST");
+  },
+  twofaChallenge: (serverId, type, arg) => {
+    if (arg) {
+      ircClient.sendRaw(serverId, `2FA CHALLENGE ${type} ${arg}`);
+    } else {
+      ircClient.sendRaw(serverId, `2FA CHALLENGE ${type}`);
+    }
+  },
+  twofaToken: (serverId, chunk) => {
+    // The trailing-param form lets the chunk hold any printable byte
+    // including spaces and `=` -- IRC parsers treat everything after
+    // the first " :" as one parameter.
+    ircClient.sendRaw(serverId, `2FA TOKEN :${chunk}`);
+  },
+  linkOauthCredential: (serverId, provider, bearerToken, name) => {
+    // Order matches the obbyircd handler: open a session pinned to the
+    // provider, stream the bearer in <=400-byte chunks, then finalize
+    // by name. The server validates the buffered token (via JWKS or the
+    // userinfo endpoint depending on provider config) inside ADD.
+    ircClient.sendRaw(serverId, `2FA CHALLENGE oauth ${provider}`);
+    const CHUNK = 400;
+    for (let i = 0; i < bearerToken.length; i += CHUNK) {
+      ircClient.sendRaw(
+        serverId,
+        `2FA TOKEN :${bearerToken.slice(i, i + CHUNK)}`,
+      );
+    }
+    ircClient.sendRaw(serverId, `2FA ADD oauth ${name}`);
+  },
+  twofaAdd: (serverId, type, name, data) => {
+    if (data === undefined) {
+      ircClient.sendRaw(serverId, `2FA ADD ${type} ${name}`);
+    } else {
+      ircClient.sendRaw(serverId, `2FA ADD ${type} ${name} ${data}`);
+    }
+  },
+  twofaRemove: (serverId, id) => {
+    ircClient.sendRaw(serverId, `2FA REMOVE ${id}`);
+  },
+  twofaEnable: (serverId) => {
+    ircClient.sendRaw(serverId, "2FA ENABLE");
+  },
+  twofaDisable: (serverId, type, data) => {
+    ircClient.sendRaw(serverId, `2FA DISABLE ${type} ${data}`);
+  },
+  submitTotpStepUp: (serverId, code) => {
+    ircClient.sendRaw(serverId, "AUTHENTICATE TOTP");
+    const b64 = btoa(code.trim());
+    ircClient.sendRaw(serverId, `AUTHENTICATE ${b64}`);
+    set({ pendingTotpStepUp: null });
+  },
+  cancelTotpStepUp: (serverId) => {
+    ircClient.sendRaw(serverId, "AUTHENTICATE *");
+    set({ pendingTotpStepUp: null });
   },
 
   setAway: (serverId, message) => {
@@ -1763,6 +1958,16 @@ const useStore = create<AppState>((set, get) => ({
           }
         }
 
+        // draft/read-marker: tell the server how far we've read so
+        // our other sessions clear their unread state too.
+        if (
+          channelName &&
+          server?.capabilities?.includes("draft/read-marker")
+        ) {
+          const ts = getLatestMessageTimestampIso(serverId, channelId);
+          if (ts) ircClient.markreadSet(serverId, channelName, ts);
+        }
+
         // Update unread state in store
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
@@ -1955,9 +2160,21 @@ const useStore = create<AppState>((set, get) => ({
       // Mark private chat as read
       if (serverId && privateChatId) {
         const server = state.servers.find((s) => s.id === serverId);
-        const pcUsername =
-          server?.privateChats?.find((pc) => pc.id === privateChatId)
-            ?.username || null;
+        const pc = server?.privateChats?.find((pc) => pc.id === privateChatId);
+        const pcUsername = pc?.username || null;
+
+        // draft/read-marker: PMs aren't auto-pushed by the server,
+        // so the first time we open one ask for its stored marker
+        // (so the unread badge can clear if another device already
+        // read past it).  After that, push the latest timestamp like
+        // we do for channels.
+        if (pcUsername && server?.capabilities?.includes("draft/read-marker")) {
+          if (!pc?.readMarkerFetched) {
+            ircClient.markreadGet(serverId, pcUsername);
+          }
+          const ts = getLatestMessageTimestampIso(serverId, privateChatId);
+          if (ts) ircClient.markreadSet(serverId, pcUsername, ts);
+        }
 
         const updatedServers = state.servers.map((server) => {
           if (server.id === serverId) {
@@ -1969,6 +2186,10 @@ const useStore = create<AppState>((set, get) => ({
                     unreadCount: 0,
                     mentionCount: 0,
                     isMentioned: false,
+                    // Mark as fetched so we don't spam GETs on every
+                    // re-selection of the same PM.  The reply will
+                    // overwrite this with the actual marker.
+                    readMarkerFetched: true,
                   };
                 }
                 return privateChat;
@@ -2613,6 +2834,37 @@ const useStore = create<AppState>((set, get) => ({
         ...state.ui,
         isEditServerModalOpen: isOpen ?? false,
         editServerId: serverId,
+      },
+    }));
+  },
+
+  tictactoeInvite: (serverId, opponent) =>
+    tictactoeActions.invite(set, get, serverId, opponent),
+  tictactoeAccept: (serverId, opponent) =>
+    tictactoeActions.accept(set, get, serverId, opponent),
+  tictactoeDecline: (serverId, opponent) =>
+    tictactoeActions.decline(set, get, serverId, opponent),
+  tictactoeMove: (serverId, opponent, row, col) =>
+    tictactoeActions.move(set, get, serverId, opponent, row, col),
+  tictactoeTerminate: (serverId, opponent) =>
+    tictactoeActions.terminate(set, get, serverId, opponent),
+  tictactoeOpenModal: (serverId, opponent) => {
+    set((state) => ({
+      tictactoe: { ...state.tictactoe, open: { serverId, opponent } },
+    }));
+  },
+  tictactoeCloseModal: () => {
+    set((state) => ({
+      tictactoe: { ...state.tictactoe, open: null },
+    }));
+  },
+
+  toggleTwoFactorSettings: (isOpen, serverId = null) => {
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        isTwoFactorSettingsOpen: isOpen ?? false,
+        twoFactorSettingsServerId: isOpen ? serverId : null,
       },
     }));
   },

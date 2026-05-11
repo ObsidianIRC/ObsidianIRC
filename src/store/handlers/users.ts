@@ -977,17 +977,27 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
     });
   });
 
-  ircClient.on("SETNAME", ({ serverId, user, realname }) => {
+  ircClient.on("SETNAME", ({ serverId, user, realname, ident, host }) => {
     store.setState((state) => {
       const server = state.servers.find((s) => s.id === serverId);
       if (!server) return {};
 
-      if (user === state.currentUser?.username) {
+      const isSelf = user === ircClient.getNick(serverId);
+
+      if (isSelf) {
+        // Self-SETNAME: update currentUser realname and, if we have prefix info from
+        // the draft/whoami registration burst, record myIdent/myHost on the server.
+        const updatedServers =
+          ident && host
+            ? state.servers.map((s) =>
+                s.id === serverId ? { ...s, myIdent: ident, myHost: host } : s,
+              )
+            : state.servers;
         return {
-          currentUser: {
-            ...state.currentUser,
-            realname: realname,
-          },
+          currentUser: state.currentUser
+            ? { ...state.currentUser, realname }
+            : state.currentUser,
+          servers: updatedServers,
         };
       }
 
@@ -1187,6 +1197,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
 
   ircClient.on("CHGHOST", ({ serverId, username, newUser, newHost }) => {
     store.setState((state) => {
+      const isSelf = username === ircClient.getNick(serverId);
+
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
           const updatedChannels = s.channels.map((channel) => {
@@ -1217,14 +1229,23 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
             return user;
           });
 
+          const selfChanged =
+            isSelf && (s.myIdent !== newUser || s.myHost !== newHost);
+
           if (
             updatedChannels === s.channels &&
-            updatedServerUsers === s.users
+            updatedServerUsers === s.users &&
+            !selfChanged
           ) {
             return s;
           }
 
-          return { ...s, channels: updatedChannels, users: updatedServerUsers };
+          return {
+            ...s,
+            channels: updatedChannels,
+            users: updatedServerUsers,
+            ...(selfChanged ? { myIdent: newUser, myHost: newHost } : {}),
+          };
         }
         return s;
       });
