@@ -44,24 +44,5 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>irc</string>
-			</array>
-			<key>CFBundleURLName</key>
-			<string>irc</string>
-		</dict>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>ircs</string>
-			</array>
-			<key>CFBundleURLName</key>
-			<string>ircs</string>
-		</dict>
-	</array>
 </dict>
 </plist>

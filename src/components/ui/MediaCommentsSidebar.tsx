@@ -10,6 +10,7 @@ import {
 import { FaPlus } from "react-icons/fa";
 import { useShallow } from "zustand/react/shallow";
 import { useAutoFocusTyping } from "../../hooks/useAutoFocusTyping";
+import { useMentionAutocorrectGuard } from "../../hooks/useMentionAutocorrectGuard";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
 import { useScrollToBottom } from "../../hooks/useScrollToBottom";
@@ -130,6 +131,9 @@ export function MediaCommentsSidebar({
   const channelName = selectedChannel?.name ?? null;
   const currentUser = ircClient.getCurrentUser(serverId);
   const redactMessage = useStore((state) => state.redactMessage);
+  const onBeforeInputGuard = useMentionAutocorrectGuard(
+    selectedChannel?.users.map((u) => u.username) ?? [],
+  );
 
   const {
     directReaction,
@@ -545,6 +549,7 @@ export function MediaCommentsSidebar({
             onKeyDown={handleKeyDown}
             onKeyUp={trackCursor}
             onClick={trackCursor}
+            onBeforeInput={onBeforeInputGuard}
             autoCorrect={isMobileInput ? "on" : "off"}
             autoCapitalize={isMobileInput ? "sentences" : "off"}
             spellCheck={isMobileInput}

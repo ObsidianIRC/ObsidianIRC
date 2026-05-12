@@ -8,6 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAutoFocusTyping } from "../../hooks/useAutoFocusTyping";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useMentionAutocorrectGuard } from "../../hooks/useMentionAutocorrectGuard";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
@@ -609,6 +610,10 @@ export const ChatArea: React.FC<{
         (pc) => pc.id === selectedPrivateChatId,
       ),
     [selectedServer, selectedPrivateChatId],
+  );
+
+  const onBeforeInputGuard = useMentionAutocorrectGuard(
+    selectedChannel?.users.map((u) => u.username) ?? [],
   );
 
   // Member list overlay: show when desktop is too narrow for sidebar
@@ -2143,6 +2148,7 @@ export const ChatArea: React.FC<{
                   onClick={handleInputClick}
                   onKeyUp={handleInputKeyUp}
                   onKeyDown={handleKeyDown}
+                  onBeforeInput={onBeforeInputGuard}
                   autoCorrect={isMobileInput ? "on" : "off"}
                   autoCapitalize={isMobileInput ? "sentences" : "off"}
                   spellCheck={isMobileInput}
