@@ -10,10 +10,8 @@ export function registerHostedServiceWorker(): void {
   if (!("serviceWorker" in navigator)) return;
 
   window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js", { scope: "/" })
-      .catch((err) => {
-        console.warn("[PWA] service worker registration failed:", err);
-      });
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((err) => {
+      console.warn("[PWA] service worker registration failed:", err);
+    });
   });
 }
