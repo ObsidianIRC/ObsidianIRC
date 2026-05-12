@@ -21,7 +21,7 @@ function hostedPwaPlugin(env: Record<string, string>): Plugin {
       if (!hosted) return html;
       const tags = [
         '<link rel="manifest" href="/manifest.webmanifest" />',
-        '<link rel="apple-touch-icon" href="/images/obsidian.png" />',
+        '<link rel="apple-touch-icon" href="/pwa/icon-192.png" />',
         `<meta name="apple-mobile-web-app-title" content="${shortName.replace(/"/g, '&quot;')}" />`,
         '<meta name="apple-mobile-web-app-capable" content="yes" />',
         '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
@@ -41,16 +41,28 @@ function hostedPwaPlugin(env: Record<string, string>): Plugin {
         orientation: 'any',
         theme_color: '#202225',
         background_color: '#202225',
+        // Chrome's installability check on Android demands at least one
+        // 192x192 AND one 512x512 icon with purpose=any. The maskable
+        // variant is what Android picks when the launcher mask is
+        // applied (adaptive icons); without it the artwork gets clipped
+        // by the dynamic mask. See web.dev/install-criteria/ and
+        // web.dev/maskable-icon/.
         icons: [
           {
-            src: '/images/obsidian.png',
-            sizes: '400x400',
+            src: '/pwa/icon-192.png',
+            sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/images/obsidian-transparent.png',
-            sizes: '500x500',
+            src: '/pwa/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/pwa/icon-512-maskable.png',
+            sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
           },
