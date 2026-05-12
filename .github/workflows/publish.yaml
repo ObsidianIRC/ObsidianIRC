@@ -538,7 +538,7 @@ jobs:
             -project src-tauri/gen/apple/ObsidianIRC.xcodeproj \
             -scheme ObsidianIRC_iOS \
             -sdk iphoneos \
-            -configuration Release \
+            -configuration release \
             -destination 'generic/platform=iOS' \
             -archivePath ${{ runner.temp }}/ObsidianIRC.xcarchive \
             clean archive \
