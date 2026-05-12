@@ -334,11 +334,40 @@ export class VoiceClient {
     ircClient.on("TAGMSG", handler);
     this.tagmsgUnsub = () => ircClient.deleteHook("TAGMSG", handler);
 
-    // Step 1: appear in the IRC channel.
-    ircClient.sendRaw(this.opts.serverId, `JOIN ${this.opts.channel}`);
+    // Step 1: appear in the IRC channel, then wait for the server's
+    // own echoed JOIN before sending the SFU "join" TAGMSG. Without
+    // the wait the TAGMSG can race the JOIN on the server side: the
+    // session that's actually a member of the channel may not be the
+    // same session that just sent the TAGMSG (multi-session
+    // persistence migrations), and the channel's +n mode then bounces
+    // the signaling line with ERR_CANNOTSENDTOCHAN, leaving the SFU
+    // never told the user joined. Waiting for the echo means we only
+    // signal once the server confirmed our membership on this
+    // connection. Safety timeout sends anyway after 2 s so an old
+    // server that doesn't echo cleanly doesn't strand the call.
+    const channel = this.opts.channel;
+    const selfNick = this.opts.selfNick;
+    const sendJoinSignal = () => {
+      this.sendSignal({ type: "join", channel });
+    };
+    let signaled = false;
+    const joinHandler = (p: { username: string; channelName: string }) => {
+      if (signaled) return;
+      if (p.username !== selfNick) return;
+      if (p.channelName.toLowerCase() !== channel.toLowerCase()) return;
+      signaled = true;
+      ircClient.deleteHook("JOIN", joinHandler);
+      sendJoinSignal();
+    };
+    ircClient.on("JOIN", joinHandler);
+    setTimeout(() => {
+      if (signaled) return;
+      signaled = true;
+      ircClient.deleteHook("JOIN", joinHandler);
+      sendJoinSignal();
+    }, 2000);
 
-    // Step 2: signal join to the SFU.
-    this.sendSignal({ type: "join", channel: this.opts.channel });
+    ircClient.sendRaw(this.opts.serverId, `JOIN ${this.opts.channel}`);
   }
 
   leave(): void {
