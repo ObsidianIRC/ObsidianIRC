@@ -32,7 +32,7 @@ import {
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
-import { isTauriMobile } from "../../lib/platformUtils";
+import { isMobileDevice, isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -493,6 +493,7 @@ export const ChatArea: React.FC<{
   const isNarrowView = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
   const isNativeMobile = isTauriMobile();
+  const isMobileInput = isMobileDevice();
 
   const handleIrcLinkClick = useCallback(
     (rawUrl: string) => {
@@ -2142,9 +2143,9 @@ export const ChatArea: React.FC<{
                   onClick={handleInputClick}
                   onKeyUp={handleInputKeyUp}
                   onKeyDown={handleKeyDown}
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck={true}
+                  autoCorrect={isMobileInput ? "on" : "off"}
+                  autoCapitalize={isMobileInput ? "sentences" : "off"}
+                  spellCheck={isMobileInput}
                   placeholder={
                     selectedChannel
                       ? `Message ${selectedChannel.name}${

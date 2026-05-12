@@ -28,3 +28,16 @@ export const isTauriDesktop = (): boolean => {
   // Mobile Tauri targets inject Android/iOS patterns; desktop targets do not.
   return !/android|iphone|ipad|ipod/i.test(navigator.userAgent);
 };
+
+/** True when the user is typing on a soft keyboard (iOS/iPadOS/Android, native or browser).
+ *  Not `(pointer: coarse)` — that's true on Windows touchscreens with physical keyboards.
+ *  See https://developer.mozilla.org/en-US/docs/Web/API/Navigator/maxTouchPoints */
+export const isMobileDevice = (): boolean => {
+  if (typeof window === "undefined") return false;
+  if (isTauriMobile()) return true;
+  if (isTauriDesktop()) return false;
+  const ua = navigator.userAgent;
+  if (/android|iphone|ipad|ipod/i.test(ua)) return true;
+  // iPadOS 13+ reports as Macintosh; Macs return maxTouchPoints 0–1, iPads ≥5.
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+};
