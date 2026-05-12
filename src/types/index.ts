@@ -37,6 +37,12 @@ export interface Server {
   awayMessage?: string; // Our away message on this server
   users: User[];
   capabilities?: string[];
+  // Per-cap value strings as advertised in CAP LS (e.g.
+  // "draft/account-2fa" -> "totp,webauthn,oauth", "sasl" ->
+  // "PLAIN,EXTERNAL"). CAP ACK only echoes names so the value list
+  // lives here and is consulted by UI that needs to know which
+  // sub-features the server actually supports.
+  capabilityValues?: Record<string, string>;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
   prefix?: string;
   chanmodes?: string; // CHANMODES ISUPPORT value defining mode groups A,B,C,D
