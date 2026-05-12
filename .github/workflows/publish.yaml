@@ -526,11 +526,8 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
-      - name: Start Tauri iOS build with WS server
-        run: |
-          npm run tauri ios build -- --open &
-          echo "Waiting a few seconds for the WS server to come up…"
-          sleep 10
+      - name: Build web frontend
+        run: npm run build
 
       - name: Archive iOS (unsigned)
         run: |
