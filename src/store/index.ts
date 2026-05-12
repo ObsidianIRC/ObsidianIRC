@@ -2021,10 +2021,14 @@ const useStore = create<AppState>((set, get) => ({
         }
 
         // draft/read-marker: tell the server how far we've read so
-        // our other sessions clear their unread state too.
+        // our other sessions clear their unread state too. The marker
+        // is keyed to the user's account on the server, so skip the
+        // request entirely when the user isn't logged in -- the
+        // server would just FAIL MARKREAD :Account required.
         if (
           channelName &&
-          server?.capabilities?.includes("draft/read-marker")
+          server?.capabilities?.includes("draft/read-marker") &&
+          ircClient.getCurrentUser(serverId)?.account
         ) {
           const ts = getLatestMessageTimestampIso(serverId, channelId);
           if (ts) ircClient.markreadSet(serverId, channelName, ts);
@@ -2229,8 +2233,14 @@ const useStore = create<AppState>((set, get) => ({
         // so the first time we open one ask for its stored marker
         // (so the unread badge can clear if another device already
         // read past it).  After that, push the latest timestamp like
-        // we do for channels.
-        if (pcUsername && server?.capabilities?.includes("draft/read-marker")) {
+        // we do for channels. The marker is keyed to the user's
+        // account on the server, so skip when the user isn't logged
+        // in (server would FAIL MARKREAD :Account required).
+        if (
+          pcUsername &&
+          server?.capabilities?.includes("draft/read-marker") &&
+          ircClient.getCurrentUser(serverId)?.account
+        ) {
           if (!pc?.readMarkerFetched) {
             ircClient.markreadGet(serverId, pcUsername);
           }
