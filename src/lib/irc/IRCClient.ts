@@ -13,7 +13,7 @@ import type {
   User,
 } from "../../types";
 import { parseIrcUrl } from "../ircUrlParser";
-import { parseMessageTags } from "../ircUtils";
+import { isChannelTarget, parseMessageTags } from "../ircUtils";
 import { createSocket, type ISocket } from "../socket";
 import { IRC_DISPATCH } from "./handlers";
 import type { IRCClientContext } from "./IRCClientContext";
@@ -144,7 +144,13 @@ export interface EventMap {
     reason: string;
     user: string;
   };
-  SETNAME: { serverId: string; user: string; realname: string };
+  SETNAME: {
+    serverId: string;
+    user: string;
+    realname: string;
+    ident?: string;
+    host?: string;
+  };
   INVITE: EventWithTags & {
     inviter: string;
     target: string;
@@ -159,24 +165,28 @@ export interface EventMap {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   WARN: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   NOTE: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   SUCCESS: EventWithTags & {
     command: string;
     code: string;
     target?: string;
+    context: string[];
     message: string;
   };
   REGISTER_SUCCESS: EventWithTags & {
@@ -240,6 +250,106 @@ export interface EventMap {
   MONLISTFULL: BaseIRCEvent & {
     limit: number;
     targets: string[];
+  };
+  // draft/authtoken: server reply to TOKEN GENERATE.
+  TOKEN_GENERATE: BaseIRCEvent & {
+    service: string;
+    url: string;
+    token: string;
+  };
+  // draft/authtoken: TOKEN SERVICE entry inside a draft/authtoken BATCH
+  // (sent in reply to TOKEN SERVICELIST). One event per service.
+  TOKEN_SERVICE: BaseIRCEvent & {
+    service: string;
+    url: string;
+    description: string;
+  };
+  // IRCv3 draft/named-modes (PROP command + RPL_CHMODELIST etc.).
+  // The "registry" events (CHANMODE_LIST / UMODE_LIST) carry the
+  // server's long-form mode name table; the "mode change" event
+  // (PROP) carries an actual mode change; the rest pair with the
+  // listing forms of PROP <chan> [<listmode>].
+  NAMED_MODES_CHANMODE_LIST: BaseIRCEvent & {
+    entries: Array<{
+      type: 1 | 2 | 3 | 4 | 5;
+      name: string;
+      letter?: string;
+    }>;
+    isFinal: boolean;
+  };
+  NAMED_MODES_UMODE_LIST: BaseIRCEvent & {
+    entries: Array<{
+      type: 1 | 2 | 3 | 4 | 5;
+      name: string;
+      letter?: string;
+    }>;
+    isFinal: boolean;
+  };
+  NAMED_MODES_PROPLIST: BaseIRCEvent & {
+    channel: string;
+    items: string[];
+  };
+  NAMED_MODES_PROPLIST_END: BaseIRCEvent & { channel: string };
+  NAMED_MODES_LISTPROPLIST: BaseIRCEvent & {
+    channel: string;
+    modeName: string;
+    mask: string;
+    setter: string;
+    settime: number;
+  };
+  NAMED_MODES_LISTPROPLIST_END: BaseIRCEvent & {
+    channel: string;
+    modeName: string;
+  };
+  NAMED_MODES_PROP: EventWithTags & {
+    sender: string;
+    target: string;
+    items: Array<{ sign: "+" | "-"; name: string; param?: string }>;
+    timestamp: Date;
+  };
+  TWOFA: EventWithTags & {
+    subcommand: string;
+    status: string;
+    args: string[];
+  };
+  TWOFA_NOTE: EventWithTags & {
+    code: string;
+    args: string[];
+  };
+  // draft/account-recovery: convenient typed projection of the
+  // generic NOTE/FAIL events for the RECOVER + SETPASS commands.
+  // The dispatch in handlers/auth.ts emits these alongside the
+  // generic NOTE/FAIL.
+  RECOVER_NOTE: EventWithTags & { code: string; args: string[] };
+  RECOVER_FAIL: EventWithTags & { code: string; message: string };
+  SETPASS_NOTE: EventWithTags & { code: string; args: string[] };
+  SETPASS_FAIL: EventWithTags & { code: string; message: string };
+  // draft/persistence: server reply
+  // `:server PERSISTENCE STATUS <client-setting> <effective-setting>`
+  // where each is one of ON | OFF | DEFAULT (effective is always ON|OFF).
+  PERSISTENCE_STATUS: BaseIRCEvent & {
+    preference: "ON" | "OFF" | "DEFAULT";
+    effective: "ON" | "OFF";
+  };
+  PERSISTENCE_FAIL: EventWithTags & { code: string; message: string };
+  // draft/read-marker: server reply
+  // `:server MARKREAD <target> {timestamp=<ts>|*}`.  `timestamp` is null
+  // when the server reports "*" (no marker on file yet).
+  MARKREAD: BaseIRCEvent & {
+    target: string;
+    timestamp: string | null;
+  };
+  MARKREAD_FAIL: EventWithTags & {
+    code: string;
+    target?: string;
+    message: string;
+  };
+  // obsidianirc/cmdslist: server is reporting an add/remove delta of
+  // commands the user can invoke right now.  Ops are individual
+  // tokens of the form "+cmd" or "-cmd" (multiple per wire line).
+  CMDSLIST: BaseIRCEvent & {
+    additions: string[];
+    removals: string[];
   };
   EXTJWT: BaseIRCEvent & {
     requestedTarget: string;
@@ -394,6 +504,8 @@ export class IRCClient implements IRCClientContext {
   private sockets: Map<string, ISocket> = new Map();
   servers: Map<string, Server> = new Map();
   nicks: Map<string, string> = new Map();
+  myIdents: Map<string, string> = new Map(); // Our own ident per server, populated by draft/whoami SETNAME burst and CHGHOST
+  myHosts: Map<string, string> = new Map(); // Our own hostname per server, populated by draft/whoami SETNAME burst and CHGHOST
   currentUsers: Map<string, User | null> = new Map(); // Per-server current users
   private saslMechanisms: Map<string, string[]> = new Map();
   private capLsAccumulated: Map<string, Set<string>> = new Map();
@@ -446,6 +558,14 @@ export class IRCClient implements IRCClientContext {
     "server-time",
     "echo-message",
     "userhost-in-names",
+    // We populate the member list from WHO/WHOX on JOIN (see
+    // store/handlers/messages.ts and store/index.ts), so we don't need
+    // -- and don't want -- the implicit RPL_NAMREPLY burst the server
+    // would otherwise emit. The ratified `no-implicit-names` cap tells
+    // the server to skip it; we also REQ the original draft name for
+    // back-compat with servers that haven't moved to the ratified form.
+    "no-implicit-names",
+    "draft/no-implicit-names",
     "draft/chathistory",
     "draft/event-playback",
     "draft/extended-isupport",
@@ -458,9 +578,11 @@ export class IRCClient implements IRCClientContext {
     "extended-join",
     "away-notify",
     "chghost",
+    "draft/whoami",
     "draft/metadata-2",
     "draft/message-redaction",
     "draft/account-registration",
+    "draft/account-2fa",
     "batch",
     "draft/multiline",
     "draft/typing",
@@ -471,6 +593,11 @@ export class IRCClient implements IRCClientContext {
     "invite-notify",
     "monitor",
     "extended-monitor",
+    "obsidianirc/voice",
+    "draft/named-modes",
+    "labeled-response",
+    "draft/read-marker",
+    "obsidianirc/cmdslist",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -489,6 +616,7 @@ export class IRCClient implements IRCClientContext {
     _saslAccountName?: string,
     _saslPassword?: string,
     serverId?: string,
+    oauthBearerEnabled?: boolean,
   ): Promise<Server> {
     const connectionKey = `${host}:${port}`;
 
@@ -597,8 +725,20 @@ export class IRCClient implements IRCClientContext {
         saslAccountName: _saslAccountName,
         saslPassword: _saslPassword,
       });
-      // Only enable SASL if we have both account name AND password
-      this.saslEnabled.set(server.id, !!(_saslAccountName && _saslPassword));
+      // Enable SASL if we have either PLAIN credentials or an OAuth bearer
+      // path. OAuth path is signaled by the caller; tokens themselves are
+      // read from storage by the auth handler at AUTHENTICATE time. On
+      // internal reconnect (oauthBearerEnabled === undefined) preserve the
+      // previously-set value so the OAuth flag survives reconnects.
+      const priorSaslEnabled = this.saslEnabled.get(server.id) ?? false;
+      const wantOauth =
+        oauthBearerEnabled === undefined
+          ? priorSaslEnabled
+          : !!oauthBearerEnabled;
+      this.saslEnabled.set(
+        server.id,
+        !!(_saslAccountName && _saslPassword) || wantOauth,
+      );
 
       // Store SASL credentials if provided
       if (_saslAccountName && _saslPassword) {
@@ -750,6 +890,8 @@ export class IRCClient implements IRCClientContext {
     this.pendingCapReqs.delete(serverId);
     this.capLsAccumulated.delete(serverId);
     this.saslMechanisms.delete(serverId);
+    this.myIdents.delete(serverId);
+    this.myHosts.delete(serverId);
   }
 
   private startReconnection(
@@ -951,7 +1093,16 @@ export class IRCClient implements IRCClientContext {
     const server = this.servers.get(serverId);
     if (server) {
       const existing = server.channels.find((c) => c.name === channelName);
-      if (existing) return existing;
+      if (existing) {
+        // The cached entry persists across reconnects and through ircd
+        // restarts, but the server-side membership doesn't. Re-send the
+        // JOIN: the ircd treats already-in users as a no-op and stale
+        // memberships (e.g. cached `$test` from before a server restart)
+        // self-heal. Without this, PRIVMSG/TAGMSG to the cached channel
+        // returns 401 No such nick/channel because the server forgot.
+        this.sendRaw(serverId, `JOIN ${channelName}`);
+        return existing;
+      }
 
       this.sendRaw(serverId, `JOIN ${channelName}`);
 
@@ -1026,6 +1177,20 @@ export class IRCClient implements IRCClientContext {
     if (!server) throw new Error(`Server ${serverId} not found`);
     const channel = server.channels.find((c) => c.id === channelId);
     if (!channel) throw new Error(`Channel ${channelId} not found`);
+
+    // Phantom-channel guard: if our local cache shows zero members
+    // for a non-private channel, the ircd doesn't actually have us
+    // in this channel (either the channel was destroyed when the
+    // last person left, or the ircd was restarted and we haven't
+    // re-JOINed). Send JOIN first so the PRIVMSG that follows lands
+    // somewhere instead of returning 401 No such nick/channel.
+    if (
+      !channel.isPrivate &&
+      (channel.users?.length ?? 0) === 0 &&
+      this.isCapNegotiationComplete(serverId)
+    ) {
+      this.sendRaw(serverId, `JOIN ${channel.name}`);
+    }
 
     // Check if server supports multiline and message has newlines
     // Note: We'll check server capabilities from the store later via helper function
@@ -1130,6 +1295,22 @@ export class IRCClient implements IRCClientContext {
   }
 
   sendTyping(serverId: string, target: string, isActive: boolean): void {
+    // Same phantom-channel guard as sendMessage: if we're typing into
+    // a channel whose local cache is empty (ircd doesn't actually
+    // have us in it), JOIN first so the typing TAGMSG lands instead
+    // of getting bounced with 401.
+    const server = this.servers.get(serverId);
+    if (server && isChannelTarget(target)) {
+      const ch = server.channels.find((c) => c.name === target);
+      if (
+        ch &&
+        !ch.isPrivate &&
+        (ch.users?.length ?? 0) === 0 &&
+        this.isCapNegotiationComplete(serverId)
+      ) {
+        this.sendRaw(serverId, `JOIN ${target}`);
+      }
+    }
     const typingState = isActive ? "active" : "done";
     this.sendRaw(serverId, `@+typing=${typingState} TAGMSG ${target}`);
   }
@@ -1302,14 +1483,147 @@ export class IRCClient implements IRCClientContext {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
   }
 
+  /**
+   * IRCv3 draft/named-modes: send a mode change addressed by long-form
+   * mode names instead of single letters.
+   *
+   * When the negotiated registry exposes a letter for every requested
+   * name, we build a `MODE` line so the change works on legacy
+   * (non-cap) servers too. When the cap is negotiated AND any item
+   * has no letter equivalent (a name-only mode), we send a `PROP`
+   * line, which is the only wire form that can carry such modes.
+   *
+   * `target` is a channel name or a nick. `items` is a list of
+   * `{sign, name, param?}` triples. `registry` is the per-server
+   * NamedModes object the caller already has from the store; passing
+   * it in keeps this layer free of a store dependency.
+   */
+  sendNamedMode(
+    serverId: string,
+    target: string,
+    items: Array<{ sign: "+" | "-"; name: string; param?: string }>,
+    registry?: { supported: boolean } & {
+      channelModes: Array<{ name: string; letter?: string }>;
+      userModes: Array<{ name: string; letter?: string }>;
+    },
+  ): void {
+    if (!items.length) return;
+
+    const isChannelTarget =
+      target.startsWith("#") ||
+      target.startsWith("^") ||
+      target.startsWith("$");
+    const list = isChannelTarget
+      ? (registry?.channelModes ?? [])
+      : (registry?.userModes ?? []);
+
+    // Decide which form to send. Prefer PROP when the cap is
+    // negotiated AND any item is name-only (no letter); fall back to
+    // MODE otherwise so legacy servers / clients in mixed deployments
+    // keep working.
+    const capSupported = !!registry?.supported;
+    const anyNameOnly = items.some((it) => {
+      const spec = list.find((m) => m.name === it.name);
+      return !spec?.letter;
+    });
+
+    if (capSupported && anyNameOnly) {
+      const tail = items
+        .map((it) =>
+          it.param !== undefined
+            ? `${it.sign}${it.name}=${it.param}`
+            : `${it.sign}${it.name}`,
+        )
+        .join(" ");
+      this.sendRaw(serverId, `PROP ${target} ${tail}`);
+      return;
+    }
+
+    // Build a MODE line. Drop any items that map to no letter (only
+    // happens when the cap isn't negotiated; the user just can't
+    // reach name-only modes on a legacy server).
+    let modestring = "";
+    const params: string[] = [];
+    let lastSign: "+" | "-" | "" = "";
+    for (const it of items) {
+      const spec = list.find((m) => m.name === it.name);
+      if (!spec?.letter) continue;
+      if (it.sign !== lastSign) {
+        modestring += it.sign;
+        lastSign = it.sign;
+      }
+      modestring += spec.letter;
+      if (it.param !== undefined) params.push(it.param);
+    }
+    if (!modestring) return;
+    const cmd = params.length
+      ? `MODE ${target} ${modestring} ${params.join(" ")}`
+      : `MODE ${target} ${modestring}`;
+    this.sendRaw(serverId, cmd);
+  }
+
+  // draft/authtoken: ask the server to mint a bearer token for `service`.
+  // Server reply is `:server TOKEN GENERATE <service> <url> :<token>`.
+  requestToken(serverId: string, service: string, scope?: string): void {
+    const command = scope
+      ? `TOKEN GENERATE ${service} ${scope}`
+      : `TOKEN GENERATE ${service}`;
+    this.sendRaw(serverId, command);
+  }
+
+  // draft/authtoken: list services the server can mint tokens for.
+  requestTokenServiceList(serverId: string): void {
+    this.sendRaw(serverId, "TOKEN SERVICELIST");
+  }
+
   // EXTJWT commands
   requestExtJwt(serverId: string, target?: string, serviceName?: string): void {
     // EXTJWT ( <channel> | * ) [service_name]
-    const targetParam = target || "*";
-    const command = serviceName
+    const targetParam = target ?? "*";
+    const cmd = serviceName
       ? `EXTJWT ${targetParam} ${serviceName}`
       : `EXTJWT ${targetParam}`;
-    this.sendRaw(serverId, command);
+    this.sendRaw(serverId, cmd);
+  }
+
+  // draft/account-recovery: forgotten-password flow.
+  recoverRequest(serverId: string, account: string): void {
+    this.sendRaw(serverId, `RECOVER REQUEST ${account}`);
+  }
+
+  recoverConfirm(serverId: string, account: string, code: string): void {
+    this.sendRaw(serverId, `RECOVER CONFIRM ${account} ${code}`);
+  }
+
+  // SETPASS lives in the same draft/account-recovery cap.  The new
+  // password is sent as the IRC trailing parameter so it MAY contain
+  // spaces (for passphrases).  No base64 -- the password is UTF-8.
+  setpass(serverId: string, newPassword: string): void {
+    this.sendRaw(serverId, `SETPASS :${newPassword}`);
+  }
+
+  // draft/persistence: read or set the per-account ghost-on-disconnect
+  // preference.  Server responds with PERSISTENCE STATUS.
+  persistenceGet(serverId: string): void {
+    this.sendRaw(serverId, "PERSISTENCE GET");
+  }
+
+  persistenceSet(serverId: string, value: "ON" | "OFF" | "DEFAULT"): void {
+    this.sendRaw(serverId, `PERSISTENCE SET ${value}`);
+  }
+
+  // draft/read-marker: ask the server for the stored marker for a
+  // target.  Channels are auto-pushed on JOIN, so this is mostly used
+  // when a PM buffer is opened for the first time.
+  markreadGet(serverId: string, target: string): void {
+    this.sendRaw(serverId, `MARKREAD ${target}`);
+  }
+
+  // draft/read-marker: tell the server the user has read up to
+  // `timestamp` in `target`.  Server clamps to monotonically-increasing
+  // values and replies with MARKREAD echoing whatever it stored.
+  markreadSet(serverId: string, target: string, timestamp: string): void {
+    this.sendRaw(serverId, `MARKREAD ${target} timestamp=${timestamp}`);
   }
 
   // MONITOR commands
@@ -1353,14 +1667,33 @@ export class IRCClient implements IRCClientContext {
     this.triggerEvent("CAP_ACKNOWLEDGED", { serverId, key, capabilities });
   }
 
+  // Allow handlers (e.g. the OAuth path) to flip the SASL-pending flag
+  // before onCapAck's auto-send-CAP-END check runs. Called from the
+  // CAP_ACKNOWLEDGED listener that initiates AUTHENTICATE IRCV3BEARER.
+  setSaslEnabled(serverId: string, enabled: boolean): void {
+    this.saslEnabled.set(serverId, enabled);
+  }
+
   capEnd(_serverId: string) {}
 
   isCapNegotiationComplete(serverId: string): boolean {
     return this.capNegotiationComplete.get(serverId) ?? false;
   }
 
+  getSaslMechanisms(serverId: string): string[] {
+    return this.saslMechanisms.get(serverId) ?? [];
+  }
+
   getNick(serverId: string): string | undefined {
     return this.nicks.get(serverId);
+  }
+
+  getMyIdent(serverId: string): string | undefined {
+    return this.myIdents.get(serverId);
+  }
+
+  getMyHost(serverId: string): string | undefined {
+    return this.myHosts.get(serverId);
   }
 
   userOnConnect(serverId: string) {

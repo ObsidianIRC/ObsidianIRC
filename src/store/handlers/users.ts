@@ -862,21 +862,20 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
     });
   });
 
-  ircClient.on("WARN", ({ serverId, command, code, target, message }) => {
-    const state = store.getState();
-    const server = state.servers.find((s) => s.id === serverId);
-    if (server) {
-      let channel = server.channels.find(
-        (c) => c.id === getCurrentSelection(state).selectedChannelId,
-      );
-      if (!channel) {
-        channel = server.channels[0];
-      }
+  ircClient.on(
+    "WARN",
+    ({ serverId, command, code, target, context, message }) => {
+      const state = store.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return;
+      const selectedId = getCurrentSelection(state).selectedChannelId;
+      const channel =
+        server.channels.find((c) => c.id === selectedId) ?? server.channels[0];
       if (channel) {
         const notificationMessage: Message = {
           ...makeEventMessage(
             "standard-reply",
-            `WARN ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+            message,
             "system",
             channel.id,
             serverId,
@@ -886,28 +885,39 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
           standardReplyCommand: command,
           standardReplyCode: code,
           standardReplyTarget: target,
+          standardReplyContext: context,
           standardReplyMessage: message,
         };
         appendMessage(store, serverId, channel.id, notificationMessage);
+      } else {
+        // No channels yet (pre-join WARN): surface as a global notification
+        // instead of dropping it.
+        state.addGlobalNotification({
+          type: "warn",
+          command,
+          code,
+          message,
+          target,
+          serverId,
+        });
       }
-    }
-  });
+    },
+  );
 
-  ircClient.on("NOTE", ({ serverId, command, code, target, message }) => {
-    const state = store.getState();
-    const server = state.servers.find((s) => s.id === serverId);
-    if (server) {
-      let channel = server.channels.find(
-        (c) => c.id === getCurrentSelection(state).selectedChannelId,
-      );
-      if (!channel) {
-        channel = server.channels[0];
-      }
+  ircClient.on(
+    "NOTE",
+    ({ serverId, command, code, target, context, message }) => {
+      const state = store.getState();
+      const server = state.servers.find((s) => s.id === serverId);
+      if (!server) return;
+      const selectedId = getCurrentSelection(state).selectedChannelId;
+      const channel =
+        server.channels.find((c) => c.id === selectedId) ?? server.channels[0];
       if (channel) {
         const notificationMessage: Message = {
           ...makeEventMessage(
             "standard-reply",
-            `NOTE ${command} ${code}${target ? ` ${target}` : ""}: ${message}`,
+            message,
             "system",
             channel.id,
             serverId,
@@ -917,12 +927,22 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
           standardReplyCommand: command,
           standardReplyCode: code,
           standardReplyTarget: target,
+          standardReplyContext: context,
           standardReplyMessage: message,
         };
         appendMessage(store, serverId, channel.id, notificationMessage);
+      } else {
+        state.addGlobalNotification({
+          type: "note",
+          command,
+          code,
+          message,
+          target,
+          serverId,
+        });
       }
-    }
-  });
+    },
+  );
 
   ircClient.on("RENAME", ({ serverId, oldName, newName, reason, user }) => {
     store.setState((state) => {
@@ -958,17 +978,27 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
     });
   });
 
-  ircClient.on("SETNAME", ({ serverId, user, realname }) => {
+  ircClient.on("SETNAME", ({ serverId, user, realname, ident, host }) => {
     store.setState((state) => {
       const server = state.servers.find((s) => s.id === serverId);
       if (!server) return {};
 
-      if (user === state.currentUser?.username) {
+      const isSelf = user === ircClient.getNick(serverId);
+
+      if (isSelf) {
+        // Self-SETNAME: update currentUser realname and, if we have prefix info from
+        // the draft/whoami registration burst, record myIdent/myHost on the server.
+        const updatedServers =
+          ident && host
+            ? state.servers.map((s) =>
+                s.id === serverId ? { ...s, myIdent: ident, myHost: host } : s,
+              )
+            : state.servers;
         return {
-          currentUser: {
-            ...state.currentUser,
-            realname: realname,
-          },
+          currentUser: state.currentUser
+            ? { ...state.currentUser, realname }
+            : state.currentUser,
+          servers: updatedServers,
         };
       }
 
@@ -1168,6 +1198,8 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
 
   ircClient.on("CHGHOST", ({ serverId, username, newUser, newHost }) => {
     store.setState((state) => {
+      const isSelf = username === ircClient.getNick(serverId);
+
       const updatedServers = state.servers.map((s) => {
         if (s.id === serverId) {
           const updatedChannels = s.channels.map((channel) => {
@@ -1198,14 +1230,23 @@ export function registerUserHandlers(store: StoreApi<AppState>): void {
             return user;
           });
 
+          const selfChanged =
+            isSelf && (s.myIdent !== newUser || s.myHost !== newHost);
+
           if (
             updatedChannels === s.channels &&
-            updatedServerUsers === s.users
+            updatedServerUsers === s.users &&
+            !selfChanged
           ) {
             return s;
           }
 
-          return { ...s, channels: updatedChannels, users: updatedServerUsers };
+          return {
+            ...s,
+            channels: updatedChannels,
+            users: updatedServerUsers,
+            ...(selfChanged ? { myIdent: newUser, myHost: newHost } : {}),
+          };
         }
         return s;
       });

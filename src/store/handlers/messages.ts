@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import { isUserIgnored } from "../../lib/ignoreUtils";
 import ircClient from "../../lib/ircClient";
+import { isChannelTarget } from "../../lib/ircUtils";
 import {
   playNotificationSound,
   shouldPlayNotificationSound,
@@ -90,13 +91,19 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
         const isOwnMessage =
           response.sender.toLowerCase() ===
           currentServerUser?.username?.toLowerCase();
-        const hasMention =
+        const isReplyToMe =
           !isOwnMessage &&
-          checkForMention(
-            message,
-            currentServerUser,
-            currentState.globalSettings,
-          );
+          !!replyMessage &&
+          replyMessage.userId.toLowerCase() ===
+            currentServerUser?.username?.toLowerCase();
+        const hasMention =
+          isReplyToMe ||
+          (!isOwnMessage &&
+            checkForMention(
+              message,
+              currentServerUser,
+              currentState.globalSettings,
+            ));
         const mentions = !isOwnMessage
           ? extractMentions(
               message,
@@ -119,6 +126,33 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           mentioned: mentions,
           tags: mtags,
         };
+
+        // labeled-response: if this is the echo of a message we just
+        // sent, the server MUST repeat the same label tag back.  Find
+        // the local pending placeholder by label and update it in
+        // place with the server's authoritative msgid + content.
+        if (mtags?.label && isOwnMessage) {
+          const matched = store
+            .getState()
+            .confirmPendingMessage(server.id, channel.id, mtags.label, {
+              msgid: mtags.msgid,
+              content: message,
+              userId: response.sender,
+              timestamp,
+              tags: mtags,
+            });
+          if (matched) {
+            // Track the msgid so subsequent duplicate-echo guards work.
+            if (mtags.msgid) {
+              store.setState((state) => ({
+                processedMessageIds: new Set(state.processedMessageIds).add(
+                  mtags.msgid as string,
+                ),
+              }));
+            }
+            return;
+          }
+        }
 
         // Update channel unread count and mention flag if not the active channel
         const isActiveChannel =
@@ -151,6 +185,8 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                     return {
                       ...ch,
                       unreadCount: ch.unreadCount + 1,
+                      mentionCount:
+                        (ch.mentionCount ?? 0) + (hasMention ? 1 : 0),
                       isMentioned: hasMention || ch.isMentioned,
                     };
                   }
@@ -366,11 +402,39 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           store.getState().messages[channelKey] || [],
         );
 
+        const multilineCurrentState = store.getState();
+        const multilineCurrentUser = ircClient.getCurrentUser(
+          response.serverId,
+        );
+        const isOwnMessage =
+          sender.toLowerCase() ===
+          multilineCurrentUser?.username?.toLowerCase();
+        const isReplyToMe =
+          !isOwnMessage &&
+          !!replyMessage &&
+          replyMessage.userId.toLowerCase() ===
+            multilineCurrentUser?.username?.toLowerCase();
+        const hasMention =
+          isReplyToMe ||
+          (!isOwnMessage &&
+            checkForMention(
+              message,
+              multilineCurrentUser,
+              multilineCurrentState.globalSettings,
+            ));
+        const mentions = !isOwnMessage
+          ? extractMentions(
+              message,
+              multilineCurrentUser,
+              multilineCurrentState.globalSettings,
+            )
+          : [];
+
         const newMessage = {
           id: uuidv4(),
           msgid: mtags?.msgid,
-          multilineMessageIds: messageIds, // Store all message IDs for redaction
-          content: message, // Use the properly combined message from IRC client
+          multilineMessageIds: messageIds,
+          content: message,
           timestamp,
           userId: sender,
           channelId: channel.id,
@@ -378,7 +442,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           type: "message" as const,
           reactions: [],
           replyMessage: replyMessage,
-          mentioned: [], // Add logic for mentions if needed
+          mentioned: mentions,
           tags: mtags,
         };
 
@@ -425,9 +489,57 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
         store.getState().addMessage(newMessage);
 
-        // Play notification sound if appropriate (but not for historical messages)
         // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
         const isHistoricalMessage = mtags?.batch !== undefined;
+        const isActiveChannel =
+          getCurrentSelection(multilineCurrentState).selectedChannelId ===
+            channel.id &&
+          multilineCurrentState.ui.selectedServerId === server.id;
+
+        if (!isActiveChannel && !isOwnMessage && !isHistoricalMessage) {
+          store.setState((state) => {
+            const updatedServers = state.servers.map((s) => {
+              if (s.id === server.id) {
+                const updatedChannels = s.channels.map((ch) => {
+                  if (ch.id === channel.id) {
+                    return {
+                      ...ch,
+                      unreadCount: ch.unreadCount + 1,
+                      mentionCount:
+                        (ch.mentionCount ?? 0) + (hasMention ? 1 : 0),
+                      isMentioned: hasMention || ch.isMentioned,
+                    };
+                  }
+                  return ch;
+                });
+                return { ...s, channels: updatedChannels };
+              }
+              return s;
+            });
+            return { servers: updatedServers };
+          });
+
+          if (
+            hasMention &&
+            multilineCurrentState.globalSettings.enableNotifications
+          ) {
+            showMentionNotification(
+              server.id,
+              channelName ?? "",
+              sender,
+              message,
+              (serverId, msg) => {
+                store.getState().addGlobalNotification({
+                  type: "note",
+                  command: "MENTION",
+                  code: "HIGHLIGHT",
+                  message: msg,
+                  serverId,
+                });
+              },
+            );
+          }
+        }
 
         if (!isHistoricalMessage) {
           const state = store.getState();
@@ -464,6 +576,37 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
             (pc) => pc.username.toLowerCase() === target.toLowerCase(),
           );
           if (privateChat) {
+            // labeled-response: confirm the pending placeholder when
+            // a matching label tag is on the BATCH-wrapped echo.
+            if (mtags?.label) {
+              const matched = store
+                .getState()
+                .confirmPendingMessage(server.id, privateChat.id, mtags.label, {
+                  msgid: mtags.msgid,
+                  multilineMessageIds: messageIds,
+                  content: message,
+                  userId: sender,
+                  timestamp,
+                  tags: mtags,
+                });
+              if (matched) {
+                const idsToTrack =
+                  messageIds?.length > 0
+                    ? messageIds
+                    : mtags?.msgid
+                      ? [mtags.msgid]
+                      : [];
+                if (idsToTrack.length > 0) {
+                  store.setState((state) => ({
+                    processedMessageIds: new Set([
+                      ...state.processedMessageIds,
+                      ...idsToTrack,
+                    ]),
+                  }));
+                }
+                return;
+              }
+            }
             const privateChatKey = `${server.id}-${privateChat.id}`;
             const newMessage = {
               id: uuidv4(),
@@ -744,6 +887,30 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           (pc) => pc.username.toLowerCase() === target.toLowerCase(),
         );
         if (privateChat) {
+          // labeled-response: replace the pending placeholder we
+          // inserted on send instead of appending a new entry.
+          if (mtags?.label) {
+            const matched = store
+              .getState()
+              .confirmPendingMessage(server.id, privateChat.id, mtags.label, {
+                msgid: mtags.msgid,
+                content: message,
+                userId: sender,
+                timestamp,
+                tags: mtags,
+              });
+            if (matched) {
+              if (mtags.msgid) {
+                store.setState((state) => ({
+                  processedMessageIds: new Set(state.processedMessageIds).add(
+                    mtags.msgid as string,
+                  ),
+                }));
+              }
+              return;
+            }
+          }
+
           const privateChatKey = `${server.id}-${privateChat.id}`;
           const newMessage = {
             id: uuidv4(),
@@ -906,13 +1073,12 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                     const isActive =
                       getCurrentSelection(state).selectedPrivateChatId ===
                       pc.id;
+                    const reset = isActive || isHistoricalMessage;
                     return {
                       ...pc,
                       lastActivity: new Date(),
-                      unreadCount:
-                        isActive || isHistoricalMessage
-                          ? 0
-                          : pc.unreadCount + 1,
+                      unreadCount: reset ? 0 : pc.unreadCount + 1,
+                      mentionCount: reset ? 0 : (pc.mentionCount ?? 0) + 1,
                       isMentioned: !isHistoricalMessage && true, // All PMs are considered mentions (except historical)
                     };
                   }
@@ -1337,11 +1503,12 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
                 if (pc.id === privateChat.id) {
                   const isActive =
                     getCurrentSelection(state).selectedPrivateChatId === pc.id;
+                  const reset = isActive || isHistoricalMessage;
                   return {
                     ...pc,
                     lastActivity: new Date(),
-                    unreadCount:
-                      isActive || isHistoricalMessage ? 0 : pc.unreadCount + 1,
+                    unreadCount: reset ? 0 : pc.unreadCount + 1,
+                    mentionCount: reset ? 0 : (pc.mentionCount ?? 0) + 1,
                     isMentioned: !isHistoricalMessage && true, // All PMs are considered mentions (except historical)
                   };
                 }
@@ -1419,7 +1586,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       let key: string;
       let user: User;
 
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         const channel = server.channels.find((c) => c.name === channelName);
         if (!channel) return;
@@ -1555,7 +1722,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return;
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === channelName);
       } else {
@@ -1641,7 +1808,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return;
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === channelName);
       } else {
@@ -1706,7 +1873,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return;
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = channelName.startsWith("#");
+      const isChannel = isChannelTarget(channelName);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === channelName);
       } else {
@@ -1774,7 +1941,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
       if (!server) return {};
 
       let channel: Channel | PrivateChat | undefined;
-      const isChannel = target.startsWith("#");
+      const isChannel = isChannelTarget(target);
       if (isChannel) {
         channel = server.channels.find((c) => c.name === target);
       } else {

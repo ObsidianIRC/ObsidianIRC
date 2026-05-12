@@ -4,8 +4,11 @@ import {
   handleExtjwt,
   handleFail,
   handleNote,
+  handlePersistence,
   handleRegister,
   handleSuccess,
+  handleToken,
+  handleTwoFA,
   handleVerify,
   handleWarn,
 } from "./auth";
@@ -27,6 +30,7 @@ import {
   handleRplTopicWhoTime,
   handleTopic,
 } from "./channels";
+import { handleCmdslist } from "./cmdslist";
 import {
   handleCap,
   handleError,
@@ -64,6 +68,16 @@ import {
   handleMonOffline,
   handleMonOnline,
 } from "./monitoring";
+import {
+  handleProp,
+  handleRplChmodelist,
+  handleRplEndOfListProplist,
+  handleRplEndOfProplist,
+  handleRplListProplist,
+  handleRplProplist,
+  handleRplUmodelist,
+} from "./named-modes";
+import { handleMarkread } from "./readMarker";
 import {
   handleAway,
   handleChghost,
@@ -272,22 +286,47 @@ export const IRC_DISPATCH: Record<string, HandlerFn> = {
   AUTHENTICATE: (ctx, serverId, source, parv, mtags) =>
     handleAuthenticate(ctx, serverId, source, parv, mtags),
   // FAIL METADATA is a distinct protocol — route to the metadata handler
-  FAIL: (ctx, serverId, source, parv, mtags) =>
+  FAIL: (ctx, serverId, source, parv, mtags, trailing) =>
     parv[0] === "METADATA"
       ? handleMetadataFail(ctx, serverId, source, parv, mtags)
-      : handleFail(ctx, serverId, source, parv, mtags),
-  WARN: (ctx, serverId, source, parv, mtags) =>
-    handleWarn(ctx, serverId, source, parv, mtags),
-  NOTE: (ctx, serverId, source, parv, mtags) =>
-    handleNote(ctx, serverId, source, parv, mtags),
-  SUCCESS: (ctx, serverId, source, parv, mtags) =>
-    handleSuccess(ctx, serverId, source, parv, mtags),
-  REGISTER: (ctx, serverId, source, parv, mtags) =>
-    handleRegister(ctx, serverId, source, parv, mtags),
+      : handleFail(ctx, serverId, source, parv, mtags, trailing),
+  WARN: (ctx, serverId, source, parv, mtags, trailing) =>
+    handleWarn(ctx, serverId, source, parv, mtags, trailing),
+  NOTE: (ctx, serverId, source, parv, mtags, trailing) =>
+    handleNote(ctx, serverId, source, parv, mtags, trailing),
+  SUCCESS: (ctx, serverId, source, parv, mtags, trailing) =>
+    handleSuccess(ctx, serverId, source, parv, mtags, trailing),
+  REGISTER: (ctx, serverId, source, parv, mtags, trailing) =>
+    handleRegister(ctx, serverId, source, parv, mtags, trailing),
   VERIFY: (ctx, serverId, source, parv, mtags) =>
     handleVerify(ctx, serverId, source, parv, mtags),
+  TOKEN: (ctx, serverId, source, parv, mtags) =>
+    handleToken(ctx, serverId, source, parv, mtags),
+  "2FA": (ctx, serverId, source, parv, mtags) =>
+    handleTwoFA(ctx, serverId, source, parv, mtags),
   EXTJWT: (ctx, serverId, source, parv, mtags) =>
     handleExtjwt(ctx, serverId, source, parv, mtags),
+  PERSISTENCE: (ctx, serverId, source, parv, mtags) =>
+    handlePersistence(ctx, serverId, source, parv, mtags),
+  MARKREAD: (ctx, serverId, source, parv, mtags) =>
+    handleMarkread(ctx, serverId, source, parv, mtags),
+  CMDSLIST: (ctx, serverId, source, parv, mtags) =>
+    handleCmdslist(ctx, serverId, source, parv, mtags),
+
+  PROP: (ctx, serverId, source, parv, mtags) =>
+    handleProp(ctx, serverId, source, parv, mtags),
+  "960": (ctx, serverId, source, parv, mtags) =>
+    handleRplEndOfProplist(ctx, serverId, source, parv, mtags),
+  "961": (ctx, serverId, source, parv, mtags) =>
+    handleRplProplist(ctx, serverId, source, parv, mtags),
+  "962": (ctx, serverId, source, parv, mtags) =>
+    handleRplEndOfListProplist(ctx, serverId, source, parv, mtags),
+  "963": (ctx, serverId, source, parv, mtags) =>
+    handleRplListProplist(ctx, serverId, source, parv, mtags),
+  "964": (ctx, serverId, source, parv, mtags) =>
+    handleRplChmodelist(ctx, serverId, source, parv, mtags),
+  "965": (ctx, serverId, source, parv, mtags) =>
+    handleRplUmodelist(ctx, serverId, source, parv, mtags),
 
   "730": (ctx, serverId, source, parv, mtags) =>
     handleMonOnline(ctx, serverId, source, parv, mtags),

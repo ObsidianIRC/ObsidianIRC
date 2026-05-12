@@ -12,6 +12,7 @@ import { ChatArea } from "./ChatArea";
 import { MemberList } from "./MemberList";
 import { ResizableSidebar } from "./ResizableSidebar";
 import { ServerList } from "./ServerList";
+import { VoiceChannelView } from "./VoiceChannelView";
 
 const PAGE_ORDER: layoutColumn[] = ["serverList", "chatView", "memberList"];
 const getPageIndex = (column: layoutColumn): number =>
@@ -41,7 +42,19 @@ export const AppLayout: React.FC = () => {
     selectedChannelId: null,
     selectedPrivateChatId: null,
   };
-  const { selectedPrivateChatId } = currentSelection;
+  const { selectedChannelId, selectedPrivateChatId } = currentSelection;
+
+  const selectedChannel = useStore((s) => {
+    if (!selectedServerId || !selectedChannelId) return null;
+    const srv = s.servers.find((x) => x.id === selectedServerId);
+    return srv?.channels.find((c) => c.id === selectedChannelId) ?? null;
+  });
+  // Both ^ (voice) and $ (stream) channels render through VoiceChannelView.
+  // The view itself reads the room mode from VoiceState.mode and adapts
+  // its layout (publishing controls vs viewer chat).
+  const isVoiceChannel =
+    !!selectedChannel?.name.startsWith("^") ||
+    !!selectedChannel?.name.startsWith("$");
   const {
     isDarkMode,
     isMobileMenuOpen,
@@ -50,8 +63,9 @@ export const AppLayout: React.FC = () => {
     mobileViewActiveColumn,
   } = ui;
 
-  // Hide member list for private chats
-  const shouldShowMemberList = isMemberListVisible && !selectedPrivateChatId;
+  // Hide member list for private chats and voice channels (voice has its own grid)
+  const shouldShowMemberList =
+    isMemberListVisible && !selectedPrivateChatId && !isVoiceChannel;
 
   const handleChannelListWidthChange = useCallback((width: number) => {
     setChannelListWidth(width);
@@ -202,16 +216,33 @@ export const AppLayout: React.FC = () => {
           <div
             className={`${isNarrowView ? "w-full" : "flex-grow"} h-full bg-discord-dark-200 flex flex-col min-w-0 z-10`}
           >
-            <ChatArea
-              isChanListVisible={isChannelListVisible}
-              onToggleChanList={() => {
-                if (isNarrowView) {
-                  setMobileViewActiveColumn("serverList");
-                } else {
-                  toggleChannelList(!isChannelListVisible);
-                }
-              }}
-            />
+            {(() => {
+              // Both `^` (voice) and `$` (stream) channels render through
+              // ChatArea with the VoiceChannelView injected as a topSlot,
+              // so the channel's ChatHeader stays at the very top of the
+              // panel and the voice grid + chat live beneath it as one
+              // continuous column.
+              const voiceTopSlot =
+                isVoiceChannel && selectedServerId && selectedChannel ? (
+                  <VoiceChannelView
+                    serverId={selectedServerId}
+                    channelName={selectedChannel.name}
+                  />
+                ) : undefined;
+              return (
+                <ChatArea
+                  isChanListVisible={isChannelListVisible}
+                  onToggleChanList={() => {
+                    if (isNarrowView) {
+                      setMobileViewActiveColumn("serverList");
+                    } else {
+                      toggleChannelList(!isChannelListVisible);
+                    }
+                  }}
+                  topSlot={voiceTopSlot}
+                />
+              );
+            })()}
           </div>
         );
       case "memberList":

@@ -9,20 +9,32 @@ import { useShallow } from "zustand/react/shallow";
 import { useAutoFocusTyping } from "../../hooks/useAutoFocusTyping";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useMentionAutocorrectGuard } from "../../hooks/useMentionAutocorrectGuard";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
 import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
+import { waitForAuthToken } from "../../lib/authToken";
+import { useEmojiResolver } from "../../lib/customEmoji";
+import {
+  emojiClickValue,
+  packEntriesForPicker,
+} from "../../lib/customEmojiPicker";
 import ircClient from "../../lib/ircClient";
 import { parseIrcUrl } from "../../lib/ircUrlParser";
+import {
+  fetchUploadInfo,
+  uploadFile,
+  validateFileAgainstInfo,
+} from "../../lib/mediaUpload";
 import {
   type FormattingType,
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
-import { isTauriMobile } from "../../lib/platformUtils";
+import { isMobileDevice, isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -43,8 +55,16 @@ import { MiniMediaPlayer } from "../ui/MiniMediaPlayer";
 import ModerationModal, { type ModerationAction } from "../ui/ModerationModal";
 import ReactionModal from "../ui/ReactionModal";
 import { ReactionPopover } from "../ui/ReactionPopover";
+import {
+  getActiveSlashQuery,
+  SlashCommandPopover,
+} from "../ui/SlashCommandPopover";
 import { TextArea } from "../ui/TextInput";
 import { TopicMediaStrip } from "../ui/TopicMediaStrip";
+import {
+  type UploadJob,
+  UploadProgressOverlay,
+} from "../ui/UploadProgressOverlay";
 import UserContextMenu from "../ui/UserContextMenu";
 import UserProfileModal from "../ui/UserProfileModal";
 import {
@@ -96,7 +116,12 @@ const isMac =
 export const ChatArea: React.FC<{
   onToggleChanList: () => void;
   isChanListVisible: boolean;
-}> = ({ onToggleChanList, isChanListVisible }) => {
+  /** Rendered between ChatHeader and TopicMediaStrip. Used by voice/stream
+   * channels to inject the VoiceChannelView so the channel header stays
+   * at the very top of the panel instead of getting sandwiched between
+   * the voice grid and the chat scroll. */
+  topSlot?: React.ReactNode;
+}> = ({ onToggleChanList, isChanListVisible, topSlot }) => {
   const { t } = useLingui();
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [navHighlightedMsgId, setNavHighlightedMsgId] = useState<string | null>(
@@ -111,6 +136,10 @@ export const ChatArea: React.FC<{
   // autocompleteInputText is updated only when autocomplete dropdowns are visible.
   const [hasText, setHasText] = useState(false);
   const [autocompleteInputText, setAutocompleteInputText] = useState("");
+  // Slash-command popover state.  Only updated when the input starts
+  // with "/" and we're still completing the command name -- otherwise
+  // typing wouldn't trigger a re-render for this popover at all.
+  const [slashInputValue, setSlashInputValue] = useState("");
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -133,6 +162,11 @@ export const ChatArea: React.FC<{
     file: null,
     previewUrl: null,
   });
+  // Multimedia uploads in flight.  Each job tracks one file's
+  // XHR-driven progress; once they all settle we send a single
+  // PRIVMSG with the URLs joined.
+  const [uploadJobs, setUploadJobs] = useState<UploadJob[]>([]);
+  const uploadAbortsRef = useRef<Map<string, AbortController>>(new Map());
   const [isServerNoticesPoppedOut, setIsServerNoticesPoppedOut] =
     useState(false);
   const [serverNoticesPopupPosition, setServerNoticesPopupPosition] = useState({
@@ -428,8 +462,30 @@ export const ChatArea: React.FC<{
   // Tab completion hook
   const tabCompletion = useTabCompletion();
 
+  // draft/custom-emoji: gather pack URLs (channel-scoped first so it
+  // shadows the network-wide pack on shortcode collisions) and surface
+  // the resulting shortcodes to the emoji picker + completion.
+  const networkEmojiPackUrl = useMemo(
+    () => servers.find((s) => s.id === selectedServerId)?.emojiPackUrl,
+    [servers, selectedServerId],
+  );
+  const channelEmojiPackUrl = useMemo(() => {
+    const srv = servers.find((s) => s.id === selectedServerId);
+    return srv?.channels.find((c) => c.id === selectedChannelId)?.metadata?.[
+      "draft/emoji"
+    ]?.value;
+  }, [servers, selectedServerId, selectedChannelId]);
+  const { shortcodes: customEmojiShortcodes } = useEmojiResolver([
+    channelEmojiPackUrl,
+    networkEmojiPackUrl,
+  ]);
+  const pickerCustomEmojis = useMemo(
+    () => packEntriesForPicker(customEmojiShortcodes),
+    [customEmojiShortcodes],
+  );
+
   // Emoji completion hook
-  const emojiCompletion = useEmojiCompletion();
+  const emojiCompletion = useEmojiCompletion(customEmojiShortcodes);
 
   // Typing notification hook
   const typingNotification = useTypingNotification({
@@ -441,6 +497,7 @@ export const ChatArea: React.FC<{
   const isNarrowView = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
   const isNativeMobile = isTauriMobile();
+  const isMobileInput = isMobileDevice();
 
   const handleIrcLinkClick = useCallback(
     (rawUrl: string) => {
@@ -556,6 +613,10 @@ export const ChatArea: React.FC<{
         (pc) => pc.id === selectedPrivateChatId,
       ),
     [selectedServer, selectedPrivateChatId],
+  );
+
+  const onBeforeInputGuard = useMentionAutocorrectGuard(
+    selectedChannel?.users.map((u) => u.username) ?? [],
   );
 
   // Member list overlay: show when desktop is too narrow for sidebar
@@ -847,66 +908,41 @@ export const ChatArea: React.FC<{
   const handleImageUpload = async (file: File) => {
     if (!selectedServer?.filehost || !selectedServerId) return;
 
-    const filehostUrl = selectedServer.filehost;
-
-    // Check if we have a JWT token, request one if not
-    let jwtToken = selectedServer?.jwtToken;
-    if (!jwtToken) {
-      // Clear any existing JWT token to ensure we get a fresh one
-      useStore.setState((state) => ({
-        servers: state.servers.map((server) =>
-          server.id === selectedServerId
-            ? { ...server, jwtToken: undefined }
-            : server,
-        ),
-      }));
-
-      // Request JWT token from IRC server
-      console.log(
-        '🔑 Requesting fresh JWT token from IRC server for service "filehost"',
-      );
-      ircClient.requestExtJwt(selectedServerId, "*", "filehost");
-
-      // Wait a bit for the token to arrive (this is a simple approach)
-      // In a production app, you'd want to listen for the EXTJWT event
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Check again after waiting
-      const updatedServer = useStore
-        .getState()
-        .servers.find((s) => s.id === selectedServerId);
-      jwtToken = updatedServer?.jwtToken;
-
-      console.log(
-        "🔑 After waiting, JWT token:",
-        jwtToken ? `${jwtToken.substring(0, 20)}...` : "still null/undefined",
-      );
-
-      if (!jwtToken) {
-        console.error("Failed to obtain JWT token for image upload");
-        // TODO: Show error to user
-        return;
-      }
+    // draft/authtoken: always mint a fresh token per upload, since the
+    // server may scope or expire them aggressively.  The reply URL is
+    // what the server tells us to talk to; fall back to filehost.
+    useStore.setState((state) => ({
+      servers: state.servers.map((server) =>
+        server.id === selectedServerId
+          ? {
+              ...server,
+              authToken: undefined,
+              authTokenUrl: undefined,
+              authTokenService: undefined,
+            }
+          : server,
+      ),
+    }));
+    ircClient.requestToken(selectedServerId, "filehost");
+    const authToken = await waitForAuthToken(selectedServerId);
+    if (!authToken) {
+      console.error("draft/authtoken: server did not return a filehost token");
+      return;
     }
+    const refreshed = useStore
+      .getState()
+      .servers.find((s) => s.id === selectedServerId);
+    const baseUrl = refreshed?.authTokenUrl || refreshed?.filehost || "";
 
     const formData = new FormData();
     formData.append("image", file);
 
     try {
-      // Upload directly to the filehost URL with JWT authentication
-      const uploadUrl = `${filehostUrl}/upload`;
-      console.log("🔄 Image upload: Starting upload to", uploadUrl);
-      console.log("🔑 JWT token present:", !!jwtToken);
-      console.log(
-        "� JWT token value:",
-        jwtToken ? `${jwtToken.substring(0, 20)}...` : "null/undefined",
-      );
-      console.log("�📦 File size:", file.size, "bytes");
-
+      const uploadUrl = `${baseUrl}/upload`;
       const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${jwtToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: formData,
       });
@@ -927,8 +963,9 @@ export const ChatArea: React.FC<{
       const data = await response.json();
       console.log("✅ Upload successful:", data);
       if (data.saved_url) {
-        // Create the full URL by prepending the filehost
-        const fullImageUrl = `${filehostUrl}${data.saved_url}`;
+        // saved_url is a path under the filehost the server told us to
+        // use, so prepend the same base we uploaded to.
+        const fullImageUrl = `${baseUrl}${data.saved_url}`;
 
         // Send the link directly to the current channel/user
         const target =
@@ -967,6 +1004,145 @@ export const ChatArea: React.FC<{
       console.error("Image upload failed:", error);
       // TODO: Show error to user
     }
+  };
+
+  // Multi-file upload entry point.  Picks up an auth token (one-shot
+  // per batch -- the backend accepts the same token across many
+  // uploads), kicks off N uploads in parallel, surfaces per-file
+  // progress, and on full success sends a single PRIVMSG containing
+  // all the resulting URLs separated by spaces.
+  const handleFilesUpload = async (files: File[]) => {
+    if (!selectedServer?.filehost || !selectedServerId || files.length === 0) {
+      return;
+    }
+    const filehostUrl = selectedServer.filehost;
+    const target = selectedChannel?.name ?? selectedPrivateChat?.username;
+    if (!target) return;
+
+    // Pre-flight: pull the policy so we can reject obviously-bad
+    // files before pushing bytes.
+    const info = await fetchUploadInfo(filehostUrl);
+
+    // Acquire auth token (reuse existing EXTJWT flow).  The backend
+    // doesn't need a fresh token per file -- the same Bearer is
+    // accepted until expiry, so we mint once.
+    let jwtToken = selectedServer?.jwtToken;
+    if (!jwtToken) {
+      useStore.setState((state) => ({
+        servers: state.servers.map((server) =>
+          server.id === selectedServerId
+            ? { ...server, jwtToken: undefined }
+            : server,
+        ),
+      }));
+      ircClient.requestExtJwt(selectedServerId, "*", "filehost");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const updated = useStore
+        .getState()
+        .servers.find((s) => s.id === selectedServerId);
+      jwtToken = updated?.jwtToken;
+    }
+    if (!jwtToken) {
+      console.error("Failed to obtain auth token for file upload");
+      return;
+    }
+
+    // Build the job list in one go so the progress strip appears
+    // immediately, before any network roundtrip.
+    const initialJobs: UploadJob[] = files.map((f) => ({
+      id: uuidv4(),
+      file: f,
+      loaded: 0,
+      total: f.size,
+      status: "pending",
+    }));
+    setUploadJobs((prev) => [...prev, ...initialJobs]);
+
+    const updateJob = (id: string, patch: Partial<UploadJob>) =>
+      setUploadJobs((prev) =>
+        prev.map((j) => (j.id === id ? { ...j, ...patch } : j)),
+      );
+
+    // Run all uploads in parallel; collect URLs in original input order.
+    const results = await Promise.all(
+      initialJobs.map(async (job) => {
+        // Cheap client-side validation -- saves a server round-trip
+        // and gives the user immediate feedback.
+        const validationError = validateFileAgainstInfo(job.file, info);
+        if (validationError) {
+          updateJob(job.id, {
+            status: "failed",
+            error: validationError,
+          });
+          return null;
+        }
+        const ac = new AbortController();
+        uploadAbortsRef.current.set(job.id, ac);
+        updateJob(job.id, { status: "uploading" });
+        try {
+          const url = await uploadFile(job.file, {
+            filehostUrl,
+            bearerToken: jwtToken as string,
+            signal: ac.signal,
+            onProgress: (loaded, total) => updateJob(job.id, { loaded, total }),
+          });
+          updateJob(job.id, {
+            status: "done",
+            loaded: job.file.size,
+            total: job.file.size,
+            url,
+          });
+          uploadAbortsRef.current.delete(job.id);
+          return url;
+        } catch (err) {
+          uploadAbortsRef.current.delete(job.id);
+          const msg = typeof err === "string" ? err : String(err);
+          updateJob(job.id, { status: "failed", error: msg });
+          return null;
+        }
+      }),
+    );
+
+    const urls = results.filter((u): u is string => !!u);
+    if (urls.length === 0) {
+      // All failed: leave the strip up so the user sees error reasons.
+      return;
+    }
+
+    // Send a single PRIVMSG carrying all successful URLs space-joined.
+    // Channels echo back; PMs need a local insert so the user sees
+    // their own message immediately.
+    const line = urls.join(" ");
+    ircClient.sendRaw(selectedServerId, `PRIVMSG ${target} :${line}`);
+    if (selectedPrivateChat && currentUser) {
+      const outgoing = {
+        id: uuidv4(),
+        content: line,
+        timestamp: new Date(),
+        userId: currentUser.username || currentUser.id,
+        channelId: selectedPrivateChat.id,
+        serverId: selectedServerId,
+        type: "message" as const,
+        reactions: [],
+        replyMessage: null,
+        mentioned: [],
+      };
+      useStore.getState().addMessage(outgoing);
+    }
+
+    // Clear the strip after a short pause so the user can see
+    // "done" before it disappears.
+    setTimeout(() => {
+      setUploadJobs((prev) =>
+        prev.filter((j) => !initialJobs.find((i) => i.id === j.id)),
+      );
+    }, 1500);
+  };
+
+  const cancelUploadJob = (id: string) => {
+    const ac = uploadAbortsRef.current.get(id);
+    if (ac) ac.abort();
+    setUploadJobs((prev) => prev.filter((j) => j.id !== id));
   };
 
   const handleGifSend = (gifUrl: string) => {
@@ -1288,6 +1464,18 @@ export const ChatArea: React.FC<{
 
     cursorPositionRef.current = newCursorPosition;
     handleUpdatedText(newText);
+
+    // obsidianirc/cmdslist: update slash state only when relevant.
+    // When the input doesn't look like a command (no leading slash,
+    // or already past the command name), re-render only on the
+    // active->inactive transition to clear the popover.
+    const slashActive =
+      getActiveSlashQuery(newText, newCursorPosition) !== null;
+    if (slashActive) {
+      setSlashInputValue(newText);
+    } else if (slashInputValue !== "") {
+      setSlashInputValue("");
+    }
 
     // Exit history mode if user starts typing
     messageHistory.exitHistory();
@@ -1757,7 +1945,7 @@ export const ChatArea: React.FC<{
   );
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
-    applyText(messageTextRef.current + emojiData.emoji);
+    applyText(messageTextRef.current + emojiClickValue(emojiData));
     setIsEmojiSelectorOpen(false);
   };
 
@@ -1836,6 +2024,13 @@ export const ChatArea: React.FC<{
         onOpenChannelSettings={() => setChannelSettingsModalOpen(true)}
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
       />
+
+      {topSlot && (
+        <div className="flex-shrink-0 max-h-[60%] overflow-y-auto border-b border-discord-dark-300">
+          {topSlot}
+        </div>
+      )}
+
       <TopicMediaStrip />
       <MiniMediaPlayer />
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}
@@ -1954,9 +2149,10 @@ export const ChatArea: React.FC<{
                   onClick={handleInputClick}
                   onKeyUp={handleInputKeyUp}
                   onKeyDown={handleKeyDown}
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck={true}
+                  onBeforeInput={onBeforeInputGuard}
+                  autoCorrect={isMobileInput ? "on" : "off"}
+                  autoCapitalize={isMobileInput ? "sentences" : "off"}
+                  spellCheck={isMobileInput}
                   placeholder={
                     selectedChannel
                       ? globalSettings.enableMultilineInput &&
@@ -2018,29 +2214,44 @@ export const ChatArea: React.FC<{
                     <button
                       className="w-full text-left px-4 py-2 text-discord-text-normal hover:bg-discord-dark-300 rounded-lg flex items-center"
                       onClick={() => {
-                        // Handle image selection for preview
+                        // Multi-file picker: images, videos, audio.
+                        // The backend's allowlist is the source of
+                        // truth, but we hint accept= so the OS file
+                        // dialog filters sensibly.
                         const input = document.createElement("input");
                         input.type = "file";
-                        input.accept = "image/*";
+                        input.multiple = true;
+                        input.accept = "image/*,video/*,audio/*";
                         input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement)
-                            .files?.[0];
-                          if (file) {
-                            // Create preview URL
-                            const previewUrl = URL.createObjectURL(file);
+                          const files = Array.from(
+                            (e.target as HTMLInputElement).files ?? [],
+                          );
+                          if (files.length === 0) return;
+                          // For a single image, keep the legacy
+                          // confirm-then-upload preview UX so users
+                          // can see the picture before sending.
+                          if (
+                            files.length === 1 &&
+                            files[0].type.startsWith("image/")
+                          ) {
+                            const previewUrl = URL.createObjectURL(files[0]);
                             setImagePreview({
                               isOpen: true,
-                              file,
+                              file: files[0],
                               previewUrl,
                             });
+                            return;
                           }
+                          // Multi-file or non-image: go straight to
+                          // upload with the progress strip.
+                          handleFilesUpload(files);
                         };
                         input.click();
                         setShowPlusMenu(false);
                       }}
                     >
                       <FaPlus className="mr-2" />
-                      <Trans>Upload Image</Trans>
+                      <Trans>Upload Files</Trans>
                     </button>
                   )}
                   <button
@@ -2063,6 +2274,7 @@ export const ChatArea: React.FC<{
                   onEmojiClick={handleEmojiSelect}
                   onClose={() => setIsEmojiSelectorOpen(false)}
                   onBackdropClick={handleEmojiModalBackdropClick}
+                  customEmojis={pickerCustomEmojis}
                 />
               )}
 
@@ -2091,11 +2303,18 @@ export const ChatArea: React.FC<{
                 <EmojiPickerInline
                   isOpen={isEmojiSelectorOpen}
                   onEmojiClick={(e) =>
-                    applyText(messageTextRef.current + e.emoji)
+                    applyText(messageTextRef.current + emojiClickValue(e))
                   }
                   onClose={() => setIsEmojiSelectorOpen(false)}
+                  customEmojis={pickerCustomEmojis}
                 />
               )}
+
+              {/* Multi-file upload progress strip, anchored above input */}
+              <UploadProgressOverlay
+                jobs={uploadJobs}
+                onCancel={cancelUploadJob}
+              />
 
               <AutocompleteDropdown
                 users={
@@ -2133,6 +2352,42 @@ export const ChatArea: React.FC<{
                 onNavigate={handleEmojiAutocompleteNavigate}
                 inputElement={inputRef.current}
               />
+
+              {/* obsidianirc/cmdslist: slash-command suggestion popover */}
+              {(() => {
+                const srv = servers.find((s) => s.id === selectedServerId);
+                const cmds = srv?.cmdsAvailable ?? [];
+                if (cmds.length === 0) return null;
+                const slashActive =
+                  getActiveSlashQuery(
+                    slashInputValue,
+                    cursorPositionRef.current,
+                  ) !== null;
+                return (
+                  <SlashCommandPopover
+                    isVisible={slashActive}
+                    inputValue={slashInputValue}
+                    commands={cmds}
+                    inputElement={inputRef.current}
+                    onSelect={(cmd) => {
+                      // Replace the partial command with /<cmd> + space
+                      // and put the cursor right after the space.
+                      const next = `/${cmd} `;
+                      applyText(next);
+                      cursorPositionRef.current = next.length;
+                      setSlashInputValue("");
+                      inputRef.current?.focus();
+                      inputRef.current?.setSelectionRange(
+                        next.length,
+                        next.length,
+                      );
+                    }}
+                    onClose={() => {
+                      setSlashInputValue("");
+                    }}
+                  />
+                );
+              })()}
 
               {/* Members dropdown triggered by @ button */}
               <AutocompleteDropdown
@@ -2257,7 +2512,9 @@ export const ChatArea: React.FC<{
         }}
         onUpload={() => {
           if (imagePreview.file) {
-            handleImageUpload(imagePreview.file);
+            // Route through the new progress-aware path so single-file
+            // uploads also get the "uploading…" overlay.
+            handleFilesUpload([imagePreview.file]);
           }
           // Clean up preview URL
           if (imagePreview.previewUrl) {

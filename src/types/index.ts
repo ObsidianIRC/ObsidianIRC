@@ -37,15 +37,64 @@ export interface Server {
   awayMessage?: string; // Our away message on this server
   users: User[];
   capabilities?: string[];
+  // Per-cap value strings as advertised in CAP LS (e.g.
+  // "draft/account-2fa" -> "totp,webauthn,oauth", "sasl" ->
+  // "PLAIN,EXTERNAL"). CAP ACK only echoes names so the value list
+  // lives here and is consulted by UI that needs to know which
+  // sub-features the server actually supports.
+  capabilityValues?: Record<string, string>;
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
   prefix?: string;
   chanmodes?: string; // CHANMODES ISUPPORT value defining mode groups A,B,C,D
   botMode?: string;
   filehost?: string;
   linkSecurity?: number; // Link security level from unrealircd.org/link-security
-  jwtToken?: string; // JWT token for filehost authentication
+  jwtToken?: string; // JWT token for filehost authentication (from EXTJWT)
+  // Bearer token from draft/authtoken (TOKEN GENERATE).  Used as the
+  // `Authorization: Bearer <token>` header for the per-network filehost.
+  authToken?: string;
+  // URL the token is bound to (returned alongside the token).  Falls
+  // back to `filehost` for older servers.
+  authTokenUrl?: string;
+  // Service the token was minted for, e.g. "filehost".
+  authTokenService?: string;
   isUnrealIRCd?: boolean; // Whether this server is running UnrealIRCd
   elist?: string; // ELIST ISUPPORT value for extended LIST capabilities
+  // IRCv3 draft/named-modes: server-advertised long-form mode names.
+  // Populated from RPL_CHMODELIST (964) / RPL_UMODELIST (965) at
+  // connect time; consumed by the mode-rendering paths so MODE +o /
+  // PROP +op stay interchangeable in the UI.
+  namedModes?: NamedModes;
+  // draft/EMOJI ISUPPORT: URL to the network-wide pack document.
+  emojiPackUrl?: string;
+  // draft/persistence state (populated from PERSISTENCE STATUS replies).
+  // `preference` is what the user has explicitly set on this account
+  // (ON/OFF) or DEFAULT meaning "follow the server-wide default".
+  // `effective` is what the server is actually doing right now.
+  persistencePreference?: "ON" | "OFF" | "DEFAULT";
+  persistenceEffective?: "ON" | "OFF";
+  myIdent?: string; // Our own ident on this server (draft/whoami SETNAME burst or CHGHOST)
+  myHost?: string; // Our own hostname on this server (draft/whoami SETNAME burst or CHGHOST)
+  // obsidianirc/cmdslist: lowercase set of commands this user can
+  // currently invoke on this server.  Used to drive the slash-command
+  // suggestion popover.  undefined = the cap is not negotiated.
+  cmdsAvailable?: string[];
+}
+
+export interface NamedModeSpec {
+  /** Spec type: 1=list, 2=param-set+unset, 3=param-set, 4=flag, 5=prefix. */
+  type: 1 | 2 | 3 | 4 | 5;
+  /** IRCv3 long-form name, e.g. "op", "topiclock", "obsidianirc/floodprot". */
+  name: string;
+  /** Legacy MODE letter (omitted for name-only modes). */
+  letter?: string;
+}
+
+export interface NamedModes {
+  /** Capability negotiated with server; if false, registry is empty. */
+  supported: boolean;
+  channelModes: NamedModeSpec[];
+  userModes: NamedModeSpec[];
 }
 
 export interface ServerConfig {
@@ -59,12 +108,52 @@ export interface ServerConfig {
   saslAccountName?: string;
   saslPassword?: string;
   saslEnabled: boolean;
+  // "auto" prefers SCRAM-SHA-256 when the server advertises it and falls
+  // back to PLAIN, "webauthn" uses DRAFT-WEBAUTHN-BIO directly.
+  saslMechanism?:
+    | "auto"
+    | "PLAIN"
+    | "SCRAM-SHA-256"
+    | "DRAFT-WEBAUTHN-BIO"
+    | "EXTERNAL";
   skipLinkSecurityWarning?: boolean;
   skipLocalhostWarning?: boolean;
   operUsername?: string;
   operPassword?: string;
   operOnConnect?: boolean;
   addedAt?: number; // Timestamp when server was added (ms since epoch)
+  oauth?: ServerOAuthConfig;
+}
+
+export interface ServerOAuthConfig {
+  enabled: boolean;
+  providerLabel: string;
+  issuer: string;
+  clientId: string;
+  scopes?: string;
+  redirectUri?: string;
+  accessToken?: string;
+  idToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: number;
+  // "jwt" (default): the IRC server validates the bearer locally against
+  // its JWKS. The client sends idToken (preferred) or accessToken,
+  // whichever is a JWT. Works for Logto, Auth0, Keycloak, Okta, Google
+  // (id_token), Microsoft (id_token).
+  // "opaque": the IRC server hits the IdP's userinfo endpoint to resolve
+  // the bearer. The client sends accessToken plus a `serverProvider`
+  // hint so the server knows which oauth-provider {} block to consult.
+  // Required for GitHub, Discord, Slack, Reddit, Twitter.
+  tokenKind?: "jwt" | "opaque";
+  // Name the IRC server admin gave to the matching oauth-provider {}
+  // block. Sent as the IRCV3BEARER authzid (or OAUTHBEARER `provider=`
+  // k/v) in opaque mode so the server can pick the right userinfo URL.
+  serverProvider?: string;
+  // Manual auth/token endpoint overrides for non-OIDC providers like
+  // GitHub that don't publish a /.well-known/openid-configuration.
+  // When both are set, OIDC discovery is skipped.
+  authorizeEndpoint?: string;
+  tokenEndpoint?: string;
 }
 
 export interface Channel {
@@ -74,6 +163,11 @@ export interface Channel {
   isPrivate: boolean;
   serverId: string;
   unreadCount: number;
+  // Number of *highlight* events since the channel was last marked
+  // read.  Distinct from unreadCount (every message) so the badge
+  // can show "you were pinged 3 times" instead of "33 messages
+  // happened since your first ping".
+  mentionCount?: number;
   isMentioned: boolean;
   messages: Message[];
   users: User[];
@@ -88,6 +182,10 @@ export interface Channel {
   bans?: Array<{ mask: string; setter: string; timestamp: number }>;
   invites?: Array<{ mask: string; setter: string; timestamp: number }>;
   exceptions?: Array<{ mask: string; setter: string; timestamp: number }>;
+  // draft/read-marker: ISO-8601 timestamp of the latest message the
+  // user has marked as read in this channel (mirrored across all of
+  // the user's connected sessions).  null = no marker on file yet.
+  readMarker?: string | null;
 }
 
 export interface PrivateChat {
@@ -95,6 +193,8 @@ export interface PrivateChat {
   username: string;
   serverId: string;
   unreadCount: number;
+  // Highlight counter (PMs always count as mentions; this is per-PM).
+  mentionCount?: number;
   isMentioned: boolean;
   lastActivity?: Date;
   isPinned?: boolean;
@@ -107,6 +207,12 @@ export interface PrivateChat {
   isBot?: boolean; // Bot status from WHO/WHOX or message tags
   isIrcOp?: boolean; // IRC operator status from WHO response (* flag)
   metadata?: Record<string, { value: string | undefined; visibility: string }>;
+  // draft/read-marker: see Channel.readMarker.
+  readMarker?: string | null;
+  // draft/read-marker: have we issued an initial MARKREAD GET for this
+  // PM yet?  PMs are not auto-pushed by the server, so we need to
+  // explicitly fetch on first open.
+  readMarkerFetched?: boolean;
 }
 
 export interface Reaction {
@@ -145,11 +251,13 @@ export interface Message {
   tags?: Record<string, string>;
   // Whisper fields (for draft/channel-context)
   whisperTarget?: string; // The recipient of a whisper
-  // Standard reply fields
+  // Standard reply fields. `command`, `code`, and `context` are
+  // computer-readable; only `message` is intended for human display.
   standardReplyType?: "FAIL" | "WARN" | "NOTE";
   standardReplyCommand?: string;
   standardReplyCode?: string;
   standardReplyTarget?: string;
+  standardReplyContext?: string[];
   standardReplyMessage?: string;
   // Batch-related fields for netsplit/netjoin
   batchId?: string;
@@ -168,6 +276,17 @@ export interface Message {
   jsonLogData?: JsonValue;
   // True when the message was replayed from chathistory (not a live event)
   fromHistory?: boolean;
+  // labeled-response: when the user sends a message with the
+  // labeled-response cap acked, we insert a local placeholder
+  // immediately and wait for the server's echo to match it back.
+  // `pendingLabel` is the label tag value we attached on send, set
+  // only on the local placeholder until the echo arrives.
+  pendingLabel?: string;
+  // labeled-response: lifecycle state of an outgoing message.
+  // - "pending": placeholder awaiting server echo
+  // - "failed": no echo / FAIL arrived in the timeout window
+  // undefined => normal received message (no pending lifecycle).
+  status?: "pending" | "failed";
 }
 
 // Alias for backwards compatibility

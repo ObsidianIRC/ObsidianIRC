@@ -6,6 +6,9 @@ import { registerChannelHandlers } from "./channels";
 import { registerConnectionHandlers } from "./connection";
 import { registerMessageHandlers } from "./messages";
 import { registerMetadataHandlers } from "./metadata";
+import { registerNamedModesHandlers } from "./named-modes";
+import { registerReadMarkerHandlers } from "./readMarker";
+import { registerTicTacToeHandlers } from "./tictactoe";
 import { registerUserHandlers } from "./users";
 import { registerWhoisHandlers } from "./whois";
 
@@ -18,4 +21,7 @@ export function registerAllHandlers(store: StoreApi<AppState>): void {
   registerMetadataHandlers(store);
   registerBatchHandlers(store);
   registerAuthHandlers(store);
+  registerNamedModesHandlers(store);
+  registerReadMarkerHandlers(store);
+  registerTicTacToeHandlers(store);
 }

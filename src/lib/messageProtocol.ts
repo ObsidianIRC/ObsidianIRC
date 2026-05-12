@@ -6,16 +6,26 @@
  * Helper function to split long messages while respecting IRC protocol limits
  * @param message - The message to split
  * @param target - The channel or username target
+ * @param preserveBoundarySpace - When true, each non-final chunk
+ *   carries the original boundary space at its trailing edge so a
+ *   downstream draft/multiline-concat join reconstructs the original
+ *   text with its spacing intact.  Default false preserves the legacy
+ *   "send as independent PRIVMSGs" behaviour where the split-point
+ *   space simply becomes a line break.
  * @returns Array of message chunks within IRC limits
  */
 export const splitLongMessage = (
   message: string,
   target = "#channel",
+  preserveBoundarySpace = false,
 ): string[] => {
   const protocolOverhead = calculateProtocolOverhead(target);
 
-  // Available space for the actual message content
-  const maxMessageLength = 512 - protocolOverhead;
+  // Available space for the actual message content.  Reserve one byte
+  // when we're going to re-attach a boundary space so the wire line
+  // still fits inside the 512-byte IRC limit.
+  const maxMessageLength =
+    512 - protocolOverhead - (preserveBoundarySpace ? 1 : 0);
 
   if (message.length <= maxMessageLength) {
     return [message];
@@ -29,7 +39,7 @@ export const splitLongMessage = (
     if (word.length > maxMessageLength) {
       // If a single word is too long, we have to break it
       if (currentLine) {
-        lines.push(currentLine.trim());
+        lines.push(currentLine);
         currentLine = "";
       }
 
@@ -40,7 +50,7 @@ export const splitLongMessage = (
     } else if (`${currentLine} ${word}`.length > maxMessageLength) {
       // Adding this word would exceed the limit
       if (currentLine) {
-        lines.push(currentLine.trim());
+        lines.push(currentLine);
       }
       currentLine = word;
     } else {
@@ -49,10 +59,14 @@ export const splitLongMessage = (
   }
 
   if (currentLine) {
-    lines.push(currentLine.trim());
+    lines.push(currentLine);
   }
 
-  return lines.filter((line) => line.length > 0);
+  const filtered = lines.filter((line) => line.length > 0);
+  if (!preserveBoundarySpace || filtered.length < 2) return filtered;
+  return filtered.map((line, idx) =>
+    idx < filtered.length - 1 ? `${line} ` : line,
+  );
 };
 
 /**
@@ -87,5 +101,5 @@ export const calculateProtocolOverhead = (target: string): number => {
  * @returns A unique batch identifier
  */
 export const createBatchId = (): string => {
-  return `ml_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `ml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };

@@ -8,11 +8,13 @@ import {
   FaCheckCircle,
   FaChevronLeft,
   FaChevronRight,
+  FaDesktop,
   FaEllipsisV,
   FaFilm,
   FaHashtag,
   FaInfoCircle,
   FaList,
+  FaMicrophone,
   FaPenAlt,
   FaSearch,
   FaThumbtack,
@@ -319,6 +321,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       show: !!selectedChannel,
     },
     {
+      label: "Play Tic-Tac-Toe",
+      icon: <span aria-hidden="true">🎮</span>,
+      onClick: () => {
+        if (selectedServerId && selectedPrivateChat) {
+          useStore
+            .getState()
+            .tictactoeInvite(selectedServerId, selectedPrivateChat.username);
+        }
+      },
+      show: !!selectedPrivateChat,
+    },
+    {
       label: t`Server Channels`,
       icon: <FaList />,
       onClick: () => toggleChannelListModal(true),
@@ -332,7 +346,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       {isSearchExpanded && (selectedChannel || selectedPrivateChat) && (
         <div className="md:hidden absolute inset-0 z-10 flex items-center gap-2 px-2 bg-discord-dark-500">
           {selectedChannel ? (
-            <FaHashtag className="text-discord-text-muted text-lg flex-shrink-0" />
+            selectedChannel.name.startsWith("^") ? (
+              <FaMicrophone className="text-discord-text-muted text-lg flex-shrink-0" />
+            ) : selectedChannel.name.startsWith("$") ? (
+              <FaDesktop className="text-discord-text-muted text-lg flex-shrink-0" />
+            ) : (
+              <FaHashtag className="text-discord-text-muted text-lg flex-shrink-0" />
+            )
           ) : (
             <FaUser className="text-discord-text-muted text-lg flex-shrink-0" />
           )}
@@ -421,29 +441,38 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 />
               ) : null;
             })()}
-            <FaHashtag
-              className="text-discord-text-muted fallback-hash-icon flex-shrink-0 text-3xl"
-              style={{
-                display: (() => {
-                  const avatarUrl = getChannelAvatarUrl(
-                    selectedChannel.metadata,
-                    50,
-                  );
-                  const selectedServer = servers.find(
-                    (s) => s.id === selectedServerId,
-                  );
-                  const isFilehostAvatar =
-                    avatarUrl &&
-                    selectedServer?.filehost &&
-                    isUrlFromFilehost(avatarUrl, selectedServer.filehost);
-                  const shouldShowAvatar =
-                    avatarUrl &&
-                    ((isFilehostAvatar && showSafeMedia) ||
-                      showExternalContent);
-                  return shouldShowAvatar ? "none" : "inline-block";
-                })(),
-              }}
-            />
+            {(() => {
+              const ChannelIcon = selectedChannel.name.startsWith("^")
+                ? FaMicrophone
+                : selectedChannel.name.startsWith("$")
+                  ? FaDesktop
+                  : FaHashtag;
+              return (
+                <ChannelIcon
+                  className="text-discord-text-muted fallback-hash-icon flex-shrink-0 text-3xl"
+                  style={{
+                    display: (() => {
+                      const avatarUrl = getChannelAvatarUrl(
+                        selectedChannel.metadata,
+                        50,
+                      );
+                      const selectedServer = servers.find(
+                        (s) => s.id === selectedServerId,
+                      );
+                      const isFilehostAvatar =
+                        avatarUrl &&
+                        selectedServer?.filehost &&
+                        isUrlFromFilehost(avatarUrl, selectedServer.filehost);
+                      const shouldShowAvatar =
+                        avatarUrl &&
+                        ((isFilehostAvatar && showSafeMedia) ||
+                          showExternalContent);
+                      return shouldShowAvatar ? "none" : "inline-block";
+                    })(),
+                  }}
+                />
+              );
+            })()}
           </div>
 
           {/* Center: Title and Topic stacked */}
@@ -821,6 +850,23 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <FaFilm />
                 </button>
               )}
+              <button
+                className="p-2 md:p-0 hover:text-discord-text-normal"
+                onClick={() => {
+                  if (selectedServerId && selectedPrivateChat) {
+                    useStore
+                      .getState()
+                      .tictactoeInvite(
+                        selectedServerId,
+                        selectedPrivateChat.username,
+                      );
+                  }
+                }}
+                aria-label="Play Tic-Tac-Toe"
+                title="Play Tic-Tac-Toe"
+              >
+                <span aria-hidden="true">🎮</span>
+              </button>
               <button
                 className="md:hidden p-2 hover:text-discord-text-normal"
                 onClick={() => setIsSearchExpanded(!isSearchExpanded)}

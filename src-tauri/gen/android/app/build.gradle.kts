@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -24,6 +25,28 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    signingConfigs {
+        create("release") {
+            val keystorePropsFile = rootProject.file("keystore.properties")
+            if (keystorePropsFile.exists()) {
+                val keystoreProps = Properties().apply {
+                    keystorePropsFile.inputStream().use { load(it) }
+                }
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            } else {
+                val debugKeystore = File(System.getProperty("user.home"), ".android/debug.keystore")
+                if (debugKeystore.exists()) {
+                    storeFile = debugKeystore
+                    storePassword = "android"
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                }
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -38,6 +61,18 @@ android {
         }
         getByName("release") {
             isMinifyEnabled = true
+            // Only attach the release signingConfig when a real keystore was
+            // resolved above. On CI runners that ship without ~/.android/
+            // debug.keystore and don't write keystore.properties (the
+            // workflow signs the AAB/APK afterwards via apksigner), the
+            // signingConfig is half-initialised (storeFile == null) and
+            // packageUniversalRelease fails with `SigningConfig "release"
+            // is missing required property "storeFile"`. Leaving it unset
+            // produces an unsigned artifact, which the workflow then signs.
+            val releaseSign = signingConfigs.getByName("release")
+            if (releaseSign.storeFile != null) {
+                signingConfig = releaseSign
+            }
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))

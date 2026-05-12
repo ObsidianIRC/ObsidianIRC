@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { FaQuestionCircle } from "react-icons/fa";
 import BaseModal from "../../lib/modal/BaseModal";
 import { Button, ModalBody, ModalFooter } from "../../lib/modal/components";
+import { getBuiltinOAuthConfig } from "../../lib/oauth";
 import { isTauri } from "../../lib/platformUtils";
 import useStore from "../../store";
+import type { ServerOAuthConfig } from "../../types";
+import { OAuthSection } from "./OAuthSection";
 import { TextInput } from "./TextInput";
 
 export const AddServerModal: React.FC = () => {
@@ -42,8 +45,18 @@ export const AddServerModal: React.FC = () => {
   );
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
+  const [oauthConfig, setOauthConfig] = useState<ServerOAuthConfig | undefined>(
+    undefined,
+  );
 
   const [error, setError] = useState("");
+
+  // In single-server lock-mode, surface the deployer-baked OAuth config so
+  // the welcome screen exposes a "Sign in with X" CTA instead of the full
+  // editable provider form.
+  const lockedOauth = __HIDE_SERVER_LIST__
+    ? getBuiltinOAuthConfig()
+    : undefined;
 
   useEffect(() => {
     setServerName(prefillServerDetails?.name || "");
@@ -123,6 +136,7 @@ export const AddServerModal: React.FC = () => {
         registerEmail,
         registerPassword,
         true,
+        oauthConfig,
       );
       toggleAddServerModal(false);
     } catch (err) {
@@ -238,6 +252,14 @@ export const AddServerModal: React.FC = () => {
                 )}
               </div>
             </>
+          )}
+
+          {lockedOauth && (
+            <OAuthSection
+              initial={oauthConfig}
+              onChange={setOauthConfig}
+              locked={lockedOauth}
+            />
           )}
 
           <div className="mb-4">

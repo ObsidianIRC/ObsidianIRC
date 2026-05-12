@@ -167,11 +167,11 @@ describe("MediaViewerModal", () => {
     const img = screen.getByRole("img", { name: "Image preview" });
     fireEvent.click(img);
     expect((img as HTMLImageElement).style.transform).toBe(
-      "translate(0px, 0px) scale(2)",
+      "translate(0px, 0px) scale(2) rotate(0deg)",
     );
     fireEvent.click(img);
     expect((img as HTMLImageElement).style.transform).toBe(
-      "translate(0px, 0px) scale(1)",
+      "translate(0px, 0px) scale(1) rotate(0deg)",
     );
   });
 
@@ -188,7 +188,7 @@ describe("MediaViewerModal", () => {
     fireEvent.mouseUp(dialog);
 
     expect((img as HTMLImageElement).style.transform).toBe(
-      "translate(50px, 30px) scale(2)",
+      "translate(50px, 30px) scale(2) rotate(0deg)",
     );
   });
 

@@ -125,36 +125,15 @@ msgstr "<0>💡 Recommendation:</0> Only proceed if you trust this server and un
 msgid "<0>Risk:</0> Sensitive information (messages, private conversations, authentication details) could be exposed to network administrators or attackers positioned between IRC servers."
 msgstr "<0>Risk:</0> Sensitive information (messages, private conversations, authentication details) could be exposed to network administrators or attackers positioned between IRC servers."
 
-#: src/components/ui/EditServerModal.tsx
-msgid "⚠️ Existing oper credentials will be forgotten"
-msgstr "⚠️ Existing oper credentials will be forgotten"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "✓ Both username and password will be updated"
-msgstr "✓ Both username and password will be updated"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "✓ Username will be updated, password preserved"
-msgstr "✓ Username will be updated, password preserved"
-
 #: src/components/ui/UserSettings.tsx
 msgid "Account"
 msgstr "Account"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Account details"
-msgstr "Account details"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Account Email"
-msgstr "Account Email"
 
 #: src/components/ui/AddServerModal.tsx
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Account Name"
 msgstr "Account Name"
 
-#: src/components/ui/EditServerModal.tsx
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Account Password"
 msgstr "Account Password"
@@ -426,7 +405,6 @@ msgstr "Browse all channels on the server"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
-#: src/components/ui/EditServerModal.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -546,7 +524,6 @@ msgid "Choose a predefined flood protection profile. These profiles provide bala
 msgstr "Choose a predefined flood protection profile. These profiles provide balanced protection settings for different use cases."
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Choose a secure password"
 msgstr "Choose a secure password"
 
@@ -862,7 +839,6 @@ msgstr "Edit Profile"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Edit Server"
 msgstr "Edit Server"
 
@@ -948,7 +924,6 @@ msgid "Enter username to invite"
 msgstr "Enter username to invite"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "ExampleNET"
 msgstr "ExampleNET"
 
@@ -959,10 +934,6 @@ msgstr "Exceptions"
 #: src/components/ui/ChannelListModal.tsx
 msgid "Exclude Channel Name Mask"
 msgstr "Exclude Channel Name Mask"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Existing credentials will be preserved"
-msgstr "Existing credentials will be preserved"
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
@@ -1007,10 +978,6 @@ msgstr "Flood Profile (+F)"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Flood Protection Settings"
 msgstr "Flood Protection Settings"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Forget Credentials"
-msgstr "Forget Credentials"
 
 #. placeholder {0}: filteredMessages.length
 #: src/components/layout/ChannelMessageList.tsx
@@ -1199,7 +1166,6 @@ msgstr "Invite-Only (+i)"
 #: src/components/layout/MemberList.tsx
 #: src/components/layout/MemberList.tsx
 #: src/components/message/MessageHeader.tsx
-#: src/components/ui/EditServerModal.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "IRC Operator"
 msgstr "IRC Operator"
@@ -1341,7 +1307,6 @@ msgid "Local Storage:"
 msgstr "Local Storage:"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Login to an account"
 msgstr "Login to an account"
 
@@ -1520,7 +1485,6 @@ msgid "Name:"
 msgstr "Name:"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Network Name"
 msgstr "Network Name"
 
@@ -1546,7 +1510,6 @@ msgid "nick!user@host (e.g., spam*!*@*, *!*@badhost.com)"
 msgstr "nick!user@host (e.g., spam*!*@*, *!*@badhost.com)"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Nickname"
@@ -1625,10 +1588,6 @@ msgstr "No media in this channel"
 #: src/components/ui/UserSettings.tsx
 msgid "No media previews are loaded."
 msgstr "No media previews are loaded."
-
-#: src/components/ui/EditServerModal.tsx
-msgid "No oper credentials configured"
-msgstr "No oper credentials configured"
 
 #: src/components/ui/QuickActions.tsx
 msgid "No results found"
@@ -1721,7 +1680,6 @@ msgid "Only operators can change the channel topic"
 msgstr "Only operators can change the channel topic"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Only secure websockets are supported"
 msgstr "Only secure websockets are supported"
 
@@ -1760,7 +1718,6 @@ msgstr "Open in viewer"
 msgid "Open Link"
 msgstr "Open Link"
 
-#: src/components/ui/EditServerModal.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "Oper Name"
 msgstr "Oper Name"
@@ -1769,35 +1726,18 @@ msgstr "Oper Name"
 msgid "Oper name and password are required"
 msgstr "Oper name and password are required"
 
-#: src/components/ui/EditServerModal.tsx
-msgid "Oper on connect"
-msgstr "Oper on connect"
-
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Oper on Connect"
 msgstr "Oper on Connect"
 
-#: src/components/ui/EditServerModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Oper Password"
 msgstr "Oper Password"
 
-#: src/components/ui/EditServerModal.tsx
-msgid "Oper Up"
-msgstr "Oper Up"
-
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Oper Username"
 msgstr "Oper Username"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Operator password"
-msgstr "Operator password"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Operator username"
-msgstr "Operator username"
 
 #: src/components/ui/UserSettings.tsx
 msgid "Optional crash reports to improve the app"
@@ -1808,7 +1748,6 @@ msgid "Owner"
 msgstr "Owner"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Password"
 msgstr "Password"
 
@@ -1887,7 +1826,6 @@ msgid "PM User"
 msgstr "PM User"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Port"
 msgstr "Port"
 
@@ -2002,7 +1940,6 @@ msgid "Reconnect to server"
 msgstr "Reconnect to server"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Register for an account"
 msgstr "Register for an account"
 
@@ -2058,10 +1995,6 @@ msgstr "Rules"
 #: src/components/ui/UserSettings.tsx
 msgid "Safe"
 msgstr "Safe"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "SASL Account Name"
-msgstr "SASL Account Name"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/TopicModal.tsx
@@ -2207,7 +2140,6 @@ msgid "Server doesn't support advanced LIST filtering"
 msgstr "Server doesn't support advanced LIST filtering"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Server Host"
 msgstr "Server Host"
 
@@ -2238,8 +2170,6 @@ msgid "Server operators on the network could potentially read your messages"
 msgstr "Server operators on the network could potentially read your messages"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Server Password"
 msgstr "Server Password"
 
@@ -2520,14 +2450,6 @@ msgstr "Unpin Private Chat"
 msgid "Unpin this private message conversation"
 msgstr "Unpin this private message conversation"
 
-#: src/components/ui/EditServerModal.tsx
-msgid "Update Server"
-msgstr "Update Server"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Updating..."
-msgstr "Updating..."
-
 #: src/components/ui/ImagePreviewModal.tsx
 msgid "Upload"
 msgstr "Upload"
@@ -2541,6 +2463,9 @@ msgid "Upload Avatar"
 msgstr "Upload Avatar"
 
 #: src/components/layout/ChatArea.tsx
+msgid "Upload Files"
+msgstr "Upload Files"
+
 #: src/components/ui/ImagePreviewModal.tsx
 msgid "Upload Image"
 msgstr "Upload Image"
@@ -2562,7 +2487,6 @@ msgid "Use * for wildcards. Examples: baduser!*@*, *!*@spammer.com, troll*!*@*"
 msgstr "Use * for wildcards. Examples: baduser!*@*, *!*@spammer.com, troll*!*@*"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "Use server password"
 msgstr "Use server password"
 
@@ -2683,10 +2607,6 @@ msgstr "View user profile information"
 msgid "Voice"
 msgstr "Voice"
 
-#: src/components/layout/ChannelList.tsx
-msgid "Voice Channels coming soon!"
-msgstr "Voice Channels coming soon!"
-
 #: src/components/layout/MemberList.tsx
 msgid "Voiced User"
 msgstr "Voiced User"
@@ -2752,10 +2672,6 @@ msgstr "Wide - Broader protection scope"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Will default to 'no reason' if left empty"
-
-#: src/components/ui/EditServerModal.tsx
-msgid "Will Forget"
-msgstr "Will Forget"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx
@@ -2828,12 +2744,10 @@ msgid "Your unique identifier on this server"
 msgstr "Your unique identifier on this server"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "your@email.com"
 msgstr "your@email.com"
 
 #: src/components/ui/AddServerModal.tsx
-#: src/components/ui/EditServerModal.tsx
 msgid "YourNickname"
 msgstr "YourNickname"
 

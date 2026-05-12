@@ -32,6 +32,8 @@ import useStore, {
   serverSupportsMetadata,
 } from "../../store";
 import AvatarUpload from "./AvatarUpload";
+import EmojiPackAdminModal from "./EmojiPackAdminModal";
+import PersistenceSettingsPanel from "./PersistenceSettingsPanel";
 import { SettingField } from "./settings/SettingRenderer";
 import { TextInput } from "./TextInput";
 import UserProfileModal from "./UserProfileModal";
@@ -298,6 +300,7 @@ export const UserSettings: React.FC = React.memo(() => {
   const [operOnConnect, setOperOnConnect] = useState(
     serverConfig?.operOnConnect || false,
   );
+  const [isEmojiAdminOpen, setIsEmojiAdminOpen] = useState(false);
 
   // Status messages state
   const [awayMessage, setAwayMessage] = useState("");
@@ -1370,8 +1373,39 @@ export const UserSettings: React.FC = React.memo(() => {
       );
     }
 
+    const supportsTwoFactor =
+      currentServer?.capabilities?.some((c) =>
+        c.startsWith("draft/account-2fa"),
+      ) ?? false;
+
     return (
       <div className="space-y-4">
+        {/* draft/persistence: shown only when the server advertises it */}
+        <PersistenceSettingsPanel serverId={currentServer.id} />
+        {/* Two-Factor Authentication */}
+        {supportsTwoFactor && (
+          <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
+            <h3 className="text-discord-text-normal font-medium">
+              Two-Factor Authentication
+            </h3>
+            <p className="text-discord-text-muted text-sm">
+              Add an authenticator app or biometric / security key to require a
+              second factor when logging in.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                useStore
+                  .getState()
+                  .toggleTwoFactorSettings(true, currentServer.id);
+              }}
+              className="rounded bg-discord-button-secondary-default px-4 py-2 text-discord-text-normal hover:bg-discord-button-secondary-hover"
+            >
+              Manage two-factor authentication
+            </button>
+          </div>
+        )}
+
         {/* IRC Operator Authentication */}
         <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
           <h3 className="text-discord-text-normal font-medium">
@@ -1433,6 +1467,27 @@ export const UserSettings: React.FC = React.memo(() => {
             Authenticate Now
           </button>
         </div>
+
+        {/* draft/custom-emoji admin: visible only to IRCops on a
+            server that advertises the cap. */}
+        {currentUser?.isIrcOp && currentServer?.emojiPackUrl && (
+          <div className="space-y-4 p-4 bg-discord-dark-400 rounded">
+            <h3 className="text-discord-text-normal font-medium">
+              Custom emoji packs
+            </h3>
+            <p className="text-discord-text-muted text-sm">
+              Manage the network-wide and channel-scoped emoji packs that this
+              server publishes via draft/EMOJI.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsEmojiAdminOpen(true)}
+              className="w-full rounded bg-discord-blue px-4 py-2 text-white hover:bg-discord-blue-hover"
+            >
+              Manage packs
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -1631,6 +1686,14 @@ export const UserSettings: React.FC = React.memo(() => {
             username={currentUser.username}
           />
         )}
+
+        {/* draft/custom-emoji admin modal */}
+        {isEmojiAdminOpen && currentServer && (
+          <EmojiPackAdminModal
+            serverId={currentServer.id}
+            onClose={() => setIsEmojiAdminOpen(false)}
+          />
+        )}
       </div>,
       portalTarget,
     );
@@ -1809,6 +1872,13 @@ export const UserSettings: React.FC = React.memo(() => {
           onBack={() => setViewProfileModalOpen(false)}
           serverId={currentServer.id}
           username={currentUser.username}
+        />
+      )}
+      {/* draft/custom-emoji admin modal */}
+      {isEmojiAdminOpen && currentServer && (
+        <EmojiPackAdminModal
+          serverId={currentServer.id}
+          onClose={() => setIsEmojiAdminOpen(false)}
         />
       )}
     </div>

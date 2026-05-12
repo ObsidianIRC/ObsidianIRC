@@ -20,9 +20,15 @@ import {
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 import ircClient from "../../lib/ircClient";
-import { hasOpPermission } from "../../lib/ircUtils";
+import { hasOpPermission, humanizeNamedMode } from "../../lib/ircUtils";
+import {
+  lookupNamedModeMeta,
+  NAMED_MODE_GROUP_LABELS,
+  NAMED_MODE_GROUP_ORDER,
+  type NamedModeGroup,
+} from "../../lib/namedModeRegistry";
 import useStore, { serverSupportsMetadata } from "../../store";
-import type { Channel } from "../../types";
+import type { Channel, NamedModeSpec } from "../../types";
 import AvatarUpload from "./AvatarUpload";
 import FloodSettingsModal from "./FloodSettingsModal";
 
@@ -79,12 +85,23 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelDisplayName, setChannelDisplayName] = useState("");
   const [channelTopic, setChannelTopic] = useState("");
+  // draft/custom-emoji: URL to a per-channel emoji pack JSON document.
+  // Stored as the `draft/emoji` channel metadata key per the spec.
+  const [channelEmojiPack, setChannelEmojiPack] = useState("");
   const [newChannelName, setNewChannelName] = useState("");
   const [renameReason, setRenameReason] = useState("");
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
   const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
   const [isUpdatingTopic, setIsUpdatingTopic] = useState(false);
   const [isApplyingChanges, setIsApplyingChanges] = useState(false);
+
+  // Pending changes for the named-modes-aware Advanced tab. Keyed by
+  // long-form mode name (e.g. "topiclock" or "obsidianirc/floodprot").
+  // Apply diffs this against `originalModesRef` (which records the
+  // current letter-keyed state) and emits a single sendNamedMode call.
+  const [pendingNamedModes, setPendingNamedModes] = useState<
+    Record<string, { sign: "+" | "-"; param?: string }>
+  >({});
 
   // Flood settings modal state
   const [isFloodModalOpen, setIsFloodModalOpen] = useState(false);
@@ -199,7 +216,8 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     ...(userHasOpPermission && supportsMetadata
       ? [{ id: "settings" as const, name: t`Settings`, icon: FaCog, count: 0 }]
       : []),
-    ...(userHasOpPermission && server?.isUnrealIRCd
+    ...(userHasOpPermission &&
+    (server?.namedModes?.supported || server?.isUnrealIRCd)
       ? [{ id: "advanced" as const, name: t`Advanced`, icon: FaCog, count: 0 }]
       : []),
   ];
@@ -222,6 +240,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     if (!isOpen) {
       hasFetchedRef.current = false;
       clearPendingTimeouts();
+      setPendingNamedModes({});
     }
   }, [isOpen, clearPendingTimeouts]);
 
@@ -638,6 +657,18 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         );
       }
 
+      // draft/custom-emoji: apply emoji pack URL change
+      if (
+        channelEmojiPack !== (channel?.metadata?.["draft/emoji"]?.value || "")
+      ) {
+        await metadataSet(
+          serverId,
+          channelName,
+          "draft/emoji",
+          channelEmojiPack.trim() || undefined,
+        );
+      }
+
       // Apply channel rename
       if (newChannelName.trim() && newChannelName.trim() !== channel?.name) {
         ircClient.renameChannel(
@@ -974,6 +1005,24 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     }
   };
 
+  /** Apply path for the named-modes-aware Advanced tab. Walks the
+   *  pendingNamedModes map and emits a single sendNamedMode call. */
+  const applyNamedModesAdvancedChanges = async () => {
+    if (!server || !channel) return;
+    const items: Array<{ sign: "+" | "-"; name: string; param?: string }> = [];
+    for (const [name, change] of Object.entries(pendingNamedModes)) {
+      items.push({ sign: change.sign, name, param: change.param });
+    }
+    if (!items.length) return;
+    setIsApplyingChanges(true);
+    try {
+      ircClient.sendNamedMode(serverId, channelName, items, server.namedModes);
+      setPendingNamedModes({});
+    } finally {
+      setIsApplyingChanges(false);
+    }
+  };
+
   // Cancel pending timeouts when component unmounts
   useEffect(() => {
     return () => clearPendingTimeouts();
@@ -994,6 +1043,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
     if (isOpen && channel) {
       setChannelAvatar(channel.metadata?.avatar?.value || "");
       setChannelDisplayName(channel.metadata?.["display-name"]?.value || "");
+      setChannelEmojiPack(channel.metadata?.["draft/emoji"]?.value || "");
       setChannelTopic(channel.topic || "");
       setNewChannelName(channel.name);
       setRenameReason("");
@@ -1011,6 +1061,155 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   }, [isOpen, channel, loadCurrentChannelModes]);
 
   if (!isOpen) return null;
+
+  /** Look up the live state of a named mode in the parsed mode-state
+   *  ref. Returns { set, param } where set indicates presence and
+   *  param is the current parameter (if any). */
+  const liveStateForNamedMode = (
+    spec: NamedModeSpec,
+  ): { set: boolean; param: string | null } => {
+    if (!spec.letter) return { set: false, param: null };
+    const stored = originalModesRef.current[spec.letter];
+    if (stored === undefined) return { set: false, param: null };
+    // null = present, no param. string = present with param. "__HIDDEN__"
+    // (used for +k/+L masking) counts as present without an exposable
+    // value.
+    return { set: true, param: stored };
+  };
+
+  /** What the user has chosen the mode should become, taking pending
+   *  edits into account. Returns null when there's no override. */
+  const stagedStateForNamedMode = (
+    name: string,
+  ): { sign: "+" | "-"; param?: string } | null => {
+    return pendingNamedModes[name] ?? null;
+  };
+
+  const stageNamedMode = (
+    name: string,
+    next: { sign: "+" | "-"; param?: string } | null,
+  ) => {
+    setPendingNamedModes((prev) => {
+      const out = { ...prev };
+      if (next === null) delete out[name];
+      else out[name] = next;
+      return out;
+    });
+  };
+
+  /** Render a single named-mode entry. The control type is dictated
+   *  by the spec's mode type (1=list, 2=param-both, 3=param-add-only,
+   *  4=flag, 5=prefix). We skip 1 (the dedicated Bans/Exceptions/
+   *  Invitations tabs cover those) and 5 (member-prefix modes are
+   *  set via the member context menu, not channel settings).
+   *
+   *  Returns { node, group } so the caller can bucket rows into the
+   *  section ordering from NAMED_MODE_GROUP_ORDER. Returns null when
+   *  the registry marks the mode as hidden (covered by another tab or
+   *  server-managed). */
+  const renderNamedModeRow = (
+    spec: NamedModeSpec,
+  ): { node: React.ReactNode; group: NamedModeGroup } | null => {
+    if (spec.type === 1 || spec.type === 5) return null;
+    const meta = lookupNamedModeMeta(spec.name);
+    if (meta?.hidden) return null;
+
+    const fallback = humanizeNamedMode(spec.name);
+    const label = meta?.label ?? fallback.display;
+    const description = meta?.description ?? "";
+    const group: NamedModeGroup = meta?.group ?? "properties";
+    const placeholder = meta?.paramPlaceholder;
+
+    const live = liveStateForNamedMode(spec);
+    const staged = stagedStateForNamedMode(spec.name);
+
+    const isFlag = spec.type === 4;
+    const stagedSet = staged ? staged.sign === "+" : live.set;
+    const stagedParam = staged?.param ?? live.param ?? "";
+
+    const headerRow = (
+      <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-white truncate">
+            {label}
+          </span>
+          {fallback.vendor && (
+            <span className="text-[10px] tracking-wide px-1.5 py-0.5 rounded bg-discord-dark-400 text-discord-text-muted flex-shrink-0 lowercase">
+              {fallback.vendor}
+            </span>
+          )}
+        </div>
+        {description && (
+          <p className="text-xs text-discord-text-muted leading-snug">
+            {description}
+          </p>
+        )}
+      </div>
+    );
+
+    if (isFlag) {
+      return {
+        group,
+        node: (
+          <div
+            key={spec.name}
+            className="flex items-start justify-between p-3 bg-discord-dark-300 rounded gap-3"
+          >
+            {headerRow}
+            <input
+              type="checkbox"
+              checked={stagedSet}
+              onChange={(e) => {
+                const next = e.target.checked;
+                if (next === live.set) {
+                  stageNamedMode(spec.name, null);
+                } else {
+                  stageNamedMode(spec.name, { sign: next ? "+" : "-" });
+                }
+              }}
+              className="w-4 h-4 mt-1 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+            />
+          </div>
+        ),
+      };
+    }
+
+    // Param mode (type 2 or 3). Empty input means "unset"; non-empty
+    // means "set to this value".
+    return {
+      group,
+      node: (
+        <div
+          key={spec.name}
+          className="flex flex-col gap-2 p-3 bg-discord-dark-300 rounded"
+        >
+          {headerRow}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={stagedParam}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === (live.param ?? "")) {
+                  stageNamedMode(spec.name, null);
+                } else if (!v) {
+                  stageNamedMode(spec.name, { sign: "-" });
+                } else {
+                  stageNamedMode(spec.name, { sign: "+", param: v });
+                }
+              }}
+              placeholder={
+                live.set
+                  ? "(set, edit to change)"
+                  : (placeholder ?? "(not set)")
+              }
+              className="flex-1 p-2 bg-discord-dark-400 text-white rounded text-sm"
+            />
+          </div>
+        </div>
+      ),
+    };
+  };
 
   const contentBody = (
     <div className="flex-1 flex flex-col min-h-0">
@@ -1249,6 +1448,25 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                 />
               </div>
 
+              {/* draft/custom-emoji: per-channel pack URL */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">
+                  Channel Custom Emoji Pack
+                </label>
+                <p className="text-xs text-discord-text-muted mb-2">
+                  URL of an IRCv3 custom-emoji pack JSON document. Shortcodes
+                  defined here override the network-wide pack for this channel.
+                  Leave blank to use the network default.
+                </p>
+                <input
+                  type="url"
+                  value={channelEmojiPack}
+                  onChange={(e) => setChannelEmojiPack(e.target.value)}
+                  placeholder="https://example.com/emoji/channel/general.json"
+                  className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                />
+              </div>
+
               {/* Channel Rename */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
@@ -1442,433 +1660,472 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         ) : (
           <>
             {/* Advanced tab content */}
-            <div className="flex-1 overflow-y-auto space-y-6">
-              {/* Flood Protection Settings */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-white">
-                    Flood Protection (+f)
-                  </label>
-                  <p className="text-xs text-discord-text-muted mb-2">
-                    Configure flood protection rules to prevent spam and abuse.
-                    UnrealIRCd-specific feature.
-                  </p>
+            {server?.namedModes?.supported ? (
+              (() => {
+                const grouped = new Map<NamedModeGroup, React.ReactNode[]>();
+                for (const spec of server.namedModes.channelModes ?? []) {
+                  const result = renderNamedModeRow(spec);
+                  if (!result) continue;
+                  const list = grouped.get(result.group) ?? [];
+                  list.push(result.node);
+                  grouped.set(result.group, list);
+                }
+                const sections = NAMED_MODE_GROUP_ORDER.filter(
+                  (g) => (grouped.get(g)?.length ?? 0) > 0,
+                );
+                if (sections.length === 0) {
+                  return (
+                    <div className="flex-1 overflow-y-auto">
+                      <p className="text-sm text-discord-text-muted italic">
+                        No advanced modes are advertised by this server.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex-1 overflow-y-auto space-y-6">
+                    {sections.map((g) => (
+                      <div key={g} className="space-y-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-discord-text-muted">
+                          {NAMED_MODE_GROUP_LABELS[g]}
+                        </h3>
+                        <div className="space-y-2">{grouped.get(g)}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-6">
+                {/* Flood Protection Settings */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white">
+                      Flood Protection (+f)
+                    </label>
+                    <p className="text-xs text-discord-text-muted mb-2">
+                      Configure flood protection rules to prevent spam and
+                      abuse. UnrealIRCd-specific feature.
+                    </p>
+                  </div>
+
+                  {/* Flood Profile Selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-discord-text-muted uppercase tracking-wide">
+                      Flood Profile (+F)
+                    </label>
+                    <select
+                      value={floodProfile}
+                      onChange={(e) => setFloodProfile(e.target.value)}
+                      className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                    >
+                      <option value="">
+                        <Trans>No flood profile</Trans>
+                      </option>
+                      <option value="very-strict">
+                        <Trans>Very Strict</Trans>
+                      </option>
+                      <option value="strict">
+                        <Trans>Strict</Trans>
+                      </option>
+                      <option value="normal">
+                        <Trans>Normal</Trans>
+                      </option>
+                      <option value="relaxed">
+                        <Trans>Relaxed</Trans>
+                      </option>
+                      <option value="very-relaxed">
+                        <Trans>Very Relaxed</Trans>
+                      </option>
+                    </select>
+                  </div>
+
+                  {/* Flood Parameters */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-discord-text-muted uppercase tracking-wide">
+                      Flood Parameters
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={floodParams}
+                        onChange={(e) => setFloodParams(e.target.value)}
+                        placeholder={t`Default`}
+                        className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
+                      />
+                      <button
+                        onClick={() => setIsFloodModalOpen(true)}
+                        className="px-3 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded text-sm font-medium"
+                      >
+                        Configure
+                      </button>
+                    </div>
+                    <p className="text-xs text-discord-text-muted">
+                      Use the Configure button for detailed flood rule
+                      management, or enter parameters manually in the format:
+                      [rules]:seconds
+                    </p>
+                  </div>
                 </div>
 
-                {/* Flood Profile Selection */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-discord-text-muted uppercase tracking-wide">
-                    Flood Profile (+F)
-                  </label>
-                  <select
-                    value={floodProfile}
-                    onChange={(e) => setFloodProfile(e.target.value)}
-                    className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
-                  >
-                    <option value="">
-                      <Trans>No flood profile</Trans>
-                    </option>
-                    <option value="very-strict">
-                      <Trans>Very Strict</Trans>
-                    </option>
-                    <option value="strict">
-                      <Trans>Strict</Trans>
-                    </option>
-                    <option value="normal">
-                      <Trans>Normal</Trans>
-                    </option>
-                    <option value="relaxed">
-                      <Trans>Relaxed</Trans>
-                    </option>
-                    <option value="very-relaxed">
-                      <Trans>Very Relaxed</Trans>
-                    </option>
-                  </select>
+                {/* Content Filtering */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-white">
+                    Content Filtering
+                  </h3>
+
+                  {/* Block Color Codes */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Block Color Codes (+c)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Block messages containing mIRC color codes
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={blockColorCodes}
+                      onChange={(e) => setBlockColorCodes(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* No CTCPs */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        No CTCPs (+C)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Block CTCP commands in the channel
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={noCTCPs}
+                      onChange={(e) => setNoCTCPs(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* Filter Bad Words */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Filter Bad Words (+G)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Filter out bad words with &lt;censored&gt;
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={filterBadWords}
+                      onChange={(e) => setFilterBadWords(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* Strip Color Codes */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Strip Color Codes (+S)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Strip mIRC color codes from messages
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={stripColorCodes}
+                      onChange={(e) => setStripColorCodes(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
                 </div>
 
-                {/* Flood Parameters */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-discord-text-muted uppercase tracking-wide">
-                    Flood Parameters
-                  </label>
-                  <div className="flex gap-2">
+                {/* Channel Behavior */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-white">
+                    Channel Behavior
+                  </h3>
+
+                  {/* Delay Joins */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Delay Joins (+D)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Delay showing joins until someone speaks
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={delayJoins}
+                      onChange={(e) => setDelayJoins(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* No Knocks */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        No Knocks (+K)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        /KNOCK command is not allowed
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={noKnocks}
+                      onChange={(e) => setNoKnocks(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* No Nick Changes */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        No Nick Changes (+N)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Nickname changes are not permitted
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={noNickChanges}
+                      onChange={(e) => setNoNickChanges(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* No Kicks */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        No Kicks (+Q)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Kick commands are not allowed
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={noKicks}
+                      onChange={(e) => setNoKicks(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* No Notices */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        No Notices (+T)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        NOTICE commands are not allowed
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={noNotices}
+                      onChange={(e) => setNoNotices(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* No Invites */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        No Invites (+V)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        /INVITE command is not allowed
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={noInvites}
+                      onChange={(e) => setNoInvites(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Access Control */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-white">
+                    Access Control
+                  </h3>
+
+                  {/* Registered Nick Required */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Registered Nick Required (+M)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Users must have a registered nickname (+r) to talk
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={registeredNickRequired}
+                      onChange={(e) =>
+                        setRegisteredNickRequired(e.target.checked)
+                      }
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* Registered Users Only */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Registered Users Only (+R)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Only registered users (+r) may join
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={registeredUsersOnly}
+                      onChange={(e) => setRegisteredUsersOnly(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* IRC Operator Only */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        IRC Operator Only (+O)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Only IRC operators can join (settable by IRCops)
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={ircOperatorOnly}
+                      onChange={(e) => setIrcOperatorOnly(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* Secure Connection Required */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Secure Connection Required (+z)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Only clients on secure connections (SSL/TLS) can join
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={secureConnectionRequired}
+                      onChange={(e) =>
+                        setSecureConnectionRequired(e.target.checked)
+                      }
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Channel Properties */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-white">
+                    Channel Properties
+                  </h3>
+
+                  {/* Private Channel */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Private Channel (+p)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Channel is marked as private
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={privateChannel}
+                      onChange={(e) => setPrivateChannel(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* Permanent Channel */}
+                  <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-white">
+                        Permanent Channel (+P)
+                      </label>
+                      <p className="text-xs text-discord-text-muted mt-1">
+                        Channel won't be destroyed when empty (settable by
+                        IRCops)
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={permanentChannel}
+                      onChange={(e) => setPermanentChannel(e.target.checked)}
+                      className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
+                    />
+                  </div>
+
+                  {/* Channel History */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white">
+                      Channel History (+H)
+                    </label>
+                    <p className="text-xs text-discord-text-muted mb-2">
+                      Record channel history with max-lines:max-minutes. Leave
+                      empty to disable.
+                    </p>
                     <input
                       type="text"
-                      value={floodParams}
-                      onChange={(e) => setFloodParams(e.target.value)}
-                      placeholder={t`Default`}
-                      className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
+                      value={channelHistory}
+                      onChange={(e) => setChannelHistory(e.target.value)}
+                      placeholder={t`e.g., 100:1440`}
+                      className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                     />
-                    <button
-                      onClick={() => setIsFloodModalOpen(true)}
-                      className="px-3 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded text-sm font-medium"
-                    >
-                      Configure
-                    </button>
                   </div>
-                  <p className="text-xs text-discord-text-muted">
-                    Use the Configure button for detailed flood rule management,
-                    or enter parameters manually in the format: [rules]:seconds
-                  </p>
+
+                  {/* Channel Link */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white">
+                      Channel Link (+L)
+                    </label>
+                    <p className="text-xs text-discord-text-muted mb-2">
+                      Forward users to this channel if they can't join. Leave
+                      empty to disable.
+                    </p>
+                    <input
+                      type="text"
+                      value={channelLink}
+                      onChange={(e) => setChannelLink(e.target.value)}
+                      placeholder={t`#overflow`}
+                      className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
+                    />
+                  </div>
                 </div>
               </div>
-
-              {/* Content Filtering */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-white">
-                  Content Filtering
-                </h3>
-
-                {/* Block Color Codes */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Block Color Codes (+c)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Block messages containing mIRC color codes
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={blockColorCodes}
-                    onChange={(e) => setBlockColorCodes(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* No CTCPs */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      No CTCPs (+C)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Block CTCP commands in the channel
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={noCTCPs}
-                    onChange={(e) => setNoCTCPs(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* Filter Bad Words */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Filter Bad Words (+G)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Filter out bad words with &lt;censored&gt;
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={filterBadWords}
-                    onChange={(e) => setFilterBadWords(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* Strip Color Codes */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Strip Color Codes (+S)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Strip mIRC color codes from messages
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={stripColorCodes}
-                    onChange={(e) => setStripColorCodes(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Channel Behavior */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-white">
-                  Channel Behavior
-                </h3>
-
-                {/* Delay Joins */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Delay Joins (+D)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Delay showing joins until someone speaks
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={delayJoins}
-                    onChange={(e) => setDelayJoins(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* No Knocks */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      No Knocks (+K)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      /KNOCK command is not allowed
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={noKnocks}
-                    onChange={(e) => setNoKnocks(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* No Nick Changes */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      No Nick Changes (+N)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Nickname changes are not permitted
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={noNickChanges}
-                    onChange={(e) => setNoNickChanges(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* No Kicks */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      No Kicks (+Q)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Kick commands are not allowed
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={noKicks}
-                    onChange={(e) => setNoKicks(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* No Notices */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      No Notices (+T)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      NOTICE commands are not allowed
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={noNotices}
-                    onChange={(e) => setNoNotices(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* No Invites */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      No Invites (+V)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      /INVITE command is not allowed
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={noInvites}
-                    onChange={(e) => setNoInvites(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Access Control */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-white">
-                  Access Control
-                </h3>
-
-                {/* Registered Nick Required */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Registered Nick Required (+M)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Users must have a registered nickname (+r) to talk
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={registeredNickRequired}
-                    onChange={(e) =>
-                      setRegisteredNickRequired(e.target.checked)
-                    }
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* Registered Users Only */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Registered Users Only (+R)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Only registered users (+r) may join
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={registeredUsersOnly}
-                    onChange={(e) => setRegisteredUsersOnly(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* IRC Operator Only */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      IRC Operator Only (+O)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Only IRC operators can join (settable by IRCops)
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={ircOperatorOnly}
-                    onChange={(e) => setIrcOperatorOnly(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* Secure Connection Required */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Secure Connection Required (+z)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Only clients on secure connections (SSL/TLS) can join
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={secureConnectionRequired}
-                    onChange={(e) =>
-                      setSecureConnectionRequired(e.target.checked)
-                    }
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Channel Properties */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-white">
-                  Channel Properties
-                </h3>
-
-                {/* Private Channel */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Private Channel (+p)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Channel is marked as private
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={privateChannel}
-                    onChange={(e) => setPrivateChannel(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* Permanent Channel */}
-                <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-white">
-                      Permanent Channel (+P)
-                    </label>
-                    <p className="text-xs text-discord-text-muted mt-1">
-                      Channel won't be destroyed when empty (settable by IRCops)
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={permanentChannel}
-                    onChange={(e) => setPermanentChannel(e.target.checked)}
-                    className="w-4 h-4 text-discord-primary bg-discord-dark-300 border-discord-dark-500 rounded focus:ring-discord-primary"
-                  />
-                </div>
-
-                {/* Channel History */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-white">
-                    Channel History (+H)
-                  </label>
-                  <p className="text-xs text-discord-text-muted mb-2">
-                    Record channel history with max-lines:max-minutes. Leave
-                    empty to disable.
-                  </p>
-                  <input
-                    type="text"
-                    value={channelHistory}
-                    onChange={(e) => setChannelHistory(e.target.value)}
-                    placeholder={t`e.g., 100:1440`}
-                    className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
-                  />
-                </div>
-
-                {/* Channel Link */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-white">
-                    Channel Link (+L)
-                  </label>
-                  <p className="text-xs text-discord-text-muted mb-2">
-                    Forward users to this channel if they can't join. Leave
-                    empty to disable.
-                  </p>
-                  <input
-                    type="text"
-                    value={channelLink}
-                    onChange={(e) => setChannelLink(e.target.value)}
-                    placeholder={t`#overflow`}
-                    className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
-                  />
-                </div>
-              </div>
-            </div>
+            )}
           </>
         )}
       </div>
@@ -1910,7 +2167,11 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           )}
           {activeTab === "advanced" && (
             <button
-              onClick={applyAdvancedChanges}
+              onClick={
+                server?.namedModes?.supported
+                  ? applyNamedModesAdvancedChanges
+                  : applyAdvancedChanges
+              }
               disabled={isApplyingChanges}
               className="px-6 py-2 bg-discord-primary hover:bg-opacity-80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >

@@ -860,3 +860,14 @@ textarea.resize-none::-webkit-scrollbar-thumb {
   border-bottom: 3px solid #5865f2 !important;
   margin-bottom: 2px !important;
 }
+
+/* Floating emoji reaction over a voice-channel participant tile.
+   Travels up while fading out so multiple reactions stack visibly. */
+@keyframes react-float {
+  0%   { transform: translateY(0)    scale(0.7); opacity: 0; }
+  15%  { transform: translateY(-8px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-160px) scale(1); opacity: 0; }
+}
+.animate-react-float {
+  animation: react-float 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
