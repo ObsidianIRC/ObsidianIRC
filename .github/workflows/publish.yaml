@@ -526,26 +526,25 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
-      - name: Build web frontend
-        run: npm run build
-
       - name: Archive iOS (unsigned)
         run: |
-          xcodebuild \
-            -project src-tauri/gen/apple/ObsidianIRC.xcodeproj \
-            -scheme ObsidianIRC_iOS \
-            -sdk iphoneos \
-            -configuration release \
-            -destination 'generic/platform=iOS' \
-            -archivePath ${{ runner.temp }}/ObsidianIRC.xcarchive \
-            clean archive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM=""
+          npm run tauri ios build -- --target aarch64-apple-ios --no-sign --archive-only --ci
+
+      - name: Locate xcarchive
+        id: xcarchive
+        run: |
+          ARCHIVE_PATH=$(find src-tauri/gen/apple/build -name "*.xcarchive" -maxdepth 3 | head -n 1)
+          if [ -z "$ARCHIVE_PATH" ]; then
+            echo "Error: no xcarchive produced"
+            find src-tauri/gen/apple/build -type d | head -30
+            exit 1
+          fi
+          echo "Found: $ARCHIVE_PATH"
+          echo "path=$ARCHIVE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Package unsigned .ipa
         run: |
-          ARCHIVE_PATH="${{ runner.temp }}/ObsidianIRC.xcarchive"
+          ARCHIVE_PATH="${{ steps.xcarchive.outputs.path }}"
           WORK_DIR="${{ runner.temp }}/ipa-build"
 
           # Create working directory
