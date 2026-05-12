@@ -91,13 +91,19 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
         const isOwnMessage =
           response.sender.toLowerCase() ===
           currentServerUser?.username?.toLowerCase();
-        const hasMention =
+        const isReplyToMe =
           !isOwnMessage &&
-          checkForMention(
-            message,
-            currentServerUser,
-            currentState.globalSettings,
-          );
+          !!replyMessage &&
+          replyMessage.userId.toLowerCase() ===
+            currentServerUser?.username?.toLowerCase();
+        const hasMention =
+          isReplyToMe ||
+          (!isOwnMessage &&
+            checkForMention(
+              message,
+              currentServerUser,
+              currentState.globalSettings,
+            ));
         const mentions = !isOwnMessage
           ? extractMentions(
               message,
@@ -396,11 +402,39 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           store.getState().messages[channelKey] || [],
         );
 
+        const multilineCurrentState = store.getState();
+        const multilineCurrentUser = ircClient.getCurrentUser(
+          response.serverId,
+        );
+        const isOwnMessage =
+          sender.toLowerCase() ===
+          multilineCurrentUser?.username?.toLowerCase();
+        const isReplyToMe =
+          !isOwnMessage &&
+          !!replyMessage &&
+          replyMessage.userId.toLowerCase() ===
+            multilineCurrentUser?.username?.toLowerCase();
+        const hasMention =
+          isReplyToMe ||
+          (!isOwnMessage &&
+            checkForMention(
+              message,
+              multilineCurrentUser,
+              multilineCurrentState.globalSettings,
+            ));
+        const mentions = !isOwnMessage
+          ? extractMentions(
+              message,
+              multilineCurrentUser,
+              multilineCurrentState.globalSettings,
+            )
+          : [];
+
         const newMessage = {
           id: uuidv4(),
           msgid: mtags?.msgid,
-          multilineMessageIds: messageIds, // Store all message IDs for redaction
-          content: message, // Use the properly combined message from IRC client
+          multilineMessageIds: messageIds,
+          content: message,
           timestamp,
           userId: sender,
           channelId: channel.id,
@@ -408,7 +442,7 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
           type: "message" as const,
           reactions: [],
           replyMessage: replyMessage,
-          mentioned: [], // Add logic for mentions if needed
+          mentioned: mentions,
           tags: mtags,
         };
 
@@ -455,9 +489,57 @@ export function registerMessageHandlers(store: StoreApi<AppState>): void {
 
         store.getState().addMessage(newMessage);
 
-        // Play notification sound if appropriate (but not for historical messages)
         // Don't count unread/mentions for historical messages (batch tag indicates chathistory playback)
         const isHistoricalMessage = mtags?.batch !== undefined;
+        const isActiveChannel =
+          getCurrentSelection(multilineCurrentState).selectedChannelId ===
+            channel.id &&
+          multilineCurrentState.ui.selectedServerId === server.id;
+
+        if (!isActiveChannel && !isOwnMessage && !isHistoricalMessage) {
+          store.setState((state) => {
+            const updatedServers = state.servers.map((s) => {
+              if (s.id === server.id) {
+                const updatedChannels = s.channels.map((ch) => {
+                  if (ch.id === channel.id) {
+                    return {
+                      ...ch,
+                      unreadCount: ch.unreadCount + 1,
+                      mentionCount:
+                        (ch.mentionCount ?? 0) + (hasMention ? 1 : 0),
+                      isMentioned: hasMention || ch.isMentioned,
+                    };
+                  }
+                  return ch;
+                });
+                return { ...s, channels: updatedChannels };
+              }
+              return s;
+            });
+            return { servers: updatedServers };
+          });
+
+          if (
+            hasMention &&
+            multilineCurrentState.globalSettings.enableNotifications
+          ) {
+            showMentionNotification(
+              server.id,
+              channelName ?? "",
+              sender,
+              message,
+              (serverId, msg) => {
+                store.getState().addGlobalNotification({
+                  type: "note",
+                  command: "MENTION",
+                  code: "HIGHLIGHT",
+                  message: msg,
+                  serverId,
+                });
+              },
+            );
+          }
+        }
 
         if (!isHistoricalMessage) {
           const state = store.getState();

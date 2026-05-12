@@ -8,6 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAutoFocusTyping } from "../../hooks/useAutoFocusTyping";
 import { useEmojiCompletion } from "../../hooks/useEmojiCompletion";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useMentionAutocorrectGuard } from "../../hooks/useMentionAutocorrectGuard";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useMessageSending } from "../../hooks/useMessageSending";
 import { useReactions } from "../../hooks/useReactions";
@@ -32,7 +33,7 @@ import {
   getPreviewStyles,
   isValidFormattingType,
 } from "../../lib/messageFormatter";
-import { isTauriMobile } from "../../lib/platformUtils";
+import { isMobileDevice, isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
@@ -493,6 +494,7 @@ export const ChatArea: React.FC<{
   const isNarrowView = useMediaQuery();
   const isTooNarrowForMemberList = useMediaQuery("(max-width: 1080px)");
   const isNativeMobile = isTauriMobile();
+  const isMobileInput = isMobileDevice();
 
   const handleIrcLinkClick = useCallback(
     (rawUrl: string) => {
@@ -608,6 +610,10 @@ export const ChatArea: React.FC<{
         (pc) => pc.id === selectedPrivateChatId,
       ),
     [selectedServer, selectedPrivateChatId],
+  );
+
+  const onBeforeInputGuard = useMentionAutocorrectGuard(
+    selectedChannel?.users.map((u) => u.username) ?? [],
   );
 
   // Member list overlay: show when desktop is too narrow for sidebar
@@ -2142,9 +2148,10 @@ export const ChatArea: React.FC<{
                   onClick={handleInputClick}
                   onKeyUp={handleInputKeyUp}
                   onKeyDown={handleKeyDown}
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck={true}
+                  onBeforeInput={onBeforeInputGuard}
+                  autoCorrect={isMobileInput ? "on" : "off"}
+                  autoCapitalize={isMobileInput ? "sentences" : "off"}
+                  spellCheck={isMobileInput}
                   placeholder={
                     selectedChannel
                       ? `Message ${selectedChannel.name}${

@@ -72,10 +72,22 @@ export const TwoFactorSettingsModal: React.FC<Props> = ({
   const [oauthBusy, setOauthBusy] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
 
-  const supportsWebAuthn =
-    server?.capabilities?.some(
-      (c) => c.startsWith("draft/account-2fa") && c.includes("webauthn"),
-    ) ?? false;
+  // The server advertises which 2FA factors it supports in the CAP LS
+  // value for draft/account-2fa (e.g. "totp,webauthn,oauth"). CAP ACK
+  // only echoes the cap name, so we read from `capabilityValues` --
+  // populated from CAP LS in src/store/handlers/auth.ts.
+  const supportsWebAuthn = (() => {
+    if (!server?.capabilities?.includes("draft/account-2fa")) return false;
+    const factors = server.capabilityValues?.["draft/account-2fa"];
+    // If the cap is acked but no value was seen in CAP LS, assume the
+    // server supports the standard factor set rather than silently
+    // disabling enrolment.
+    if (!factors) return true;
+    return factors
+      .split(",")
+      .map((f) => f.trim().toLowerCase())
+      .includes("webauthn");
+  })();
 
   const [enrollName, setEnrollName] = useState("");
   const [enrollCode, setEnrollCode] = useState("");
