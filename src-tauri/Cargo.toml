@@ -27,7 +27,7 @@ tauri-plugin-notification = "2.3"
 tauri-plugin-os = "2.3"
 tauri-plugin-opener = "2"
 tauri-plugin-deep-link = "2.4"
-tokio = { version = "1.45.1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 base64 = "0.22"
 
 # Use rustls for Android, native-tls for other platforms
@@ -46,7 +46,7 @@ jni = { version = "0.21", default-features = false }
 ndk-context = "0.1"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
-tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
+tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }
 rfd = { version = "0.16", default-features = false, features = ["tokio", "xdg-portal", "wayland"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]

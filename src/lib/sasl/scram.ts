@@ -10,15 +10,21 @@ function bytesToB64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64");
 }
 
-function b64ToBytes(b64: string): Uint8Array {
-  return new Uint8Array(Buffer.from(b64, "base64"));
+function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
+  const buf = Buffer.from(b64, "base64");
+  const out = new Uint8Array(buf.length);
+  out.set(buf);
+  return out;
 }
 
-function strToBytes(s: string): Uint8Array {
+function strToBytes(s: string): Uint8Array<ArrayBuffer> {
   return ENC.encode(s);
 }
 
-function xorBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
+function xorBytes(
+  a: Uint8Array<ArrayBuffer>,
+  b: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(a.length);
   for (let i = 0; i < a.length; i++) out[i] = a[i] ^ b[i];
   return out;
@@ -41,9 +47,9 @@ function randomNonce(bytes = 18): string {
 }
 
 async function hmacSha256(
-  key: Uint8Array,
-  data: Uint8Array,
-): Promise<Uint8Array> {
+  key: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array<ArrayBuffer>> {
   const k = await crypto.subtle.importKey(
     "raw",
     key,
@@ -55,16 +61,18 @@ async function hmacSha256(
   return new Uint8Array(sig);
 }
 
-async function sha256(data: Uint8Array): Promise<Uint8Array> {
+async function sha256(
+  data: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array<ArrayBuffer>> {
   const out = await crypto.subtle.digest("SHA-256", data);
   return new Uint8Array(out);
 }
 
 async function pbkdf2Sha256(
   password: string,
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
   iterations: number,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const k = await crypto.subtle.importKey(
     "raw",
     strToBytes(password),

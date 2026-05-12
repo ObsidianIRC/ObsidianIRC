@@ -16,10 +16,13 @@ export function b64uEncode(buf: ArrayBuffer | Uint8Array): string {
     .replace(/\//g, "_");
 }
 
-export function b64uDecode(s: string): Uint8Array {
+export function b64uDecode(s: string): Uint8Array<ArrayBuffer> {
   const padded = s.replace(/-/g, "+").replace(/_/g, "/");
   const pad = padded.length % 4 ? 4 - (padded.length % 4) : 0;
-  return new Uint8Array(Buffer.from(padded + "=".repeat(pad), "base64"));
+  const buf = Buffer.from(padded + "=".repeat(pad), "base64");
+  const out = new Uint8Array(buf.length);
+  out.set(buf);
+  return out;
 }
 
 export function bytesToB64Std(buf: ArrayBuffer | Uint8Array): string {
