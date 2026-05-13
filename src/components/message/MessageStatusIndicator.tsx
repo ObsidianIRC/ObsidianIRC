@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { useEffect, useState } from "react";
 import { RefreshIcon, SpinnerIcon } from "./icons";
 
@@ -15,6 +16,7 @@ export function MessageStatusIndicator({
   status,
   onRetry,
 }: MessageStatusIndicatorProps) {
+  const { t } = useLingui();
   const [showSpinner, setShowSpinner] = useState(false);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function MessageStatusIndicator({
       <span
         role="status"
         className="ml-2 inline-flex items-center text-discord-text-muted align-middle"
-        aria-label="Sending"
+        aria-label={t`Sending`}
       >
         <SpinnerIcon className="animate-spin h-3 w-3" />
       </span>
@@ -44,8 +46,8 @@ export function MessageStatusIndicator({
       type="button"
       onClick={onRetry}
       className="ml-2 inline-flex items-center text-discord-text-muted hover:text-discord-red cursor-pointer bg-transparent border-none p-0 align-middle"
-      aria-label="Retry sending"
-      title="Retry sending"
+      aria-label={t`Retry sending`}
+      title={t`Retry sending`}
     >
       <RefreshIcon className="h-3.5 w-3.5" />
     </button>

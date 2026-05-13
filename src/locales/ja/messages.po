@@ -1989,6 +1989,11 @@ msgstr "メッセージ内のMarkdown書式を表示する"
 msgid "Reply"
 msgstr "返信"
 
+#: src/components/message/MessageStatusIndicator.tsx
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Retry sending"
+msgstr "再送信"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Rules"
 msgstr "ルール"
@@ -2122,6 +2127,10 @@ msgstr "プライベートメッセージを送信"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Send Typing Notifications"
 msgstr "入力中通知を送信する"
+
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Sending"
+msgstr "送信中"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/ui/QuickActions.tsx

@@ -1989,6 +1989,11 @@ msgstr "Renderizar formatação Markdown nas mensagens"
 msgid "Reply"
 msgstr "Responder"
 
+#: src/components/message/MessageStatusIndicator.tsx
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Retry sending"
+msgstr "Tentar enviar novamente"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Rules"
 msgstr "Regras"
@@ -2122,6 +2127,10 @@ msgstr "Enviar mensagem privada"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Send Typing Notifications"
 msgstr "Enviar notificações de digitação"
+
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Sending"
+msgstr "Enviando"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/ui/QuickActions.tsx
