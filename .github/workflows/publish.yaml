@@ -529,8 +529,13 @@ jobs:
       - name: Start Tauri iOS build with WS server
         run: |
           npm run tauri ios build -- --open &
-          echo "Waiting a few seconds for the WS server to come up…"
-          sleep 10
+          ADDR_FILE="${TMPDIR%/}/com.obsidianirc.dev-server-addr"
+          echo "Waiting for $ADDR_FILE…"
+          for i in $(seq 1 120); do
+            [ -f "$ADDR_FILE" ] && { echo "Addr file ready after ${i}s"; break; }
+            sleep 1
+          done
+          [ -f "$ADDR_FILE" ] || { echo "Addr file never appeared"; exit 1; }
 
       - name: Archive iOS (unsigned)
         run: |
