@@ -1989,6 +1989,11 @@ msgstr "메시지에서 마크다운 서식 렌더링"
 msgid "Reply"
 msgstr "답장"
 
+#: src/components/message/MessageStatusIndicator.tsx
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Retry sending"
+msgstr "다시 보내기"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Rules"
 msgstr "규칙"
@@ -2122,6 +2127,10 @@ msgstr "비공개 메시지 보내기"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Send Typing Notifications"
 msgstr "입력 중 알림 보내기"
+
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Sending"
+msgstr "보내는 중"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/ui/QuickActions.tsx

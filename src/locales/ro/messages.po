@@ -1989,6 +1989,11 @@ msgstr "Afișați formatarea Markdown în mesaje"
 msgid "Reply"
 msgstr "Răspunde"
 
+#: src/components/message/MessageStatusIndicator.tsx
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Retry sending"
+msgstr "Reîncearcă trimiterea"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Rules"
 msgstr "Reguli"
@@ -2122,6 +2127,10 @@ msgstr "Trimite mesaj privat"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Send Typing Notifications"
 msgstr "Trimiteți notificări de tastare"
+
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Sending"
+msgstr "Se trimite"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/ui/QuickActions.tsx

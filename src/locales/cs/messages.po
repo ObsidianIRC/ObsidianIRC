@@ -1989,6 +1989,11 @@ msgstr "Zobrazovat Markdown formátování ve zprávách"
 msgid "Reply"
 msgstr "Odpovědět"
 
+#: src/components/message/MessageStatusIndicator.tsx
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Retry sending"
+msgstr "Zkusit odeslat znovu"
+
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Rules"
 msgstr "Pravidla"
@@ -2122,6 +2127,10 @@ msgstr "Odeslat soukromou zprávu"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Send Typing Notifications"
 msgstr "Odesílat oznámení o psaní"
+
+#: src/components/message/MessageStatusIndicator.tsx
+msgid "Sending"
+msgstr "Odesílání"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/ui/QuickActions.tsx
