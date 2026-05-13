@@ -274,6 +274,11 @@ export class VoiceClient {
   private statsTimer?: ReturnType<typeof setInterval>;
   private state: VoiceState = { phase: "idle" };
   private tagmsgUnsub?: () => void;
+  // Pending JOIN-echo wait state. Both must be cleared on teardown to
+  // stop a torn-down session from firing the SFU "join" or leaking a
+  // stale JOIN hook into the next session.
+  private joinEchoUnsub?: () => void;
+  private joinEchoTimeout?: ReturnType<typeof setTimeout>;
   private speakingTimer?: ReturnType<typeof setInterval>;
   private vadAudioCtx?: AudioContext;
   private isSpeakingNow = false;
@@ -351,19 +356,32 @@ export class VoiceClient {
       this.sendSignal({ type: "join", channel });
     };
     let signaled = false;
+    const clearJoinEchoWait = () => {
+      if (this.joinEchoUnsub) {
+        this.joinEchoUnsub();
+        this.joinEchoUnsub = undefined;
+      }
+      if (this.joinEchoTimeout) {
+        clearTimeout(this.joinEchoTimeout);
+        this.joinEchoTimeout = undefined;
+      }
+    };
     const joinHandler = (p: { username: string; channelName: string }) => {
       if (signaled) return;
-      if (p.username !== selfNick) return;
+      // IRC nicks are case-insensitive per RFC 1459 -- the server may
+      // echo a casing different from this.opts.selfNick.
+      if (p.username.toLowerCase() !== selfNick.toLowerCase()) return;
       if (p.channelName.toLowerCase() !== channel.toLowerCase()) return;
       signaled = true;
-      ircClient.deleteHook("JOIN", joinHandler);
+      clearJoinEchoWait();
       sendJoinSignal();
     };
     ircClient.on("JOIN", joinHandler);
-    setTimeout(() => {
+    this.joinEchoUnsub = () => ircClient.deleteHook("JOIN", joinHandler);
+    this.joinEchoTimeout = setTimeout(() => {
       if (signaled) return;
       signaled = true;
-      ircClient.deleteHook("JOIN", joinHandler);
+      clearJoinEchoWait();
       sendJoinSignal();
     }, 2000);
 
@@ -1255,6 +1273,14 @@ export class VoiceClient {
     if (this.tagmsgUnsub) {
       this.tagmsgUnsub();
       this.tagmsgUnsub = undefined;
+    }
+    if (this.joinEchoUnsub) {
+      this.joinEchoUnsub();
+      this.joinEchoUnsub = undefined;
+    }
+    if (this.joinEchoTimeout) {
+      clearTimeout(this.joinEchoTimeout);
+      this.joinEchoTimeout = undefined;
     }
     for (const sink of this.memberAudioSinks.values()) {
       sink.srcObject = null;
