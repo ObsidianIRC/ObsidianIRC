@@ -2,6 +2,24 @@ import { isChannelTarget } from "../../ircUtils";
 import type { IRCClientContext } from "../IRCClientContext";
 import { getNickFromNuh, getTimestampFromTags } from "../utils";
 
+// Labeled-response wraps every multi-line server reply (e.g. PRIVMSG-to-away,
+// where the server emits both 301 RPL_AWAY and the echo) in a batch whose
+// opener carries the `label` tag. Inner messages only have `@batch=ID`, so
+// downstream label-matching code (pending-message dedup) needs us to hoist
+// the batch's label onto the message.
+function inheritLabelFromBatch(
+  mtags: Record<string, string> | undefined,
+  ctx: IRCClientContext,
+  serverId: string,
+): Record<string, string> | undefined {
+  if (!mtags?.batch || mtags.label) return mtags;
+  const batch = ctx.activeBatches.get(serverId)?.get(mtags.batch);
+  if (batch?.type !== "labeled-response") return mtags;
+  const label = batch.batchTags?.label;
+  if (!label) return mtags;
+  return { ...mtags, label };
+}
+
 export function handlePrivmsg(
   ctx: IRCClientContext,
   serverId: string,
@@ -46,24 +64,26 @@ export function handlePrivmsg(
     }
   }
 
+  const effectiveMtags = inheritLabelFromBatch(mtags, ctx, serverId);
+
   if (isChannel) {
     const channelName = target;
     ctx.triggerEvent("CHANMSG", {
       serverId,
-      mtags,
+      mtags: effectiveMtags,
       sender,
       channelName,
       message,
-      timestamp: getTimestampFromTags(mtags),
+      timestamp: getTimestampFromTags(effectiveMtags),
     });
   } else {
     ctx.triggerEvent("USERMSG", {
       serverId,
-      mtags,
+      mtags: effectiveMtags,
       sender,
       target,
       message,
-      timestamp: getTimestampFromTags(mtags),
+      timestamp: getTimestampFromTags(effectiveMtags),
     });
   }
 }
