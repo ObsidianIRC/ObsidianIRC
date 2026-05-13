@@ -20,6 +20,7 @@ import { readyProcessedServers } from "./handlers/connection";
 import * as tictactoeActions from "./handlers/tictactoeActions";
 import { MAX_MESSAGES_PER_CHANNEL } from "./helpers";
 import * as storage from "./localStorage";
+import { enqueueMetadataList } from "./metadataLazyQueue";
 import { runPendingMigrations } from "./migrations";
 import type {
   ChannelOrderMap,
@@ -3714,7 +3715,10 @@ const useStore = create<AppState>((set, get) => ({
       },
     }));
 
-    ircClient.metadataList(serverId, target);
+    // Drip-feed through the lazy queue so a bursty source (scroll-stop
+    // on a wall of unfamiliar nicks, NAMES landing, etc.) doesn't trip
+    // server-side recvq flood protection.
+    enqueueMetadataList(ircClient, serverId, target);
   },
 
   metadataSet: (serverId, target, key, value, visibility) => {

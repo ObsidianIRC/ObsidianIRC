@@ -4,7 +4,7 @@ import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import { isChannelTarget } from "../../lib/ircUtils";
 import type { Message } from "../../types";
-import { resolveUserMetadata, serverSupportsMetadata } from "../helpers";
+import { resolveUserMetadata } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
@@ -406,24 +406,11 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
         return server;
       });
 
-      // Request metadata for users who don't have it yet
-      if (serverSupportsMetadata(state, serverId)) {
-        const serverData = updatedServers.find((s) => s.id === serverId);
-        const channelData = serverData?.channels.find(
-          (c) => c.name.toLowerCase() === channelName.toLowerCase(),
-        );
-
-        if (channelData) {
-          // Request metadata for users who don't have it
-          channelData.users.forEach((user) => {
-            const hasMetadata =
-              user.metadata && Object.keys(user.metadata).length > 0;
-            if (!hasMetadata) {
-              store.getState().metadataList(serverId, user.username);
-            }
-          });
-        }
-      }
+      // Per-user metadata is fetched lazily now (MemberList scroll-stop
+      // visibility + CHANMSG/USERMSG speak triggers). On a 200-user
+      // channel this loop used to fire 200 METADATA LIST commands in a
+      // tight burst on JOIN, tripping recvq/sendq protection on
+      // UnrealIRCd and dropping the connection (issue #116).
 
       // Check if current user has operator status in this channel and update their modes
       const currentUser = state.currentUser;

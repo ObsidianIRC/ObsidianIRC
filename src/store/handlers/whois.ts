@@ -1,7 +1,6 @@
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import type { User } from "../../types";
-import { serverSupportsMetadata } from "../helpers";
 import type { AppState } from "../index";
 import * as storage from "../localStorage";
 
@@ -444,19 +443,10 @@ export function registerWhoisHandlers(store: StoreApi<AppState>): void {
     const channelData = serverData.channels.find((c) => c.name === mask);
 
     if (channelData) {
-      // This was a WHO for a channel
-      // Only request metadata if server supports it
-      if (serverSupportsMetadata(state, serverId)) {
-        // Request metadata for all users in the channel
-        channelData.users.forEach((user) => {
-          // Only request if we don't already have metadata for this user
-          const hasMetadata =
-            user.metadata && Object.keys(user.metadata).length > 0;
-          if (!hasMetadata) {
-            store.getState().metadataList(serverId, user.username);
-          }
-        });
-      }
+      // This was a WHO for a channel.
+      // We used to fan out METADATA LIST to every user here, which is
+      // the same firehose pattern that NAMES dropped. Lazy fetching
+      // (MemberList visibility + speak triggers) covers it now.
     } else {
       // This might be a WHO for an individual user (private chat)
       // If we got no WHO_REPLY before this WHO_END, the user is offline

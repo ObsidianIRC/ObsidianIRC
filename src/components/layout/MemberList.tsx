@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FaCheckCircle, FaChevronLeft } from "react-icons/fa";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
@@ -100,7 +100,17 @@ const UserItem: React.FC<{
     channelId: string,
     avatarElement?: Element | null,
   ) => void;
-}> = ({ user, serverId, channelId, currentUser, onContextMenu }) => {
+  // Lazy-metadata: parent observes each item with an IntersectionObserver
+  // so we only METADATA LIST users the user actually scrolls to.
+  registerObserverItem?: (username: string, el: Element | null) => void;
+}> = ({
+  user,
+  serverId,
+  channelId,
+  currentUser,
+  onContextMenu,
+  registerObserverItem,
+}) => {
   const { t } = useLingui();
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
@@ -165,6 +175,8 @@ const UserItem: React.FC<{
 
   return (
     <div
+      ref={(el) => registerObserverItem?.(user.username, el)}
+      data-username={user.username}
       className="flex items-center gap-3 py-2 px-3 mx-2 mb-1 rounded cursor-pointer bg-discord-dark-400/30 hover:bg-discord-dark-400/50 transition-colors"
       onClick={(e) => {
         const avatarElement = e.currentTarget.querySelector(".w-10.h-10");
@@ -337,6 +349,83 @@ export const MemberList: React.FC = () => {
     selectedPrivateChatId: null,
   };
   const { selectedChannelId } = currentSelection;
+
+  // Lazy-metadata wiring. We track which nicks the scroller has actually
+  // landed on (via IntersectionObserver), wait for scrolling to come to
+  // rest (SCROLL_IDLE_MS), then ask the store to METADATA LIST any
+  // currently-visible nick we haven't already requested. The store
+  // dedups + the lazy queue drips so a burst of visible nicks doesn't
+  // hammer the server (issue #116).
+  const SCROLL_IDLE_MS = 250;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const itemsRef = useRef(new Map<string, Element>());
+  const visibleUsernamesRef = useRef(new Set<string>());
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+
+  const flushVisible = useCallback(() => {
+    if (!selectedServerId) return;
+    const list = useStore.getState().metadataList;
+    for (const username of visibleUsernamesRef.current) {
+      list(selectedServerId, username);
+    }
+  }, [selectedServerId]);
+
+  const scheduleFlush = useCallback(() => {
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    flushTimerRef.current = setTimeout(flushVisible, SCROLL_IDLE_MS);
+  }, [flushVisible]);
+
+  const registerObserverItem = useCallback(
+    (username: string, el: Element | null) => {
+      if (!el) {
+        const old = itemsRef.current.get(username);
+        if (old && observerRef.current) observerRef.current.unobserve(old);
+        itemsRef.current.delete(username);
+        visibleUsernamesRef.current.delete(username);
+        return;
+      }
+      itemsRef.current.set(username, el);
+      observerRef.current?.observe(el);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const root = scrollContainerRef.current;
+    if (!root) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const username = (entry.target as HTMLElement).dataset.username;
+          if (!username) continue;
+          if (entry.isIntersecting) visibleUsernamesRef.current.add(username);
+          else visibleUsernamesRef.current.delete(username);
+        }
+        scheduleFlush();
+      },
+      { root, threshold: 0 },
+    );
+    observerRef.current = obs;
+    for (const el of itemsRef.current.values()) obs.observe(el);
+    const onScroll = () => scheduleFlush();
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      obs.disconnect();
+      observerRef.current = null;
+      root.removeEventListener("scroll", onScroll);
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    };
+  }, [scheduleFlush]);
+
+  // Channel changes remount items so the observer naturally re-binds via
+  // the callback ref; reset the visibility set so we don't carry over
+  // a stale "X was visible" from the previous channel.
+  useEffect(() => {
+    visibleUsernamesRef.current.clear();
+  }, []);
 
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
@@ -533,7 +622,7 @@ export const MemberList: React.FC = () => {
 
   const isMobileView = useMediaQuery();
   return (
-    <div className="px-1 py-3 h-full overflow-y-auto">
+    <div ref={scrollContainerRef} className="px-1 py-3 h-full overflow-y-auto">
       {isMobileView && (
         <button
           onClick={() => toggleMemberList(false)}
@@ -553,6 +642,7 @@ export const MemberList: React.FC = () => {
           channelId={selectedChannelId || ""}
           currentUser={currentUser}
           onContextMenu={handleUsernameClick}
+          registerObserverItem={registerObserverItem}
         />
       ))}
 
