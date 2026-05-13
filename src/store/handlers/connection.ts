@@ -146,17 +146,13 @@ export function registerConnectionHandlers(store: StoreApi<AppState>): void {
     // Subscribe and sync own metadata in the background — don't await so channel joins
     // happen immediately. The metadata send runs 1 s later inside fetchAndMergeOwnMetadata.
     if (serverSupportsMetadata(store.getState(), serverId)) {
-      // Always re-send SUB on every connect — some servers don't persist subscriptions across sessions.
-      const defaultKeys = [
-        "url",
-        "website",
-        "status",
-        "location",
-        "avatar",
-        "color",
-        "display-name",
-        "bot",
-      ];
+      // Narrow SUB to two keys (display-name, avatar) so the server's
+      // "metadata firehose" on JOIN doesn't push 8 keys × N users at us
+      // and trip recvq/sendq protection on big channels. Other keys are
+      // pulled lazily via metadataList when the user is visible in the
+      // nicklist or speaks. Re-sent on every connect because some
+      // servers don't persist subscriptions across sessions.
+      const defaultKeys = ["display-name", "avatar"];
       store.getState().metadataSub(serverId, defaultKeys);
 
       fetchAndMergeOwnMetadata(store, serverId).then(() => {
