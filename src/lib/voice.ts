@@ -274,6 +274,11 @@ export class VoiceClient {
   private statsTimer?: ReturnType<typeof setInterval>;
   private state: VoiceState = { phase: "idle" };
   private tagmsgUnsub?: () => void;
+  // Pending JOIN-echo wait state. Both must be cleared on teardown to
+  // stop a torn-down session from firing the SFU "join" or leaking a
+  // stale JOIN hook into the next session.
+  private joinEchoUnsub?: () => void;
+  private joinEchoTimeout?: ReturnType<typeof setTimeout>;
   private speakingTimer?: ReturnType<typeof setInterval>;
   private vadAudioCtx?: AudioContext;
   private isSpeakingNow = false;
@@ -334,11 +339,53 @@ export class VoiceClient {
     ircClient.on("TAGMSG", handler);
     this.tagmsgUnsub = () => ircClient.deleteHook("TAGMSG", handler);
 
-    // Step 1: appear in the IRC channel.
-    ircClient.sendRaw(this.opts.serverId, `JOIN ${this.opts.channel}`);
+    // Step 1: appear in the IRC channel, then wait for the server's
+    // own echoed JOIN before sending the SFU "join" TAGMSG. Without
+    // the wait the TAGMSG can race the JOIN on the server side: the
+    // session that's actually a member of the channel may not be the
+    // same session that just sent the TAGMSG (multi-session
+    // persistence migrations), and the channel's +n mode then bounces
+    // the signaling line with ERR_CANNOTSENDTOCHAN, leaving the SFU
+    // never told the user joined. Waiting for the echo means we only
+    // signal once the server confirmed our membership on this
+    // connection. Safety timeout sends anyway after 2 s so an old
+    // server that doesn't echo cleanly doesn't strand the call.
+    const channel = this.opts.channel;
+    const selfNick = this.opts.selfNick;
+    const sendJoinSignal = () => {
+      this.sendSignal({ type: "join", channel });
+    };
+    let signaled = false;
+    const clearJoinEchoWait = () => {
+      if (this.joinEchoUnsub) {
+        this.joinEchoUnsub();
+        this.joinEchoUnsub = undefined;
+      }
+      if (this.joinEchoTimeout) {
+        clearTimeout(this.joinEchoTimeout);
+        this.joinEchoTimeout = undefined;
+      }
+    };
+    const joinHandler = (p: { username: string; channelName: string }) => {
+      if (signaled) return;
+      // IRC nicks are case-insensitive per RFC 1459 -- the server may
+      // echo a casing different from this.opts.selfNick.
+      if (p.username.toLowerCase() !== selfNick.toLowerCase()) return;
+      if (p.channelName.toLowerCase() !== channel.toLowerCase()) return;
+      signaled = true;
+      clearJoinEchoWait();
+      sendJoinSignal();
+    };
+    ircClient.on("JOIN", joinHandler);
+    this.joinEchoUnsub = () => ircClient.deleteHook("JOIN", joinHandler);
+    this.joinEchoTimeout = setTimeout(() => {
+      if (signaled) return;
+      signaled = true;
+      clearJoinEchoWait();
+      sendJoinSignal();
+    }, 2000);
 
-    // Step 2: signal join to the SFU.
-    this.sendSignal({ type: "join", channel: this.opts.channel });
+    ircClient.sendRaw(this.opts.serverId, `JOIN ${this.opts.channel}`);
   }
 
   leave(): void {
@@ -1226,6 +1273,14 @@ export class VoiceClient {
     if (this.tagmsgUnsub) {
       this.tagmsgUnsub();
       this.tagmsgUnsub = undefined;
+    }
+    if (this.joinEchoUnsub) {
+      this.joinEchoUnsub();
+      this.joinEchoUnsub = undefined;
+    }
+    if (this.joinEchoTimeout) {
+      clearTimeout(this.joinEchoTimeout);
+      this.joinEchoTimeout = undefined;
     }
     for (const sink of this.memberAudioSinks.values()) {
       sink.srcObject = null;
