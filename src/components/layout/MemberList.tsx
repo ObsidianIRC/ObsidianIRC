@@ -357,10 +357,18 @@ export const MemberList: React.FC = () => {
   // dedups + the lazy queue drips so a burst of visible nicks doesn't
   // hammer the server (issue #116).
   const SCROLL_IDLE_MS = 250;
+  // Defensive cap: if the IntersectionObserver ever reports too many
+  // items as visible at once (e.g. before layout has settled), we still
+  // only ever queue at most this many METADATA LISTs per scroll-stop.
+  const MAX_FETCH_PER_FLUSH = 30;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const itemsRef = useRef(new Map<string, Element>());
   const visibleUsernamesRef = useRef(new Set<string>());
+  // Mirror of the current sorted member list so flushVisible can map a
+  // visible username back to its on-screen position and dispatch the
+  // top-of-list nicks first.
+  const sortedOrderRef = useRef<string[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -368,7 +376,21 @@ export const MemberList: React.FC = () => {
   const flushVisible = useCallback(() => {
     if (!selectedServerId) return;
     const list = useStore.getState().metadataList;
-    for (const username of visibleUsernamesRef.current) {
+    const visible = visibleUsernamesRef.current;
+    if (visible.size === 0) return;
+    // Sort visible nicks by their on-screen position so we fetch from
+    // the top of the list downward, not in whatever order the IO
+    // happened to fire entries. Cap to MAX_FETCH_PER_FLUSH so a wonky
+    // initial intersection report (which can claim every item is
+    // visible until layout settles) can't drown the lazy queue.
+    const order = sortedOrderRef.current;
+    const indexOf = new Map(order.map((u, i) => [u, i] as const));
+    const ordered = Array.from(visible).sort((a, b) => {
+      const ai = indexOf.get(a) ?? Number.POSITIVE_INFINITY;
+      const bi = indexOf.get(b) ?? Number.POSITIVE_INFINITY;
+      return ai - bi;
+    });
+    for (const username of ordered.slice(0, MAX_FETCH_PER_FLUSH)) {
       list(selectedServerId, username);
     }
   }, [selectedServerId]);
@@ -422,10 +444,13 @@ export const MemberList: React.FC = () => {
 
   // Channel changes remount items so the observer naturally re-binds via
   // the callback ref; reset the visibility set so we don't carry over
-  // a stale "X was visible" from the previous channel.
+  // a stale "X was visible" from the previous channel. The dep is
+  // intentionally selectedChannelId even though the body doesn't read
+  // it -- changing channel is the trigger.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear on channel switch is the intent
   useEffect(() => {
     visibleUsernamesRef.current.clear();
-  }, []);
+  }, [selectedChannelId]);
 
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
@@ -495,6 +520,11 @@ export const MemberList: React.FC = () => {
     }
     return a.username.localeCompare(b.username);
   });
+  // Keep an order ref so flushVisible (a stable useCallback) can find
+  // each visible nick's on-screen position without going back into the
+  // store. Updated synchronously during render -- read in callbacks
+  // that fire after.
+  sortedOrderRef.current = sortedUsers?.map((u) => u.username) ?? [];
 
   const handleUsernameClick = (
     e: React.MouseEvent,
