@@ -2,8 +2,80 @@
 /// <reference types="@testing-library/jest-dom" />
 
 import path from "node:path";
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from "@vitejs/plugin-react";
+
+// Single-tenant hosted deployments (VITE_HIDE_SERVER_LIST=true) ship a
+// PWA manifest + service worker so the page is installable on Android/
+// desktop with the configured network's name and theme. The generic
+// multi-network build is a server-picker and doesn't claim a PWA identity.
+function hostedPwaPlugin(env: Record<string, string>): Plugin {
+  const hosted = env.VITE_HIDE_SERVER_LIST === 'true';
+  const networkName = env.VITE_DEFAULT_IRC_SERVER_NAME || 'ObsidianIRC';
+  const shortName = networkName.length > 12 ? networkName.slice(0, 12) : networkName;
+  return {
+    name: 'hosted-pwa',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      if (!hosted) return html;
+      const tags = [
+        '<link rel="manifest" href="/manifest.webmanifest" />',
+        '<link rel="apple-touch-icon" href="/pwa/icon-192.png" />',
+        `<meta name="apple-mobile-web-app-title" content="${shortName.replace(/"/g, '&quot;')}" />`,
+        '<meta name="apple-mobile-web-app-capable" content="yes" />',
+        '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
+        '<meta name="mobile-web-app-capable" content="yes" />',
+      ].join('\n  ');
+      return html.replace('</head>', `  ${tags}\n</head>`);
+    },
+    generateBundle() {
+      if (!hosted) return;
+      const manifest = {
+        name: networkName,
+        short_name: shortName,
+        description: `${networkName} chat`,
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        orientation: 'any',
+        theme_color: '#202225',
+        background_color: '#202225',
+        // Chrome's installability check on Android demands at least one
+        // 192x192 AND one 512x512 icon with purpose=any. The maskable
+        // variant is what Android picks when the launcher mask is
+        // applied (adaptive icons); without it the artwork gets clipped
+        // by the dynamic mask. See web.dev/install-criteria/ and
+        // web.dev/maskable-icon/.
+        icons: [
+          {
+            src: '/pwa/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/pwa/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/pwa/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      };
+      this.emitFile({
+        type: 'asset',
+        fileName: 'manifest.webmanifest',
+        source: JSON.stringify(manifest, null, 2),
+      });
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -15,6 +87,7 @@ export default defineConfig(({ mode }) => {
           plugins: ["@lingui/babel-plugin-lingui-macro"],
         },
       }),
+      hostedPwaPlugin(process.env as Record<string, string>),
     ],
     base: "./",
     test: {
