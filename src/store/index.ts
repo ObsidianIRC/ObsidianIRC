@@ -1,6 +1,7 @@
 import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import { create } from "zustand";
 import ircClient from "../lib/ircClient";
+import { makeLabel } from "../lib/labeledResponse";
 import {
   clearServerConnectionTimeout,
   registerAllProtocolHandlers,
@@ -751,6 +752,10 @@ export interface AppState {
     bufferId: string,
     label: string,
   ) => void;
+  // Re-send a message previously flipped to "failed" after the
+  // labeled-response timeout. Issues a fresh label, sets the message
+  // back to "pending", and arms a new timeout.
+  resendFailedMessage: (messageId: string) => void;
   addGlobalNotification: (notification: {
     type: "fail" | "warn" | "note";
     command: string;
@@ -1767,6 +1772,60 @@ const useStore = create<AppState>((set, get) => ({
         },
       };
     });
+  },
+
+  resendFailedMessage: (messageId) => {
+    const state = get();
+    let foundEntry: { channelKey: string; msg: Message } | null = null;
+    for (const [channelKey, list] of Object.entries(state.messages)) {
+      const msg = list.find((m) => m.id === messageId);
+      if (msg) {
+        foundEntry = { channelKey, msg };
+        break;
+      }
+    }
+    if (!foundEntry) return;
+    const { channelKey, msg } = foundEntry;
+    const server = state.servers.find((s) => s.id === msg.serverId);
+    if (!server) return;
+
+    // Map the message's bufferId back to the wire target (#chan or nick).
+    const channel = server.channels?.find((c) => c.id === msg.channelId);
+    const privateChat = server.privateChats?.find(
+      (pc) => pc.id === msg.channelId,
+    );
+    const wireTarget = channel?.name ?? privateChat?.username;
+    if (!wireTarget) return;
+
+    const label = makeLabel();
+    set((state) => {
+      const list = state.messages[channelKey];
+      if (!list) return state;
+      const next = list.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              status: "pending" as const,
+              pendingLabel: label,
+              timestamp: new Date(),
+            }
+          : m,
+      );
+      return {
+        messages: {
+          ...state.messages,
+          [channelKey]: next,
+        },
+      };
+    });
+
+    ircClient.sendRaw(
+      msg.serverId,
+      `@label=${label} PRIVMSG ${wireTarget} :${msg.content}`,
+    );
+    setTimeout(() => {
+      get().failPendingMessage(msg.serverId, msg.channelId, label);
+    }, 30_000);
   },
 
   addGlobalNotification: (notification) => {

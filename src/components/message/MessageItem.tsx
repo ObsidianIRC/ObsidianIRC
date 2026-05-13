@@ -40,6 +40,7 @@ import {
   WhisperMessage,
 } from "./index";
 import { MediaPreview } from "./MediaPreview";
+import { MessageStatusIndicator } from "./MessageStatusIndicator";
 
 interface MessageItemProps {
   message: MessageType;
@@ -671,7 +672,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
         showHeader ? "mt-4" : "py-0.5"
       }${isHighlighted ? " bg-primary/10 ring-1 ring-primary/30 rounded" : ""}${
         message.status === "pending"
-          ? " opacity-60 italic"
+          ? " opacity-60"
           : message.status === "failed"
             ? " opacity-60 line-through text-discord-red"
             : ""
@@ -759,6 +760,17 @@ export const MessageItem = memo((props: MessageItemProps) => {
                 </div>
               )}
             </EnhancedLinkWrapper>
+
+            {(message.status === "pending" || message.status === "failed") && (
+              <span className="inline-flex" style={{ textDecoration: "none" }}>
+                <MessageStatusIndicator
+                  status={message.status}
+                  onRetry={() =>
+                    useStore.getState().resendFailedMessage(message.id)
+                  }
+                />
+              </span>
+            )}
 
             {/* Embedded media below text — first always visible,
                   known-type extras collapsed behind a "show more" toggle to prevent floods.
