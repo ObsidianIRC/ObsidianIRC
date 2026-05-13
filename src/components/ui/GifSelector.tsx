@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type * as React from "react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -152,7 +154,9 @@ const GifSelector: React.FC<GifSelectorProps> = ({
       >
         {/* Header */}
         <div className="p-4 border-b border-discord-dark-300 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Send a GIF</h2>
+          <h2 className="text-lg font-semibold text-white">
+            <Trans>Send a GIF</Trans>
+          </h2>
           <button
             onClick={onClose}
             className="text-discord-text-muted hover:text-white"
@@ -191,7 +195,7 @@ const GifSelector: React.FC<GifSelectorProps> = ({
         <div className="p-4 border-b border-discord-dark-300">
           <div className="flex space-x-2">
             <TextInput
-              placeholder="Search GIFs..."
+              placeholder={t`Search GIFs...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSearch()}
@@ -202,7 +206,7 @@ const GifSelector: React.FC<GifSelectorProps> = ({
               disabled={isLoading}
               className="px-4 py-2 bg-discord-blue text-white rounded hover:bg-discord-blue-hover disabled:opacity-50"
             >
-              {isLoading ? "Searching..." : "Search"}
+              {isLoading ? <Trans>Searching...</Trans> : <Trans>Search</Trans>}
             </button>
           </div>
         </div>
@@ -211,12 +215,12 @@ const GifSelector: React.FC<GifSelectorProps> = ({
         <div className="p-4 max-h-96 overflow-y-auto">
           {gifs.length === 0 && !isLoading && (
             <div className="text-center text-discord-text-muted py-8">
-              Search for GIFs to get started
+              <Trans>Search for GIFs to get started</Trans>
             </div>
           )}
           {isLoading && (
             <div className="text-center text-discord-text-muted py-8">
-              Loading GIFs...
+              <Trans>Loading GIFs...</Trans>
             </div>
           )}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

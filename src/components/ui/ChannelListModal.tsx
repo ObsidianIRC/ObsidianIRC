@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaDesktop, FaHashtag, FaUsers, FaVolumeUp } from "react-icons/fa";
@@ -298,7 +300,7 @@ const ChannelListModal: React.FC = () => {
     <BaseModal
       isOpen={true}
       onClose={() => toggleChannelListModal(false)}
-      title={`Channels on ${networkName}`}
+      title={t`Channels on ${networkName}`}
       showCloseButton
       maxWidth="2xl"
       contentClassName="flex flex-col"
@@ -306,13 +308,13 @@ const ChannelListModal: React.FC = () => {
       <div className="p-4 flex flex-col flex-1 min-h-0">
         <div className="mb-4 flex-shrink-0">
           <span className="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg font-semibold shadow-sm">
-            Total: {filteredChannels.length}
+            <Trans>Total: {filteredChannels.length}</Trans>
           </span>
         </div>
 
         <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center flex-shrink-0">
           <TextInput
-            placeholder="Filter channels..."
+            placeholder={t`Filter channels...`}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="flex-1 bg-discord-dark-300 text-white px-3 py-2 rounded"
@@ -322,8 +324,8 @@ const ChannelListModal: React.FC = () => {
             onChange={(e) => setSortBy(e.target.value as "alpha" | "users")}
             className="bg-discord-dark-300 text-white px-3 py-2 rounded"
           >
-            <option value="alpha">Sort by Name</option>
-            <option value="users">Sort by Users</option>
+            <option value="alpha">{t`Sort by Name`}</option>
+            <option value="users">{t`Sort by Users`}</option>
           </select>
         </div>
 
@@ -333,7 +335,9 @@ const ChannelListModal: React.FC = () => {
             onClick={() => setShowFilters(!showFilters)}
             className="text-gray-300 hover:text-white text-sm mb-2 flex items-center gap-2"
           >
-            <span>{showFilters ? "▼" : "▶"} Advanced Filters</span>
+            <span>
+              {showFilters ? "▼" : "▶"} <Trans>Advanced Filters</Trans>
+            </span>
           </button>
 
           {showFilters && (
@@ -343,7 +347,7 @@ const ChannelListModal: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
-                        Min Users
+                        {t`Min Users`}
                       </label>
                       <input
                         type="number"
@@ -358,7 +362,7 @@ const ChannelListModal: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
-                        Max Users
+                        {t`Max Users`}
                       </label>
                       <input
                         type="number"
@@ -378,7 +382,7 @@ const ChannelListModal: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
-                        Created After (min ago)
+                        {t`Created After (min ago)`}
                       </label>
                       <input
                         type="number"
@@ -395,7 +399,7 @@ const ChannelListModal: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
-                        Created Before (min ago)
+                        {t`Created Before (min ago)`}
                       </label>
                       <input
                         type="number"
@@ -417,7 +421,7 @@ const ChannelListModal: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
-                        Topic Set After (min ago)
+                        {t`Topic Set After (min ago)`}
                       </label>
                       <input
                         type="number"
@@ -434,7 +438,7 @@ const ChannelListModal: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">
-                        Topic Set Before (min ago)
+                        {t`Topic Set Before (min ago)`}
                       </label>
                       <input
                         type="number"
@@ -455,13 +459,13 @@ const ChannelListModal: React.FC = () => {
                 {elist.includes("M") && (
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
-                      Channel Name Mask
+                      {t`Channel Name Mask`}
                     </label>
                     <TextInput
                       value={mask}
                       onChange={(e) => setMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
-                      placeholder="*channel*"
+                      placeholder={t`*channel*`}
                     />
                   </div>
                 )}
@@ -469,20 +473,20 @@ const ChannelListModal: React.FC = () => {
                 {elist.includes("N") && (
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
-                      Exclude Channel Name Mask
+                      {t`Exclude Channel Name Mask`}
                     </label>
                     <TextInput
                       value={notMask}
                       onChange={(e) => setNotMask(e.target.value)}
                       className="w-full bg-discord-dark-400 text-white px-2 py-1 rounded text-sm"
-                      placeholder="*spam*"
+                      placeholder={t`*spam*`}
                     />
                   </div>
                 )}
 
                 {elist.length === 0 && (
                   <div className="text-sm text-gray-400 text-center py-2">
-                    Server doesn't support advanced LIST filtering
+                    {t`Server doesn't support advanced LIST filtering`}
                   </div>
                 )}
               </div>
@@ -491,7 +495,7 @@ const ChannelListModal: React.FC = () => {
                 onClick={applyFilters}
                 className="w-full bg-discord-primary hover:bg-discord-primary-hover text-white py-2 px-4 rounded text-sm font-medium"
               >
-                Apply Filters & Refresh
+                <Trans>Apply Filters & Refresh</Trans>
               </button>
             </div>
           )}
@@ -499,7 +503,7 @@ const ChannelListModal: React.FC = () => {
 
         {selectedServerId && listingInProgress[selectedServerId] && (
           <p className="text-gray-400 mb-4 flex-shrink-0">
-            Loading channels...
+            <Trans>Loading channels...</Trans>
           </p>
         )}
 
@@ -510,7 +514,9 @@ const ChannelListModal: React.FC = () => {
           <div className="space-y-2">
             {filteredChannels.length === 0 &&
               !(selectedServerId && listingInProgress[selectedServerId]) && (
-                <p className="text-gray-400">No channels found.</p>
+                <p className="text-gray-400">
+                  <Trans>No channels found.</Trans>
+                </p>
               )}
             {filteredChannels
               .slice(0, displayedChannelsCount)
@@ -611,7 +617,7 @@ const ChannelListModal: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-gray-400 text-sm break-words mt-0.5">
-                        {channel.topic || "No topic"}
+                        {channel.topic || t`No topic`}
                       </p>
                     </div>
                   </div>
@@ -620,7 +626,7 @@ const ChannelListModal: React.FC = () => {
             {loadingMore && (
               <div className="text-center py-4">
                 <p className="text-gray-400 text-sm">
-                  Loading more channels...
+                  <Trans>Loading more channels...</Trans>
                 </p>
               </div>
             )}
@@ -628,8 +634,10 @@ const ChannelListModal: React.FC = () => {
               !loadingMore && (
                 <div className="text-center py-4">
                   <p className="text-gray-500 text-xs">
-                    Showing {displayedChannelsCount} of{" "}
-                    {filteredChannels.length} channels
+                    <Trans>
+                      Showing {displayedChannelsCount} of{" "}
+                      {filteredChannels.length} channels
+                    </Trans>
                   </p>
                 </div>
               )}

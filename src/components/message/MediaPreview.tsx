@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import exifr from "exifr";
 import type * as React from "react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -264,7 +266,7 @@ const ImagePreview: React.FC<{
       <div className="max-w-md">
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
           <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 border border-red-200">
-            <span>This image has expired</span>
+            <Trans>This image has expired</Trans>
           </div>
         </div>
       </div>
@@ -284,7 +286,7 @@ const ImagePreview: React.FC<{
         )}
         <img
           src={displayUrl}
-          alt={isFilehostImage ? "Filehost image" : "GIF"}
+          alt={isFilehostImage ? t`Filehost image` : t`GIF`}
           className={`max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity ${imageCanHaveTransparency(displayUrl) ? "transparency-grid" : "bg-white"} ${imageLoaded ? "block" : "hidden"}`}
           onClick={() => openMedia(displayUrl, msgid, serverId, channelId)}
           onLoad={() => setImageLoaded(true)}
@@ -323,7 +325,7 @@ const VideoUnsupported: React.FC<{
         type="button"
         className="flex items-center gap-2 py-2 px-3 rounded border border-discord-dark-500/50 bg-discord-dark-400/30 text-discord-text-muted text-xs hover:bg-discord-dark-500/40 hover:text-discord-text-normal transition-colors w-full text-left"
         onClick={() => openMedia(url, msgid, serverId, channelId)}
-        title="Open in viewer"
+        title={t`Open in viewer`}
       >
         <svg
           className="w-4 h-4 shrink-0"
@@ -337,7 +339,7 @@ const VideoUnsupported: React.FC<{
           {url.split("/").pop()?.split("?")[0] || "video"}
         </span>
         <span className="text-discord-text-muted/60 shrink-0">
-          — open in viewer
+          {t`— open in viewer`}
         </span>
       </button>
     </div>
@@ -573,7 +575,7 @@ const VideoPlayer: React.FC<{
         {!isPlaying && (
           <button
             type="button"
-            aria-label="Play"
+            aria-label={t`Play`}
             onClick={handlePlayPause}
             className="absolute inset-0 flex items-center justify-center z-10"
           >
@@ -592,7 +594,7 @@ const VideoPlayer: React.FC<{
           <div className="flex items-center gap-2 text-white">
             <button
               type="button"
-              aria-label={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? t`Pause` : t`Play`}
               className="shrink-0 hover:scale-110 transition-transform"
               onClick={handlePlayPause}
             >
@@ -615,7 +617,7 @@ const VideoPlayer: React.FC<{
               defaultValue={0}
               onChange={handleSeek}
               className="flex-1 h-0.5 accent-white cursor-pointer rounded-full"
-              aria-label="Seek"
+              aria-label={t`Seek`}
             />
             <span className="text-xs tabular-nums shrink-0 text-white/40">
               {formatVideoTime(duration)}
@@ -623,7 +625,7 @@ const VideoPlayer: React.FC<{
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                aria-label={volume === 0 ? "Unmute" : "Mute"}
+                aria-label={volume === 0 ? t`Unmute` : t`Mute`}
                 className="shrink-0 hover:scale-110 transition-transform text-white/75 hover:text-white"
                 onClick={handleToggleMute}
               >
@@ -641,7 +643,7 @@ const VideoPlayer: React.FC<{
                 value={volume}
                 onChange={handleVolumeChange}
                 className="w-14 h-0.5 accent-white cursor-pointer"
-                aria-label="Volume"
+                aria-label={t`Volume`}
               />
             </div>
           </div>
@@ -738,7 +740,7 @@ const AudioPreview: React.FC<{
         <>
           <button
             type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t`Pause` : t`Play`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal"
             onClick={() => (isPlaying ? pause() : play())}
           >
@@ -754,7 +756,7 @@ const AudioPreview: React.FC<{
           </button>
           <button
             type="button"
-            aria-label="Stop"
+            aria-label={t`Stop`}
             className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-muted"
             onClick={stop}
           >
@@ -766,7 +768,7 @@ const AudioPreview: React.FC<{
       ) : (
         <button
           type="button"
-          aria-label="Play"
+          aria-label={t`Play`}
           className="p-1 rounded hover:bg-discord-dark-500/50 text-discord-text-normal"
           onClick={play}
         >
@@ -860,7 +862,7 @@ const SoundCloudEmbed: React.FC<{
         scrolling="no"
         frameBorder="0"
         allow="autoplay"
-        title="SoundCloud player"
+        title={t`SoundCloud player`}
         tabIndex={-1}
         style={{ borderRadius: 4, display: "block" }}
         onError={() => setEmbedError(true)}
@@ -989,7 +991,7 @@ const PdfPreview: React.FC<{
       return wrapper(
         <img
           src={url}
-          alt="PDF preview"
+          alt={t`PDF preview`}
           style={{ width: PDF_THUMB_W, maxHeight: PDF_THUMB_H }}
           className="object-cover object-top block"
           onError={() => setImgError(true)}

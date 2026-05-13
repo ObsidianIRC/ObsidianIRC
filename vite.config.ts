@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 /// <reference types="@testing-library/jest-dom" />
 
+import path from "node:path";
 import { defineConfig, loadEnv } from 'vite';
 import react from "@vitejs/plugin-react";
 
@@ -8,13 +9,24 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
   return {
-    plugins: [react()],
+    plugins: [
+      react({
+        babel: {
+          plugins: ["@lingui/babel-plugin-lingui-macro"],
+        },
+      }),
+    ],
     base: "./",
     test: {
       globals: true,
       environment: "jsdom",
       setupFiles: "./tests/setup.ts",
       include: ["tests/**/*.test.tsx", "tests/**/*.test.ts"],
+      alias: {
+        // Replace @lingui/react with a lightweight mock so useLingui() works
+        // without requiring I18nProvider in every test render tree
+        "@lingui/react": path.resolve("./tests/mocks/lingui-react.ts"),
+      },
     },
     define: {
       '__APP_VERSION__': JSON.stringify(process.env.npm_package_version),

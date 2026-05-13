@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -34,6 +35,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
   currentUsername,
   onOpenModerationModal,
 }) => {
+  const { t } = useLingui();
   const menuRef = useRef<HTMLDivElement>(null);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
 
@@ -210,7 +212,7 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
           <button
             onClick={handleOpenPM}
             className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
-            title="Send Message"
+            title={t`Send Message`}
           >
             <svg
               className="w-4 h-4 flex-shrink-0"
@@ -225,14 +227,14 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                 d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
               />
             </svg>
-            <span className="truncate" title="Send Message">
-              Send Message
+            <span className="truncate">
+              <Trans>Send Message</Trans>
             </span>
           </button>
           <button
             onClick={handleOpenProfile}
             className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 flex items-center gap-2"
-            title="View Profile"
+            title={t`View Profile`}
           >
             <svg
               className="w-4 h-4 flex-shrink-0"
@@ -247,8 +249,8 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
               />
             </svg>
-            <span className="truncate" title="View Profile">
-              View Profile
+            <span className="truncate">
+              <Trans>View Profile</Trans>
             </span>
           </button>
           {!isOwnUser && (
@@ -282,11 +284,12 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                   />
                 )}
               </svg>
-              <span
-                className="truncate"
-                title={isIgnored ? "Unignore User" : "Ignore User"}
-              >
-                {isIgnored ? "Unignore User" : "Ignore User"}
+              <span className="truncate">
+                {isIgnored ? (
+                  <Trans>Unignore User</Trans>
+                ) : (
+                  <Trans>Ignore User</Trans>
+                )}
               </span>
             </button>
           )}
@@ -309,8 +312,8 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
                   />
                 </svg>
-                <span className="truncate" title="Warn User">
-                  Warn User
+                <span className="truncate">
+                  <Trans>Warn User</Trans>
                 </span>
               </button>
               <button
@@ -330,8 +333,8 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                     d="M13 7l5 5m0 0l-5 5m5-5H6"
                   />
                 </svg>
-                <span className="truncate" title="Kick User">
-                  Kick User
+                <span className="truncate">
+                  <Trans>Kick User</Trans>
                 </span>
               </button>
               <div className="border-t border-discord-dark-500 mt-1 pt-1">
@@ -352,8 +355,8 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                       d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <span className="truncate" title="Ban User">
-                    Ban User
+                  <span className="truncate">
+                    <Trans>Ban User</Trans>
                   </span>
                   <svg
                     className={`w-4 h-4 ml-auto flex-shrink-0 transition-transform duration-200 ${openAccordion === "bans" ? "rotate-180" : ""}`}
@@ -374,16 +377,16 @@ export const UserContextMenu: React.FC<UserContextMenuProps> = ({
                     <button
                       onClick={handleBanUserByNick}
                       className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 text-sm truncate"
-                      title="Ban by Nickname"
+                      title={t`Ban by Nickname`}
                     >
-                      Ban by Nickname
+                      <Trans>Ban by Nickname</Trans>
                     </button>
                     <button
                       onClick={handleBanUserByHostmask}
                       className="w-full px-3 py-2 text-left text-discord-text-normal hover:bg-discord-dark-200 hover:text-white transition-colors duration-150 text-sm truncate"
-                      title="Ban by Hostmask"
+                      title={t`Ban by Hostmask`}
                     >
-                      Ban by Hostmask
+                      <Trans>Ban by Hostmask</Trans>
                     </button>
                   </div>
                 )}

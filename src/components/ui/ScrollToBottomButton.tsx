@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import type React from "react";
 import { FaArrowDown } from "react-icons/fa";
 
@@ -23,7 +24,7 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
           // while still letting the click fire and scroll to bottom.
           onMouseDown={(e) => e.preventDefault()}
           className="scroll-to-bottom-btn p-3 bg-discord-dark-300 hover:bg-discord-dark-200 text-discord-text-muted hover:text-discord-channels-default rounded-full shadow-2xl transition-colors relative"
-          aria-label="Scroll to bottom"
+          aria-label={t`Scroll to bottom`}
         >
           <FaArrowDown className="w-4 h-4" />
           {unreadCount && unreadCount > 0 && (

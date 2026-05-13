@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -299,14 +301,14 @@ export const ChannelList: React.FC<{
           <FaCheckCircle
             className="inline ml-0.5 text-green-500"
             style={{ fontSize: "0.75em", verticalAlign: "baseline" }}
-            title="Verified account"
+            title={t`Verified account`}
           />
         )}
         {isBot && (
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="Bot"
+            title={t`Bot`}
           >
             🤖
           </span>
@@ -315,7 +317,7 @@ export const ChannelList: React.FC<{
           <span
             className="inline ml-0.5"
             style={{ fontSize: "0.9em" }}
-            title="IRC Operator"
+            title={t`IRC Operator`}
           >
             🔑
           </span>
@@ -478,14 +480,13 @@ export const ChannelList: React.FC<{
           <FaChevronLeft />
         </button>
       </div>
-
       {/* Channel list */}
       <div className="flex-grow overflow-y-auto overflow-x-hidden px-2 pt-4 max-w-full">
         {/* Home/Direct Messages view */}
         {!selectedServer && (
           <div className="px-2">
             <div className="text-discord-channels-default font-medium mb-1 text-xs">
-              HOME
+              <Trans>HOME</Trans>
             </div>
             <div
               className={`
@@ -494,7 +495,7 @@ export const ChannelList: React.FC<{
               `}
               onClick={() => selectChannel(null, { navigate: true })}
             >
-              Discover
+              <Trans>Discover</Trans>
             </div>
           </div>
         )}
@@ -514,7 +515,7 @@ export const ChannelList: React.FC<{
                   <FaChevronRight className="text-xs mr-1" />
                 )}
                 <span className="uppercase text-xs font-semibold tracking-wide">
-                  Text Channels
+                  <Trans>Text Channels</Trans>
                 </span>
                 <FaPlus
                   className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
@@ -534,7 +535,7 @@ export const ChannelList: React.FC<{
                     </span>
                     <TextInput
                       className="bg-transparent border-none outline-none py-1 w-full text-discord-channels-active"
-                      placeholder="channel-name"
+                      placeholder={t`channel-name`}
                       value={
                         newChannelName.startsWith("#")
                           ? newChannelName.slice(1)
@@ -581,7 +582,7 @@ export const ChannelList: React.FC<{
                             ? [] // No context menu on mobile - trash icon handles deletion
                             : [
                                 {
-                                  label: "Delete Channel",
+                                  label: t`Delete Channel`,
                                   icon: <FaTrash size={14} />,
                                   onClick: () => {
                                     if (selectedServerId) {
@@ -819,7 +820,7 @@ export const ChannelList: React.FC<{
                             {/* Trash Button */}
                             {selectedChannelId === channel.id && (
                               <button
-                                title="Leave channel"
+                                title={t`Leave channel`}
                                 className={`text-discord-red hover:text-white ${
                                   isNarrowView
                                     ? "block" // Always visible on mobile
@@ -1011,7 +1012,7 @@ export const ChannelList: React.FC<{
                   <FaChevronRight className="text-xs mr-1" />
                 )}
                 <span className="uppercase text-xs font-semibold tracking-wide">
-                  Private Messages
+                  <Trans>Private Messages</Trans>
                 </span>
                 <FaPlus
                   className={`ml-auto ${!isNarrowView && "opacity-0 group-hover:opacity-100"} cursor-pointer`}
@@ -1033,8 +1034,8 @@ export const ChannelList: React.FC<{
                           : [
                               {
                                 label: privateChat.isPinned
-                                  ? "Unpin Private Chat"
-                                  : "Pin Private Chat",
+                                  ? t`Unpin Private Chat`
+                                  : t`Pin Private Chat`,
                                 icon: <FaThumbtack size={14} />,
                                 onClick: () => {
                                   if (selectedServerId) {
@@ -1056,7 +1057,7 @@ export const ChannelList: React.FC<{
                                   : "",
                               },
                               {
-                                label: "Delete Private Chat",
+                                label: t`Delete Private Chat`,
                                 icon: <FaTrash size={14} />,
                                 onClick: () => {
                                   if (selectedServerId) {
@@ -1246,9 +1247,9 @@ export const ChannelList: React.FC<{
                               title={
                                 privateChat.isOnline
                                   ? privateChat.isAway
-                                    ? "Away"
-                                    : "Online"
-                                  : "Offline"
+                                    ? t`Away`
+                                    : t`Online`
+                                  : t`Offline`
                               }
                             />
                           </div>
@@ -1444,7 +1445,7 @@ export const ChannelList: React.FC<{
                                   e.stopPropagation();
                                   e.preventDefault();
                                 }}
-                                title={privateChat.isPinned ? "Unpin" : "Pin"}
+                                title={privateChat.isPinned ? t`Unpin` : t`Pin`}
                               >
                                 <FaThumbtack
                                   className={
@@ -1482,7 +1483,7 @@ export const ChannelList: React.FC<{
                                     e.stopPropagation();
                                     e.preventDefault();
                                   }}
-                                  title="Close"
+                                  title={t`Close`}
                                 >
                                   <FaTrash />
                                 </button>
@@ -1651,7 +1652,7 @@ export const ChannelList: React.FC<{
             <div className="mb-2">
               <div className="px-2 mb-1">
                 <span className="uppercase text-xs font-semibold tracking-wide">
-                  Server
+                  <Trans>Server</Trans>
                 </span>
               </div>
 
@@ -1672,7 +1673,9 @@ export const ChannelList: React.FC<{
                         selectedChannelId === "server-notices" ? "text-2xl" : ""
                       }`}
                     />
-                    <span className="truncate">Server Notices</span>
+                    <span className="truncate">
+                      <Trans>Server Notices</Trans>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1729,7 +1732,7 @@ export const ChannelList: React.FC<{
                 {isIrcOp && (
                   <span
                     className="bg-blue-600 text-white px-1 py-0.5 rounded text-xs font-bold flex-shrink-0"
-                    title="You are an IRC Operator"
+                    title={t`You are an IRC Operator`}
                   >
                     🔑
                   </span>
@@ -1737,10 +1740,10 @@ export const ChannelList: React.FC<{
               </div>
               <div className="text-xs text-discord-channels-default truncate">
                 {userStatus === "online"
-                  ? "Online"
+                  ? t`Online`
                   : userStatus === "away"
-                    ? selectedServer?.awayMessage || "Away"
-                    : "Offline"}
+                    ? selectedServer?.awayMessage || t`Away`
+                    : t`Offline`}
               </div>
             </div>
           </div>
@@ -1755,7 +1758,6 @@ export const ChannelList: React.FC<{
           </div>
         </div>
       </div>
-
       {/* Add Private Chat Modal */}
       {selectedServerId && (
         <AddPrivateChatModal

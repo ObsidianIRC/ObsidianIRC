@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
@@ -653,7 +654,7 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     const notificationMessage: Message = {
       id: uuidv4(),
       type: "system",
-      content: `Account registration successful for ${account}: ${message}`,
+      content: t`Account registration successful for ${account}: ${message}`,
       timestamp: new Date(),
       userId: "system",
       channelId: channel.id,
@@ -682,7 +683,7 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
       const notificationMessage: Message = {
         id: uuidv4(),
         type: "system",
-        content: `Account registration for ${account} requires verification: ${message}`,
+        content: t`Account registration for ${account} requires verification: ${message}`,
         timestamp: new Date(),
         userId: "system",
         channelId: channel.id,
@@ -710,7 +711,7 @@ export function registerAuthHandlers(store: StoreApi<AppState>): void {
     const notificationMessage: Message = {
       id: uuidv4(),
       type: "system",
-      content: `Account verification successful for ${account}: ${message}`,
+      content: t`Account verification successful for ${account}: ${message}`,
       timestamp: new Date(),
       userId: "system",
       channelId: channel.id,

@@ -1,3 +1,4 @@
+import type { MessageDescriptor } from "@lingui/core";
 import type { ReactNode } from "react";
 
 /**
@@ -61,10 +62,10 @@ export interface SettingDefinition {
   subcategory?: string;
 
   // Display
-  title: string;
-  description?: string;
+  title: MessageDescriptor;
+  description?: MessageDescriptor;
   icon?: ReactNode;
-  placeholder?: string;
+  placeholder?: MessageDescriptor;
   tooltip?: string;
 
   // Type and control

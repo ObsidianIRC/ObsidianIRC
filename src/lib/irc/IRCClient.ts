@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import type {
   BaseIRCEvent,
@@ -853,7 +854,9 @@ export class IRCClient implements IRCClientContext {
   disconnect(serverId: string, quitMessage?: string): void {
     const socket = this.sockets.get(serverId);
     if (socket) {
-      const message = quitMessage || "ObsidianIRC - Bringing IRC to the future";
+      const message =
+        quitMessage ||
+        i18n._({ id: "ObsidianIRC - Bringing IRC to the future" });
       socket.send(`QUIT :${message}`);
       socket.close();
       this.sockets.delete(serverId);

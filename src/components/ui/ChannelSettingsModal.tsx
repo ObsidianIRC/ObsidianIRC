@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -187,7 +189,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       ? [
           {
             id: "general" as const,
-            name: "General",
+            name: t`General`,
             icon: FaSlidersH,
             count: 0,
           },
@@ -195,28 +197,28 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       : []),
     {
       id: "b" as const,
-      name: "Bans",
+      name: t`Bans`,
       icon: FaBan,
       count: modes.filter((m) => m.type === "b").length,
     },
     {
       id: "e" as const,
-      name: "Exceptions",
+      name: t`Exceptions`,
       icon: FaShieldAlt,
       count: modes.filter((m) => m.type === "e").length,
     },
     {
       id: "I" as const,
-      name: "Invitations",
+      name: t`Invitations`,
       icon: FaUserPlus,
       count: modes.filter((m) => m.type === "I").length,
     },
     ...(userHasOpPermission && supportsMetadata
-      ? [{ id: "settings" as const, name: "Settings", icon: FaCog, count: 0 }]
+      ? [{ id: "settings" as const, name: t`Settings`, icon: FaCog, count: 0 }]
       : []),
     ...(userHasOpPermission &&
     (server?.namedModes?.supported || server?.isUnrealIRCd)
-      ? [{ id: "advanced" as const, name: "Advanced", icon: FaCog, count: 0 }]
+      ? [{ id: "advanced" as const, name: t`Advanced`, icon: FaCog, count: 0 }]
       : []),
   ];
 
@@ -1223,7 +1225,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                 type="text"
                 value={newMask}
                 onChange={(e) => setNewMask(e.target.value)}
-                placeholder={`Add ${activeTab === "b" ? "ban" : activeTab === "e" ? "exception" : "invitation"} mask (e.g., nick!*@*, *!*@host.com)`}
+                placeholder={
+                  activeTab === "b"
+                    ? t`Add ban mask (e.g., nick!*@*, *!*@host.com)`
+                    : activeTab === "e"
+                      ? t`Add exception mask (e.g., nick!*@*, *!*@host.com)`
+                      : t`Add invitation mask (e.g., nick!*@*, *!*@host.com)`
+                }
                 className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
               />
               <button
@@ -1245,17 +1253,15 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
             <div className="flex-1 overflow-y-auto">
               {loading ? (
                 <div className="text-center text-discord-text-muted py-8">
-                  Loading channel modes...
+                  <Trans>Loading channel modes...</Trans>
                 </div>
               ) : filteredModes.length === 0 ? (
                 <div className="text-center text-discord-text-muted py-8">
-                  No{" "}
                   {activeTab === "b"
-                    ? "bans"
+                    ? t`No bans found`
                     : activeTab === "e"
-                      ? "ban exceptions"
-                      : "invitations"}{" "}
-                  found
+                      ? t`No ban exceptions found`
+                      : t`No invitations found`}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -1285,7 +1291,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                           <div className="text-white text-sm break-all">
                             {mode.mask}
                             <div className="text-discord-text-muted text-xs mt-1">
-                              {mode.setter && `set by ${mode.setter}`}
+                              {mode.setter && t`set by ${mode.setter}`}
                               {mode.setter && mode.timestamp && " • "}
                               {mode.timestamp &&
                                 new Date(
@@ -1301,14 +1307,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                             <button
                               onClick={() => saveEdit(mode.mask, editValue)}
                               className="text-green-400 hover:text-green-300"
-                              title="Save"
+                              title={t`Save`}
                             >
                               ✓
                             </button>
                             <button
                               onClick={cancelEditing}
                               className="text-red-400 hover:text-red-300"
-                              title="Cancel"
+                              title={t`Cancel`}
                             >
                               ✕
                             </button>
@@ -1318,14 +1324,14 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                             <button
                               onClick={() => startEditing(mode.mask)}
                               className="text-discord-text-muted hover:text-white"
-                              title="Edit"
+                              title={t`Edit`}
                             >
                               <FaEdit size={14} />
                             </button>
                             <button
                               onClick={() => removeMode(mode.type, mode.mask)}
                               className="text-red-400 hover:text-red-300"
-                              title="Remove"
+                              title={t`Remove`}
                               disabled={removingMasks.has(mode.mask)}
                             >
                               {removingMasks.has(mode.mask) ? (
@@ -1345,8 +1351,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
             <div className="mt-4 pt-4 border-t border-discord-dark-400">
               <div className="text-xs text-discord-text-muted">
-                Use wildcards: * matches any sequence, ? matches any single
-                character. Examples: nick!*@*, *!*@host.com, *!*user@*
+                <Trans>
+                  Use wildcards: * matches any sequence, ? matches any single
+                  character. Examples: nick!*@*, *!*@host.com, *!*user@*
+                </Trans>
               </div>
             </div>
           </>
@@ -1357,17 +1365,19 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {/* Channel Topic */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
-                  Channel Topic
+                  <Trans>Channel Topic</Trans>
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  The topic that will be displayed for this channel. All users
-                  can see the topic.
+                  <Trans>
+                    The topic that will be displayed for this channel. All users
+                    can see the topic.
+                  </Trans>
                 </p>
                 <input
                   type="text"
                   value={channelTopic}
                   onChange={(e) => setChannelTopic(e.target.value)}
-                  placeholder="Welcome to the channel!"
+                  placeholder={t`Welcome to the channel!`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1375,12 +1385,12 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {/* Channel Avatar */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
-                  Channel Avatar
+                  <Trans>Channel Avatar</Trans>
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
                   {server?.filehost
-                    ? "Upload an image or provide a URL with optional {size} substitution for dynamic sizing"
-                    : "URL with optional {size} substitution for dynamic sizing. Example: https://example.com/avatar/{size}/channel.jpg"}
+                    ? t`Upload an image or provide a URL with optional {size} substitution for dynamic sizing`
+                    : t`URL with optional {size} substitution for dynamic sizing. Example: https://example.com/avatar/{size}/channel.jpg`}
                 </p>
                 {server?.filehost ? (
                   <AvatarUpload
@@ -1395,17 +1405,17 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       type="text"
                       value={channelAvatar}
                       onChange={(e) => setChannelAvatar(e.target.value)}
-                      placeholder="https://example.com/avatar/{size}/channel.jpg"
+                      placeholder={t`https://example.com/avatar/{size}/channel.jpg`}
                       className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                     />
                     {channelAvatar && (
                       <div className="mt-2">
                         <p className="text-xs text-discord-text-muted mb-1">
-                          Preview:
+                          <Trans>Preview:</Trans>
                         </p>
                         <img
                           src={channelAvatar.replace("{size}", "64")}
-                          alt="Channel avatar preview"
+                          alt={t`Channel avatar preview`}
                           className="w-16 h-16 rounded-full object-cover"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
@@ -1420,18 +1430,20 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {/* Channel Display Name */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
-                  Channel Display Name
+                  <Trans>Channel Display Name</Trans>
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  Alternative name for display in the UI. May contain spaces,
-                  emoji, and special characters. The real channel name (
-                  {channelName}) will still be used for IRC commands.
+                  <Trans>
+                    Alternative name for display in the UI. May contain spaces,
+                    emoji, and special characters. The real channel name (
+                    {channelName}) will still be used for IRC commands.
+                  </Trans>
                 </p>
                 <input
                   type="text"
                   value={channelDisplayName}
                   onChange={(e) => setChannelDisplayName(e.target.value)}
-                  placeholder="General Support Channel"
+                  placeholder={t`General Support Channel`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1458,11 +1470,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {/* Channel Rename */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
-                  Channel Name
+                  <Trans>Channel Name</Trans>
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  Rename this channel on the server. All users will see the new
-                  name.
+                  <Trans>
+                    Rename this channel on the server. All users will see the
+                    new name.
+                  </Trans>
                 </p>
                 <input
                   type="text"
@@ -1472,7 +1486,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="#new-channel-name"
+                  placeholder={t`#new-channel-name`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
                 <input
@@ -1483,7 +1497,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="Reason (optional)"
+                  placeholder={t`Reason (optional)`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1504,11 +1518,13 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {/* Client Limit */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
-                  Client Limit (+l)
+                  <Trans>Client Limit (+l)</Trans>
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  Maximum number of users allowed in the channel. Leave empty
-                  for no limit.
+                  <Trans>
+                    Maximum number of users allowed in the channel. Leave empty
+                    for no limit.
+                  </Trans>
                 </p>
                 <input
                   type="number"
@@ -1520,7 +1536,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                         : null,
                     )
                   }
-                  placeholder="No limit"
+                  placeholder={t`No limit`}
                   min="1"
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
@@ -1530,10 +1546,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
                 <div className="flex-1">
                   <label className="text-sm font-medium text-white">
-                    Invite-Only (+i)
+                    <Trans>Invite-Only (+i)</Trans>
                   </label>
                   <p className="text-xs text-discord-text-muted mt-1">
-                    Users must be invited to join the channel
+                    <Trans>Users must be invited to join the channel</Trans>
                   </p>
                 </div>
                 <input
@@ -1547,17 +1563,19 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {/* Channel Key */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">
-                  Channel Key (+k)
+                  <Trans>Channel Key (+k)</Trans>
                 </label>
                 <p className="text-xs text-discord-text-muted mb-2">
-                  Password required to join the channel. Leave empty to remove
-                  the key.
+                  <Trans>
+                    Password required to join the channel. Leave empty to remove
+                    the key.
+                  </Trans>
                 </p>
                 <input
                   type="password"
                   value={channelKey}
                   onChange={(e) => setChannelKey(e.target.value)}
-                  placeholder="No key"
+                  placeholder={t`No key`}
                   className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                 />
               </div>
@@ -1566,10 +1584,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
                 <div className="flex-1">
                   <label className="text-sm font-medium text-white">
-                    Moderated (+m)
+                    <Trans>Moderated (+m)</Trans>
                   </label>
                   <p className="text-xs text-discord-text-muted mt-1">
-                    Only users with voice or higher can speak
+                    <Trans>Only users with voice or higher can speak</Trans>
                   </p>
                 </div>
                 <input
@@ -1584,10 +1602,12 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
                 <div className="flex-1">
                   <label className="text-sm font-medium text-white">
-                    Secret (+s)
+                    <Trans>Secret (+s)</Trans>
                   </label>
                   <p className="text-xs text-discord-text-muted mt-1">
-                    Channel won't appear in LIST or NAMES commands
+                    <Trans>
+                      Channel won't appear in LIST or NAMES commands
+                    </Trans>
                   </p>
                 </div>
                 <input
@@ -1602,10 +1622,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
                 <div className="flex-1">
                   <label className="text-sm font-medium text-white">
-                    Protected Topic (+t)
+                    <Trans>Protected Topic (+t)</Trans>
                   </label>
                   <p className="text-xs text-discord-text-muted mt-1">
-                    Only operators can change the channel topic
+                    <Trans>Only operators can change the channel topic</Trans>
                   </p>
                 </div>
                 <input
@@ -1620,10 +1640,12 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <div className="flex items-center justify-between p-3 bg-discord-dark-300 rounded">
                 <div className="flex-1">
                   <label className="text-sm font-medium text-white">
-                    No External Messages (+n)
+                    <Trans>No External Messages (+n)</Trans>
                   </label>
                   <p className="text-xs text-discord-text-muted mt-1">
-                    Users outside the channel cannot send messages to it
+                    <Trans>
+                      Users outside the channel cannot send messages to it
+                    </Trans>
                   </p>
                 </div>
                 <input
@@ -1697,12 +1719,24 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       onChange={(e) => setFloodProfile(e.target.value)}
                       className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                     >
-                      <option value="">No flood profile</option>
-                      <option value="very-strict">Very Strict</option>
-                      <option value="strict">Strict</option>
-                      <option value="normal">Normal</option>
-                      <option value="relaxed">Relaxed</option>
-                      <option value="very-relaxed">Very Relaxed</option>
+                      <option value="">
+                        <Trans>No flood profile</Trans>
+                      </option>
+                      <option value="very-strict">
+                        <Trans>Very Strict</Trans>
+                      </option>
+                      <option value="strict">
+                        <Trans>Strict</Trans>
+                      </option>
+                      <option value="normal">
+                        <Trans>Normal</Trans>
+                      </option>
+                      <option value="relaxed">
+                        <Trans>Relaxed</Trans>
+                      </option>
+                      <option value="very-relaxed">
+                        <Trans>Very Relaxed</Trans>
+                      </option>
                     </select>
                   </div>
 
@@ -1716,7 +1750,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                         type="text"
                         value={floodParams}
                         onChange={(e) => setFloodParams(e.target.value)}
-                        placeholder="Default"
+                        placeholder={t`Default`}
                         className="flex-1 p-2 bg-discord-dark-300 text-white rounded text-sm"
                       />
                       <button
@@ -2067,7 +2101,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       type="text"
                       value={channelHistory}
                       onChange={(e) => setChannelHistory(e.target.value)}
-                      placeholder="e.g., 100:1440"
+                      placeholder={t`e.g., 100:1440`}
                       className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                     />
                   </div>
@@ -2085,7 +2119,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       type="text"
                       value={channelLink}
                       onChange={(e) => setChannelLink(e.target.value)}
-                      placeholder="#overflow"
+                      placeholder={t`#overflow`}
                       className="w-full p-2 bg-discord-dark-300 text-white rounded text-sm"
                     />
                   </div>
@@ -2108,10 +2142,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {isApplyingChanges ? (
                 <span className="flex items-center gap-2">
                   <FaSpinner className="animate-spin" size={14} />
-                  Applying...
+                  <Trans>Applying...</Trans>
                 </span>
               ) : (
-                "Apply"
+                <Trans>Apply</Trans>
               )}
             </button>
           )}
@@ -2124,10 +2158,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {isApplyingChanges ? (
                 <span className="flex items-center gap-2">
                   <FaSpinner className="animate-spin" size={14} />
-                  Applying...
+                  <Trans>Applying...</Trans>
                 </span>
               ) : (
-                "Apply"
+                <Trans>Apply</Trans>
               )}
             </button>
           )}
@@ -2144,10 +2178,10 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               {isApplyingChanges ? (
                 <span className="flex items-center gap-2">
                   <FaSpinner className="animate-spin" size={14} />
-                  Applying...
+                  <Trans>Applying...</Trans>
                 </span>
               ) : (
-                "Apply"
+                <Trans>Apply</Trans>
               )}
             </button>
           )}
@@ -2187,7 +2221,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <button
                 onClick={onClose}
                 className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                aria-label="Close"
+                aria-label={t`Close`}
               >
                 <FaTimes />
               </button>
@@ -2228,7 +2262,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                 <button
                   onClick={() => setMobileView("categories")}
                   className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                  aria-label="Back"
+                  aria-label={t`Back`}
                 >
                   <FaChevronLeft />
                 </button>
@@ -2239,7 +2273,7 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
               <button
                 onClick={onClose}
                 className="p-1 rounded-lg hover:bg-discord-dark-400 text-discord-text-muted hover:text-white"
-                aria-label="Close"
+                aria-label={t`Close`}
               >
                 <FaTimes />
               </button>
@@ -2265,7 +2299,9 @@ const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         {/* Sidebar */}
         <div className="bg-discord-dark-300 flex flex-col">
           <div className="p-4 border-b border-discord-dark-500 flex justify-center">
-            <h2 className="text-white text-lg font-bold">Channel Settings</h2>
+            <h2 className="text-white text-lg font-bold">
+              <Trans>Channel Settings</Trans>
+            </h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             <nav className="p-2">

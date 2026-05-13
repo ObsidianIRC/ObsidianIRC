@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import type React from "react";
 import { useRef, useState } from "react";
 import { FaSpinner, FaTimes, FaUpload } from "react-icons/fa";
@@ -175,7 +176,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         type="url"
         value={currentAvatarUrl || ""}
         onChange={(e) => onAvatarUrlChange(e.target.value)}
-        placeholder="https://example.com/avatar.jpg"
+        placeholder={t`https://example.com/avatar.jpg`}
         className={`w-full bg-discord-dark-400 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary ${className}`}
       />
     );
@@ -191,7 +192,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
           className="flex items-center gap-2 px-3 py-2 bg-discord-primary hover:bg-discord-primary-hover text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isUploading ? <FaSpinner className="animate-spin" /> : <FaUpload />}
-          {isUploading ? "Uploading..." : "Upload Avatar"}
+          {isUploading ? t`Uploading...` : t`Upload Avatar`}
         </button>
 
         {(previewUrl || currentAvatarUrl) && (
@@ -201,7 +202,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
             className="flex items-center gap-2 px-3 py-2 bg-discord-dark-300 hover:bg-discord-dark-200 text-white rounded"
           >
             <FaTimes />
-            Clear
+            {t`Clear`}
           </button>
         )}
       </div>
@@ -220,14 +221,14 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         <div className="flex items-center gap-3">
           <img
             src={previewUrl || currentAvatarUrl}
-            alt="Avatar preview"
+            alt={t`Avatar preview`}
             className="w-16 h-16 rounded-full object-cover border-2 border-discord-dark-300"
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}
           />
           <div className="text-sm text-discord-text-muted">
-            {previewUrl ? "Preview (not yet uploaded)" : "Current avatar"}
+            {previewUrl ? t`Preview (not yet uploaded)` : t`Current avatar`}
           </div>
         </div>
       )}

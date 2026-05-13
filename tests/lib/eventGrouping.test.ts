@@ -177,7 +177,7 @@ describe("computeUserSummary — via groupConsecutiveEvents", () => {
     expect(groups[0].userSummaries?.[0].summary).toBe("left");
   });
 
-  it("> 9 reconnects → 'reconnected multiple times'", () => {
+  it("> 9 reconnects → 'reconnected 10 times'", () => {
     const base = new Date("2026-01-01T08:00:00Z").getTime();
     // 10 quit→join cycles = 20 events
     const msgs = Array.from({ length: 20 }, (_, k) =>
@@ -188,18 +188,16 @@ describe("computeUserSummary — via groupConsecutiveEvents", () => {
       ),
     );
     const groups = groupConsecutiveEvents(msgs);
-    expect(groups[0].userSummaries?.[0].summary).toBe(
-      "reconnected multiple times",
-    );
+    expect(groups[0].userSummaries?.[0].summary).toBe("reconnected 10 times");
   });
 
-  it("> 9 joins → 'joined multiple times'", () => {
+  it("> 9 joins → 'joined 10 times'", () => {
     const base = new Date("2026-01-01T08:00:00Z").getTime();
     const msgs = Array.from({ length: 10 }, (_, k) =>
       makeEvent("join", "berry", new Date(base + k * 10_000).toISOString()),
     );
     const groups = groupConsecutiveEvents(msgs);
-    expect(groups[0].userSummaries?.[0].summary).toBe("joined multiple times");
+    expect(groups[0].userSummaries?.[0].summary).toBe("joined 10 times");
   });
 
   it("exactly 9 reconnects still shows count", () => {

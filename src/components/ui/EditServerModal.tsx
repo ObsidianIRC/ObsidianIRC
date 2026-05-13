@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -38,6 +39,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   serverId,
   onClose,
 }) => {
+  const { t } = useLingui();
   const { servers, updateServer, sendRaw, isConnecting } = useStore();
 
   const server = servers.find((s) => s.id === serverId);
@@ -118,25 +120,25 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     const finalSaslAccountName = saslAccountName.trim() || nickname.trim();
 
     if (!finalServerName) {
-      setError("Server name is required");
+      setError(t`Server name is required`);
       setActiveTab("general");
       if (isMobile) setMobileView("content");
       return;
     }
     if (!serverHost.trim()) {
-      setError("Server host is required");
+      setError(t`Server host is required`);
       setActiveTab("general");
       if (isMobile) setMobileView("content");
       return;
     }
     if (!serverPort.trim() || Number.isNaN(Number.parseInt(serverPort, 10))) {
-      setError("Valid server port is required");
+      setError(t`Valid server port is required`);
       setActiveTab("general");
       if (isMobile) setMobileView("content");
       return;
     }
     if (!nickname.trim()) {
-      setError("Nickname is required");
+      setError(t`Nickname is required`);
       setActiveTab("general");
       if (isMobile) setMobileView("content");
       return;
@@ -179,7 +181,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     if (operName.trim() && operPassword.trim()) {
       sendRaw(serverId, `OPER ${operName.trim()} ${operPassword.trim()}`);
     } else {
-      setError("Oper name and password are required");
+      setError(t`Oper name and password are required`);
     }
   };
 

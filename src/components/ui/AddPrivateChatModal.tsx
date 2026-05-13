@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { FaSearch, FaUser } from "react-icons/fa";
@@ -18,6 +19,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
   onClose,
   serverId,
 }) => {
+  const { t } = useLingui();
   const { openPrivateChat, selectPrivateChat, servers } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -70,7 +72,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Start Private Message"
+      title={t`Start Private Message`}
       maxWidth="md"
     >
       <ModalBody>
@@ -78,7 +80,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
         <div className="relative mb-4 flex-shrink-0">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-discord-channels-default" />
           <TextInput
-            placeholder="Search users..."
+            placeholder={t`Search users...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-discord-dark-400 border border-discord-dark-500 rounded px-10 py-2 text-white placeholder-discord-channels-default focus:outline-none focus:border-discord-primary"
@@ -90,7 +92,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
         <div className="flex-1 overflow-y-auto min-h-0">
           {availableUsers.length === 0 && !searchTerm.trim() ? (
             <div className="text-discord-channels-default text-center py-4">
-              No users available
+              <Trans>No users available</Trans>
             </div>
           ) : (
             <div className="space-y-1">
@@ -107,13 +109,15 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
                   >
                     <FaUser className="text-discord-channels-default" />
                     <span>
-                      Message <strong>{searchTerm.trim()}</strong>
+                      <Trans>
+                        Message <strong>{searchTerm.trim()}</strong>
+                      </Trans>
                     </span>
                   </button>
                 )}
               {availableUsers.length === 0 && searchTerm.trim() && (
                 <div className="text-discord-channels-default text-center py-2 text-sm">
-                  No users found matching your search
+                  <Trans>No users found matching your search</Trans>
                 </div>
               )}
               {availableUsers.map((user) => (
@@ -136,7 +140,7 @@ export const AddPrivateChatModal: React.FC<AddPrivateChatModalProps> = ({
 
       <ModalFooter>
         <Button variant="secondary" onClick={onClose}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
       </ModalFooter>
     </BaseModal>

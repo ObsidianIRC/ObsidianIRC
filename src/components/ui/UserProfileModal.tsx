@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -61,15 +63,15 @@ const parseChannels = (channelsStr: string) => {
 const getStatusBadge = (status: string) => {
   // Get the highest privilege from multi-prefix
   if (status.includes("~"))
-    return { text: "~", label: "Owner", color: "bg-red-600" };
+    return { text: "~", label: t`Owner`, color: "bg-red-600" };
   if (status.includes("&"))
-    return { text: "&", label: "Admin", color: "bg-orange-600" };
+    return { text: "&", label: t`Admin`, color: "bg-orange-600" };
   if (status.includes("@"))
-    return { text: "@", label: "Op", color: "bg-green-600" };
+    return { text: "@", label: t`Op`, color: "bg-green-600" };
   if (status.includes("%"))
-    return { text: "%", label: "Halfop", color: "bg-blue-600" };
+    return { text: "%", label: t`Halfop`, color: "bg-blue-600" };
   if (status.includes("+"))
-    return { text: "+", label: "Voice", color: "bg-purple-600" };
+    return { text: "+", label: t`Voice`, color: "bg-purple-600" };
   return null;
 };
 
@@ -361,7 +363,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {isVerified && displayName === username && (
                 <span
                   className="inline-flex items-center justify-center w-5 h-5 text-xs text-white bg-green-500 rounded-full"
-                  title="User is authenticated"
+                  title={t`User is authenticated`}
                 >
                   ✓
                 </span>
@@ -373,7 +375,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 {isVerified && (
                   <span
                     className="inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-green-500 rounded-full"
-                    title="User is authenticated"
+                    title={t`User is authenticated`}
                   >
                     ✓
                   </span>
@@ -414,14 +416,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="flex items-center gap-2 mb-4">
                 <FaInfoCircle className="text-discord-blurple" size={18} />
                 <h3 className="text-lg font-semibold text-white">
-                  User Information
+                  <Trans>User Information</Trans>
                 </h3>
               </div>
 
               {isLoadingWhois && (
                 <div className="flex items-center gap-2 text-discord-text-muted text-sm py-8 justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-discord-blurple border-t-transparent" />
-                  Loading WHOIS data...
+                  <Trans>Loading WHOIS data...</Trans>
                 </div>
               )}
 
@@ -433,7 +435,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <FaUserCheck className="text-green-400" size={14} />
                         <span className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide">
-                          Host
+                          <Trans>Host</Trans>
                         </span>
                       </div>
                       <code className="text-white font-mono text-sm break-all">
@@ -446,7 +448,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {whoisData.realname && (
                     <div className="bg-discord-dark-300 rounded-lg p-4 hover:bg-discord-dark-400 transition-colors">
                       <div className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide mb-2">
-                        Real Name
+                        <Trans>Real Name</Trans>
                       </div>
                       <div className="text-white">{whoisData.realname}</div>
                     </div>
@@ -458,7 +460,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <FaShieldAlt className="text-blue-400" size={14} />
                         <span className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide">
-                          Authenticated Account
+                          <Trans>Authenticated Account</Trans>
                         </span>
                       </div>
                       <div className="text-white font-medium">
@@ -471,7 +473,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {status && (
                     <div className="bg-discord-dark-300 rounded-lg p-4 hover:bg-discord-dark-400 transition-colors">
                       <div className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide mb-2">
-                        Status
+                        <Trans>Status</Trans>
                       </div>
                       <div className="text-white">{status}</div>
                     </div>
@@ -480,7 +482,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {pronouns && (
                     <div className="bg-discord-dark-300 rounded-lg p-4 hover:bg-discord-dark-400 transition-colors">
                       <div className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide mb-2">
-                        Pronouns
+                        <Trans>Pronouns</Trans>
                       </div>
                       <div className="text-white">{pronouns}</div>
                     </div>
@@ -492,7 +494,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <FaServer className="text-purple-400" size={14} />
                         <span className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide">
-                          Connected To
+                          <Trans>Connected To</Trans>
                         </span>
                       </div>
                       <code className="text-white font-mono text-sm break-all">
@@ -512,7 +514,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <FaClock className="text-orange-400" size={14} />
                         <span className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide">
-                          Idle
+                          <Trans>Idle</Trans>
                         </span>
                       </div>
                       <div className="text-white font-medium">
@@ -527,7 +529,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-yellow-400">●</span>
                         <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wide">
-                          Away
+                          <Trans>Away</Trans>
                         </span>
                       </div>
                       {user.awayMessage && (
@@ -537,7 +539,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       )}
                       {!user.awayMessage && (
                         <div className="text-discord-text-muted text-sm italic">
-                          User is away
+                          <Trans>User is away</Trans>
                         </div>
                       )}
                     </div>
@@ -549,7 +551,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-3">
                         <FaHashtag className="text-yellow-400" size={14} />
                         <span className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide">
-                          Channels
+                          <Trans>Channels</Trans>
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -561,7 +563,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                               key={channel}
                               onClick={() => handleChannelClick(channel)}
                               className="flex items-center gap-2 bg-discord-dark-100 rounded px-3 py-2 hover:bg-discord-blurple transition-colors cursor-pointer text-left group"
-                              title={`Click to join ${channel}`}
+                              title={t`Click to join ${channel}`}
                             >
                               {badge && (
                                 <span
@@ -577,7 +579,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                               {isSecret && (
                                 <span
                                   className="text-discord-text-muted text-xs"
-                                  title="Secret channel"
+                                  title={t`Secret channel`}
                                 >
                                   🔒
                                 </span>
@@ -595,7 +597,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <FaShieldAlt className="text-green-400" size={14} />
                         <span className="text-xs font-semibold text-green-400 uppercase tracking-wide">
-                          Secure Connection
+                          <Trans>Secure Connection</Trans>
                         </span>
                       </div>
                       <div className="text-white text-sm">
@@ -610,7 +612,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <FaClock className="text-teal-400" size={14} />
                         <span className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide">
-                          Signed On
+                          <Trans>Signed On</Trans>
                         </span>
                       </div>
                       <div className="text-white font-medium text-sm">
@@ -624,7 +626,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     whoisData.specialMessages.length > 0 && (
                       <div className="bg-discord-dark-300 rounded-lg p-4">
                         <div className="text-xs font-semibold text-discord-text-muted uppercase tracking-wide mb-3">
-                          Additional Information
+                          <Trans>Additional Information</Trans>
                         </div>
                         <div className="space-y-2">
                           {whoisData.specialMessages.map((msg) => (
@@ -647,7 +649,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {!whoisData?.isComplete && !isLoadingWhois && (
                 <div className="text-center py-12">
                   <div className="text-discord-text-muted text-sm">
-                    No WHOIS data available
+                    <Trans>No WHOIS data available</Trans>
                   </div>
                 </div>
               )}
@@ -667,7 +669,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       }}
                       className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-[#5865F2]/20"
                     >
-                      Edit Profile
+                      <Trans>Edit Profile</Trans>
                     </button>
                   )}
                   <button
@@ -684,7 +686,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         : "bg-yellow-600 hover:bg-yellow-700 text-white hover:shadow-lg hover:shadow-yellow-600/20"
                     }`}
                   >
-                    {server?.isAway ? "I'm Back" : "Set Away"}
+                    {server?.isAway ? (
+                      <Trans>I'm Back</Trans>
+                    ) : (
+                      <Trans>Set Away</Trans>
+                    )}
                   </button>
                 </>
               )}
@@ -705,17 +711,17 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     onClose();
                   }}
                   className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-green-600/20 flex items-center gap-2"
-                  title="Send private message"
+                  title={t`Send private message`}
                 >
                   <FaUser size={14} />
-                  PM User
+                  <Trans>PM User</Trans>
                 </button>
               )}
               <button
                 onClick={onBack ?? onClose}
                 className={`px-6 py-2 bg-discord-blurple hover:bg-discord-blurple-hover text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-discord-blurple/20 ${!isOwnProfile ? "ml-auto" : ""}`}
               >
-                {onBack ? "← Back" : "Close"}
+                {onBack ? <Trans>← Back</Trans> : <Trans>Close</Trans>}
               </button>
             </div>
           </div>

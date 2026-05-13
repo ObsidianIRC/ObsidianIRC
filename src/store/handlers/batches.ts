@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import type { Message } from "../../types";
@@ -56,7 +57,7 @@ function processBatchedNetsplit(
   // Create a single netsplit message
   const netsplitMessage = {
     id: `netsplit-${batchId}`,
-    content: "Oops! The net split! ⚠️",
+    content: t`Oops! The net split! ⚠️`,
     timestamp: new Date(),
     userId: "system",
     channelId: "", // Will be set per channel
@@ -148,7 +149,7 @@ function processBatchedNetjoin(
           // Update the netsplit message to show rejoin
           return {
             ...message,
-            content: "The network split and rejoined. ✅",
+            content: t`The network split and rejoined. ✅`,
             type: "netjoin" as const,
           };
         }

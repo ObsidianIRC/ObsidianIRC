@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useState } from "react";
 import { isUrlFromTrustedSource } from "../../lib/ircUtils";
@@ -24,6 +25,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
   messageContent,
   serverId,
 }) => {
+  const { t } = useLingui();
   const [showWarningModal, setShowWarningModal] = useState(false);
 
   const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
@@ -98,7 +100,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
             >
               <img
                 src={imageUrl}
-                alt={title || "Link preview"}
+                alt={title || t`Link preview`}
                 className="h-full object-contain rounded-lg"
                 onError={(e) => {
                   // Hide image if it fails to load

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import { v4 as uuidv4 } from "uuid";
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
@@ -204,7 +205,7 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
       type: "note",
       command: "Oper",
       code: "OPER",
-      message: "You are an IRC Operator",
+      message: t`You are an IRC Operator`,
       serverId,
     });
   });
@@ -253,7 +254,7 @@ export function registerChannelHandlers(store: StoreApi<AppState>): void {
         id: `topic-${Date.now()}`,
         channelId: channel.id,
         userId: sender,
-        content: `changed the topic to: ${topic}`,
+        content: t`changed the topic to: ${topic}`,
         timestamp: new Date(),
         serverId: serverId,
         reactions: [],

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { EmojiClickData } from "emoji-picker-react";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -88,6 +89,7 @@ export const TypingIndicator: React.FC<{
   channelId: string;
 }> = ({ serverId, channelId }) => {
   const key = `${serverId}-${channelId}`;
+  const { t } = useLingui();
 
   const typingUsers = useStore(
     (state) => state.typingUsers[key] ?? EMPTY_ARRAY,
@@ -95,13 +97,13 @@ export const TypingIndicator: React.FC<{
 
   let message = "";
   if (typingUsers.length === 1) {
-    message = `${typingUsers[0].username} is typing...`;
+    message = t`${typingUsers[0].username} is typing...`;
   } else if (typingUsers.length === 2) {
-    message = `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
+    message = t`${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
   } else if (typingUsers.length === 3) {
-    message = `${typingUsers[0].username}, ${typingUsers[1].username} and ${typingUsers[2].username} are typing...`;
+    message = t`${typingUsers[0].username}, ${typingUsers[1].username} and ${typingUsers[2].username} are typing...`;
   } else if (typingUsers.length > 3) {
-    message = `${typingUsers[0].username}, ${typingUsers[1].username}, ${typingUsers[2].username} and ${typingUsers.length - 3} others are typing...`;
+    message = t`${typingUsers[0].username}, ${typingUsers[1].username}, ${typingUsers[2].username} and ${typingUsers.length - 3} others are typing...`;
   }
 
   return <div className="h-5 ml-5 text-sm italic">{message}</div>;
@@ -120,6 +122,7 @@ export const ChatArea: React.FC<{
    * the voice grid and the chat scroll. */
   topSlot?: React.ReactNode;
 }> = ({ onToggleChanList, isChanListVisible, topSlot }) => {
+  const { t } = useLingui();
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [navHighlightedMsgId, setNavHighlightedMsgId] = useState<string | null>(
     null,
@@ -1911,7 +1914,7 @@ export const ChatArea: React.FC<{
     (message: MessageType) => {
       if (message.msgid && selectedServerId) {
         const confirmed = window.confirm(
-          "Are you sure you want to delete this message? This action cannot be undone.",
+          t`Are you sure you want to delete this message? This action cannot be undone.`,
         );
         if (confirmed) {
           const { servers: currentServers } = useStore.getState();
@@ -1938,7 +1941,7 @@ export const ChatArea: React.FC<{
         }
       }
     },
-    [selectedServerId, redactMessage],
+    [selectedServerId, redactMessage, t],
   );
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
@@ -2030,14 +2033,12 @@ export const ChatArea: React.FC<{
 
       <TopicMediaStrip />
       <MiniMediaPlayer />
-
       {/* Member list overlay replaces messages when desktop is too narrow for sidebar */}
       {showMemberListOverlay && (
         <div className="flex-grow overflow-hidden bg-discord-dark-100">
           <MemberList />
         </div>
       )}
-
       {/* Messages area */}
       {!showMemberListOverlay && (
         <>
@@ -2154,26 +2155,22 @@ export const ChatArea: React.FC<{
                   spellCheck={isMobileInput}
                   placeholder={
                     selectedChannel
-                      ? `Message ${selectedChannel.name}${
-                          globalSettings.enableMultilineInput &&
-                          !isNativeMobile &&
-                          !isCompactInput
-                            ? globalSettings.multilineOnShiftEnter
-                              ? " (Shift+Enter for new line)"
-                              : " (Enter for new line, Shift+Enter to send)"
-                            : ""
-                        }`
+                      ? globalSettings.enableMultilineInput &&
+                        !isNativeMobile &&
+                        !isCompactInput
+                        ? globalSettings.multilineOnShiftEnter
+                          ? t`Message #${selectedChannel.name.replace(/^#/, "")} (Shift+Enter for new line)`
+                          : t`Message #${selectedChannel.name.replace(/^#/, "")} (Enter for new line, Shift+Enter to send)`
+                        : t`Message #${selectedChannel.name.replace(/^#/, "")}`
                       : selectedPrivateChat
-                        ? `Message @${selectedPrivateChat.username}${
-                            globalSettings.enableMultilineInput &&
-                            !isMobile &&
-                            !isCompactInput
-                              ? globalSettings.multilineOnShiftEnter
-                                ? " (Shift+Enter for new line)"
-                                : " (Enter for new line, Shift+Enter to send)"
-                              : ""
-                          }`
-                        : "Type a message..."
+                        ? globalSettings.enableMultilineInput &&
+                          !isMobile &&
+                          !isCompactInput
+                          ? globalSettings.multilineOnShiftEnter
+                            ? t`Message @${selectedPrivateChat.username} (Shift+Enter for new line)`
+                            : t`Message @${selectedPrivateChat.username} (Enter for new line, Shift+Enter to send)`
+                          : t`Message @${selectedPrivateChat.username}`
+                        : t`Type a message...`
                   }
                   enterKeyHint={
                     isNativeMobile && globalSettings.enableMultilineInput
@@ -2254,7 +2251,7 @@ export const ChatArea: React.FC<{
                       }}
                     >
                       <FaPlus className="mr-2" />
-                      Upload Files
+                      <Trans>Upload Files</Trans>
                     </button>
                   )}
                   <button
@@ -2265,7 +2262,7 @@ export const ChatArea: React.FC<{
                     }}
                   >
                     <FaGift className="mr-2" />
-                    Send a GIF
+                    <Trans>Send a GIF</Trans>
                   </button>
                   {/* Add more menu items here if needed */}
                 </div>
@@ -2428,7 +2425,6 @@ export const ChatArea: React.FC<{
           )}
         </>
       )}
-
       <UserContextMenu
         isOpen={userContextMenu.isOpen}
         x={userContextMenu.x}
@@ -2451,7 +2447,6 @@ export const ChatArea: React.FC<{
           });
         }}
       />
-
       {isNarrowView ? (
         <ReactionModal
           isOpen={reactionModal.isOpen}
@@ -2468,7 +2463,6 @@ export const ChatArea: React.FC<{
           reactedEmojis={reactedEmojis}
         />
       )}
-
       <ModerationModal
         isOpen={moderationModal.isOpen}
         onClose={handleCloseModerationModal}
@@ -2476,7 +2470,6 @@ export const ChatArea: React.FC<{
         username={moderationModal.username}
         action={moderationModal.action}
       />
-
       {selectedChannel && (
         <ChannelSettingsModal
           isOpen={channelSettingsModalOpen}
@@ -2485,7 +2478,6 @@ export const ChatArea: React.FC<{
           channelName={selectedChannel.name}
         />
       )}
-
       {selectedChannel && selectedServerId && (
         <InviteUserModal
           isOpen={inviteUserModalOpen}
@@ -2494,7 +2486,6 @@ export const ChatArea: React.FC<{
           channelName={selectedChannel.name}
         />
       )}
-
       {selectedServerId && (
         <UserProfileModal
           isOpen={userProfileModalOpen}
@@ -2503,7 +2494,6 @@ export const ChatArea: React.FC<{
           username={selectedProfileUsername}
         />
       )}
-
       {/* Image Preview Dialog */}
       <ImagePreviewModal
         isOpen={imagePreview.isOpen}
@@ -2537,7 +2527,6 @@ export const ChatArea: React.FC<{
           });
         }}
       />
-
       {/* Popped out server notices window */}
       {isServerNoticesPoppedOut &&
         createPortal(
@@ -2554,12 +2543,14 @@ export const ChatArea: React.FC<{
             >
               <div className="flex items-center">
                 <FaList className="text-discord-text-muted mr-2" />
-                <h2 className="font-bold text-white">Server Notices</h2>
+                <h2 className="font-bold text-white">
+                  <Trans>Server Notices</Trans>
+                </h2>
               </div>
               <button
                 className="text-discord-text-muted hover:text-discord-text-normal"
                 onClick={() => setIsServerNoticesPoppedOut(false)}
-                title="Close popped out server notices"
+                title={t`Close popped out server notices`}
               >
                 <FaTimes />
               </button>

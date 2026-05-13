@@ -1066,7 +1066,7 @@ const useStore = create<AppState>((set, get) => ({
     enableMarkdownRendering: false,
     // Status messages
     awayMessage: "",
-    quitMessage: "ObsidianIRC - Bringing IRC to the future",
+    quitMessage: "",
     ...loadSavedGlobalSettings(), // Load saved settings from localStorage
   },
 

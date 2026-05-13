@@ -254,6 +254,71 @@ npm run tauri build -- --bundles appimage  # Linux
 npm run tauri android build -- --apk       # Android
 ```
 
+## 🌐 Internationalisation (i18n)
+
+**Library:** [LinguiJS v5](https://lingui.dev) — compile-time macro approach.
+
+### How it works
+
+The Babel plugin (`@lingui/babel-plugin-lingui-macro`) transforms `t` and `Trans` calls at build time so there is no runtime string-parsing overhead. Compiled catalogs are lazy-loaded by locale before React mounts.
+
+### Locale resolution order
+
+`src/main.tsx` — `resolveLocale()`:
+
+1. `localStorage.__dev_locale` — dev testing override (only in `import.meta.env.DEV`)
+2. `localStorage.locale` — user's in-app language selection (Settings → Preferences → Language)
+3. `tauriLocale()` — OS system language on all native Tauri targets (macOS, Windows, Linux, iOS, Android)
+4. `navigator.language` — browser/Docker web-build fallback
+5. `"en"` — final fallback if nothing matches the supported list
+
+### Supported locales
+
+`en es fr zh pt de it ro` — defined in `lingui.config.ts` and the `SUPPORTED` array in `src/main.tsx`.
+
+### File layout
+
+```
+src/locales/
+  {locale}/
+    messages.po    # Human-readable source of truth for translators
+    messages.mjs   # Compiled binary catalog (generated, do not edit)
+lingui.config.ts   # Locale list, PO format, catalog paths
+```
+
+### Adding a new locale
+
+1. Add the locale code to `locales` in `lingui.config.ts`
+2. Add it to `SUPPORTED` in `src/main.tsx`
+3. Add a `<option>` for it in the Language `<select>` in `src/components/ui/UserSettings.tsx`
+4. Run `npm run i18n:extract` → creates `src/locales/{locale}/messages.po`
+5. Fill in translations (manually or via an AI agent — see AGENTS.md)
+6. Run `npm run i18n:compile` → produces `src/locales/{locale}/messages.mjs`
+
+### Tooling scripts
+
+| Script | Purpose |
+|--------|---------|
+| `npm run i18n:extract` | Scan source for `t`/`Trans` calls; update all `.po` files |
+| `npm run i18n:compile` | Compile `.po` → `.mjs` for all locales |
+| `npm run i18n:check` | CI check — fails if source has strings not yet extracted |
+
+### Pre-commit automation
+
+The `i18n` command in `lefthook.yml` runs on any staged `.ts`/`.tsx` change:
+
+```
+npm run i18n:extract && npm run i18n:compile && git add src/locales/
+```
+
+This means commits automatically stay in sync — you never need to run extract manually before committing. New strings land in non-English `.po` files as empty `msgstr ""` entries and fall back to the English key at runtime until a translator fills them in.
+
+### Testing
+
+`@lingui/react` is aliased to `tests/mocks/lingui-react.ts` in `vite.config.ts` during test runs. The mock provides `I18nProvider`, `Trans`, and `useLingui()` without requiring a React context provider, so component tests require no changes when strings are wrapped.
+
+---
+
 ## 🏛️ Architectural Patterns
 
 ### Event-Driven Architecture

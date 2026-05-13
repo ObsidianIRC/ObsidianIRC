@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import type React from "react";
 import { FaPencilAlt, FaSignOutAlt } from "react-icons/fa";
 import BottomSheet from "./BottomSheet";
@@ -34,7 +35,9 @@ const ServerBottomSheet: React.FC<ServerBottomSheetProps> = ({
           <span className="text-lg">
             <FaPencilAlt />
           </span>
-          <span className="text-sm font-medium">Edit Server</span>
+          <span className="text-sm font-medium">
+            <Trans>Edit Server</Trans>
+          </span>
         </button>
         <button
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg active:bg-discord-dark-400 text-left text-red-400"
@@ -47,7 +50,9 @@ const ServerBottomSheet: React.FC<ServerBottomSheetProps> = ({
           <span className="text-lg">
             <FaSignOutAlt />
           </span>
-          <span className="text-sm font-medium">Disconnect</span>
+          <span className="text-sm font-medium">
+            <Trans>Disconnect</Trans>
+          </span>
         </button>
       </div>
     </BottomSheet>

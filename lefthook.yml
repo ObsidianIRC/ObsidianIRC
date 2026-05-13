@@ -2,4 +2,31 @@ pre-commit:
   commands:
     check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: npx biome check --no-errors-on-unmatched --files-ignore-unknown=true --write {staged_files}
+      run: |
+        npx biome check --no-errors-on-unmatched --files-ignore-unknown=true --write {staged_files}
+        BIOME_EXIT=$?
+        # If biome modified any staged file, re-stage the fixes and abort so the
+        # commit includes the corrected versions on the next attempt.
+        if ! git diff --exit-code --quiet -- {staged_files} 2>/dev/null; then
+          git add -- {staged_files}
+          echo ""
+          echo "Biome auto-fixed the staged files. Changes have been staged."
+          echo "Re-run git commit to proceed."
+          exit 1
+        fi
+        exit $BIOME_EXIT
+    i18n:
+      glob: "src/**/*.{ts,tsx}"
+      run: |
+        set -e
+        npm run i18n:extract
+        npm run i18n:compile
+        # If extract/compile touched any catalog file, stage the updates and abort
+        # so the new/updated .po and .mjs files ride in the same commit next time.
+        if ! git diff --exit-code --quiet src/locales/ 2>/dev/null; then
+          git add src/locales/
+          echo ""
+          echo "i18n catalogs updated (new strings found or compiled output changed)."
+          echo "Catalog changes have been staged. Re-run git commit to proceed."
+          exit 1
+        fi
