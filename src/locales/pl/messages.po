@@ -51,6 +51,11 @@ msgstr "{0} pisze..."
 msgid "{0} older messages"
 msgstr "{0} starszych wiadomości"
 
+#. placeholder {0}: w.steps.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr ""
+
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
 msgid "{0} step(s) awaiting approval"
@@ -2740,6 +2745,11 @@ msgstr "Szeroki – szerszy zakres ochrony"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Domyślnie 'brak powodu', jeśli pozostawione puste"
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr ""
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

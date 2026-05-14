@@ -51,6 +51,11 @@ msgstr "{0}님이 입력 중..."
 msgid "{0} older messages"
 msgstr "이전 메시지 {0}개"
 
+#. placeholder {0}: w.steps.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr ""
+
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
 msgid "{0} step(s) awaiting approval"
@@ -2740,6 +2745,11 @@ msgstr "광역 - 더 넓은 보호 범위"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "비워두면 기본값인 '사유 없음'이 사용됩니다"
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr ""
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

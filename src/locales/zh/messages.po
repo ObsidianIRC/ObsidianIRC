@@ -51,6 +51,11 @@ msgstr "{0} 正在输入..."
 msgid "{0} older messages"
 msgstr "{0} 条旧消息"
 
+#. placeholder {0}: w.steps.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr ""
+
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
 msgid "{0} step(s) awaiting approval"
@@ -2740,6 +2745,11 @@ msgstr "宽泛 – 更广的保护范围"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "留空将默认显示\"无原因\""
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr ""
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"
