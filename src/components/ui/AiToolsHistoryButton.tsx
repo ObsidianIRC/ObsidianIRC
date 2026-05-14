@@ -85,12 +85,15 @@ export const AiToolsHistoryButton: React.FC<AiToolsHistoryButtonProps> = ({
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="hidden md:block hover:text-discord-text-normal"
+        className="hidden md:flex items-center gap-1 hover:text-discord-text-normal"
         onClick={() => setOpen((o) => !o)}
-        title={t`Workflow history`}
+        title={t`Workflow history (${workflows.length})`}
         aria-expanded={open}
       >
         <FaProjectDiagram />
+        <span className="text-[11px] tabular-nums leading-none">
+          {workflows.length}
+        </span>
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-2 z-40 w-80 max-w-[90vw] bg-discord-dark-300 border border-discord-dark-400 rounded-lg shadow-2xl overflow-hidden">

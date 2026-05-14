@@ -2755,9 +2755,13 @@ msgid "Will default to 'no reason' if left empty"
 msgstr "비워두면 기본값인 '사유 없음'이 사용됩니다"
 
 #: src/components/ui/AiToolsHistoryButton.tsx
-#: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "워크플로 기록"
+
+#. placeholder {0}: workflows.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history ({0})"
+msgstr ""
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

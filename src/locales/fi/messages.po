@@ -2755,9 +2755,13 @@ msgid "Will default to 'no reason' if left empty"
 msgstr "Oletusarvo on 'ei syytä', jos jätetään tyhjäksi"
 
 #: src/components/ui/AiToolsHistoryButton.tsx
-#: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "Työnkulkujen historia"
+
+#. placeholder {0}: workflows.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history ({0})"
+msgstr ""
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx
