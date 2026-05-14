@@ -327,7 +327,7 @@ msgstr "Automatisch auf einzeilig wechseln"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "Automatisches Schließen in {secondsLeft}s"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "Markdown-Formatierung in Nachrichten rendern"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "Workflow, der diese Nachricht erzeugt hat, erneut öffnen ({stepCount} Schritte)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "Der Benutzer erhält eine Einladung, {channelName} beizutreten."
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "Der Workflow, der diese Nachricht erzeugt hat, ist nicht mehr vorhanden"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

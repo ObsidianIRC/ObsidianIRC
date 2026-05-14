@@ -327,7 +327,7 @@ msgstr "Automatisk återgång till enkel rad"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "Stängs automatiskt om {secondsLeft} s"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "Rendera markdown-formatering i meddelanden"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "Öppna arbetsflödet som skapade detta meddelande igen ({stepCount} steg)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "Användaren får en inbjudan att gå med i {channelName}."
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "Arbetsflödet som skapade detta meddelande finns inte längre i tillståndet"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

@@ -749,11 +749,13 @@ export const MessageItem = memo((props: MessageItemProps) => {
                 />
               ) : (
                 // Unknown type (needs probe) or multi-URL: show text body.
-                // The workflow pill sits inline at the start of the body
-                // so it reads like a prefix badge rather than a separate
-                // block above the message.
+                // Flex layout puts the workflow pill in its own left
+                // column so it's always fully clickable. Tried float-
+                // left first, but CollapsibleMessage creates its own
+                // BFC via overflow:hidden and rendered on top, leaving
+                // only the bottom edge of the pill hittable.
                 <div
-                  className="overflow-hidden"
+                  className="overflow-hidden flex items-start gap-1.5"
                   style={{
                     whiteSpace: "pre-wrap",
                     overflowWrap: "break-word",
@@ -764,7 +766,7 @@ export const MessageItem = memo((props: MessageItemProps) => {
                     serverId={message.serverId}
                     tags={message.tags}
                   />
-                  {collapsibleContent}
+                  <div className="flex-1 min-w-0">{collapsibleContent}</div>
                 </div>
               )}
             </EnhancedLinkWrapper>

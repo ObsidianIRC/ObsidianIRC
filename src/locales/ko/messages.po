@@ -327,7 +327,7 @@ msgstr "자동으로 한 줄 모드로 전환"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "{secondsLeft}초 후 자동으로 닫힘"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "메시지에서 마크다운 서식 렌더링"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "이 메시지를 생성한 워크플로 다시 열기 ({stepCount}단계)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "사용자가 {channelName} 참여 초대를 받게 됩니다."
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "이 메시지를 생성한 워크플로가 더 이상 상태에 없습니다"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

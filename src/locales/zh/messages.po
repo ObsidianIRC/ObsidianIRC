@@ -327,7 +327,7 @@ msgstr "自动回退到单行"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "{secondsLeft} 秒后自动关闭"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "在消息中渲染 Markdown 格式"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "重新打开生成此消息的工作流（{stepCount} 步）"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "用户将收到加入 {channelName} 的邀请。"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "生成此消息的工作流已不在状态中"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

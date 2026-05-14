@@ -327,7 +327,7 @@ msgstr "Otomatik Tek Satıra Dön"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "{secondsLeft} sn sonra otomatik kapanır"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "Mesajlarda markdown biçimlendirmesini işle"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "Bu mesajı oluşturan iş akışını yeniden aç ({stepCount} adım)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "Kullanıcı {channelName} kanalına katılmak için davet alacak."
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "Bu mesajı oluşturan iş akışı artık durumda değil"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

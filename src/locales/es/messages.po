@@ -327,7 +327,7 @@ msgstr "Retorno automático a línea única"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "Cierre automático en {secondsLeft} s"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "Renderizar formato Markdown en mensajes"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "Reabrir el flujo de trabajo que generó este mensaje ({stepCount} pasos)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "El usuario recibirá una invitación para unirse a {channelName}."
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "El flujo de trabajo que generó este mensaje ya no está en estado"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

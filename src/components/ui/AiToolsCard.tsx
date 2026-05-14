@@ -131,8 +131,14 @@ const JsonBadges: React.FC<{ value: unknown }> = ({ value }) => {
 
 // Render a single step the way Claude Code does: colored dot at the
 // start of the row, terse header line ("Tool: web-search"), then the
-// content payload in a monospace box if present.
-const Step: React.FC<{ step: AiStep }> = ({ step }) => {
+// content payload in a monospace box if present. `isFirst` / `isLast`
+// clip the vertical connector line so it doesn't extend beyond the
+// first dot's top or the last dot's bottom.
+const Step: React.FC<{
+  step: AiStep;
+  isFirst: boolean;
+  isLast: boolean;
+}> = ({ step, isFirst, isLast }) => {
   const accent = STEP_TYPE_ACCENT[step.type] ?? STEP_TYPE_ACCENT.text;
 
   const headerLabel = useMemo(() => {
@@ -184,10 +190,17 @@ const Step: React.FC<{ step: AiStep }> = ({ step }) => {
 
   return (
     <div className="flex gap-2.5 py-2 pr-3 pl-2">
-      <span
-        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${accent}`}
-        aria-hidden
-      />
+      <div className="relative w-2 flex justify-center shrink-0" aria-hidden>
+        {/* Vertical connector line: spans the full row height so
+            consecutive rows visually join; clipped on the first /
+            last row so it doesn't hang past the outermost dots. */}
+        <span
+          className={`absolute left-1/2 -translate-x-1/2 w-px bg-discord-dark-400 ${
+            isFirst ? "top-[14px]" : "top-0"
+          } ${isLast ? "h-[6px]" : "bottom-0"}`}
+        />
+        <span className={`relative mt-1.5 w-2 h-2 rounded-full ${accent}`} />
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] uppercase tracking-wide text-discord-text-muted">
@@ -398,20 +411,26 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
         </div>
       )}
 
-      {/* Expanded body — step list */}
+      {/* Expanded body — step list. No horizontal divider between
+          steps -- a vertical connector through the dot column does
+          the same job and reads more like a pipeline. */}
       {!workflow.collapsed && (
         <div
           ref={bodyRef}
-          className="border-t border-discord-dark-400 max-h-[420px] overflow-y-auto divide-y divide-discord-dark-400/60"
+          className="border-t border-discord-dark-400 max-h-[420px] overflow-y-auto"
         >
           {workflow.steps.length === 0 ? (
             <div className="px-3 py-4 text-xs text-discord-text-muted">
               <Trans>Waiting for first step…</Trans>
             </div>
           ) : (
-            workflow.steps.map((step) => (
+            workflow.steps.map((step, i) => (
               <div key={step.sid}>
-                <Step step={step} />
+                <Step
+                  step={step}
+                  isFirst={i === 0}
+                  isLast={i === workflow.steps.length - 1}
+                />
                 {step.state === "pending-approval" && (
                   <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
                     <button

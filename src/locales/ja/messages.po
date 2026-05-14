@@ -327,7 +327,7 @@ msgstr "自動的に1行入力に切り替え"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "{secondsLeft}秒後に自動的に閉じます"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "メッセージ内のMarkdown書式を表示する"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "このメッセージを生成したワークフローを再度開く（{stepCount} ステップ）"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "ユーザーは {channelName} への参加招待を受け取ります。
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "このメッセージを生成したワークフローはもう存在しません"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

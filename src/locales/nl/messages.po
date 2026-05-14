@@ -327,7 +327,7 @@ msgstr "Automatisch terugvallen op één regel"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "Automatisch sluiten over {secondsLeft} s"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "Markdown-opmaak in berichten weergeven"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "Werkstroom die dit bericht heeft gemaakt opnieuw openen ({stepCount} stappen)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "De gebruiker ontvangt een uitnodiging om deel te nemen aan {channelName}
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "De werkstroom die dit bericht heeft gemaakt is niet meer in de status"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

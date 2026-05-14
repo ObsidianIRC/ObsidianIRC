@@ -327,7 +327,7 @@ msgstr "Automaattinen palautuminen yksiriviseksi"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "Sulkeutuu automaattisesti {secondsLeft} s kuluttua"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "Näytä Markdown-muotoilu viesteissä"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "Avaa uudelleen työnkulku, joka loi tämän viestin ({stepCount} vaihetta)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "Käyttäjä saa kutsun liittyä kanavalle {channelName}."
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "Tämän viestin luonut työnkulku ei ole enää tilassa"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"

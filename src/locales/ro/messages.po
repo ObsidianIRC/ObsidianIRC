@@ -327,7 +327,7 @@ msgstr "Revenire automată la o singură linie"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Auto-dismiss in {secondsLeft}s"
-msgstr ""
+msgstr "Închidere automată în {secondsLeft} s"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -2020,7 +2020,7 @@ msgstr "Afișați formatarea Markdown în mesaje"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Reopen the workflow that produced this message ({stepCount} steps)"
-msgstr ""
+msgstr "Redeschide fluxul de lucru care a generat acest mesaj ({stepCount} pași)"
 
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
@@ -2411,7 +2411,7 @@ msgstr "Utilizatorul va primi o invitație să se alăture {channelName}."
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "The workflow that produced this message is no longer in state"
-msgstr ""
+msgstr "Fluxul de lucru care a generat acest mesaj nu mai este în stare"
 
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
