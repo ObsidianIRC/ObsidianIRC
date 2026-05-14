@@ -53,10 +53,11 @@ export const AiToolsMessagePill: React.FC<AiToolsMessagePillProps> = ({
         }
         reopen(workflow.serverId, workflow.id);
       }}
-      // Inline-flex + align-middle so the chip sits on the baseline of
-      // the surrounding text; mr-1.5 puts a single space's worth of
-      // gap before the message body.
-      className={`inline-flex items-center gap-1 align-middle mr-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors ${
+      // Float-left so the chip prepends the message body and text
+      // flows around it on the right.  CollapsibleMessage is a block
+      // element, so plain inline-flex would have stacked above the
+      // first line of text rather than sitting next to it.
+      className={`float-left mr-1.5 mt-[3px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors ${
         available
           ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
           : "border-discord-dark-400 bg-discord-dark-400/30 text-discord-text-muted cursor-not-allowed"
