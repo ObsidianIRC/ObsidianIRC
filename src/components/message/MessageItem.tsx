@@ -749,34 +749,35 @@ export const MessageItem = memo((props: MessageItemProps) => {
                   onOpenProfile={onOpenProfile}
                 />
               ) : (
-                // Unknown type (needs probe) or multi-URL: show text body.
-                // Flex layout puts the workflow pill in its own left
-                // column so it's always fully clickable. Tried float-
-                // left first, but CollapsibleMessage creates its own
-                // BFC via overflow:hidden and rendered on top, leaving
-                // only the bottom edge of the pill hittable.
+                // The workflow pill is absolutely positioned in the
+                // avatar gutter to the LEFT of the body, so the body
+                // stays at its natural alignment and isn't pushed
+                // sideways by the pill's width.
                 <div
-                  className="overflow-hidden flex items-start gap-1.5"
+                  className="relative"
                   style={{
                     whiteSpace: "pre-wrap",
                     overflowWrap: "break-word",
                     wordBreak: "break-word",
                   }}
                 >
-                  <AiToolsMessagePill
-                    serverId={message.serverId}
-                    tags={message.tags}
-                  />
-                  <div className="flex-1 min-w-0">
-                    {message.aiToolsPending && message.aiToolsWorkflowId ? (
-                      <AiToolsPlaceholderBody
-                        serverId={message.serverId}
-                        workflowId={message.aiToolsWorkflowId}
-                      />
-                    ) : (
-                      collapsibleContent
-                    )}
-                  </div>
+                  <span
+                    className="absolute top-[5px] z-10"
+                    style={{ right: "100%", marginRight: "4px" }}
+                  >
+                    <AiToolsMessagePill
+                      serverId={message.serverId}
+                      tags={message.tags}
+                    />
+                  </span>
+                  {message.aiToolsPending && message.aiToolsWorkflowId ? (
+                    <AiToolsPlaceholderBody
+                      serverId={message.serverId}
+                      workflowId={message.aiToolsWorkflowId}
+                    />
+                  ) : (
+                    collapsibleContent
+                  )}
                 </div>
               )}
             </EnhancedLinkWrapper>

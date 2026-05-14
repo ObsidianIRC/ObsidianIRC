@@ -10,11 +10,12 @@ interface AiToolsMessagePillProps {
   tags?: Record<string, string>;
 }
 
-// A compact inline badge for chat messages that carry the
-// +obby.world/ai-tools tag (typically the bot's final reply). Icon +
-// step count only -- no text -- so it sits cleanly at the start of the
-// message body. Click reopens the workflow card if still in state;
-// degrades to a muted, disabled chip otherwise.
+// A bare clickable icon shown in the avatar-gutter to the left of an
+// AI bot's chat reply. Step count + name live on the floating workflow
+// card and the history popover; this is just a "reopen this run"
+// affordance, sized to sit cleanly in the gutter without pushing the
+// message body sideways. Caller is expected to position it absolutely
+// (see MessageItem).
 export const AiToolsMessagePill: React.FC<AiToolsMessagePillProps> = ({
   serverId,
   tags,
@@ -53,13 +54,10 @@ export const AiToolsMessagePill: React.FC<AiToolsMessagePillProps> = ({
         }
         reopen(workflow.serverId, workflow.id);
       }}
-      // Borderless, muted chip. Reactions sit on the same row so the
-      // old bordered/coloured pill read as another reaction. Drop the
-      // border + tint, lean on hover-only to draw attention.
-      className={`shrink-0 mt-[3px] inline-flex items-center gap-1 px-1 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+      className={`inline-flex items-center justify-center w-3.5 h-3.5 transition-colors ${
         available
-          ? "text-discord-text-muted hover:text-white hover:bg-discord-dark-300/60"
-          : "text-discord-text-muted/60 cursor-not-allowed"
+          ? "text-discord-text-muted hover:text-white cursor-pointer"
+          : "text-discord-text-muted/40 cursor-not-allowed"
       }`}
       title={
         available
@@ -67,8 +65,7 @@ export const AiToolsMessagePill: React.FC<AiToolsMessagePillProps> = ({
           : t`The workflow that produced this message is no longer in state`
       }
     >
-      <FaProjectDiagram className="text-[9px]" />
-      {available && <span>{stepCount}</span>}
+      <FaProjectDiagram className="text-[10px]" />
     </button>
   );
 };
