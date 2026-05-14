@@ -6,7 +6,9 @@ import {
   decodeAiToolsValue,
 } from "../../lib/aiTools";
 import ircClient from "../../lib/ircClient";
+import { extractMentions } from "../../lib/notifications";
 import type { Message } from "../../types";
+import { resolveReplyMessage } from "../helpers";
 import type { AiStep, AiWorkflow, AppState } from "../index";
 
 function nowMs(): number {
@@ -197,6 +199,10 @@ export function registerAiToolsHandlers(store: StoreApi<AppState>): void {
         const placeholderId = `ai-wf-${serverId}-${msg.id}`;
         const existing = state.messages[channelKey] ?? [];
         const idx = existing.findIndex((m) => m.id === placeholderId);
+        const isTerminal =
+          msg.state === "complete" ||
+          msg.state === "failed" ||
+          msg.state === "cancelled";
 
         // PRIVMSG carrying the workflow tag -> morph the placeholder
         // into the real message. Add the msgid to processedMessageIds
@@ -207,12 +213,34 @@ export function registerAiToolsHandlers(store: StoreApi<AppState>): void {
             ? new Set([...state.processedMessageIds, mtags.msgid])
             : state.processedMessageIds;
           if (idx >= 0) {
+            // Resolve reply + mentions the same way the generic CHANMSG
+            // handler would, so the morphed row reads identically to a
+            // plain bot reply (quote block, ping highlight, etc.) and
+            // doesn't lose context just because we're reusing the
+            // placeholder slot.
+            const replyMessage = resolveReplyMessage(
+              mtags,
+              serverId,
+              channel?.id ?? "",
+              existing,
+            );
+            const currentUser = ircClient.getCurrentUser(serverId);
+            const globalSettings = state.globalSettings;
+            const isOwnMessage =
+              sender.toLowerCase() === currentUser?.username?.toLowerCase();
+            const mentions =
+              !isOwnMessage && body
+                ? extractMentions(body, currentUser, globalSettings)
+                : [];
             const morphed: Message = {
               ...existing[idx],
               msgid: mtags?.msgid,
               tags: mtags,
               content: body ?? existing[idx].content,
               timestamp: new Date(),
+              userId: sender,
+              replyMessage,
+              mentioned: mentions,
               aiToolsPending: false,
             };
             const updated = existing.slice();
@@ -224,6 +252,21 @@ export function registerAiToolsHandlers(store: StoreApi<AppState>): void {
             };
           }
           return { aiWorkflows, processedMessageIds };
+        }
+
+        // Terminal-state TAGMSG and the placeholder is still pending
+        // (i.e. the bot didn't tag its final PRIVMSG so the morph path
+        // above never ran).  Remove the empty placeholder so the bot's
+        // untagged reply -- which the CHANMSG handler will append as a
+        // normal row, complete with reply quote -- isn't shadowed by a
+        // stuck "Thinking…" spinner.
+        if (isTerminal && idx >= 0 && existing[idx].aiToolsPending) {
+          const updated = existing.slice();
+          updated.splice(idx, 1);
+          return {
+            aiWorkflows,
+            messages: { ...state.messages, [channelKey]: updated },
+          };
         }
 
         // TAGMSG workflow event (start / state update).  Create the
