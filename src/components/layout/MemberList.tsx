@@ -426,12 +426,8 @@ export const MemberList: React.FC = () => {
     };
   }, [scheduleFlush]);
 
-  // When the channel changes, re-arm the initial sweep so the new
-  // top-of-list nicks get prefetched.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scheduleFlush identity is stable
-  useEffect(() => {
-    scheduleFlush();
-  }, [selectedChannelId]);
+  // (Initial-sweep re-arm useEffect moved below sortedUsers declaration
+  //  -- see "memberlist sweep" comment further down.)
 
   const [userContextMenu, setUserContextMenu] = useState<{
     isOpen: boolean;
@@ -506,6 +502,17 @@ export const MemberList: React.FC = () => {
   // store. Updated synchronously during render -- read in callbacks
   // that fire after.
   sortedOrderRef.current = sortedUsers?.map((u) => u.username) ?? [];
+
+  // memberlist sweep: re-arm flushVisible whenever (a) the channel
+  // changes or (b) the user count changes -- in particular when it
+  // jumps from 0 to N as the batched WHO reply lands. Without this the
+  // very first flushVisible runs while sortedOrderRef is still empty
+  // (returns early, no fetch) and we then wait for a scroll event
+  // before any metadata is requested.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scheduleFlush identity is stable
+  useEffect(() => {
+    scheduleFlush();
+  }, [selectedChannelId, sortedUsers?.length]);
 
   const handleUsernameClick = (
     e: React.MouseEvent,
