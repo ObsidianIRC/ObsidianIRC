@@ -2,7 +2,6 @@ import { t } from "@lingui/core/macro";
 import type React from "react";
 import { useRef, useState } from "react";
 import { FaSpinner, FaTimes, FaUpload } from "react-icons/fa";
-import { waitForAuthToken } from "../../lib/authToken";
 import ircClient from "../../lib/ircClient";
 import useStore from "../../store";
 import { TextInput } from "./TextInput";
@@ -68,34 +67,30 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     setUploadError(null);
 
     try {
-      // draft/authtoken: clear any cached token and ask for a fresh one.
-      // The server scopes per-token to (account, channel) so we always
-      // re-mint when target changes.
+      // The hosted-backend's /upload/avatar/* endpoints validate an
+      // *EXTJWT* token (same as /upload), not a draft/authtoken one.
+      // We previously asked for draft/authtoken which obbyircd doesn't
+      // have a service block for, so the server timed out and the
+      // caller saw "did not return a filehost token". Fetch an EXTJWT
+      // for the filehost service instead, mirroring ChatArea's image-
+      // upload path.
       useStore.setState((state) => ({
         servers: state.servers.map((server) =>
-          server.id === serverId
-            ? {
-                ...server,
-                authToken: undefined,
-                authTokenUrl: undefined,
-                authTokenService: undefined,
-              }
-            : server,
+          server.id === serverId ? { ...server, jwtToken: undefined } : server,
         ),
       }));
-
-      const scope = channelName ? `channel:${channelName}` : undefined;
-      ircClient.requestToken(serverId, "filehost", scope);
-      const authToken = await waitForAuthToken(serverId, "filehost");
-      if (!authToken) {
-        throw new Error(
-          "draft/authtoken: server did not return a filehost token",
-        );
-      }
+      ircClient.requestExtJwt(serverId, "*", "filehost");
+      // EXTJWT replies populate `server.jwtToken` asynchronously via the
+      // store handler; poll briefly the way ChatArea's uploader does.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       const refreshed = useStore
         .getState()
         .servers.find((s) => s.id === serverId);
-      const baseUrl = refreshed?.authTokenUrl || refreshed?.filehost || "";
+      const jwtToken = refreshed?.jwtToken;
+      if (!jwtToken) {
+        throw new Error("EXTJWT: server did not return a filehost token");
+      }
+      const baseUrl = refreshed?.filehost || filehostUrl;
 
       const formData = new FormData();
       formData.append("image", file);
@@ -109,7 +104,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
       const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          Authorization: `Bearer ${jwtToken}`,
         },
         body: formData,
       });
