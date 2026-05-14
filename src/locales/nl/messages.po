@@ -51,6 +51,11 @@ msgstr "{0} typt..."
 msgid "{0} older messages"
 msgstr "{0} oudere berichten"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} stappen wachten op goedkeuring"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "Filters toepassen en vernieuwen"
 msgid "Applying..."
 msgstr "Toepassen..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Goedkeuren"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "Verbinding annuleren"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Antwoord annuleren"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Workflow annuleren"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "Ontdekken"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Ontdek de wereld van IRC met ObsidianIRC"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Sluiten"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Oper-gebruikersnaam"
 msgid "Optional crash reports to improve the app"
 msgstr "Optionele crashrapporten om de app te verbeteren"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "uitvoer ingekort"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Eigenaar"
@@ -1943,6 +1964,10 @@ msgstr "Opnieuw verbinden met server"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "Registreren voor een account"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Weigeren"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "Statusberichten"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Stoppen"
@@ -2329,6 +2355,10 @@ msgstr "Streng — Agressievere beveiliging"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Systeem"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Tekst"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "Het onderwerp dat voor dit kanaal wordt weergegeven. Alle gebruikers kun
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "De gebruiker ontvangt een uitnodiging om deel te nemen aan {channelName}."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Denken"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "Meldingen aan/uit"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Zoeken aan/uit"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Hulpmiddel"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Gebruiker met voice"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "Volume"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Wachten op eerste stap…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

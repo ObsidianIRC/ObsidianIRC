@@ -51,6 +51,11 @@ msgstr "{0} píše..."
 msgid "{0} older messages"
 msgstr "{0} starších zpráv"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} kroků čeká na schválení"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "Použít filtry a obnovit"
 msgid "Applying..."
 msgstr "Používám..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Schválit"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "Zrušit připojení"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Zrušit odpověď"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Zrušit pracovní postup"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "Objevovat"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Objevte svět IRC s ObsidianIRC"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Zavřít"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Uživatelské jméno operátora"
 msgid "Optional crash reports to improve the app"
 msgstr "Volitelné zprávy o pádu pro zlepšení aplikace"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "výstup zkrácen"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Vlastník"
@@ -1943,6 +1964,10 @@ msgstr "Znovu připojit k serveru"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "Zaregistrovat účet"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Odmítnout"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "Stavové zprávy"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Zastavit"
@@ -2329,6 +2355,10 @@ msgstr "Přísný - agresivnější ochrana"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Systém"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Text"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "Téma, které bude zobrazeno pro tento kanál. Téma mohou vidět všich
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Uživatel obdrží pozvánku k připojení do {channelName}."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Přemýšlí"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "Přepnout oznámení"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Přepnout hledání"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Nástroj"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Uživatel s hlasem"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "Hlasitost"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Čekání na první krok…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

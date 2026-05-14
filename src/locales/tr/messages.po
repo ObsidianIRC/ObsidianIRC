@@ -51,6 +51,11 @@ msgstr "{0} yazıyor..."
 msgid "{0} older messages"
 msgstr "{0} eski mesaj"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} adım onay bekliyor"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "Filtreleri Uygula ve Yenile"
 msgid "Applying..."
 msgstr "Uygulanıyor..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Onayla"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "Bağlantıyı İptal Et"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Yanıtı iptal et"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "İş akışını iptal et"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "Keşfet"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "ObsidianIRC ile IRC dünyasını keşfedin"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Kapat"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Oper Kullanıcı Adı"
 msgid "Optional crash reports to improve the app"
 msgstr "Uygulamayı geliştirmek için isteğe bağlı çökme raporları"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "çıktı kısaltıldı"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Sahip"
@@ -1943,6 +1964,10 @@ msgstr "Sunucuya yeniden bağlan"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "Hesap kaydı oluştur"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Reddet"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "Durum Mesajları"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Durdur"
@@ -2329,6 +2355,10 @@ msgstr "Katı - Daha agresif koruma"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Sistem"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Metin"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "Bu kanal için görüntülenecek konu. Tüm kullanıcılar konuyu göreb
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Kullanıcı {channelName} kanalına katılmak için davet alacak."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Düşünüyor"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "Bildirimleri Aç/Kapat"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Aramayı aç/kapat"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Araç"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Sesli Kullanıcı"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "Ses Seviyesi"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "İlk adım bekleniyor…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

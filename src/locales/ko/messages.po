@@ -51,6 +51,11 @@ msgstr "{0}님이 입력 중..."
 msgid "{0} older messages"
 msgstr "이전 메시지 {0}개"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0}개 단계가 승인 대기 중"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "필터 적용 및 새로 고침"
 msgid "Applying..."
 msgstr "적용 중..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "승인"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "연결 취소"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "답장 취소"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "워크플로 취소"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "채널 탐색"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "ObsidianIRC와 함께 IRC의 세계를 탐험하세요"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "닫기"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Oper 사용자 이름"
 msgid "Optional crash reports to improve the app"
 msgstr "앱 개선을 위한 선택적 충돌 보고서"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "출력이 잘렸습니다"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "소유자"
@@ -1943,6 +1964,10 @@ msgstr "서버에 재연결"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "계정 등록"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "거부"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "상태 메시지"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "정지"
@@ -2329,6 +2355,10 @@ msgstr "엄격 - 더 강력한 보호"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "시스템"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "텍스트"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "이 채널에 표시될 주제입니다. 모든 사용자가 주제를 �
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "사용자가 {channelName} 참여 초대를 받게 됩니다."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "생각 중"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "알림 전환"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "검색 전환"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "도구"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Voice 사용자"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "볼륨"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "첫 번째 단계 대기 중…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

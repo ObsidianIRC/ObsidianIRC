@@ -51,6 +51,11 @@ msgstr "{0} 正在输入..."
 msgid "{0} older messages"
 msgstr "{0} 条旧消息"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} 个步骤等待批准"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "应用筛选并刷新"
 msgid "Applying..."
 msgstr "正在应用..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "批准"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "取消连接"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "取消回复"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "取消工作流"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "发现"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "使用 ObsidianIRC 探索 IRC 的世界"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "关闭"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Oper 用户名"
 msgid "Optional crash reports to improve the app"
 msgstr "可选的崩溃报告以改善应用"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "输出已截断"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "频道所有者"
@@ -1943,6 +1964,10 @@ msgstr "重新连接服务器"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "注册账户"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "拒绝"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "状态消息"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "停止"
@@ -2329,6 +2355,10 @@ msgstr "严格 – 更强的保护"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "系统"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "文本"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "此频道显示的主题，所有用户均可查看。"
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "用户将收到加入 {channelName} 的邀请。"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "思考中"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "切换通知"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "切换搜索"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "工具"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "有发言权的用户"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "音量"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "等待第一步…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

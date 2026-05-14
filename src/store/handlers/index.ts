@@ -1,5 +1,6 @@
 import type { StoreApi } from "zustand";
 import type { AppState } from "../index";
+import { registerAiToolsHandlers } from "./aiTools";
 import { registerAuthHandlers } from "./auth";
 import { registerBatchHandlers } from "./batches";
 import { registerChannelHandlers } from "./channels";
@@ -24,4 +25,5 @@ export function registerAllHandlers(store: StoreApi<AppState>): void {
   registerNamedModesHandlers(store);
   registerReadMarkerHandlers(store);
   registerTicTacToeHandlers(store);
+  registerAiToolsHandlers(store);
 }

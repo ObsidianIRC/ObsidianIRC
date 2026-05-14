@@ -51,6 +51,11 @@ msgstr "{0} が入力中..."
 msgid "{0} older messages"
 msgstr "{0} 件の古いメッセージ"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} 件のステップが承認待ち"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "フィルターを適用して更新"
 msgid "Applying..."
 msgstr "適用中..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "承認"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "接続をキャンセル"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "返信をキャンセル"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "ワークフローをキャンセル"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "探す"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "ObsidianIRCでIRCの世界を探索しよう"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "閉じる"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Operユーザー名"
 msgid "Optional crash reports to improve the app"
 msgstr "アプリ改善のための任意のクラッシュレポート"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "出力は省略されました"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "オーナー"
@@ -1943,6 +1964,10 @@ msgstr "サーバーに再接続"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "アカウントを登録する"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "拒否"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "ステータスメッセージ"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "停止"
@@ -2329,6 +2355,10 @@ msgstr "厳格 — より積極的な保護"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "システム"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "テキスト"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "このチャンネルに表示されるトピックです。すべての
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "ユーザーは {channelName} への参加招待を受け取ります。"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "思考中"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "通知を切り替え"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "検索を切り替え"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "ツール"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Voiceユーザー"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "音量"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "最初のステップを待機中…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

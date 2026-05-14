@@ -51,6 +51,11 @@ msgstr "{0} est en train d'écrire..."
 msgid "{0} older messages"
 msgstr "{0} anciens messages"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} étape(s) en attente d'approbation"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "Appliquer les filtres & Actualiser"
 msgid "Applying..."
 msgstr "Application en cours..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Approuver"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "Annuler la connexion"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Annuler la réponse"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Annuler le flux"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "Découvrir"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Découvrez le monde de l'IRC avec ObsidianIRC"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Ignorer"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Nom d'utilisateur opérateur"
 msgid "Optional crash reports to improve the app"
 msgstr "Rapports de plantage optionnels pour améliorer l'application"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "sortie tronquée"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Propriétaire"
@@ -1943,6 +1964,10 @@ msgstr "Se reconnecter au serveur"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "Créer un compte"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Rejeter"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "Messages de statut"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Arrêter"
@@ -2329,6 +2355,10 @@ msgstr "Strict – Protection plus agressive"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Système"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Texte"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "Le sujet affiché pour ce salon. Tous les utilisateurs peuvent le voir."
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "L'utilisateur recevra une invitation à rejoindre {channelName}."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Réflexion"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "Activer/désactiver les notifications"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Activer/désactiver la recherche"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Outil"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Utilisateur avec droit de parole"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "Volume"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "En attente de la première étape…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

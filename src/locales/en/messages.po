@@ -50,6 +50,11 @@ msgstr "{0} is typing..."
 msgid "{0} older messages"
 msgstr "{0} older messages"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} step(s) awaiting approval"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -277,6 +282,10 @@ msgstr "Apply Filters & Refresh"
 msgid "Applying..."
 msgstr "Applying..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Approve"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -422,6 +431,10 @@ msgstr "Cancel Connection"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Cancel reply"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Cancel workflow"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -778,6 +791,10 @@ msgstr "Discover"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Discover the world of IRC with ObsidianIRC"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Dismiss"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1743,6 +1760,10 @@ msgstr "Oper Username"
 msgid "Optional crash reports to improve the app"
 msgstr "Optional crash reports to improve the app"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "output truncated"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Owner"
@@ -1942,6 +1963,10 @@ msgstr "Reconnect to server"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "Register for an account"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Reject"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2313,6 +2338,7 @@ msgid "Status Messages"
 msgstr "Status Messages"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Stop"
@@ -2328,6 +2354,10 @@ msgstr "Strict - More aggressive protection"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "System"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Text"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2352,6 +2382,10 @@ msgstr "The topic that will be displayed for this channel. All users can see the
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "The user will receive an invitation to join {channelName}."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Thinking"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2407,6 +2441,10 @@ msgstr "Toggle Notifications"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Toggle search"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Tool"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2623,6 +2661,10 @@ msgstr "Voiced User"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "Volume"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Waiting for first step…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

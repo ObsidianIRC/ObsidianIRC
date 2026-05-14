@@ -51,6 +51,11 @@ msgstr "{0} skriver..."
 msgid "{0} older messages"
 msgstr "{0} äldre meddelanden"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} steg väntar på godkännande"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "Tillämpa filter och uppdatera"
 msgid "Applying..."
 msgstr "Tillämpar..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Godkänn"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "Avbryt anslutning"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Avbryt svar"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Avbryt arbetsflöde"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "Utforska"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Utforska IRC-världen med ObsidianIRC"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Stäng"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Oper-användarnamn"
 msgid "Optional crash reports to improve the app"
 msgstr "Valfria kraschrapporter för att förbättra appen"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "utdata avkortad"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Ägare"
@@ -1943,6 +1964,10 @@ msgstr "Återanslut till server"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "Registrera ett konto"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Avvisa"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "Statusmeddelanden"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Stoppa"
@@ -2329,6 +2355,10 @@ msgstr "Strikt – mer aggressivt skydd"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "System"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Text"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "Ämnet som visas för den här kanalen. Alla användare kan se ämnet."
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Användaren får en inbjudan att gå med i {channelName}."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Tänker"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "Växla aviseringar"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Växla sökning"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Verktyg"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Voice-användare"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "Volym"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Väntar på första steget…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

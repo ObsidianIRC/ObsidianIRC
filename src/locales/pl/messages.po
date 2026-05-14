@@ -51,6 +51,11 @@ msgstr "{0} pisze..."
 msgid "{0} older messages"
 msgstr "{0} starszych wiadomości"
 
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} kroków oczekuje na zatwierdzenie"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +283,10 @@ msgstr "Zastosuj filtry i odśwież"
 msgid "Applying..."
 msgstr "Stosowanie..."
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Zatwierdź"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -423,6 +432,10 @@ msgstr "Anuluj połączenie"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Anuluj odpowiedź"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Anuluj przepływ pracy"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -779,6 +792,10 @@ msgstr "Odkryj"
 #: src/components/ui/HomeScreen.tsx
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Odkryj świat IRC z ObsidianIRC"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Odrzuć"
 
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
@@ -1744,6 +1761,10 @@ msgstr "Nazwa użytkownika operatora"
 msgid "Optional crash reports to improve the app"
 msgstr "Opcjonalne raporty o błędach w celu ulepszenia aplikacji"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "wyjście skrócone"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Właściciel"
@@ -1943,6 +1964,10 @@ msgstr "Ponownie połącz z serwerem"
 #: src/components/ui/AddServerModal.tsx
 msgid "Register for an account"
 msgstr "Zarejestruj konto"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Odrzuć"
 
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
@@ -2314,6 +2339,7 @@ msgid "Status Messages"
 msgstr "Wiadomości statusu"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Zatrzymaj"
@@ -2329,6 +2355,10 @@ msgstr "Rygorystyczny – bardziej agresywna ochrona"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "System"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Tekst"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2383,10 @@ msgstr "Temat, który będzie wyświetlany dla tego kanału. Wszyscy użytkownic
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Użytkownik otrzyma zaproszenie do dołączenia do {channelName}."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Myślenie"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2442,10 @@ msgstr "Przełącz powiadomienia"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Przełącz wyszukiwanie"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Narzędzie"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2624,6 +2662,10 @@ msgstr "Użytkownik z głosem"
 #: src/components/message/MediaPreview.tsx
 msgid "Volume"
 msgstr "Głośność"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Oczekiwanie na pierwszy krok…"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx

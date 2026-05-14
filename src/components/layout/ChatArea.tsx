@@ -39,6 +39,7 @@ import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
 import { MessageReply } from "../message/MessageReply";
+import { AiToolsTray } from "../ui/AiToolsTray";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
@@ -2004,7 +2005,11 @@ export const ChatArea: React.FC<{
   ]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      <AiToolsTray
+        serverId={selectedServerId}
+        channel={selectedChannel?.name ?? selectedPrivateChat?.username ?? null}
+      />
       {/* Channel header */}
       <ChatHeader
         selectedChannel={selectedChannel ?? null}
