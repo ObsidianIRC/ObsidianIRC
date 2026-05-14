@@ -398,13 +398,6 @@ export const MemberList: React.FC = () => {
       list(selectedServerId, username);
       queued++;
     }
-    if (typeof console !== "undefined" && typeof console.debug === "function") {
-      console.debug(
-        `[memberlist] flushVisible [${start},${end}) of ${order.length} ` +
-          `(scrollTop=${root.scrollTop}, h=${root.clientHeight}, item=${itemHeight}); ` +
-          `queued ${queued}`,
-      );
-    }
   }, [selectedServerId]);
 
   const scheduleFlush = useCallback(() => {
