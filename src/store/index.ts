@@ -3855,7 +3855,7 @@ const useStore = create<AppState>((set, get) => ({
     // connect would re-issue BIND on top of the existing socket. The
     // user can use the per-server reconnect affordance to retry.
     const childId = uuidv5(`${bouncerServerId}:${netid}`, CHANNEL_NAMESPACE);
-    if (state.servers.some((s) => s.id === childId)) return childId;
+    if (state.servers.some((s) => s.id === childId)) return undefined;
     // Reuse the parent's persisted credentials. Bouncers authenticate
     // the user once on the control connection and then accept child
     // connections from the same client with the same auth.
