@@ -2014,6 +2014,10 @@ msgstr "Dit kanaal op de server hernoemen. Alle gebruikers zien de nieuwe naam."
 msgid "Render markdown formatting in messages"
 msgstr "Markdown-opmaak in berichten weergeven"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr ""
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
@@ -2401,6 +2405,10 @@ msgstr "Het onderwerp dat voor dit kanaal wordt weergegeven. Alle gebruikers kun
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "De gebruiker ontvangt een uitnodiging om deel te nemen aan {channelName}."
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr ""
+
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
 msgstr "Denken"
@@ -2668,10 +2676,6 @@ msgstr "Profiel bekijken"
 msgid "View user profile information"
 msgstr "Gebruikersprofielinformatie bekijken"
 
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "View workflow ({stepCount} steps)"
-msgstr "Workflow bekijken ({stepCount} stappen)"
-
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2750,10 +2754,6 @@ msgstr "Standaard 'geen reden' als leeggelaten"
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "Workflowgeschiedenis"
-
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "Workflow not available"
-msgstr "Workflow niet beschikbaar"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

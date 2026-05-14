@@ -2014,6 +2014,10 @@ msgstr "サーバー上でこのチャンネルの名前を変更します。す
 msgid "Render markdown formatting in messages"
 msgstr "メッセージ内のMarkdown書式を表示する"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr ""
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
@@ -2401,6 +2405,10 @@ msgstr "このチャンネルに表示されるトピックです。すべての
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "ユーザーは {channelName} への参加招待を受け取ります。"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr ""
+
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
 msgstr "思考中"
@@ -2668,10 +2676,6 @@ msgstr "プロフィールを表示"
 msgid "View user profile information"
 msgstr "ユーザープロフィール情報を表示する"
 
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "View workflow ({stepCount} steps)"
-msgstr "ワークフローを表示 ({stepCount} ステップ)"
-
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2750,10 +2754,6 @@ msgstr "空欄の場合は「理由なし」がデフォルトになります"
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "ワークフロー履歴"
-
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "Workflow not available"
-msgstr "ワークフローは利用できません"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

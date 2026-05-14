@@ -2014,6 +2014,10 @@ msgstr "在伺服器上重新命名此頻道，所有使用者都會看到新名
 msgid "Render markdown formatting in messages"
 msgstr "在訊息中渲染 Markdown 格式"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr ""
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
@@ -2401,6 +2405,10 @@ msgstr "此頻道顯示的主題，所有使用者均可查看。"
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "使用者將收到加入 {channelName} 的邀請。"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr ""
+
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
 msgstr "思考中"
@@ -2668,10 +2676,6 @@ msgstr "查看個人資料"
 msgid "View user profile information"
 msgstr "查看用户资料信息"
 
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "View workflow ({stepCount} steps)"
-msgstr "檢視工作流程（{stepCount} 步）"
-
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "语音权限"
@@ -2750,10 +2754,6 @@ msgstr "留空将默认显示\"无原因\""
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "工作流程歷程"
-
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "Workflow not available"
-msgstr "工作流程無法使用"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

@@ -6,8 +6,8 @@ import {
   FaCheck,
   FaChevronDown,
   FaChevronUp,
-  FaCog,
   FaExclamationTriangle,
+  FaProjectDiagram,
   FaSpinner,
   FaTimes,
   FaTimesCircle,
@@ -290,7 +290,7 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
         </span>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
-            <FaCog className="text-[10px] text-discord-text-muted shrink-0" />
+            <FaProjectDiagram className="text-[10px] text-discord-text-muted shrink-0" />
             {workflow.senderNick}
           </div>
           {workflow.name && (

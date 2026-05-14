@@ -2014,6 +2014,10 @@ msgstr "Bu kanalı sunucuda yeniden adlandır. Tüm kullanıcılar yeni adı gö
 msgid "Render markdown formatting in messages"
 msgstr "Mesajlarda markdown biçimlendirmesini işle"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr ""
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
@@ -2401,6 +2405,10 @@ msgstr "Bu kanal için görüntülenecek konu. Tüm kullanıcılar konuyu göreb
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Kullanıcı {channelName} kanalına katılmak için davet alacak."
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr ""
+
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
 msgstr "Düşünüyor"
@@ -2668,10 +2676,6 @@ msgstr "Profili Görüntüle"
 msgid "View user profile information"
 msgstr "Kullanıcı profil bilgilerini görüntüle"
 
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "View workflow ({stepCount} steps)"
-msgstr "İş akışını göster ({stepCount} adım)"
-
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2750,10 +2754,6 @@ msgstr "Boş bırakılırsa varsayılan olarak 'neden yok' kullanılır"
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "İş akışı geçmişi"
-
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "Workflow not available"
-msgstr "İş akışı kullanılamıyor"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

@@ -2014,6 +2014,10 @@ msgstr "Перейменувати цей канал на сервері. Усі
 msgid "Render markdown formatting in messages"
 msgstr "Відображати Markdown-форматування у повідомленнях"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr ""
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
@@ -2401,6 +2405,10 @@ msgstr "Тема, яка відображатиметься для цього к
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Користувач отримає запрошення приєднатися до {channelName}."
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr ""
+
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
 msgstr "Обмірковування"
@@ -2668,10 +2676,6 @@ msgstr "Переглянути профіль"
 msgid "View user profile information"
 msgstr "Переглянути інформацію профілю користувача"
 
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "View workflow ({stepCount} steps)"
-msgstr "Показати процес ({stepCount} кроків)"
-
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Голос"
@@ -2750,10 +2754,6 @@ msgstr "За замовчуванням буде 'без причини', якщ
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "Історія робочих процесів"
-
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "Workflow not available"
-msgstr "Процес недоступний"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

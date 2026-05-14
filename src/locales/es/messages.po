@@ -2014,6 +2014,10 @@ msgstr "Renombrar este canal en el servidor. Todos los usuarios verán el nuevo 
 msgid "Render markdown formatting in messages"
 msgstr "Renderizar formato Markdown en mensajes"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr ""
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
@@ -2401,6 +2405,10 @@ msgstr "El tema que se mostrará para este canal. Todos los usuarios pueden ver 
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "El usuario recibirá una invitación para unirse a {channelName}."
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr ""
+
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
 msgstr "Pensando"
@@ -2668,10 +2676,6 @@ msgstr "Ver perfil"
 msgid "View user profile information"
 msgstr "Ver información del perfil de usuario"
 
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "View workflow ({stepCount} steps)"
-msgstr "Ver flujo ({stepCount} pasos)"
-
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voz"
@@ -2750,10 +2754,6 @@ msgstr "Por defecto será 'sin motivo' si se deja vacío"
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "Historial de flujos de trabajo"
-
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "Workflow not available"
-msgstr "Flujo no disponible"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

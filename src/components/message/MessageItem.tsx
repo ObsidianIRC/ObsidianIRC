@@ -731,11 +731,6 @@ export const MessageItem = memo((props: MessageItemProps) => {
               />
             )}
 
-            <AiToolsMessagePill
-              serverId={message.serverId}
-              tags={message.tags}
-            />
-
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
               {isSingleToken &&
               mediaEntries.length === 1 &&
@@ -753,7 +748,10 @@ export const MessageItem = memo((props: MessageItemProps) => {
                   onOpenProfile={onOpenProfile}
                 />
               ) : (
-                // Unknown type (needs probe) or multi-URL: show text body
+                // Unknown type (needs probe) or multi-URL: show text body.
+                // The workflow pill sits inline at the start of the body
+                // so it reads like a prefix badge rather than a separate
+                // block above the message.
                 <div
                   className="overflow-hidden"
                   style={{
@@ -762,6 +760,10 @@ export const MessageItem = memo((props: MessageItemProps) => {
                     wordBreak: "break-word",
                   }}
                 >
+                  <AiToolsMessagePill
+                    serverId={message.serverId}
+                    tags={message.tags}
+                  />
                   {collapsibleContent}
                 </div>
               )}

@@ -2014,6 +2014,10 @@ msgstr "Byt namn på den här kanalen på servern. Alla användare ser det nya n
 msgid "Render markdown formatting in messages"
 msgstr "Rendera markdown-formatering i meddelanden"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr ""
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
@@ -2401,6 +2405,10 @@ msgstr "Ämnet som visas för den här kanalen. Alla användare kan se ämnet."
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Användaren får en inbjudan att gå med i {channelName}."
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr ""
+
 #: src/components/ui/AiToolsCard.tsx
 msgid "Thinking"
 msgstr "Tänker"
@@ -2668,10 +2676,6 @@ msgstr "Visa profil"
 msgid "View user profile information"
 msgstr "Visa användarprofilinformation"
 
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "View workflow ({stepCount} steps)"
-msgstr "Visa arbetsflöde ({stepCount} steg)"
-
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2750,10 +2754,6 @@ msgstr "Standardvärdet är 'ingen anledning' om det lämnas tomt"
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
 msgstr "Arbetsflödeshistorik"
-
-#: src/components/message/AiToolsMessagePill.tsx
-msgid "Workflow not available"
-msgstr "Arbetsflöde ej tillgängligt"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx
