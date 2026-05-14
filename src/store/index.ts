@@ -3834,6 +3834,12 @@ const useStore = create<AppState>((set, get) => ({
     const state = get();
     const parent = state.servers.find((s) => s.id === bouncerServerId);
     if (!parent) return undefined;
+    // Idempotent: if we already have a child server for this binding,
+    // do nothing -- whatever its current connectionState is, a fresh
+    // connect would re-issue BIND on top of the existing socket. The
+    // user can use the per-server reconnect affordance to retry.
+    const childId = uuidv5(`${bouncerServerId}:${netid}`, CHANNEL_NAMESPACE);
+    if (state.servers.some((s) => s.id === childId)) return undefined;
     // Reuse the parent's persisted credentials. Bouncers authenticate
     // the user once on the control connection and then accept child
     // connections from the same client with the same auth.
@@ -3847,11 +3853,6 @@ const useStore = create<AppState>((set, get) => ({
     const bouncer = state.bouncers[bouncerServerId];
     const network = bouncer?.networks[netid];
     const friendly = network?.attributes.name || `${parent.name}/${netid}`;
-
-    // New child server id. Deterministic enough to survive page
-    // reload: we hash (bouncerServerId, netid) so the same upstream
-    // network always lives in the same Server slot.
-    const childId = uuidv5(`${bouncerServerId}:${netid}`, CHANNEL_NAMESPACE);
 
     // Persist the child config so a subsequent connectToSavedServers
     // can restore the same child. ServerConfig carries the
@@ -3894,10 +3895,15 @@ const useStore = create<AppState>((set, get) => ({
     // emits `BOUNCER BIND <netid>` first.
     ircClient.setPendingBouncerBind(childId, netid);
 
+    // The in-memory Server.host is stripped to a bare hostname during
+    // the original parent connect, which loses the protocol + path for
+    // WSS URLs (e.g. wss://obby.t3ks.com:6662/socket -> obby.t3ks.com).
+    // Use the persisted savedParent.host instead so the child landing
+    // on the same listener actually opens /socket, not the bare root.
     return ircClient.connect(
       friendly,
-      parent.host,
-      parent.port,
+      savedParent.host,
+      savedParent.port,
       savedParent.nickname,
       savedParent.password,
       savedParent.saslAccountName,
