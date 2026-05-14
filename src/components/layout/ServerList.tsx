@@ -1,7 +1,13 @@
 import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { FaPencilAlt, FaPlus, FaRedo, FaTrash } from "react-icons/fa";
+import {
+  FaLayerGroup,
+  FaPencilAlt,
+  FaPlus,
+  FaRedo,
+  FaTrash,
+} from "react-icons/fa";
 import { useLongPress } from "../../hooks/useLongPress";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import ircClient from "../../lib/ircClient";
@@ -32,6 +38,15 @@ const ServerIcon: React.FC<ServerIconProps> = ({
   onDelete,
   onReconnect,
 }) => {
+  // Bouncer detection: when state.bouncers has an entry for this
+  // serverId with supported=true and this connection isn't itself a
+  // bouncer-child binding, treat it as a bouncer-control and expose
+  // the "Manage Networks" affordance.
+  const bouncer = useStore((s) => s.bouncers[server.id]);
+  const isBouncer = !!bouncer?.supported && !server.bouncerNetid;
+  const toggleBouncerNetworksModal = useStore(
+    (s) => s.toggleBouncerNetworksModal,
+  );
   const { t } = useLingui();
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
 
@@ -131,6 +146,18 @@ const ServerIcon: React.FC<ServerIconProps> = ({
 
         {isSelected && !isTouchDevice && (
           <div className="absolute -bottom-1 -right-1 flex space-x-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
+            {isBouncer && (
+              <button
+                className="w-5 h-5 bg-discord-dark-300 hover:bg-primary rounded-full flex items-center justify-center text-white text-xs shadow-md"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBouncerNetworksModal(server.id);
+                }}
+                title={t`Manage Networks`}
+              >
+                <FaLayerGroup />
+              </button>
+            )}
             <button
               className="w-5 h-5 bg-discord-dark-300 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-xs shadow-md"
               onClick={(e) => {

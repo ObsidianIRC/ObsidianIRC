@@ -10,6 +10,7 @@ import AppLayout from "./components/layout/AppLayout";
 import { ServerNoticesPopup } from "./components/message/ServerNoticesPopup";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import AddServerModal from "./components/ui/AddServerModal";
+import { BouncerNetworksModal } from "./components/ui/BouncerNetworksModal";
 import ChannelListModal from "./components/ui/ChannelListModal";
 import { EditServerModal } from "./components/ui/EditServerModal";
 import LinkSecurityWarningModal from "./components/ui/LinkSecurityWarningModal";
@@ -82,6 +83,7 @@ const App: React.FC = () => {
   const {
     toggleAddServerModal,
     toggleEditServerModal,
+    toggleBouncerNetworksModal,
     toggleQuickActions,
     toggleTwoFactorSettings,
     ui: {
@@ -95,6 +97,7 @@ const App: React.FC = () => {
       isTwoFactorSettingsOpen,
       editServerId,
       twoFactorSettingsServerId,
+      bouncerNetworksModalServerId,
       linkSecurityWarnings,
       profileViewRequest,
       prefillServerDetails,
@@ -310,6 +313,12 @@ const App: React.FC = () => {
                 <EditServerModal
                   serverId={editServerId}
                   onClose={() => toggleEditServerModal(false)}
+                />
+              )}
+              {bouncerNetworksModalServerId && (
+                <BouncerNetworksModal
+                  bouncerServerId={bouncerNetworksModalServerId}
+                  onClose={() => toggleBouncerNetworksModal(null)}
                 />
               )}
               {isTwoFactorSettingsOpen && twoFactorSettingsServerId && (

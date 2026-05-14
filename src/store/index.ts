@@ -406,6 +406,11 @@ interface UIState {
   isAddServerModalOpen: boolean | undefined;
   isEditServerModalOpen: boolean;
   editServerId: string | null;
+  // Bouncer networks management modal. When `bouncerNetworksModalServerId`
+  // is set, the modal renders for that bouncer. Optional so existing
+  // test fixtures that build UIState by hand don't need to add a field
+  // they don't care about.
+  bouncerNetworksModalServerId?: string | null;
   isTwoFactorSettingsOpen: boolean;
   twoFactorSettingsServerId: string | null;
   isSettingsModalOpen: boolean;
@@ -824,6 +829,8 @@ export interface AppState {
     prefillDetails?: ConnectionDetails | null,
   ) => void;
   toggleEditServerModal: (isOpen?: boolean, serverId?: string | null) => void;
+  // Bouncer networks management modal.
+  toggleBouncerNetworksModal: (bouncerServerId?: string | null) => void;
   toggleSettingsModal: (isOpen?: boolean) => void;
   toggleQuickActions: (isOpen?: boolean) => void;
   requestChatInputFocus: () => void;
@@ -1021,6 +1028,7 @@ const useStore = create<AppState>((set, get) => ({
     isTwoFactorSettingsOpen: false,
     twoFactorSettingsServerId: null,
     editServerId: null,
+    bouncerNetworksModalServerId: null,
     isSettingsModalOpen: false,
     isQuickActionsOpen: false,
     isDarkMode: true,
@@ -3025,6 +3033,14 @@ const useStore = create<AppState>((set, get) => ({
         isEditServerModalOpen: isOpen ?? false,
         editServerId: serverId,
       },
+    }));
+  },
+
+  // Open / close the bouncer-networks management modal for a given
+  // bouncer-control connection. Pass null (or omit) to close.
+  toggleBouncerNetworksModal: (bouncerServerId: string | null = null) => {
+    set((state) => ({
+      ui: { ...state.ui, bouncerNetworksModalServerId: bouncerServerId },
     }));
   },
 
