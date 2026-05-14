@@ -3850,6 +3850,12 @@ const useStore = create<AppState>((set, get) => ({
     const state = get();
     const parent = state.servers.find((s) => s.id === bouncerServerId);
     if (!parent) return undefined;
+    // Idempotent: if we already have a child server for this binding,
+    // do nothing -- whatever its current connectionState is, a fresh
+    // connect would re-issue BIND on top of the existing socket. The
+    // user can use the per-server reconnect affordance to retry.
+    const childId = uuidv5(`${bouncerServerId}:${netid}`, CHANNEL_NAMESPACE);
+    if (state.servers.some((s) => s.id === childId)) return childId;
     // Reuse the parent's persisted credentials. Bouncers authenticate
     // the user once on the control connection and then accept child
     // connections from the same client with the same auth.
@@ -3863,11 +3869,6 @@ const useStore = create<AppState>((set, get) => ({
     const bouncer = state.bouncers[bouncerServerId];
     const network = bouncer?.networks[netid];
     const friendly = network?.attributes.name || `${parent.name}/${netid}`;
-
-    // New child server id. Deterministic enough to survive page
-    // reload: we hash (bouncerServerId, netid) so the same upstream
-    // network always lives in the same Server slot.
-    const childId = uuidv5(`${bouncerServerId}:${netid}`, CHANNEL_NAMESPACE);
 
     // Persist the child config so a subsequent connectToSavedServers
     // can restore the same child. ServerConfig carries the

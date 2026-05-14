@@ -27,6 +27,11 @@ export function registerBouncerHandlers(store: StoreApi<AppState>): void {
   // BOUNCER NETWORK <netid> <attrs|"*">. Either a snapshot (full attrs,
   // e.g. inside a LISTNETWORKS batch or an initial -notify dump) or an
   // incremental update (only changed attrs, in notify mode).
+  //
+  // Side effect: after upserting state, auto-dispatch bouncerConnectNetwork
+  // for any network we don't already have a child binding for. The action
+  // is idempotent so this can fire on every snapshot without re-issuing
+  // connects.
   ircClient.on(
     "BOUNCER_NETWORK",
     ({ serverId, netid, deleted, attributes }) => {
@@ -69,6 +74,14 @@ export function registerBouncerHandlers(store: StoreApi<AppState>): void {
           },
         };
       });
+
+      if (deleted) return;
+      const post = store.getState();
+      // Only auto-bind from a control session -- a child binding never
+      // sees BOUNCER_NETWORK in practice but guard anyway.
+      const parent = post.servers.find((s) => s.id === serverId);
+      if (!parent || parent.bouncerNetid) return;
+      void post.bouncerConnectNetwork(serverId, netid);
     },
   );
 
