@@ -1,5 +1,6 @@
 import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import { create } from "zustand";
+import { encodeBouncerAttrs } from "../lib/bouncerAttrs";
 import ircClient from "../lib/ircClient";
 import { makeLabel } from "../lib/labeledResponse";
 import {
@@ -7,6 +8,7 @@ import {
   registerAllProtocolHandlers,
 } from "../protocol";
 import type {
+  BouncerState,
   Message,
   PrivateChat,
   Server,
@@ -549,6 +551,25 @@ export interface AppState {
   metadataFetchInProgress: Record<string, boolean>; // serverId -> is fetching own metadata
   userMetadataRequested: Record<string, Set<string>>; // serverId -> Set of usernames we've requested metadata for
   metadataChangeCounter: number; // Counter incremented on metadata changes for reactivity
+  // soju.im/bouncer-networks: per-bouncer (i.e. per control-connection)
+  // state, keyed by the serverId of the control connection. Set by the
+  // bouncer event handlers as CAP / BOUNCER lines arrive.
+  bouncers: Record<string, BouncerState>;
+  // Public actions for managing bouncer networks. These wrap the
+  // raw IRCClient.bouncer* sends with attr encoding and state tracking
+  // so call sites (UI components and tests) stay decoupled from wire
+  // formatting.
+  bouncerListNetworks: (bouncerServerId: string) => void;
+  bouncerAddNetwork: (
+    bouncerServerId: string,
+    attrs: Record<string, string>,
+  ) => void;
+  bouncerChangeNetwork: (
+    bouncerServerId: string,
+    netid: string,
+    attrs: Record<string, string>,
+  ) => void;
+  bouncerDelNetwork: (bouncerServerId: string, netid: string) => void;
   // WHOIS data cache
   whoisData: Record<string, Record<string, WhoisData>>; // serverId -> nickname -> whois data
   // Account registration state
@@ -967,6 +988,7 @@ const useStore = create<AppState>((set, get) => ({
   metadataFetchInProgress: {},
   userMetadataRequested: {},
   metadataChangeCounter: 0,
+  bouncers: {},
   whoisData: {},
   pendingRegistration: null,
   pendingTotpStepUp: null,
@@ -3752,6 +3774,23 @@ const useStore = create<AppState>((set, get) => ({
     if (serverSupportsMetadata(serverId)) {
       ircClient.metadataSync(serverId, target);
     }
+  },
+
+  bouncerListNetworks: (bouncerServerId) => {
+    ircClient.bouncerListNetworks(bouncerServerId);
+  },
+  bouncerAddNetwork: (bouncerServerId, attrs) => {
+    ircClient.bouncerAddNetwork(bouncerServerId, encodeBouncerAttrs(attrs));
+  },
+  bouncerChangeNetwork: (bouncerServerId, netid, attrs) => {
+    ircClient.bouncerChangeNetwork(
+      bouncerServerId,
+      netid,
+      encodeBouncerAttrs(attrs),
+    );
+  },
+  bouncerDelNetwork: (bouncerServerId, netid) => {
+    ircClient.bouncerDelNetwork(bouncerServerId, netid);
   },
 
   sendRaw: (serverId, command) => {

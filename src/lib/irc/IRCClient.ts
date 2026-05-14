@@ -111,6 +111,24 @@ export interface EventMap {
   METADATA_UNSUBOK: BaseIRCEvent & { keys: string[] };
   METADATA_SUBS: BaseIRCEvent & { keys: string[] };
   METADATA_SYNCLATER: BaseIRCEvent & { target: string; retryAfter?: number };
+  // soju.im/bouncer-networks
+  BOUNCER_NETWORK: BaseIRCEvent & {
+    netid: string;
+    deleted: boolean;
+    attributes: Record<string, string>;
+    batchTag?: string;
+  };
+  BOUNCER_ADDNETWORK_OK: BaseIRCEvent & { netid: string };
+  BOUNCER_CHANGENETWORK_OK: BaseIRCEvent & { netid: string };
+  BOUNCER_DELNETWORK_OK: BaseIRCEvent & { netid: string };
+  BOUNCER_FAIL: BaseIRCEvent & {
+    code: string;
+    subcommand: string;
+    netid?: string;
+    attribute?: string;
+    context: string[];
+    description: string;
+  };
   BATCH_START: BaseIRCEvent & {
     batchId: string;
     type: string;
@@ -598,6 +616,11 @@ export class IRCClient implements IRCClientContext {
     "labeled-response",
     "draft/read-marker",
     "obsidianirc/cmdslist",
+    // soju.im/bouncer-networks: multi-network bouncer discovery. The
+    // -notify variant gives us live add/change/del pushes without
+    // polling LISTNETWORKS.
+    "soju.im/bouncer-networks",
+    "soju.im/bouncer-networks-notify",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 
@@ -1481,6 +1504,31 @@ export class IRCClient implements IRCClientContext {
 
   metadataSync(serverId: string, target: string): void {
     this.sendRaw(serverId, `METADATA ${target} SYNC`);
+  }
+
+  // soju.im/bouncer-networks commands. The attribute payload must
+  // already be encoded with bouncerAttrs.encodeBouncerAttrs() to handle
+  // the message-tag-style escapes for `;`, ` `, etc.
+  bouncerListNetworks(serverId: string): void {
+    this.sendRaw(serverId, "BOUNCER LISTNETWORKS");
+  }
+  // BIND must run before CAP END -- the bouncer ties this connection to
+  // the upstream identified by netid for the rest of its lifetime.
+  bouncerBind(serverId: string, netid: string): void {
+    this.sendRaw(serverId, `BOUNCER BIND ${netid}`);
+  }
+  bouncerAddNetwork(serverId: string, encodedAttrs: string): void {
+    this.sendRaw(serverId, `BOUNCER ADDNETWORK ${encodedAttrs}`);
+  }
+  bouncerChangeNetwork(
+    serverId: string,
+    netid: string,
+    encodedAttrs: string,
+  ): void {
+    this.sendRaw(serverId, `BOUNCER CHANGENETWORK ${netid} ${encodedAttrs}`);
+  }
+  bouncerDelNetwork(serverId: string, netid: string): void {
+    this.sendRaw(serverId, `BOUNCER DELNETWORK ${netid}`);
   }
 
   /**

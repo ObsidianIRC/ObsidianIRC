@@ -2,6 +2,7 @@ import type { StoreApi } from "zustand";
 import type { AppState } from "../index";
 import { registerAuthHandlers } from "./auth";
 import { registerBatchHandlers } from "./batches";
+import { registerBouncerHandlers } from "./bouncer";
 import { registerChannelHandlers } from "./channels";
 import { registerConnectionHandlers } from "./connection";
 import { registerMessageHandlers } from "./messages";
@@ -24,4 +25,5 @@ export function registerAllHandlers(store: StoreApi<AppState>): void {
   registerNamedModesHandlers(store);
   registerReadMarkerHandlers(store);
   registerTicTacToeHandlers(store);
+  registerBouncerHandlers(store);
 }
