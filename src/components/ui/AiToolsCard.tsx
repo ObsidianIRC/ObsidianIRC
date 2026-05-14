@@ -38,6 +38,84 @@ function workflowHeaderIcon(state: AiWorkflow["state"]) {
   }
 }
 
+// Render an arbitrary JSON value as a nested set of badges. Primitives
+// become inline coloured chips; arrays and objects nest under a tinted
+// left rule with their entries laid out one-per-row.  Designed for the
+// tool-call args dump in particular, where flat `JSON.stringify` is
+// hard to scan once nesting deepens.
+const JsonBadges: React.FC<{ value: unknown }> = ({ value }) => {
+  if (value === null)
+    return (
+      <span className="text-discord-text-muted italic font-mono text-xs">
+        null
+      </span>
+    );
+  if (typeof value === "string")
+    return (
+      <span className="text-emerald-300 font-mono text-xs break-words">
+        &quot;{value}&quot;
+      </span>
+    );
+  if (typeof value === "number")
+    return <span className="text-cyan-300 font-mono text-xs">{value}</span>;
+  if (typeof value === "boolean")
+    return (
+      <span className="text-purple-300 font-mono text-xs">{String(value)}</span>
+    );
+  if (Array.isArray(value)) {
+    if (value.length === 0)
+      return (
+        <span className="text-discord-text-muted font-mono text-xs">[ ]</span>
+      );
+    return (
+      <div className="flex flex-col gap-1 mt-0.5 pl-2 border-l-2 border-discord-primary/40">
+        {value.map((v, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: index is the only stable id for a positional array entry here
+          <div key={i} className="flex items-baseline gap-1.5 min-w-0">
+            <span className="text-[10px] font-mono text-discord-text-muted shrink-0">
+              [{i}]
+            </span>
+            <div className="flex-1 min-w-0">
+              <JsonBadges value={v} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0)
+      return (
+        <span className="text-discord-text-muted font-mono text-xs">
+          {"{ }"}
+        </span>
+      );
+    return (
+      <div className="flex flex-col gap-1">
+        {entries.map(([k, v]) => {
+          const isContainer =
+            v !== null && typeof v === "object" && Object.keys(v).length > 0;
+          return (
+            <div
+              key={k}
+              className={`flex ${isContainer ? "flex-col" : "items-baseline"} gap-1.5 min-w-0`}
+            >
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-discord-dark-400/80 text-[10px] uppercase tracking-wide text-discord-text-muted font-mono shrink-0 self-start">
+                {k}
+              </span>
+              <div className="flex-1 min-w-0">
+                <JsonBadges value={v} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  return <span className="font-mono text-xs">{String(value)}</span>;
+};
+
 // Render a single step the way Claude Code does: colored dot at the
 // start of the row, terse header line ("Tool: web-search"), then the
 // content payload in a monospace box if present.
@@ -61,11 +139,14 @@ const Step: React.FC<{ step: AiStep }> = ({ step }) => {
         </pre>
       );
     }
-    // Tool-call args: nested object, pretty-print as JSON.
+    // Tool-call args (and any other structured payload) — render as
+    // recursive badges. A flat <pre> JSON dump is hard to scan once
+    // arguments grow nested; a key→value chip tree mirrors how the
+    // model actually thought about the call.
     return (
-      <pre className="mt-1.5 text-xs leading-snug text-discord-text-normal whitespace-pre-wrap break-words font-mono bg-discord-dark-500/70 rounded px-2.5 py-1.5">
-        {JSON.stringify(step.content, null, 2)}
-      </pre>
+      <div className="mt-1.5 bg-discord-dark-500/70 rounded px-2.5 py-1.5">
+        <JsonBadges value={step.content} />
+      </div>
     );
   }, [step.content]);
 
