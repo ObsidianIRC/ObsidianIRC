@@ -53,14 +53,13 @@ export const AiToolsMessagePill: React.FC<AiToolsMessagePillProps> = ({
         }
         reopen(workflow.serverId, workflow.id);
       }}
-      // Plain inline-flex chip. Layout sits beside the body via a
-      // flex parent in MessageItem -- float caused the block-level
-      // CollapsibleMessage (own BFC via overflow:hidden) to render
-      // over the button, leaving only its bottom edge clickable.
-      className={`shrink-0 mt-[3px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors ${
+      // Borderless, muted chip. Reactions sit on the same row so the
+      // old bordered/coloured pill read as another reaction. Drop the
+      // border + tint, lean on hover-only to draw attention.
+      className={`shrink-0 mt-[3px] inline-flex items-center gap-1 px-1 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
         available
-          ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-          : "border-discord-dark-400 bg-discord-dark-400/30 text-discord-text-muted cursor-not-allowed"
+          ? "text-discord-text-muted hover:text-white hover:bg-discord-dark-300/60"
+          : "text-discord-text-muted/60 cursor-not-allowed"
       }`}
       title={
         available
