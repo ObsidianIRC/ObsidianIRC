@@ -54,7 +54,7 @@ msgstr "{0} ältere Nachrichten"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0} Schritte"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "Standardmäßig 'kein Grund', wenn leer gelassen"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "Workflow-Verlauf"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

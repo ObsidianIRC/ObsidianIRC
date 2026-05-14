@@ -54,7 +54,7 @@ msgstr "{0} mesaje mai vechi"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0} pași"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "Va fi implicit „niciun motiv\" dacă este lăsat gol"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "Istoric fluxuri de lucru"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

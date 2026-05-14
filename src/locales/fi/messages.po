@@ -54,7 +54,7 @@ msgstr "{0} vanhempaa viestiä"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0} vaihetta"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "Oletusarvo on 'ei syytä', jos jätetään tyhjäksi"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "Työnkulkujen historia"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

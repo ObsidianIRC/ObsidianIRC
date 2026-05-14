@@ -54,7 +54,7 @@ msgstr "{0} messaggi precedenti"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0} passaggi"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "Il valore predefinito sarà 'nessun motivo' se lasciato vuoto"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "Cronologia dei flussi di lavoro"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

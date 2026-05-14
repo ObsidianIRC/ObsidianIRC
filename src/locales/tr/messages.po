@@ -54,7 +54,7 @@ msgstr "{0} eski mesaj"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0} adım"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "Boş bırakılırsa varsayılan olarak 'neden yok' kullanılır"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "İş akışı geçmişi"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

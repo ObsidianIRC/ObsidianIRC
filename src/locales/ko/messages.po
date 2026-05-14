@@ -54,7 +54,7 @@ msgstr "이전 메시지 {0}개"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0}단계"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "비워두면 기본값인 '사유 없음'이 사용됩니다"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "워크플로 기록"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

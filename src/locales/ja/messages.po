@@ -54,7 +54,7 @@ msgstr "{0} 件の古いメッセージ"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0} ステップ"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "空欄の場合は「理由なし」がデフォルトになります"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "ワークフロー履歴"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"

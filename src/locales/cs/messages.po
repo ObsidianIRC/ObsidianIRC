@@ -54,7 +54,7 @@ msgstr "{0} starších zpráv"
 #. placeholder {0}: w.steps.length
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
-msgstr ""
+msgstr "{0} kroků"
 
 #. placeholder {0}: pendingApprovals.length
 #: src/components/ui/AiToolsCard.tsx
@@ -2749,7 +2749,7 @@ msgstr "Výchozí bude 'bez důvodu', pokud ponecháte prázdné"
 #: src/components/ui/AiToolsHistoryButton.tsx
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history"
-msgstr ""
+msgstr "Historie pracovních postupů"
 
 #: src/components/message/AiToolsMessagePill.tsx
 msgid "Workflow not available"
