@@ -56,16 +56,16 @@ msgstr "{0}님과 {1}님이 입력 중..."
 msgid "{0} is typing..."
 msgstr "{0}님이 입력 중..."
 
+#. placeholder {0}: networks.length
+#. placeholder {1}: networks.length === 1 ? "" : "s"
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "{0} network{1} — pick one to join"
+msgstr ""
+
 #. placeholder {0}: filteredMessages.length - displayedMessages.length
 #: src/components/layout/ChannelMessageList.tsx
 msgid "{0} older messages"
 msgstr "이전 메시지 {0}개"
-
-#. placeholder {0}: networks.length
-#. placeholder {1}: networks.length === 1 ? "" : "s"
-#: src/components/ui/BouncerNetworksModal.tsx
-msgid "{0} upstream network{1}"
-msgstr "업스트림 네트워크 {0}개{1}"
 
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
@@ -203,8 +203,8 @@ msgid "Add IRC Server"
 msgstr "IRC 서버 추가"
 
 #: src/components/ui/BouncerNetworkForm.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add Network"
 msgstr "네트워크 추가"
 
@@ -227,7 +227,7 @@ msgstr "규칙 추가"
 msgid "Add Server"
 msgstr "서버 추가"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add your first network"
 msgstr "첫 번째 네트워크 추가"
 
@@ -383,6 +383,10 @@ msgstr "뒤로"
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Back to image"
 msgstr "이미지로 돌아가기"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Back to network list"
+msgstr ""
 
 #: src/components/ui/ModerationModal.tsx
 msgid "Ban {username} by hostmask (prevents them from rejoining from the same IP/host)"
@@ -610,7 +614,6 @@ msgstr "클라이언트 제한 (+l)"
 #: src/components/layout/ChannelList.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/message/ServerNoticesPopup.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/MediaViewerModal.tsx
@@ -669,6 +672,7 @@ msgid "Configure notification sounds and highlights"
 msgstr "알림 소리 및 강조 표시 설정"
 
 #: src/components/ui/AddServerModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Connect"
 msgstr "연결"
 
@@ -867,13 +871,13 @@ msgstr "다운로드"
 msgid "e.g., 100:1440"
 msgstr "예: 100:1440"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Edit"
 msgstr "편집"
 
 #. placeholder {0}: editingNetwork?.attributes.name || editingNetwork?.netid
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Edit {0}"
 msgstr "{0} 편집"
 
@@ -1347,7 +1351,7 @@ msgstr "GIF 불러오는 중..."
 msgid "Loading more channels..."
 msgstr "채널 더 불러오는 중..."
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Loading networks from your bouncer…"
 msgstr "바운서에서 네트워크 불러오는 중…"
 
@@ -1374,10 +1378,6 @@ msgstr "낮은 링크 보안 (레벨 {securityLevel})"
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Man-in-the-middle attacks on server links are possible"
 msgstr "서버 링크에 대한 중간자 공격이 가능합니다"
-
-#: src/components/layout/ServerList.tsx
-msgid "Manage Networks"
-msgstr "네트워크 관리"
 
 #: src/components/ui/UserSettings.tsx
 msgid "Manage your account and authentication"
@@ -1547,7 +1547,7 @@ msgid "Network Name"
 msgstr "네트워크 이름"
 
 #. placeholder {0}: server?.name ?? bouncerServerId
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Networks on {0}"
 msgstr "{0}의 네트워크"
 
@@ -1633,7 +1633,7 @@ msgstr "파일 선택 안 함"
 msgid "No flood profile"
 msgstr "플러드 프로필 없음"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "no host set"
 msgstr "호스트가 설정되지 않음"
 
@@ -1677,7 +1677,7 @@ msgstr "설정된 주제 없음"
 msgid "No unread mentions or messages"
 msgstr "읽지 않은 멘션이나 메시지가 없습니다"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "No upstream networks yet."
 msgstr "아직 업스트림 네트워크가 없습니다."
 
@@ -1766,6 +1766,10 @@ msgstr "이런! 네트워크 분리! ⚠️"
 #: src/components/ui/UserProfileModal.tsx
 msgid "Op"
 msgstr "Op"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Open"
+msgstr ""
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Open channel configuration settings"
@@ -2808,7 +2812,7 @@ msgstr "인증을 위한 계정 비밀번호"
 msgid "Your account username for authentication"
 msgstr "인증을 위한 계정 사용자 이름"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Your bouncer doesn't have any networks yet. Add one to get started."
 msgstr "바운서에 아직 네트워크가 없습니다. 시작하려면 하나를 추가하세요."
 

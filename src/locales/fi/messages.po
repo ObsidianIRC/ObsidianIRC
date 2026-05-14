@@ -56,16 +56,16 @@ msgstr "{0} ja {1} kirjoittavat..."
 msgid "{0} is typing..."
 msgstr "{0} kirjoittaa..."
 
+#. placeholder {0}: networks.length
+#. placeholder {1}: networks.length === 1 ? "" : "s"
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "{0} network{1} — pick one to join"
+msgstr ""
+
 #. placeholder {0}: filteredMessages.length - displayedMessages.length
 #: src/components/layout/ChannelMessageList.tsx
 msgid "{0} older messages"
 msgstr "{0} vanhempaa viestiä"
-
-#. placeholder {0}: networks.length
-#. placeholder {1}: networks.length === 1 ? "" : "s"
-#: src/components/ui/BouncerNetworksModal.tsx
-msgid "{0} upstream network{1}"
-msgstr "{0} ylävirran verkko{1}"
 
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
@@ -203,8 +203,8 @@ msgid "Add IRC Server"
 msgstr "Lisää IRC-palvelin"
 
 #: src/components/ui/BouncerNetworkForm.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add Network"
 msgstr "Lisää verkko"
 
@@ -227,7 +227,7 @@ msgstr "Lisää sääntö"
 msgid "Add Server"
 msgstr "Lisää palvelin"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add your first network"
 msgstr "Lisää ensimmäinen verkkosi"
 
@@ -383,6 +383,10 @@ msgstr "Takaisin"
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Back to image"
 msgstr "Takaisin kuvaan"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Back to network list"
+msgstr ""
 
 #: src/components/ui/ModerationModal.tsx
 msgid "Ban {username} by hostmask (prevents them from rejoining from the same IP/host)"
@@ -610,7 +614,6 @@ msgstr "Käyttäjäraja (+l)"
 #: src/components/layout/ChannelList.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/message/ServerNoticesPopup.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/MediaViewerModal.tsx
@@ -669,6 +672,7 @@ msgid "Configure notification sounds and highlights"
 msgstr "Määritä ilmoitusäänet ja korostukset"
 
 #: src/components/ui/AddServerModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Connect"
 msgstr "Yhdistä"
 
@@ -867,13 +871,13 @@ msgstr "Lataa"
 msgid "e.g., 100:1440"
 msgstr "esim. 100:1440"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Edit"
 msgstr "Muokkaa"
 
 #. placeholder {0}: editingNetwork?.attributes.name || editingNetwork?.netid
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Edit {0}"
 msgstr "Muokkaa: {0}"
 
@@ -1347,7 +1351,7 @@ msgstr "Ladataan GIF-kuvia..."
 msgid "Loading more channels..."
 msgstr "Ladataan lisää kanavia..."
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Loading networks from your bouncer…"
 msgstr "Ladataan verkkoja bouncerista…"
 
@@ -1374,10 +1378,6 @@ msgstr "Heikko linkkiturvallisuus (taso {securityLevel})"
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Man-in-the-middle attacks on server links are possible"
 msgstr "Välimieshyökkäykset palvelinlinkeissä ovat mahdollisia"
-
-#: src/components/layout/ServerList.tsx
-msgid "Manage Networks"
-msgstr "Hallitse verkkoja"
 
 #: src/components/ui/UserSettings.tsx
 msgid "Manage your account and authentication"
@@ -1547,7 +1547,7 @@ msgid "Network Name"
 msgstr "Verkon nimi"
 
 #. placeholder {0}: server?.name ?? bouncerServerId
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Networks on {0}"
 msgstr "Verkot palvelimella {0}"
 
@@ -1633,7 +1633,7 @@ msgstr "Ei valittua tiedostoa"
 msgid "No flood profile"
 msgstr "Ei tulvasuojausprofiilia"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "no host set"
 msgstr "isäntää ei asetettu"
 
@@ -1677,7 +1677,7 @@ msgstr "Aihetta ei ole asetettu"
 msgid "No unread mentions or messages"
 msgstr "Ei lukemattomia mainintoja tai viestejä"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "No upstream networks yet."
 msgstr "Ei vielä ylävirran verkkoja."
 
@@ -1766,6 +1766,10 @@ msgstr "Hups! Verkon jako! ⚠️"
 #: src/components/ui/UserProfileModal.tsx
 msgid "Op"
 msgstr "Op"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Open"
+msgstr ""
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Open channel configuration settings"
@@ -2808,7 +2812,7 @@ msgstr "Tilin salasana tunnistautumista varten"
 msgid "Your account username for authentication"
 msgstr "Tilin käyttäjänimi tunnistautumista varten"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Your bouncer doesn't have any networks yet. Add one to get started."
 msgstr "Bouncerissasi ei ole vielä verkkoja. Lisää yksi päästäksesi alkuun."
 

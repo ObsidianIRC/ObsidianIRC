@@ -56,16 +56,16 @@ msgstr "{0} 和 {1} 正在输入..."
 msgid "{0} is typing..."
 msgstr "{0} 正在输入..."
 
+#. placeholder {0}: networks.length
+#. placeholder {1}: networks.length === 1 ? "" : "s"
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "{0} network{1} — pick one to join"
+msgstr ""
+
 #. placeholder {0}: filteredMessages.length - displayedMessages.length
 #: src/components/layout/ChannelMessageList.tsx
 msgid "{0} older messages"
 msgstr "{0} 則較早的訊息"
-
-#. placeholder {0}: networks.length
-#. placeholder {1}: networks.length === 1 ? "" : "s"
-#: src/components/ui/BouncerNetworksModal.tsx
-msgid "{0} upstream network{1}"
-msgstr "{0} 個上游網路{1}"
 
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
@@ -203,8 +203,8 @@ msgid "Add IRC Server"
 msgstr "添加 IRC 服务器"
 
 #: src/components/ui/BouncerNetworkForm.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add Network"
 msgstr "新增網路"
 
@@ -227,7 +227,7 @@ msgstr "新增規則"
 msgid "Add Server"
 msgstr "添加服务器"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add your first network"
 msgstr "新增您的第一個網路"
 
@@ -383,6 +383,10 @@ msgstr "返回"
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Back to image"
 msgstr "返回图片"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Back to network list"
+msgstr ""
 
 #: src/components/ui/ModerationModal.tsx
 msgid "Ban {username} by hostmask (prevents them from rejoining from the same IP/host)"
@@ -610,7 +614,6 @@ msgstr "用戶端限制 (+l)"
 #: src/components/layout/ChannelList.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/message/ServerNoticesPopup.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/MediaViewerModal.tsx
@@ -669,6 +672,7 @@ msgid "Configure notification sounds and highlights"
 msgstr "配置通知声音和高亮提示"
 
 #: src/components/ui/AddServerModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Connect"
 msgstr "連線"
 
@@ -867,13 +871,13 @@ msgstr "下载"
 msgid "e.g., 100:1440"
 msgstr "例如：100:1440"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Edit"
 msgstr "编辑"
 
 #. placeholder {0}: editingNetwork?.attributes.name || editingNetwork?.netid
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Edit {0}"
 msgstr "編輯 {0}"
 
@@ -1347,7 +1351,7 @@ msgstr "正在載入 GIF..."
 msgid "Loading more channels..."
 msgstr "正在載入更多頻道..."
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Loading networks from your bouncer…"
 msgstr "正在從您的 bouncer 載入網路…"
 
@@ -1374,10 +1378,6 @@ msgstr "链路安全级别较低（级别 {securityLevel}）"
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Man-in-the-middle attacks on server links are possible"
 msgstr "服务器链路可能遭受中间人攻击"
-
-#: src/components/layout/ServerList.tsx
-msgid "Manage Networks"
-msgstr "管理網路"
 
 #: src/components/ui/UserSettings.tsx
 msgid "Manage your account and authentication"
@@ -1547,7 +1547,7 @@ msgid "Network Name"
 msgstr "网络名称"
 
 #. placeholder {0}: server?.name ?? bouncerServerId
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Networks on {0}"
 msgstr "{0} 上的網路"
 
@@ -1633,7 +1633,7 @@ msgstr "未選擇檔案"
 msgid "No flood profile"
 msgstr "无洪水防护配置"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "no host set"
 msgstr "未設定主機"
 
@@ -1677,7 +1677,7 @@ msgstr "未设置主题"
 msgid "No unread mentions or messages"
 msgstr "沒有未讀提及或訊息"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "No upstream networks yet."
 msgstr "尚無上游網路。"
 
@@ -1766,6 +1766,10 @@ msgstr "哎呀！網路分裂！⚠️"
 #: src/components/ui/UserProfileModal.tsx
 msgid "Op"
 msgstr "管理员"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Open"
+msgstr ""
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Open channel configuration settings"
@@ -2808,7 +2812,7 @@ msgstr "您的帳戶認證密碼"
 msgid "Your account username for authentication"
 msgstr "您的帳戶認證使用者名稱"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Your bouncer doesn't have any networks yet. Add one to get started."
 msgstr "您的 bouncer 還沒有任何網路。新增一個以開始使用。"
 

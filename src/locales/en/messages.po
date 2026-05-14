@@ -55,16 +55,16 @@ msgstr "{0} and {1} are typing..."
 msgid "{0} is typing..."
 msgstr "{0} is typing..."
 
+#. placeholder {0}: networks.length
+#. placeholder {1}: networks.length === 1 ? "" : "s"
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "{0} network{1} — pick one to join"
+msgstr "{0} network{1} — pick one to join"
+
 #. placeholder {0}: filteredMessages.length - displayedMessages.length
 #: src/components/layout/ChannelMessageList.tsx
 msgid "{0} older messages"
 msgstr "{0} older messages"
-
-#. placeholder {0}: networks.length
-#. placeholder {1}: networks.length === 1 ? "" : "s"
-#: src/components/ui/BouncerNetworksModal.tsx
-msgid "{0} upstream network{1}"
-msgstr "{0} upstream network{1}"
 
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
@@ -202,8 +202,8 @@ msgid "Add IRC Server"
 msgstr "Add IRC Server"
 
 #: src/components/ui/BouncerNetworkForm.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add Network"
 msgstr "Add Network"
 
@@ -226,7 +226,7 @@ msgstr "Add Rule"
 msgid "Add Server"
 msgstr "Add Server"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Add your first network"
 msgstr "Add your first network"
 
@@ -382,6 +382,10 @@ msgstr "Back"
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Back to image"
 msgstr "Back to image"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Back to network list"
+msgstr "Back to network list"
 
 #: src/components/ui/ModerationModal.tsx
 msgid "Ban {username} by hostmask (prevents them from rejoining from the same IP/host)"
@@ -609,7 +613,6 @@ msgstr "Client Limit (+l)"
 #: src/components/layout/ChannelList.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/message/ServerNoticesPopup.tsx
-#: src/components/ui/BouncerNetworksModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/MediaViewerModal.tsx
@@ -668,6 +671,7 @@ msgid "Configure notification sounds and highlights"
 msgstr "Configure notification sounds and highlights"
 
 #: src/components/ui/AddServerModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Connect"
 msgstr "Connect"
 
@@ -866,13 +870,13 @@ msgstr "Download"
 msgid "e.g., 100:1440"
 msgstr "e.g., 100:1440"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Edit"
 msgstr "Edit"
 
 #. placeholder {0}: editingNetwork?.attributes.name || editingNetwork?.netid
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Edit {0}"
 msgstr "Edit {0}"
 
@@ -1346,7 +1350,7 @@ msgstr "Loading GIFs..."
 msgid "Loading more channels..."
 msgstr "Loading more channels..."
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Loading networks from your bouncer…"
 msgstr "Loading networks from your bouncer…"
 
@@ -1373,10 +1377,6 @@ msgstr "Low Link Security (Level {securityLevel})"
 #: src/components/ui/LinkSecurityWarningModal.tsx
 msgid "Man-in-the-middle attacks on server links are possible"
 msgstr "Man-in-the-middle attacks on server links are possible"
-
-#: src/components/layout/ServerList.tsx
-msgid "Manage Networks"
-msgstr "Manage Networks"
 
 #: src/components/ui/UserSettings.tsx
 msgid "Manage your account and authentication"
@@ -1546,7 +1546,7 @@ msgid "Network Name"
 msgstr "Network Name"
 
 #. placeholder {0}: server?.name ?? bouncerServerId
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Networks on {0}"
 msgstr "Networks on {0}"
 
@@ -1632,7 +1632,7 @@ msgstr "No file chosen"
 msgid "No flood profile"
 msgstr "No flood profile"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "no host set"
 msgstr "no host set"
 
@@ -1676,7 +1676,7 @@ msgstr "No topic set"
 msgid "No unread mentions or messages"
 msgstr "No unread mentions or messages"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "No upstream networks yet."
 msgstr "No upstream networks yet."
 
@@ -1765,6 +1765,10 @@ msgstr "Oops! The net split! ⚠️"
 #: src/components/ui/UserProfileModal.tsx
 msgid "Op"
 msgstr "Op"
+
+#: src/components/ui/BouncerNetworksPanel.tsx
+msgid "Open"
+msgstr "Open"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Open channel configuration settings"
@@ -2807,7 +2811,7 @@ msgstr "Your account password for authentication"
 msgid "Your account username for authentication"
 msgstr "Your account username for authentication"
 
-#: src/components/ui/BouncerNetworksModal.tsx
+#: src/components/ui/BouncerNetworksPanel.tsx
 msgid "Your bouncer doesn't have any networks yet. Add one to get started."
 msgstr "Your bouncer doesn't have any networks yet. Add one to get started."
 
