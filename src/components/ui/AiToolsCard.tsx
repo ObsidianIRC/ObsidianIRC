@@ -290,10 +290,10 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
   );
 
   // Auto-dismiss countdown — once a workflow is terminal AND collapsed,
-  // start a 60s countdown. The user can re-expand or hover to pause.
+  // start a 5s countdown. The user can re-expand or hover to pause.
   // Expanding the card resets the timer entirely (they're reviewing the
   // run); collapsing again restarts it.
-  const FADE_SECONDS = 60;
+  const FADE_SECONDS = 5;
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
@@ -329,13 +329,12 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
     }
   }, [workflow.collapsed, workflow.steps.length, workflow.updatedAt]);
 
-  // Cap opacity so the card fades in the final ~10s of the countdown.
-  // Keep it pinned at 1 above that to avoid drawing attention to a
-  // perfectly healthy completed card.
+  // Linearly fade the card from full opacity to a barely-visible
+  // ghost over the entire countdown.  Bottoms out at 0.15 so a
+  // re-hover (which pauses the timer) doesn't land on an invisible
+  // target.
   const fadeOpacity =
-    secondsLeft !== null && secondsLeft <= 10
-      ? Math.max(0.15, secondsLeft / 10)
-      : 1;
+    secondsLeft !== null ? Math.max(0.15, secondsLeft / FADE_SECONDS) : 1;
 
   return (
     <div
