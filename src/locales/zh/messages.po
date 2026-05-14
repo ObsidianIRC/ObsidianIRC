@@ -325,6 +325,10 @@ msgstr "已验证账户"
 msgid "Auto Fallback to Single Line"
 msgstr "自动回退到单行"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr ""
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
 msgstr "连接时自动以操作员身份认证"

@@ -2005,11 +2005,7 @@ export const ChatArea: React.FC<{
   ]);
 
   return (
-    <div className="flex flex-col h-full relative">
-      <AiToolsTray
-        serverId={selectedServerId}
-        channel={selectedChannel?.name ?? selectedPrivateChat?.username ?? null}
-      />
+    <div className="flex flex-col h-full">
       {/* Channel header */}
       <ChatHeader
         selectedChannel={selectedChannel ?? null}
@@ -2064,8 +2060,14 @@ export const ChatArea: React.FC<{
               Embedded iframes (YouTube) are suspended by the browser, but we
               explicitly stop embed media on channel switch (see effect below). */}
           <div
-            className={`flex flex-col min-h-0 ${channelKey ? "flex-grow" : ""}`}
+            className={`relative flex flex-col min-h-0 ${channelKey ? "flex-grow" : ""}`}
           >
+            <AiToolsTray
+              serverId={selectedServerId}
+              channel={
+                selectedChannel?.name ?? selectedPrivateChat?.username ?? null
+              }
+            />
             {aliveChannels.map(
               ({
                 key,

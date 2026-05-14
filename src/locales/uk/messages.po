@@ -325,6 +325,10 @@ msgstr "Автентифікований акаунт"
 msgid "Auto Fallback to Single Line"
 msgstr "Автоматичне повернення до одного рядка"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr ""
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
 msgstr "Автоматично автентифікуватися як оператор при підключенні"

@@ -325,6 +325,10 @@ msgstr "Ověřený účet"
 msgid "Auto Fallback to Single Line"
 msgstr "Automatický návrat na jeden řádek"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr ""
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
 msgstr "Automaticky ověřit jako operátor při připojení"

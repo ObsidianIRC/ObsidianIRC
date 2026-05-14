@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaArrowRight,
   FaCheck,
@@ -276,8 +276,61 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
     (s) => s.state === "pending-approval",
   );
 
+  // Auto-dismiss countdown — once a workflow is terminal AND collapsed,
+  // start a 60s countdown. The user can re-expand or hover to pause.
+  // Expanding the card resets the timer entirely (they're reviewing the
+  // run); collapsing again restarts it.
+  const FADE_SECONDS = 60;
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (!isTerminal || !workflow.collapsed) {
+      setSecondsLeft(null);
+      return;
+    }
+    setSecondsLeft(FADE_SECONDS);
+  }, [isTerminal, workflow.collapsed]);
+  useEffect(() => {
+    if (secondsLeft === null || paused) return;
+    if (secondsLeft <= 0) {
+      dismiss(workflow.serverId, workflow.id);
+      return;
+    }
+    const t = setTimeout(() => setSecondsLeft((s) => (s ?? 0) - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft, paused, dismiss, workflow.serverId, workflow.id]);
+
+  // Auto-scroll the expanded step list when new content arrives, but
+  // only if the user was already at (or near) the bottom -- so we
+  // don't yank them out of scroll-back while a long workflow runs.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: track step count + updatedAt because step content updates don't change the array reference
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || workflow.collapsed) return;
+    const SCROLL_TOLERANCE = 24;
+    const atBottom =
+      el.scrollHeight - (el.scrollTop + el.clientHeight) <= SCROLL_TOLERANCE;
+    if (atBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [workflow.collapsed, workflow.steps.length, workflow.updatedAt]);
+
+  // Cap opacity so the card fades in the final ~10s of the countdown.
+  // Keep it pinned at 1 above that to avoid drawing attention to a
+  // perfectly healthy completed card.
+  const fadeOpacity =
+    secondsLeft !== null && secondsLeft <= 10
+      ? Math.max(0.15, secondsLeft / 10)
+      : 1;
+
   return (
-    <div className="w-[340px] max-w-full bg-discord-dark-300/95 backdrop-blur-sm border border-discord-dark-400 rounded-lg shadow-xl overflow-hidden">
+    <div
+      style={{ opacity: fadeOpacity, transition: "opacity 0.8s linear" }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="w-[340px] max-w-full bg-discord-dark-300/95 backdrop-blur-sm border border-discord-dark-400 rounded-lg shadow-xl overflow-hidden"
+    >
       {/* Header — collapsed row */}
       <button
         type="button"
@@ -331,9 +384,26 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
         </span>
       </button>
 
+      {/* Countdown drain on a collapsed, terminal card */}
+      {secondsLeft !== null && (
+        <div className="h-0.5 bg-discord-dark-400 overflow-hidden">
+          <div
+            className="h-full bg-primary/60"
+            style={{
+              width: `${(Math.max(0, secondsLeft) / FADE_SECONDS) * 100}%`,
+              transition: "width 1s linear",
+            }}
+            title={t`Auto-dismiss in ${secondsLeft}s`}
+          />
+        </div>
+      )}
+
       {/* Expanded body — step list */}
       {!workflow.collapsed && (
-        <div className="border-t border-discord-dark-400 max-h-[420px] overflow-y-auto divide-y divide-discord-dark-400/60">
+        <div
+          ref={bodyRef}
+          className="border-t border-discord-dark-400 max-h-[420px] overflow-y-auto divide-y divide-discord-dark-400/60"
+        >
           {workflow.steps.length === 0 ? (
             <div className="px-3 py-4 text-xs text-discord-text-muted">
               <Trans>Waiting for first step…</Trans>

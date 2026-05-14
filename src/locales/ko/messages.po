@@ -325,6 +325,10 @@ msgstr "인증된 계정"
 msgid "Auto Fallback to Single Line"
 msgstr "자동으로 한 줄 모드로 전환"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr ""
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
 msgstr "연결 시 자동으로 operator로 인증"

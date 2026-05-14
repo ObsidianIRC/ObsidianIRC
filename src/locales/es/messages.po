@@ -325,6 +325,10 @@ msgstr "Cuenta autenticada"
 msgid "Auto Fallback to Single Line"
 msgstr "Retorno automático a línea única"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr ""
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
 msgstr "Autenticarse automáticamente como operador al conectar"

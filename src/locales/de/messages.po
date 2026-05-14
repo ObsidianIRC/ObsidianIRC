@@ -325,6 +325,10 @@ msgstr "Authentifiziertes Konto"
 msgid "Auto Fallback to Single Line"
 msgstr "Automatisch auf einzeilig wechseln"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr ""
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
 msgstr "Beim Verbinden automatisch als Operator authentifizieren"

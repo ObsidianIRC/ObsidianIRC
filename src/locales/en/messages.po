@@ -324,6 +324,10 @@ msgstr "Authenticated Account"
 msgid "Auto Fallback to Single Line"
 msgstr "Auto Fallback to Single Line"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr "Auto-dismiss in {secondsLeft}s"
+
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
 msgstr "Automatically authenticate as operator on connect"
