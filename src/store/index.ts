@@ -570,6 +570,13 @@ export interface AppState {
     attrs: Record<string, string>,
   ) => void;
   bouncerDelNetwork: (bouncerServerId: string, netid: string) => void;
+  // Open a child IRC connection to the bouncer that is bound to the
+  // given upstream network via BOUNCER BIND <netid> before CAP END.
+  // Reuses the parent's credentials. Resolves with the new Server.
+  bouncerConnectNetwork: (
+    bouncerServerId: string,
+    netid: string,
+  ) => Promise<Server | undefined>;
   // WHOIS data cache
   whoisData: Record<string, Record<string, WhoisData>>; // serverId -> nickname -> whois data
   // Account registration state
@@ -2812,6 +2819,11 @@ const useStore = create<AppState>((set, get) => ({
           isConnected: false,
           connectionState: "connecting",
           users: [],
+          // Carry the bouncer linkage so a UI rendering off `state.servers`
+          // can pick the parent/child relationship up immediately.
+          bouncerServerId: savedServer.bouncerServerId,
+          bouncerNetid: savedServer.bouncerNetid,
+          isBouncerControl: savedServer.isBouncerControl,
         };
 
         set((state) => ({
@@ -2819,8 +2831,26 @@ const useStore = create<AppState>((set, get) => ({
         }));
       }
 
-      const connectionPromise = get()
-        .connect(
+      // Bouncer child: queue BIND and bypass the host:port-based
+      // serverId resolution in get().connect() -- it would resolve
+      // multiple children sharing the bouncer endpoint back to the
+      // parent's saved id. ircClient.connect() with an explicit id
+      // skips that lookup entirely.
+      let connectionPromise: Promise<unknown>;
+      if (savedServer.bouncerNetid) {
+        ircClient.setPendingBouncerBind(id, savedServer.bouncerNetid);
+        connectionPromise = ircClient.connect(
+          name || normalizeHost(urlHost),
+          urlHost,
+          port,
+          nickname,
+          password,
+          saslAccountName,
+          saslPassword,
+          id,
+        );
+      } else {
+        connectionPromise = get().connect(
           name || normalizeHost(urlHost),
           urlHost, // Use full URL
           port,
@@ -2829,19 +2859,26 @@ const useStore = create<AppState>((set, get) => ({
           password,
           saslAccountName,
           saslPassword,
-        )
-        .catch((error) => {
-          console.error(`Failed to reconnect to server ${urlHost}`, error);
-          // Update server state to disconnected using normalized comparison
-          set((state) => ({
-            servers: state.servers.map((s) =>
-              normalizeHost(s.host) === normalizeHost(urlHost) &&
-              s.port === port
-                ? { ...s, connectionState: "disconnected" as const }
-                : s,
-            ),
-          }));
-        });
+        );
+      }
+      connectionPromise = connectionPromise.catch((error) => {
+        console.error(`Failed to reconnect to server ${urlHost}`, error);
+        // Mark this server as disconnected. For bouncer children we
+        // match by id (shared host:port with siblings); otherwise we
+        // fall back to host:port matching for legacy entries that may
+        // have been written without an `id` field.
+        set((state) => ({
+          servers: state.servers.map((s) => {
+            const isThisServer = savedServer.bouncerNetid
+              ? s.id === id
+              : normalizeHost(s.host) === normalizeHost(urlHost) &&
+                s.port === port;
+            return isThisServer
+              ? { ...s, connectionState: "disconnected" as const }
+              : s;
+          }),
+        }));
+      });
 
       connectionPromises.push(connectionPromise);
     }
@@ -3791,6 +3828,82 @@ const useStore = create<AppState>((set, get) => ({
   },
   bouncerDelNetwork: (bouncerServerId, netid) => {
     ircClient.bouncerDelNetwork(bouncerServerId, netid);
+  },
+
+  bouncerConnectNetwork: async (bouncerServerId, netid) => {
+    const state = get();
+    const parent = state.servers.find((s) => s.id === bouncerServerId);
+    if (!parent) return undefined;
+    // Reuse the parent's persisted credentials. Bouncers authenticate
+    // the user once on the control connection and then accept child
+    // connections from the same client with the same auth.
+    const savedParent = storage.servers
+      .load()
+      .find((s) => s.id === bouncerServerId);
+    if (!savedParent) return undefined;
+
+    // Network name from the bouncer's BOUNCER NETWORK announcement (if
+    // any) -- a friendly label for the new Server.
+    const bouncer = state.bouncers[bouncerServerId];
+    const network = bouncer?.networks[netid];
+    const friendly = network?.attributes.name || `${parent.name}/${netid}`;
+
+    // New child server id. Deterministic enough to survive page
+    // reload: we hash (bouncerServerId, netid) so the same upstream
+    // network always lives in the same Server slot.
+    const childId = uuidv5(`${bouncerServerId}:${netid}`, CHANNEL_NAMESPACE);
+
+    // Persist the child config so a subsequent connectToSavedServers
+    // can restore the same child. ServerConfig carries the
+    // bouncerServerId + bouncerNetid linkage.
+    const savedServers = storage.servers.load();
+    if (!savedServers.find((s) => s.id === childId)) {
+      savedServers.push({
+        ...savedParent,
+        id: childId,
+        name: friendly,
+        bouncerServerId,
+        bouncerNetid: netid,
+        isBouncerControl: false,
+        addedAt: Date.now(),
+      });
+      storage.servers.save(savedServers);
+    }
+
+    // Seed an in-memory Server row in "connecting" state so the UI
+    // can show it immediately.
+    set((state) => {
+      if (state.servers.some((s) => s.id === childId)) return state;
+      const seed: Server = {
+        id: childId,
+        name: friendly,
+        host: parent.host,
+        port: parent.port,
+        channels: [],
+        privateChats: [],
+        users: [],
+        isConnected: false,
+        connectionState: "connecting",
+        bouncerServerId,
+        bouncerNetid: netid,
+      };
+      return { servers: [...state.servers, seed] };
+    });
+
+    // Queue the BIND so the next CAP END for this new connection
+    // emits `BOUNCER BIND <netid>` first.
+    ircClient.setPendingBouncerBind(childId, netid);
+
+    return ircClient.connect(
+      friendly,
+      parent.host,
+      parent.port,
+      savedParent.nickname,
+      savedParent.password,
+      savedParent.saslAccountName,
+      savedParent.saslPassword,
+      childId,
+    );
   },
 
   sendRaw: (serverId, command) => {
