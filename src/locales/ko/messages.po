@@ -2014,6 +2014,14 @@ msgstr "메시지에서 마크다운 서식 렌더링"
 msgid "Reply"
 msgstr "답장"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "채팅에서 응답함"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "응답 메시지가 더 이상 표시되지 않습니다"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "저장됨"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "저장 중..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "이 응답으로 이동"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "프로필 보기"
 msgid "View user profile information"
 msgstr "사용자 프로필 정보 보기"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "워크플로 보기 ({stepCount}단계)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2724,6 +2740,10 @@ msgstr "광역 - 더 넓은 보호 범위"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "비워두면 기본값인 '사유 없음'이 사용됩니다"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "워크플로를 사용할 수 없습니다"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

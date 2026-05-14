@@ -2014,6 +2014,14 @@ msgstr "Отображать форматирование Markdown в сообщ
 msgid "Reply"
 msgstr "Ответить"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Ответил в чате"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Сообщение с ответом больше не отображается"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "Сохранено"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Сохранение..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Перейти к этому ответу"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "Просмотреть профиль"
 msgid "View user profile information"
 msgstr "Просмотреть информацию профиля пользователя"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "Показать процесс ({stepCount} шагов)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2724,6 +2740,10 @@ msgstr "Широкий — более широкая область защиты
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Если оставить пустым, будет использоваться «без причины»"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "Процесс недоступен"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

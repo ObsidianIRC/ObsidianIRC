@@ -2014,6 +2014,14 @@ msgstr "Zobrazovat Markdown formátování ve zprávách"
 msgid "Reply"
 msgstr "Odpovědět"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Odpověděl v chatu"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Odpověď již není v zobrazení"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "Uloženo"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Ukládám..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Přejít na tuto odpověď"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "Zobrazit profil"
 msgid "View user profile information"
 msgstr "Zobrazit informace o profilu uživatele"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "Zobrazit postup ({stepCount} kroků)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Hlas"
@@ -2724,6 +2740,10 @@ msgstr "Široký - širší rozsah ochrany"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Výchozí bude 'bez důvodu', pokud ponecháte prázdné"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "Postup není dostupný"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

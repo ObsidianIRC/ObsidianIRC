@@ -2014,6 +2014,14 @@ msgstr "Відображати Markdown-форматування у повідо
 msgid "Reply"
 msgstr "Відповісти"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Відповів у чаті"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Повідомлення з відповіддю більше не видно"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "Збережено"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Збереження..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Перейти до цієї відповіді"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "Переглянути профіль"
 msgid "View user profile information"
 msgstr "Переглянути інформацію профілю користувача"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "Показати процес ({stepCount} кроків)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Голос"
@@ -2724,6 +2740,10 @@ msgstr "Широкий - ширша область захисту"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "За замовчуванням буде 'без причини', якщо залишити порожнім"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "Процес недоступний"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

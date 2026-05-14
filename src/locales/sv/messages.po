@@ -2014,6 +2014,14 @@ msgstr "Rendera markdown-formatering i meddelanden"
 msgid "Reply"
 msgstr "Svara"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Svarade i chatten"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Svarsmeddelandet syns inte längre"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "Sparat"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Sparar..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Bläddra till detta svar"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "Visa profil"
 msgid "View user profile information"
 msgstr "Visa användarprofilinformation"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "Visa arbetsflöde ({stepCount} steg)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2724,6 +2740,10 @@ msgstr "Brett – bredare skyddsomfång"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Standardvärdet är 'ingen anledning' om det lämnas tomt"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "Arbetsflöde ej tillgängligt"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

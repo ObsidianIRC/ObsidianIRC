@@ -2014,6 +2014,14 @@ msgstr "Mostra la formattazione Markdown nei messaggi"
 msgid "Reply"
 msgstr "Rispondi"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Ha risposto in chat"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Risposta non più visibile"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "Salvato"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Salvataggio..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Vai a questa risposta"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "Vedi profilo"
 msgid "View user profile information"
 msgstr "Visualizza informazioni profilo utente"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "Visualizza workflow ({stepCount} passaggi)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2724,6 +2740,10 @@ msgstr "Ampio – Portata di protezione estesa"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Il valore predefinito sarà 'nessun motivo' se lasciato vuoto"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "Workflow non disponibile"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

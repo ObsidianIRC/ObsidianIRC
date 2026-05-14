@@ -107,11 +107,13 @@ export function registerAiToolsHandlers(store: StoreApi<AppState>): void {
     mtags,
     sender,
     target,
+    fromPrivmsg,
   }: {
     serverId: string;
     mtags?: Record<string, string>;
     sender: string;
     target: string;
+    fromPrivmsg: boolean;
   }): void => {
     const raw = mtags?.[AI_TOOLS_TAG];
     if (!raw) return;
@@ -119,19 +121,26 @@ export function registerAiToolsHandlers(store: StoreApi<AppState>): void {
     if (!msg) return;
 
     if (msg.msg === "workflow") {
+      // The bot's final answer is a PRIVMSG carrying the workflow tag.
+      // Stash its msgid so the workflow card can deep-link back to the
+      // chat message that closed it ("Responded in chat" footer).
+      const finalMsgid = fromPrivmsg ? mtags?.msgid : undefined;
       store.setState((state) => {
         const server = state.aiWorkflows[serverId] ?? {};
-        const updated = applyWorkflowUpdate(
+        const merged = applyWorkflowUpdate(
           server[msg.id],
           serverId,
           target,
           sender,
           msg,
         );
+        if (finalMsgid && !merged.finalMsgid) {
+          merged.finalMsgid = finalMsgid;
+        }
         return {
           aiWorkflows: {
             ...state.aiWorkflows,
-            [serverId]: { ...server, [msg.id]: updated },
+            [serverId]: { ...server, [msg.id]: merged },
           },
         };
       });
@@ -163,17 +172,31 @@ export function registerAiToolsHandlers(store: StoreApi<AppState>): void {
       mtags,
       sender,
       target: channelName,
+      fromPrivmsg: false,
     });
   });
 
   // PRIVMSG carrying the ai-tools tag is the bot's final response. We do
   // NOT suppress it from chat -- the user wants to see the answer -- but
   // we mirror its workflow-state update into the workflow record so the
-  // card reflects the same lifecycle.
+  // card reflects the same lifecycle, and we record the message's msgid
+  // so the card can deep-link to it.
   ircClient.on("CHANMSG", ({ serverId, mtags, sender, channelName }) => {
-    handleTaggedMessage({ serverId, mtags, sender, target: channelName });
+    handleTaggedMessage({
+      serverId,
+      mtags,
+      sender,
+      target: channelName,
+      fromPrivmsg: true,
+    });
   });
   ircClient.on("USERMSG", ({ serverId, mtags, sender, target }) => {
-    handleTaggedMessage({ serverId, mtags, sender, target });
+    handleTaggedMessage({
+      serverId,
+      mtags,
+      sender,
+      target,
+      fromPrivmsg: true,
+    });
   });
 }

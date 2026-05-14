@@ -2014,6 +2014,14 @@ msgstr "Mesajlarda markdown biçimlendirmesini işle"
 msgid "Reply"
 msgstr "Yanıtla"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Sohbette yanıtladı"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Yanıt mesajı artık görünmüyor"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "Kaydedildi"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Kaydediliyor..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Bu yanıta kaydır"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "Profili Görüntüle"
 msgid "View user profile information"
 msgstr "Kullanıcı profil bilgilerini görüntüle"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "İş akışını göster ({stepCount} adım)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2724,6 +2740,10 @@ msgstr "Geniş - Daha kapsamlı koruma alanı"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Boş bırakılırsa varsayılan olarak 'neden yok' kullanılır"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "İş akışı kullanılamıyor"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

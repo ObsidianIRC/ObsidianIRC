@@ -2014,6 +2014,14 @@ msgstr "Afișați formatarea Markdown în mesaje"
 msgid "Reply"
 msgstr "Răspunde"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "A răspuns în chat"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Răspunsul nu mai este vizibil"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "Salvat"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Se salvează..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Derulează la acest răspuns"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "Vizualizați profilul"
 msgid "View user profile information"
 msgstr "Vezi informațiile profilului utilizatorului"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "Vezi fluxul ({stepCount} pași)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2724,6 +2740,10 @@ msgstr "Larg – Domeniu de protecție mai amplu"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Va fi implicit „niciun motiv\" dacă este lăsat gol"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "Flux indisponibil"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

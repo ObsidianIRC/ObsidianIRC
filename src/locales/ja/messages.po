@@ -2014,6 +2014,14 @@ msgstr "メッセージ内のMarkdown書式を表示する"
 msgid "Reply"
 msgstr "返信"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "チャットで返信しました"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "返信メッセージは表示範囲外です"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "保存済み"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "保存中..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "この返信までスクロール"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "プロフィールを表示"
 msgid "View user profile information"
 msgstr "ユーザープロフィール情報を表示する"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "ワークフローを表示 ({stepCount} ステップ)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2724,6 +2740,10 @@ msgstr "広め — より広範な保護範囲"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "空欄の場合は「理由なし」がデフォルトになります"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "ワークフローは利用できません"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

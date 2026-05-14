@@ -506,6 +506,10 @@ export interface AiWorkflow {
   // included `trigger` in the start event. Lets the UI correlate.
   trigger?: string;
   cancelledBy?: string;
+  // msgid of the PRIVMSG that carried the final workflow-complete tag.
+  // Set by the aiTools handler when a tagged PRIVMSG arrives so the
+  // card can deep-link to that message ("Responded in chat" footer).
+  finalMsgid?: string;
   startedAt: number;
   updatedAt: number;
   steps: AiStep[];
@@ -957,6 +961,9 @@ export interface AppState {
     collapsed: boolean,
   ) => void;
   aiWorkflowDismiss: (serverId: string, workflowId: string) => void;
+  // Un-dismiss + expand. Used to reopen a workflow card from its
+  // final-response PRIVMSG after the user has closed the tray entry.
+  aiWorkflowReopen: (serverId: string, workflowId: string) => void;
   // Send an `action` message (cancel / approve / reject / steer) to the
   // bot's nick via TAGMSG carrying `+obby.world/ai-tools`.
   aiSendAction: (
@@ -3847,6 +3854,23 @@ const useStore = create<AppState>((set, get) => ({
           [serverId]: {
             ...server,
             [workflowId]: { ...wf, dismissed: true },
+          },
+        },
+      };
+    });
+  },
+
+  aiWorkflowReopen: (serverId, workflowId) => {
+    set((state) => {
+      const server = state.aiWorkflows[serverId];
+      const wf = server?.[workflowId];
+      if (!wf) return state;
+      return {
+        aiWorkflows: {
+          ...state.aiWorkflows,
+          [serverId]: {
+            ...server,
+            [workflowId]: { ...wf, dismissed: false, collapsed: false },
           },
         },
       };

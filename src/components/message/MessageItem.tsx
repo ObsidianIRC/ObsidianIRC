@@ -22,6 +22,7 @@ import useStore, { loadSavedMetadata } from "../../store";
 import type { MessageType, PrivateChat, User } from "../../types";
 import MessageBottomSheet from "../mobile/MessageBottomSheet";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
+import { AiToolsMessagePill } from "./AiToolsMessagePill";
 import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
 import { InviteMessage } from "./InviteMessage";
 import {
@@ -729,6 +730,11 @@ export const MessageItem = memo((props: MessageItemProps) => {
                 onReplyClick={handleScrollToReply}
               />
             )}
+
+            <AiToolsMessagePill
+              serverId={message.serverId}
+              tags={message.tags}
+            />
 
             <EnhancedLinkWrapper onIrcLinkClick={onIrcLinkClick}>
               {isSingleToken &&

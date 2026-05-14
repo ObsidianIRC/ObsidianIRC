@@ -2013,6 +2013,14 @@ msgstr "Render markdown formatting in messages"
 msgid "Reply"
 msgstr "Reply"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Responded in chat"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Response message is no longer in view"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2051,6 +2059,10 @@ msgstr "Saved"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Saving..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Scroll chat to this response"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2650,6 +2662,10 @@ msgstr "View Profile"
 msgid "View user profile information"
 msgstr "View user profile information"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "View workflow ({stepCount} steps)"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "Voice"
@@ -2723,6 +2739,10 @@ msgstr "Wide - Broader protection scope"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Will default to 'no reason' if left empty"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "Workflow not available"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

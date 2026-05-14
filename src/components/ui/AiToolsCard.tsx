@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useMemo } from "react";
 import {
+  FaArrowRight,
   FaCheck,
   FaChevronDown,
   FaChevronUp,
@@ -13,6 +14,18 @@ import {
 } from "react-icons/fa";
 import type { AiStep, AiWorkflow } from "../../store";
 import useStore from "../../store";
+
+// Scroll the chat-side message with the given internal id into view and
+// run the same .message-flash highlight that reply-jump uses, so the
+// deep link from the workflow card lands somewhere attention-grabbing.
+function scrollToMessageId(internalId: string): boolean {
+  const el = document.querySelector(`[data-message-id="${internalId}"]`);
+  if (!el) return false;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("message-flash");
+  setTimeout(() => el.classList.remove("message-flash"), 2000);
+  return true;
+}
 
 interface AiToolsCardProps {
   workflow: AiWorkflow;
@@ -207,6 +220,24 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
   const setCollapsed = useStore((s) => s.aiWorkflowSetCollapsed);
   const dismiss = useStore((s) => s.aiWorkflowDismiss);
   const sendAction = useStore((s) => s.aiSendAction);
+  // For "Responded in chat" — map the workflow's finalMsgid (an IRC
+  // msgid string) to the internal Message.id we use as the DOM key.
+  // Only takes a single string out of the store so we don't re-render
+  // the card on every unrelated message arrival.
+  const finalMessageInternalId = useStore((s) => {
+    if (!workflow.finalMsgid) return undefined;
+    for (const bucket of Object.values(s.messages)) {
+      for (const m of bucket) {
+        if (
+          m.serverId === workflow.serverId &&
+          m.msgid === workflow.finalMsgid
+        ) {
+          return m.id;
+        }
+      }
+    }
+    return undefined;
+  });
 
   const isTerminal =
     workflow.state === "complete" ||
@@ -341,6 +372,27 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
           <FaExclamationTriangle className="shrink-0" />
           <Trans>{pendingApprovals.length} step(s) awaiting approval</Trans>
         </div>
+      )}
+
+      {/* Deep link to the bot's final PRIVMSG once it's landed in chat */}
+      {isTerminal && workflow.finalMsgid && (
+        <button
+          type="button"
+          onClick={() => {
+            if (finalMessageInternalId)
+              scrollToMessageId(finalMessageInternalId);
+          }}
+          disabled={!finalMessageInternalId}
+          className="w-full px-3 py-1.5 border-t border-discord-dark-400 text-left text-[11px] text-discord-text-muted hover:text-white hover:bg-discord-dark-400/60 flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title={
+            finalMessageInternalId
+              ? t`Scroll chat to this response`
+              : t`Response message is no longer in view`
+          }
+        >
+          <FaArrowRight className="text-[9px] shrink-0" />
+          <Trans>Responded in chat</Trans>
+        </button>
       )}
     </div>
   );

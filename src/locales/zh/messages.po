@@ -2014,6 +2014,14 @@ msgstr "在消息中渲染 Markdown 格式"
 msgid "Reply"
 msgstr "回复"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "已在聊天中回复"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "回复消息已不在视图中"
+
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
 msgid "Retry sending"
@@ -2052,6 +2060,10 @@ msgstr "已保存"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "正在保存..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "滚动到此回复"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2651,6 +2663,10 @@ msgstr "查看资料"
 msgid "View user profile information"
 msgstr "查看用户资料信息"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "View workflow ({stepCount} steps)"
+msgstr "查看工作流（{stepCount} 步）"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Voice"
 msgstr "语音权限"
@@ -2724,6 +2740,10 @@ msgstr "宽泛 – 更广的保护范围"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "留空将默认显示\"无原因\""
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Workflow not available"
+msgstr "工作流不可用"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx
