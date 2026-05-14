@@ -3875,12 +3875,21 @@ const useStore = create<AppState>((set, get) => ({
       const server = state.aiWorkflows[serverId];
       const wf = server?.[workflowId];
       if (!wf) return state;
+      // Clearing `historical` here is deliberate: the flag exists to
+      // keep the tray quiet on channel-join chathistory replay, but
+      // once the user has explicitly clicked the inline pill to view
+      // this run they want the card surfaced even if it was replayed.
       return {
         aiWorkflows: {
           ...state.aiWorkflows,
           [serverId]: {
             ...server,
-            [workflowId]: { ...wf, dismissed: false, collapsed: false },
+            [workflowId]: {
+              ...wf,
+              dismissed: false,
+              collapsed: false,
+              historical: false,
+            },
           },
         },
       };
