@@ -26,6 +26,7 @@ function emptyWorkflow(
     name: m.name,
     state: m.state,
     trigger: m.trigger,
+    prompt: m.prompt,
     cancelledBy: m["cancelled-by"],
     startedAt: nowMs(),
     updatedAt: nowMs(),
@@ -48,6 +49,7 @@ function applyWorkflowUpdate(
     state: m.state,
     name: m.name ?? prev.name,
     trigger: m.trigger ?? prev.trigger,
+    prompt: m.prompt ?? prev.prompt,
     cancelledBy: m["cancelled-by"] ?? prev.cancelledBy,
     updatedAt: nowMs(),
   };

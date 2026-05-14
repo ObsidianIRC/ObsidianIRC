@@ -38,6 +38,11 @@ export interface AiWorkflowMessage {
   state: AiWorkflowState;
   name?: string;
   trigger?: string;
+  // Short truncated copy of the prompt that started the workflow.
+  // Non-standard but useful: lets clients show "Answering <nick>:
+  // <prompt excerpt>" inline on the workflow card without scrolling
+  // back to the trigger message.
+  prompt?: string;
   "cancelled-by"?: string;
 }
 
@@ -92,6 +97,7 @@ export function decodeAiToolsValue(raw: string): AiToolsMessage | null {
       };
       if (typeof obj.name === "string") m.name = obj.name;
       if (typeof obj.trigger === "string") m.trigger = obj.trigger;
+      if (typeof obj.prompt === "string") m.prompt = obj.prompt;
       if (typeof obj["cancelled-by"] === "string")
         m["cancelled-by"] = obj["cancelled-by"] as string;
       return m;

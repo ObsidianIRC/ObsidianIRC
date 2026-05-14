@@ -364,6 +364,11 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
               {workflow.name}
             </div>
           )}
+          {workflow.prompt && (
+            <div className="text-[11px] text-discord-text-muted/80 italic truncate mt-0.5">
+              &ldquo;{workflow.prompt}&rdquo;
+            </div>
+          )}
         </div>
         {isTerminal && (
           <button

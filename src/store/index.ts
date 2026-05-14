@@ -505,6 +505,10 @@ export interface AiWorkflow {
   // msgid of the IRC message that triggered the workflow, if the bot
   // included `trigger` in the start event. Lets the UI correlate.
   trigger?: string;
+  // Truncated copy of the prompt that started the workflow, if the bot
+  // included it. Rendered under the bot nick on the workflow card so
+  // the user can see what they asked without scrolling.
+  prompt?: string;
   cancelledBy?: string;
   // msgid of the PRIVMSG that carried the final workflow-complete tag.
   // Set by the aiTools handler when a tagged PRIVMSG arrives so the
