@@ -521,6 +521,12 @@ export interface AiWorkflow {
   // card is hidden from the tray (state is preserved for replay).
   collapsed: boolean;
   dismissed: boolean;
+  // True when the workflow was first observed inside a chathistory
+  // batch (i.e. it's being replayed from the server, not happening
+  // right now). The floating tray filters these out so joining a
+  // channel doesn't pop a wall of old workflow cards; they still
+  // appear in the history popover for inspection.
+  historical: boolean;
 }
 
 export interface AppState {

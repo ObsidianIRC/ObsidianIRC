@@ -2353,6 +2353,10 @@ msgstr "SoundCloud 播放器"
 msgid "Start Private Message"
 msgstr "发起私信"
 
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Starting workflow…"
+msgstr "正在啟動工作流程…"
+
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
@@ -2762,6 +2766,10 @@ msgstr "工作流程歷程"
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history ({0})"
 msgstr "工作流程歷程 ({0})"
+
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Working…"
+msgstr "處理中…"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

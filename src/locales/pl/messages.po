@@ -2353,6 +2353,10 @@ msgstr "Odtwarzacz SoundCloud"
 msgid "Start Private Message"
 msgstr "Rozpocznij prywatną rozmowę"
 
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Starting workflow…"
+msgstr "Uruchamianie workflow…"
+
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
@@ -2762,6 +2766,10 @@ msgstr "Historia przepływów pracy"
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "Workflow history ({0})"
 msgstr "Historia przepływów pracy ({0})"
+
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Working…"
+msgstr "Pracuję…"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

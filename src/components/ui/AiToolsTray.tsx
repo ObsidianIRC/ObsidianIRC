@@ -21,9 +21,14 @@ export const AiToolsTray: React.FC<AiToolsTrayProps> = ({
 
   const visible = useMemo(() => {
     if (!serverWorkflows || !channel) return [];
-    return Object.values(serverWorkflows)
-      .filter((w) => !w.dismissed && w.channel === channel)
-      .sort((a, b) => b.startedAt - a.startedAt);
+    return (
+      Object.values(serverWorkflows)
+        // Skip historical workflows -- those replay through CHATHISTORY
+        // when joining a channel and shouldn't pop a wall of cards.
+        // They still appear in the history popover for inspection.
+        .filter((w) => !w.dismissed && !w.historical && w.channel === channel)
+        .sort((a, b) => b.startedAt - a.startedAt)
+    );
   }, [serverWorkflows, channel]);
 
   if (visible.length === 0) return null;

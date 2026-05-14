@@ -23,6 +23,7 @@ import type { MessageType, PrivateChat, User } from "../../types";
 import MessageBottomSheet from "../mobile/MessageBottomSheet";
 import { EnhancedLinkWrapper } from "../ui/LinkWrapper";
 import { AiToolsMessagePill } from "./AiToolsMessagePill";
+import { AiToolsPlaceholderBody } from "./AiToolsPlaceholderBody";
 import type { CollapsibleMessageHandle } from "./CollapsibleMessage";
 import { InviteMessage } from "./InviteMessage";
 import {
@@ -766,7 +767,16 @@ export const MessageItem = memo((props: MessageItemProps) => {
                     serverId={message.serverId}
                     tags={message.tags}
                   />
-                  <div className="flex-1 min-w-0">{collapsibleContent}</div>
+                  <div className="flex-1 min-w-0">
+                    {message.aiToolsPending && message.aiToolsWorkflowId ? (
+                      <AiToolsPlaceholderBody
+                        serverId={message.serverId}
+                        workflowId={message.aiToolsWorkflowId}
+                      />
+                    ) : (
+                      collapsibleContent
+                    )}
+                  </div>
                 </div>
               )}
             </EnhancedLinkWrapper>

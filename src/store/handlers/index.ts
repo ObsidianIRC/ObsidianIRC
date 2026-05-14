@@ -15,6 +15,11 @@ import { registerWhoisHandlers } from "./whois";
 
 export function registerAllHandlers(store: StoreApi<AppState>): void {
   registerConnectionHandlers(store);
+  // aiTools fires before message handlers so the workflow-PRIVMSG can
+  // morph an existing placeholder Message in place (and pre-add its
+  // msgid to processedMessageIds) before the generic CHANMSG handler
+  // would otherwise append a duplicate row.
+  registerAiToolsHandlers(store);
   registerMessageHandlers(store);
   registerUserHandlers(store);
   registerChannelHandlers(store);
@@ -25,5 +30,4 @@ export function registerAllHandlers(store: StoreApi<AppState>): void {
   registerNamedModesHandlers(store);
   registerReadMarkerHandlers(store);
   registerTicTacToeHandlers(store);
-  registerAiToolsHandlers(store);
 }
