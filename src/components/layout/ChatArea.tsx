@@ -1023,28 +1023,25 @@ export const ChatArea: React.FC<{
     // files before pushing bytes.
     const info = await fetchUploadInfo(filehostUrl);
 
-    // Acquire auth token (reuse existing EXTJWT flow).  The backend
-    // doesn't need a fresh token per file -- the same Bearer is
-    // accepted until expiry, so we mint once.
-    let jwtToken = selectedServer?.jwtToken;
-    if (!jwtToken) {
-      useStore.setState((state) => ({
-        servers: state.servers.map((server) =>
-          server.id === selectedServerId
-            ? { ...server, jwtToken: undefined }
-            : server,
-        ),
-      }));
-      ircClient.requestExtJwt(selectedServerId, "*", "filehost");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const updated = useStore
-        .getState()
-        .servers.find((s) => s.id === selectedServerId);
-      jwtToken = updated?.jwtToken;
-    }
-    if (!jwtToken) {
-      console.error("Failed to obtain auth token for file upload");
-      return;
+    // Acquire one draft/authtoken Bearer per file.  Tokens are
+    // single-use (the IRCd consumes each one on the validate-RPC the
+    // backend runs before accepting the upload), so we can't share
+    // a single Bearer across the batch like the old EXTJWT path did.
+    // Mints are serialised because `waitForAuthToken` resolves on the
+    // first matching TOKEN_GENERATE event -- parallel mints would
+    // race for the same reply.
+    const scope = target?.startsWith("#") ? `channel:${target}` : undefined;
+    const tokens: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      ircClient.requestToken(selectedServerId, "filehost", scope);
+      const tok = await waitForAuthToken(selectedServerId, "filehost");
+      if (!tok) {
+        console.error(
+          "draft/authtoken: server did not return a filehost token",
+        );
+        return;
+      }
+      tokens.push(tok);
     }
 
     // Build the job list in one go so the progress strip appears
@@ -1065,7 +1062,7 @@ export const ChatArea: React.FC<{
 
     // Run all uploads in parallel; collect URLs in original input order.
     const results = await Promise.all(
-      initialJobs.map(async (job) => {
+      initialJobs.map(async (job, jobIdx) => {
         // Cheap client-side validation -- saves a server round-trip
         // and gives the user immediate feedback.
         const validationError = validateFileAgainstInfo(job.file, info);
@@ -1082,7 +1079,7 @@ export const ChatArea: React.FC<{
         try {
           const url = await uploadFile(job.file, {
             filehostUrl,
-            bearerToken: jwtToken as string,
+            bearerToken: tokens[jobIdx],
             signal: ac.signal,
             onProgress: (loaded, total) => updateJob(job.id, { loaded, total }),
           });
