@@ -283,9 +283,9 @@ msgstr "Wird angewendet..."
 msgid "are now known as **{newNick}**"
 msgstr "ist jetzt bekannt als **{newNick}**"
 
-#: src/components/layout/ChatArea.tsx
-msgid "Are you sure you want to delete this message? This action cannot be undone."
-msgstr "Bist du sicher, dass du diese Nachricht löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden."
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Are you sure?"
+msgstr "Bist du sicher?"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
@@ -406,6 +406,7 @@ msgstr "Alle Kanäle auf dem Server durchsuchen"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ConfirmDialog.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -639,6 +640,10 @@ msgstr "Detaillierte Flood-Schutzregeln konfigurieren. Jede Regel legt fest, wel
 msgid "Configure notification sounds and highlights"
 msgstr "Benachrichtigungstöne und Hervorhebungen konfigurieren"
 
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Confirm"
+msgstr "Bestätigen"
+
 #: src/components/ui/AddServerModal.tsx
 msgid "Connect"
 msgstr "Verbinden"
@@ -747,7 +752,9 @@ msgstr "Standardnachricht beim Als-abwesend-markieren"
 msgid "Default Nickname"
 msgstr "Standard-Nickname"
 
+#: src/components/layout/ChatArea.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Delete"
 msgstr "Löschen"
 
@@ -759,13 +766,22 @@ msgstr "Kanal löschen"
 msgid "Delete message"
 msgstr "Nachricht löschen"
 
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete message?"
+msgstr "Nachricht löschen?"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Delete Private Chat"
 msgstr "Privatnachricht löschen"
 
-#: src/components/ui/MediaCommentsSidebar.tsx
-msgid "Delete this message? This cannot be undone."
-msgstr "Diese Nachricht löschen? Dies kann nicht rückgängig gemacht werden."
+#: src/components/ui/UserSettings.tsx
+msgid "Discard"
+msgstr "Verwerfen"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Discard unsaved changes?"
+msgstr "Nicht gespeicherte Änderungen verwerfen?"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
@@ -1214,6 +1230,10 @@ msgstr "ist beigetreten und gegangen"
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "Dem Kanal beigetreten"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Keep editing"
+msgstr "Weiter bearbeiten"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
@@ -2362,6 +2382,14 @@ msgstr "Dieses Feld ist erforderlich"
 msgid "This image has expired"
 msgstr "Dieses Bild ist abgelaufen"
 
+#: src/components/layout/ChatArea.tsx
+msgid "This message will be removed for everyone in the channel. This cannot be undone."
+msgstr "Diese Nachricht wird für alle im Kanal entfernt. Das kann nicht rückgängig gemacht werden."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "This message will be removed for everyone. This cannot be undone."
+msgstr "Diese Nachricht wird für alle entfernt. Das kann nicht rückgängig gemacht werden."
+
 #: src/components/ui/UserSettings.tsx
 msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
 msgstr "Dieser Server unterstützt keine erweiterten Profilmetadaten (IRCv3 METADATA). Felder wie Avatar, Anzeigename und Status sind nicht verfügbar."
@@ -2698,8 +2726,8 @@ msgid "You are an IRC Operator"
 msgstr "Du bist ein IRC Operator"
 
 #: src/components/ui/UserSettings.tsx
-msgid "You have unsaved changes. Are you sure you want to close without saving?"
-msgstr "Du hast ungespeicherte Änderungen. Möchtest du wirklich schließen, ohne zu speichern?"
+msgid "You have unsaved changes. Closing now will discard them."
+msgstr "Du hast nicht gespeicherte Änderungen. Schließen verwirft sie."
 
 #: src/store/handlers/users.ts
 msgid "You invited {target} to join {channel}"

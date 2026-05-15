@@ -21,6 +21,7 @@ import {
   listPacks,
 } from "../../lib/emojiAdminApi";
 import useStore from "../../store";
+import { useConfirm } from "./ConfirmDialog";
 
 interface Props {
   serverId: string;
@@ -36,6 +37,7 @@ interface ExpandedPackEmoji {
 export const EmojiPackAdminModal: React.FC<Props> = ({ serverId, onClose }) => {
   const server = useStore((s) => s.servers.find((srv) => srv.id === serverId));
   const baseUrl = server?.authTokenUrl || server?.filehost || "";
+  const confirm = useConfirm();
 
   const [packs, setPacks] = useState<AdminPack[]>([]);
   const [loading, setLoading] = useState(false);
@@ -107,13 +109,14 @@ export const EmojiPackAdminModal: React.FC<Props> = ({ serverId, onClose }) => {
   };
 
   const removePack = async (packId: string) => {
-    if (
-      !window.confirm(
-        `Delete pack "${packId}"?  This also deletes every emoji in it.`,
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Delete pack "${packId}"?`,
+      message:
+        "This also deletes every emoji in this pack. This cannot be undone.",
+      confirmLabel: "Delete pack",
+      danger: true,
+    });
+    if (!ok) return;
     setErr(null);
     try {
       await deletePack(serverId, baseUrl, packId);

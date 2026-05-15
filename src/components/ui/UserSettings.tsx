@@ -32,6 +32,7 @@ import useStore, {
   serverSupportsMetadata,
 } from "../../store";
 import AvatarUpload from "./AvatarUpload";
+import { useConfirm } from "./ConfirmDialog";
 import EmojiPackAdminModal from "./EmojiPackAdminModal";
 import PersistenceSettingsPanel from "./PersistenceSettingsPanel";
 import { SettingField } from "./settings/SettingRenderer";
@@ -101,6 +102,34 @@ interface CategoryInfo {
   description: string;
 }
 
+/**
+ * A pair of hidden form fields placed at the start of the modal that
+ * exists solely to absorb browser autofill attempts.  Chromium-based
+ * browsers, Firefox, and Safari all look for a username+password pair
+ * and fill the *first* one they find; putting decoys with those names
+ * here means the visible fields below (avatar URL, homepage, nickname,
+ * etc.) stay alone.  display:none + tabIndex=-1 keeps them out of the
+ * keyboard / a11y tree.
+ */
+const AutofillDecoy: React.FC = () => (
+  <div aria-hidden="true" style={{ display: "none" }}>
+    <input
+      type="text"
+      name="username"
+      autoComplete="username"
+      tabIndex={-1}
+      defaultValue=""
+    />
+    <input
+      type="password"
+      name="password"
+      autoComplete="current-password"
+      tabIndex={-1}
+      defaultValue=""
+    />
+  </div>
+);
+
 export const UserSettings: React.FC = React.memo(() => {
   const {
     toggleSettingsModal,
@@ -119,6 +148,7 @@ export const UserSettings: React.FC = React.memo(() => {
     addToIgnoreList,
     removeFromIgnoreList,
   } = useStore();
+  const confirm = useConfirm();
 
   const currentServer = useMemo(
     () => servers.find((s) => s.id === ui.selectedServerId),
@@ -753,18 +783,21 @@ export const UserSettings: React.FC = React.memo(() => {
   ]);
 
   // Handle close
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
     if (hasUnsavedChanges) {
-      const confirmClose = window.confirm(
-        t`You have unsaved changes. Are you sure you want to close without saving?`,
-      );
-      if (!confirmClose) {
-        return;
-      }
+      const ok = await confirm({
+        title: t`Discard unsaved changes?`,
+        message: t`You have unsaved changes. Closing now will discard them.`,
+        confirmLabel: t`Discard`,
+        cancelLabel: t`Keep editing`,
+        danger: true,
+      });
+      if (!ok) return;
     }
     setOriginalValues(null);
     toggleSettingsModal(false);
-  }, [hasUnsavedChanges, toggleSettingsModal]);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: t is a stable lingui helper, including it would re-create the callback on every render
+  }, [hasUnsavedChanges, toggleSettingsModal, confirm]);
 
   // Render media settings with progressive slider
   const renderMediaFields = () => {
@@ -1439,6 +1472,12 @@ export const UserSettings: React.FC = React.memo(() => {
               onChange={(e) => setOperPassword(e.target.value)}
               placeholder={t`Enter oper password`}
               className="w-full bg-discord-dark-500 text-discord-text-normal rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-discord-primary"
+              // "new-password" reliably disables managers across Chrome /
+              // Firefox / Safari (plain "off" is ignored on password fields).
+              // The decoy-username trick at the modal root also absorbs any
+              // stray autofill attempts.
+              autoComplete="new-password"
+              name="oper-password-do-not-fill"
             />
           </div>
 
@@ -1507,6 +1546,8 @@ export const UserSettings: React.FC = React.memo(() => {
           paddingRight: "var(--safe-area-inset-right, 0px)",
         }}
       >
+        <AutofillDecoy />
+
         {mobileView === "categories" ? (
           <>
             {/* Header */}
@@ -1708,6 +1749,7 @@ export const UserSettings: React.FC = React.memo(() => {
         {...getContentProps()}
         className="bg-discord-dark-200 rounded-lg w-full max-w-4xl h-[80vh] flex overflow-hidden"
       >
+        <AutofillDecoy />
         {/* Sidebar */}
         <div className="bg-discord-dark-300 flex flex-col">
           <div className="p-4 border-b border-discord-dark-500 flex justify-center">

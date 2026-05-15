@@ -36,6 +36,7 @@ import { MessageItem } from "../message/MessageItem";
 import { MessageReactions } from "../message/MessageReactions";
 import AutocompleteDropdown from "./AutocompleteDropdown";
 import ColorPicker from "./ColorPicker";
+import { useConfirm } from "./ConfirmDialog";
 import { EmojiPickerInline } from "./EmojiPickerInline";
 import { EmojiPickerModal } from "./EmojiPickerModal";
 import { InputToolbar } from "./InputToolbar";
@@ -67,6 +68,7 @@ export function MediaCommentsSidebar({
   onCloseAll,
   onImageClick,
 }: MediaCommentsSidebarProps) {
+  const confirm = useConfirm();
   const [commentText, setCommentText] = useState("");
   const [cursorPosition, setCursorPosition] = useState(0);
   const [isEmojiSelectorOpen, setIsEmojiSelectorOpen] = useState(false);
@@ -501,13 +503,15 @@ export function MediaCommentsSidebar({
               onReactionUnreact={unreact}
               onOpenReactionModal={(msg, _pos) => openReactionModal(msg)}
               onDirectReaction={directReaction}
-              onRedactMessage={(msg) => {
+              onRedactMessage={async (msg) => {
                 if (!msg.msgid || !channelName) return;
-                if (
-                  window.confirm(t`Delete this message? This cannot be undone.`)
-                ) {
-                  redactMessage(serverId, channelName, msg.msgid);
-                }
+                const ok = await confirm({
+                  title: t`Delete message?`,
+                  message: t`This message will be removed for everyone. This cannot be undone.`,
+                  confirmLabel: t`Delete`,
+                  danger: true,
+                });
+                if (ok) redactMessage(serverId, channelName, msg.msgid);
               }}
               serverId={serverId}
               channelId={channelId}

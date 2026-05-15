@@ -283,9 +283,9 @@ msgstr "Aplicando..."
 msgid "are now known as **{newNick}**"
 msgstr "agora é conhecido como **{newNick}**"
 
-#: src/components/layout/ChatArea.tsx
-msgid "Are you sure you want to delete this message? This action cannot be undone."
-msgstr "Tem certeza que deseja excluir esta mensagem? Esta ação não pode ser desfeita."
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Are you sure?"
+msgstr "Tem certeza?"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
@@ -406,6 +406,7 @@ msgstr "Navegar por todos os canais do servidor"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ConfirmDialog.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -639,6 +640,10 @@ msgstr "Configure regras detalhadas de proteção contra flood. Cada regra espec
 msgid "Configure notification sounds and highlights"
 msgstr "Configurar sons de notificação e destaques"
 
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Confirm"
+msgstr "Confirmar"
+
 #: src/components/ui/AddServerModal.tsx
 msgid "Connect"
 msgstr "Conectar"
@@ -747,7 +752,9 @@ msgstr "Mensagem padrão ao marcar-se como ausente"
 msgid "Default Nickname"
 msgstr "Apelido padrão"
 
+#: src/components/layout/ChatArea.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Delete"
 msgstr "Excluir"
 
@@ -759,13 +766,22 @@ msgstr "Excluir Canal"
 msgid "Delete message"
 msgstr "Excluir mensagem"
 
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete message?"
+msgstr "Excluir mensagem?"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Delete Private Chat"
 msgstr "Excluir Conversa Privada"
 
-#: src/components/ui/MediaCommentsSidebar.tsx
-msgid "Delete this message? This cannot be undone."
-msgstr "Excluir esta mensagem? Esta ação não pode ser desfeita."
+#: src/components/ui/UserSettings.tsx
+msgid "Discard"
+msgstr "Descartar"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Discard unsaved changes?"
+msgstr "Descartar alterações não salvas?"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
@@ -1214,6 +1230,10 @@ msgstr "entrou e saiu"
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "Entrou no canal"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Keep editing"
+msgstr "Continuar editando"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
@@ -2362,6 +2382,14 @@ msgstr "Este campo é obrigatório"
 msgid "This image has expired"
 msgstr "Esta imagem expirou"
 
+#: src/components/layout/ChatArea.tsx
+msgid "This message will be removed for everyone in the channel. This cannot be undone."
+msgstr "Esta mensagem será removida para todos no canal. Esta ação não pode ser desfeita."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "This message will be removed for everyone. This cannot be undone."
+msgstr "Esta mensagem será removida para todos. Esta ação não pode ser desfeita."
+
 #: src/components/ui/UserSettings.tsx
 msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
 msgstr "Este servidor não suporta metadados de perfil estendidos (extensão IRCv3 METADATA). Campos como avatar, nome de exibição e status não estão disponíveis."
@@ -2698,8 +2726,8 @@ msgid "You are an IRC Operator"
 msgstr "Você é um IRC Operator"
 
 #: src/components/ui/UserSettings.tsx
-msgid "You have unsaved changes. Are you sure you want to close without saving?"
-msgstr "Você tem alterações não salvas. Tem certeza que deseja fechar sem salvar?"
+msgid "You have unsaved changes. Closing now will discard them."
+msgstr "Você tem alterações não salvas. Fechar agora as descartará."
 
 #: src/store/handlers/users.ts
 msgid "You invited {target} to join {channel}"

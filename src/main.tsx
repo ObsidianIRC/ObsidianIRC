@@ -6,6 +6,7 @@ import ReactDOM from "react-dom/client";
 import { pdfjs } from "react-pdf";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import { ConfirmProvider } from "./components/ui/ConfirmDialog";
 import "./index.css";
 import { registerHostedServiceWorker } from "./lib/registerServiceWorker";
 
@@ -89,9 +90,11 @@ async function loadCatalog(locale: string) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <I18nProvider i18n={i18n}>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ConfirmProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ConfirmProvider>
       </I18nProvider>
     </React.StrictMode>,
   );

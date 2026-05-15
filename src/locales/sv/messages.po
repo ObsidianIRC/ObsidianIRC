@@ -283,9 +283,9 @@ msgstr "Tillämpar..."
 msgid "are now known as **{newNick}**"
 msgstr "är nu känd som **{newNick}**"
 
-#: src/components/layout/ChatArea.tsx
-msgid "Are you sure you want to delete this message? This action cannot be undone."
-msgstr "Är du säker på att du vill ta bort det här meddelandet? Den här åtgärden kan inte ångras."
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Are you sure?"
+msgstr "Är du säker?"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
@@ -406,6 +406,7 @@ msgstr "Bläddra bland alla kanaler på servern"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ConfirmDialog.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -639,6 +640,10 @@ msgstr "Konfigurera detaljerade flödeskyddsregler. Varje regel anger vilken typ
 msgid "Configure notification sounds and highlights"
 msgstr "Konfigurera aviseringsljud och markeringar"
 
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Confirm"
+msgstr "Bekräfta"
+
 #: src/components/ui/AddServerModal.tsx
 msgid "Connect"
 msgstr "Anslut"
@@ -747,7 +752,9 @@ msgstr "Standardmeddelande när du markerar dig som borta"
 msgid "Default Nickname"
 msgstr "Standard-nick"
 
+#: src/components/layout/ChatArea.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Delete"
 msgstr "Ta bort"
 
@@ -759,13 +766,22 @@ msgstr "Ta bort kanal"
 msgid "Delete message"
 msgstr "Ta bort meddelande"
 
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete message?"
+msgstr "Radera meddelandet?"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Delete Private Chat"
 msgstr "Ta bort privatchatt"
 
-#: src/components/ui/MediaCommentsSidebar.tsx
-msgid "Delete this message? This cannot be undone."
-msgstr "Ta bort det här meddelandet? Det kan inte ångras."
+#: src/components/ui/UserSettings.tsx
+msgid "Discard"
+msgstr "Förkasta"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Discard unsaved changes?"
+msgstr "Förkasta osparade ändringar?"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
@@ -1214,6 +1230,10 @@ msgstr "gick med och lämnade"
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "Gick med i kanalen"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Keep editing"
+msgstr "Fortsätt redigera"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
@@ -2362,6 +2382,14 @@ msgstr "Det här fältet krävs"
 msgid "This image has expired"
 msgstr "Den här bilden har gått ut"
 
+#: src/components/layout/ChatArea.tsx
+msgid "This message will be removed for everyone in the channel. This cannot be undone."
+msgstr "Det här meddelandet tas bort för alla i kanalen. Det går inte att ångra."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "This message will be removed for everyone. This cannot be undone."
+msgstr "Det här meddelandet tas bort för alla. Det går inte att ångra."
+
 #: src/components/ui/UserSettings.tsx
 msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
 msgstr "Den här servern stöder inte utökad profilmetadata (IRCv3 METADATA-tillägget). Ytterligare fält som avatar, visningsnamn och status är inte tillgängliga."
@@ -2698,8 +2726,8 @@ msgid "You are an IRC Operator"
 msgstr "Du är en IRC-operatör"
 
 #: src/components/ui/UserSettings.tsx
-msgid "You have unsaved changes. Are you sure you want to close without saving?"
-msgstr "Du har osparade ändringar. Är du säker på att du vill stänga utan att spara?"
+msgid "You have unsaved changes. Closing now will discard them."
+msgstr "Du har osparade ändringar. Stänger du nu förkastas de."
 
 #: src/store/handlers/users.ts
 msgid "You invited {target} to join {channel}"

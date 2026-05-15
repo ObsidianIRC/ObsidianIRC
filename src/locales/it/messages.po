@@ -283,9 +283,9 @@ msgstr "Applicazione..."
 msgid "are now known as **{newNick}**"
 msgstr "ora è conosciuto come **{newNick}**"
 
-#: src/components/layout/ChatArea.tsx
-msgid "Are you sure you want to delete this message? This action cannot be undone."
-msgstr "Sei sicuro di voler eliminare questo messaggio? Questa azione non può essere annullata."
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Are you sure?"
+msgstr "Sei sicuro?"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
@@ -406,6 +406,7 @@ msgstr "Sfoglia tutti i canali del server"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ConfirmDialog.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -639,6 +640,10 @@ msgstr "Configura regole dettagliate di protezione flood. Ogni regola specifica 
 msgid "Configure notification sounds and highlights"
 msgstr "Configura suoni di notifica ed evidenziazioni"
 
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Confirm"
+msgstr "Conferma"
+
 #: src/components/ui/AddServerModal.tsx
 msgid "Connect"
 msgstr "Connetti"
@@ -747,7 +752,9 @@ msgstr "Messaggio predefinito quando ci si segna come assenti"
 msgid "Default Nickname"
 msgstr "Soprannome predefinito"
 
+#: src/components/layout/ChatArea.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Delete"
 msgstr "Elimina"
 
@@ -759,13 +766,22 @@ msgstr "Elimina canale"
 msgid "Delete message"
 msgstr "Elimina messaggio"
 
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete message?"
+msgstr "Eliminare il messaggio?"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Delete Private Chat"
 msgstr "Elimina chat privata"
 
-#: src/components/ui/MediaCommentsSidebar.tsx
-msgid "Delete this message? This cannot be undone."
-msgstr "Eliminare questo messaggio? Questa azione non può essere annullata."
+#: src/components/ui/UserSettings.tsx
+msgid "Discard"
+msgstr "Scarta"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Discard unsaved changes?"
+msgstr "Scartare le modifiche non salvate?"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
@@ -1214,6 +1230,10 @@ msgstr "è entrato e uscito"
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "È entrato nel canale"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Keep editing"
+msgstr "Continua a modificare"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
@@ -2362,6 +2382,14 @@ msgstr "Questo campo è obbligatorio"
 msgid "This image has expired"
 msgstr "Questa immagine è scaduta"
 
+#: src/components/layout/ChatArea.tsx
+msgid "This message will be removed for everyone in the channel. This cannot be undone."
+msgstr "Questo messaggio sarà rimosso per tutti nel canale. L'azione non è reversibile."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "This message will be removed for everyone. This cannot be undone."
+msgstr "Questo messaggio sarà rimosso per tutti. L'azione non è reversibile."
+
 #: src/components/ui/UserSettings.tsx
 msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
 msgstr "Questo server non supporta i metadati del profilo esteso (estensione IRCv3 METADATA). Campi come avatar, nome visualizzato e stato non sono disponibili."
@@ -2698,8 +2726,8 @@ msgid "You are an IRC Operator"
 msgstr "Sei un IRC Operator"
 
 #: src/components/ui/UserSettings.tsx
-msgid "You have unsaved changes. Are you sure you want to close without saving?"
-msgstr "Hai modifiche non salvate. Sei sicuro di voler chiudere senza salvare?"
+msgid "You have unsaved changes. Closing now will discard them."
+msgstr "Hai modifiche non salvate. Chiudere ora le scarterà."
 
 #: src/store/handlers/users.ts
 msgid "You invited {target} to join {channel}"

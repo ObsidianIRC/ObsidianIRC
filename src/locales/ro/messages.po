@@ -283,9 +283,9 @@ msgstr "Se aplică..."
 msgid "are now known as **{newNick}**"
 msgstr "acum este cunoscut ca **{newNick}**"
 
-#: src/components/layout/ChatArea.tsx
-msgid "Are you sure you want to delete this message? This action cannot be undone."
-msgstr "Sigur doriți să ștergeți acest mesaj? Această acțiune nu poate fi anulată."
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Are you sure?"
+msgstr "Sigur?"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
@@ -406,6 +406,7 @@ msgstr "Răsfoiește toate canalele de pe server"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ConfirmDialog.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -639,6 +640,10 @@ msgstr "Configurați reguli detaliate de protecție flood. Fiecare regulă speci
 msgid "Configure notification sounds and highlights"
 msgstr "Configurează sunetele de notificare și evidențierile"
 
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Confirm"
+msgstr "Confirmă"
+
 #: src/components/ui/AddServerModal.tsx
 msgid "Connect"
 msgstr "Conectare"
@@ -747,7 +752,9 @@ msgstr "Mesaj implicit când vă marcați ca absent"
 msgid "Default Nickname"
 msgstr "Pseudonim implicit"
 
+#: src/components/layout/ChatArea.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Delete"
 msgstr "Șterge"
 
@@ -759,13 +766,22 @@ msgstr "Șterge canal"
 msgid "Delete message"
 msgstr "Șterge mesaj"
 
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete message?"
+msgstr "Ștergi mesajul?"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Delete Private Chat"
 msgstr "Șterge conversația privată"
 
-#: src/components/ui/MediaCommentsSidebar.tsx
-msgid "Delete this message? This cannot be undone."
-msgstr "Ștergeți acest mesaj? Această acțiune nu poate fi anulată."
+#: src/components/ui/UserSettings.tsx
+msgid "Discard"
+msgstr "Renunță"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Discard unsaved changes?"
+msgstr "Renunți la modificările nesalvate?"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
@@ -1214,6 +1230,10 @@ msgstr "s-a alăturat și a ieșit"
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "S-a alăturat canalului"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Keep editing"
+msgstr "Continuă editarea"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
@@ -2362,6 +2382,14 @@ msgstr "Acest câmp este obligatoriu"
 msgid "This image has expired"
 msgstr "Această imagine a expirat"
 
+#: src/components/layout/ChatArea.tsx
+msgid "This message will be removed for everyone in the channel. This cannot be undone."
+msgstr "Acest mesaj va fi eliminat pentru toți utilizatorii din canal. Nu se poate anula."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "This message will be removed for everyone. This cannot be undone."
+msgstr "Acest mesaj va fi eliminat pentru toți. Nu se poate anula."
+
 #: src/components/ui/UserSettings.tsx
 msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
 msgstr "Acest server nu acceptă metadate extinse de profil (extensia IRCv3 METADATA). Câmpurile precum avatar, nume afișat și stare nu sunt disponibile."
@@ -2698,8 +2726,8 @@ msgid "You are an IRC Operator"
 msgstr "Ești un Operator IRC"
 
 #: src/components/ui/UserSettings.tsx
-msgid "You have unsaved changes. Are you sure you want to close without saving?"
-msgstr "Ai modificări nesalvate. Ești sigur că vrei să închizi fără să salvezi?"
+msgid "You have unsaved changes. Closing now will discard them."
+msgstr "Ai modificări nesalvate. Închiderea acum le va abandona."
 
 #: src/store/handlers/users.ts
 msgid "You invited {target} to join {channel}"

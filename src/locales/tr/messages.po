@@ -283,9 +283,9 @@ msgstr "Uygulanıyor..."
 msgid "are now known as **{newNick}**"
 msgstr "artık **{newNick}** olarak bilinmektedir"
 
-#: src/components/layout/ChatArea.tsx
-msgid "Are you sure you want to delete this message? This action cannot be undone."
-msgstr "Bu mesajı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Are you sure?"
+msgstr "Emin misiniz?"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
@@ -406,6 +406,7 @@ msgstr "Sunucudaki tüm kanalları görüntüle"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ConfirmDialog.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -639,6 +640,10 @@ msgstr "Ayrıntılı flood koruma kurallarını yapılandırın. Her kural, hang
 msgid "Configure notification sounds and highlights"
 msgstr "Bildirim seslerini ve vurguları yapılandır"
 
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Confirm"
+msgstr "Onayla"
+
 #: src/components/ui/AddServerModal.tsx
 msgid "Connect"
 msgstr "Bağlan"
@@ -747,7 +752,9 @@ msgstr "Uzakta olarak işaretlendiğinde gösterilecek varsayılan mesaj"
 msgid "Default Nickname"
 msgstr "Varsayılan Takma Ad"
 
+#: src/components/layout/ChatArea.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Delete"
 msgstr "Sil"
 
@@ -759,13 +766,22 @@ msgstr "Kanalı Sil"
 msgid "Delete message"
 msgstr "Mesajı sil"
 
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete message?"
+msgstr "Mesaj silinsin mi?"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Delete Private Chat"
 msgstr "Özel Sohbeti Sil"
 
-#: src/components/ui/MediaCommentsSidebar.tsx
-msgid "Delete this message? This cannot be undone."
-msgstr "Bu mesaj silinsin mi? Bu işlem geri alınamaz."
+#: src/components/ui/UserSettings.tsx
+msgid "Discard"
+msgstr "At"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Discard unsaved changes?"
+msgstr "Kaydedilmemiş değişiklikler atılsın mı?"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
@@ -1214,6 +1230,10 @@ msgstr "katıldı ve ayrıldı"
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "Kanala katıldı"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Keep editing"
+msgstr "Düzenlemeye devam et"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
@@ -2362,6 +2382,14 @@ msgstr "Bu alan zorunludur"
 msgid "This image has expired"
 msgstr "Bu görüntünün süresi doldu"
 
+#: src/components/layout/ChatArea.tsx
+msgid "This message will be removed for everyone in the channel. This cannot be undone."
+msgstr "Bu mesaj kanaldaki herkes için kaldırılacak. Geri alınamaz."
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "This message will be removed for everyone. This cannot be undone."
+msgstr "Bu mesaj herkes için kaldırılacak. Geri alınamaz."
+
 #: src/components/ui/UserSettings.tsx
 msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
 msgstr "Bu sunucu genişletilmiş profil meta verilerini (IRCv3 METADATA uzantısı) desteklemiyor. Avatar, görünen ad ve durum gibi ek alanlar mevcut değil."
@@ -2698,8 +2726,8 @@ msgid "You are an IRC Operator"
 msgstr "IRC Operatörüsünüz"
 
 #: src/components/ui/UserSettings.tsx
-msgid "You have unsaved changes. Are you sure you want to close without saving?"
-msgstr "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden kapatmak istediğinizden emin misiniz?"
+msgid "You have unsaved changes. Closing now will discard them."
+msgstr "Kaydedilmemiş değişiklikleriniz var. Şimdi kapatırsanız atılacaklar."
 
 #: src/store/handlers/users.ts
 msgid "You invited {target} to join {channel}"

@@ -43,6 +43,7 @@ import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 import ColorPicker from "../ui/ColorPicker";
+import { useConfirm } from "../ui/ConfirmDialog";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
 import { EmojiPickerInline } from "../ui/EmojiPickerInline";
 import { EmojiPickerModal } from "../ui/EmojiPickerModal";
@@ -123,6 +124,7 @@ export const ChatArea: React.FC<{
   topSlot?: React.ReactNode;
 }> = ({ onToggleChanList, isChanListVisible, topSlot }) => {
   const { t } = useLingui();
+  const confirm = useConfirm();
   const [localReplyTo, setLocalReplyTo] = useState<MessageType | null>(null);
   const [navHighlightedMsgId, setNavHighlightedMsgId] = useState<string | null>(
     null,
@@ -1911,11 +1913,14 @@ export const ChatArea: React.FC<{
   };
 
   const handleRedactMessage = useCallback(
-    (message: MessageType) => {
+    async (message: MessageType) => {
       if (message.msgid && selectedServerId) {
-        const confirmed = window.confirm(
-          t`Are you sure you want to delete this message? This action cannot be undone.`,
-        );
+        const confirmed = await confirm({
+          title: t`Delete message?`,
+          message: t`This message will be removed for everyone in the channel. This cannot be undone.`,
+          confirmLabel: t`Delete`,
+          danger: true,
+        });
         if (confirmed) {
           const { servers: currentServers } = useStore.getState();
           const server = currentServers.find((s) => s.id === selectedServerId);
@@ -1941,7 +1946,7 @@ export const ChatArea: React.FC<{
         }
       }
     },
-    [selectedServerId, redactMessage, t],
+    [selectedServerId, redactMessage, t, confirm],
   );
 
   const handleEmojiSelect = (emojiData: EmojiClickData) => {

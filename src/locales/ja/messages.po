@@ -283,9 +283,9 @@ msgstr "適用中..."
 msgid "are now known as **{newNick}**"
 msgstr "は現在 **{newNick}** として知られています"
 
-#: src/components/layout/ChatArea.tsx
-msgid "Are you sure you want to delete this message? This action cannot be undone."
-msgstr "このメッセージを削除してもよいですか？この操作は元に戻せません。"
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Are you sure?"
+msgstr "本当によろしいですか？"
 
 #: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Attachment options"
@@ -406,6 +406,7 @@ msgstr "サーバー上のすべてのチャンネルを一覧表示"
 #: src/components/ui/AddPrivateChatModal.tsx
 #: src/components/ui/AddServerModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
+#: src/components/ui/ConfirmDialog.tsx
 #: src/components/ui/ExternalLinkWarningModal.tsx
 #: src/components/ui/FloodSettingsModal.tsx
 #: src/components/ui/ImagePreviewModal.tsx
@@ -639,6 +640,10 @@ msgstr "詳細なフラッド保護ルールを設定します。各ルールは
 msgid "Configure notification sounds and highlights"
 msgstr "通知音とハイライトを設定する"
 
+#: src/components/ui/ConfirmDialog.tsx
+msgid "Confirm"
+msgstr "確認"
+
 #: src/components/ui/AddServerModal.tsx
 msgid "Connect"
 msgstr "接続"
@@ -747,7 +752,9 @@ msgstr "離席時に表示するデフォルトメッセージ"
 msgid "Default Nickname"
 msgstr "デフォルトニックネーム"
 
+#: src/components/layout/ChatArea.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
 msgid "Delete"
 msgstr "削除"
 
@@ -759,13 +766,22 @@ msgstr "チャンネルを削除"
 msgid "Delete message"
 msgstr "メッセージを削除"
 
+#: src/components/layout/ChatArea.tsx
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "Delete message?"
+msgstr "メッセージを削除しますか？"
+
 #: src/components/layout/ChannelList.tsx
 msgid "Delete Private Chat"
 msgstr "プライベートチャットを削除"
 
-#: src/components/ui/MediaCommentsSidebar.tsx
-msgid "Delete this message? This cannot be undone."
-msgstr "このメッセージを削除しますか？この操作は元に戻せません。"
+#: src/components/ui/UserSettings.tsx
+msgid "Discard"
+msgstr "破棄"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Discard unsaved changes?"
+msgstr "未保存の変更を破棄しますか？"
 
 #: src/components/layout/ServerList.tsx
 #: src/components/mobile/ServerBottomSheet.tsx
@@ -1214,6 +1230,10 @@ msgstr "参加して退出しました"
 #: src/components/message/EventMessage.tsx
 msgid "Joined the channel"
 msgstr "チャンネルに参加しました"
+
+#: src/components/ui/UserSettings.tsx
+msgid "Keep editing"
+msgstr "編集を続ける"
 
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
@@ -2362,6 +2382,14 @@ msgstr "この項目は必須です"
 msgid "This image has expired"
 msgstr "この画像の有効期限が切れています"
 
+#: src/components/layout/ChatArea.tsx
+msgid "This message will be removed for everyone in the channel. This cannot be undone."
+msgstr "このメッセージはチャンネルの全員から削除されます。元に戻せません。"
+
+#: src/components/ui/MediaCommentsSidebar.tsx
+msgid "This message will be removed for everyone. This cannot be undone."
+msgstr "このメッセージは全員から削除されます。元に戻せません。"
+
 #: src/components/ui/UserSettings.tsx
 msgid "This server does not support extended profile metadata (IRCv3 METADATA extension). Additional fields like avatar, display name, and status are not available."
 msgstr "このサーバーは拡張プロフィールメタデータ（IRCv3 METADATA拡張）をサポートしていません。アバター、表示名、ステータスなどの追加フィールドは利用できません。"
@@ -2698,8 +2726,8 @@ msgid "You are an IRC Operator"
 msgstr "あなたはIRC Operatorです"
 
 #: src/components/ui/UserSettings.tsx
-msgid "You have unsaved changes. Are you sure you want to close without saving?"
-msgstr "保存されていない変更があります。保存せずに閉じてもよいですか？"
+msgid "You have unsaved changes. Closing now will discard them."
+msgstr "未保存の変更があります。閉じると破棄されます。"
 
 #: src/store/handlers/users.ts
 msgid "You invited {target} to join {channel}"
