@@ -453,7 +453,7 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
       style={{ opacity: fadeOpacity, transition: "opacity 0.8s linear" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="w-[340px] max-w-full bg-discord-dark-300/95 backdrop-blur-sm border border-discord-dark-400 rounded-lg shadow-xl overflow-hidden"
+      className="w-[680px] max-w-full bg-discord-dark-300/95 backdrop-blur-sm border border-discord-dark-400 rounded-lg shadow-xl overflow-hidden"
     >
       {/* Header — collapsed row */}
       <button
