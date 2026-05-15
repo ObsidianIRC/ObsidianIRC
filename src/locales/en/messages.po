@@ -50,7 +50,7 @@ msgstr "{0} is typing..."
 msgid "{0} older messages"
 msgstr "{0} older messages"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} step(s)"
@@ -287,6 +287,7 @@ msgstr "Apply Filters & Refresh"
 msgid "Applying..."
 msgstr "Applying..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Approve"
@@ -1144,6 +1145,10 @@ msgstr "Image {0} of {1}"
 msgid "Image preview"
 msgstr "Image preview"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "IN"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Info:"
@@ -1770,6 +1775,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Optional crash reports to improve the app"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "OUT"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "output truncated"
 
@@ -1973,6 +1983,7 @@ msgstr "Reconnect to server"
 msgid "Register for an account"
 msgstr "Register for an account"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Reject"

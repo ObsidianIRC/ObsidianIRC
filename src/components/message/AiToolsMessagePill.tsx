@@ -2,7 +2,11 @@ import { useLingui } from "@lingui/react/macro";
 import type React from "react";
 import { useMemo } from "react";
 import { FaProjectDiagram } from "react-icons/fa";
-import { AI_TOOLS_TAG, decodeAiToolsValue } from "../../lib/aiTools";
+import {
+  AI_TOOLS_TAG,
+  countableSteps,
+  decodeAiToolsValue,
+} from "../../lib/aiTools";
 import useStore from "../../store";
 
 interface AiToolsMessagePillProps {
@@ -41,7 +45,7 @@ export const AiToolsMessagePill: React.FC<AiToolsMessagePillProps> = ({
   if (!workflowId) return null;
 
   const available = !!workflow;
-  const stepCount = workflow?.steps.length ?? 0;
+  const stepCount = workflow ? countableSteps(workflow.steps) : 0;
 
   return (
     <button

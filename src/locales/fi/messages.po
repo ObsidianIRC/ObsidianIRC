@@ -51,7 +51,7 @@ msgstr "{0} kirjoittaa..."
 msgid "{0} older messages"
 msgstr "{0} vanhempaa viestiä"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} vaihetta"
@@ -288,6 +288,7 @@ msgstr "Käytä suodattimet ja päivitä"
 msgid "Applying..."
 msgstr "Käytetään..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Hyväksy"
@@ -1145,6 +1146,10 @@ msgstr "Kuva {0}/{1}"
 msgid "Image preview"
 msgstr "Kuvan esikatselu"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "TULO"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Tiedot:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Valinnaiset kaatumisraportit sovelluksen parantamiseksi"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "LÄHTÖ"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "tuloste katkaistu"
 
@@ -1974,6 +1984,7 @@ msgstr "Yhdistä uudelleen palvelimeen"
 msgid "Register for an account"
 msgstr "Rekisteröidy tilille"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Hylkää"

@@ -51,7 +51,7 @@ msgstr "{0} пише..."
 msgid "{0} older messages"
 msgstr "{0} старіших повідомлень"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} кроків"
@@ -288,6 +288,7 @@ msgstr "Застосувати фільтри та оновити"
 msgid "Applying..."
 msgstr "Застосовується..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Схвалити"
@@ -1145,6 +1146,10 @@ msgstr "Зображення {0} з {1}"
 msgid "Image preview"
 msgstr "Попередній перегляд зображення"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "ВХ"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Інфо:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Необов'язкові звіти про збої для покращення додатку"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "ВИХ"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "вивід скорочено"
 
@@ -1974,6 +1984,7 @@ msgstr "Перепідключитися до сервера"
 msgid "Register for an account"
 msgstr "Зареєструвати акаунт"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Відхилити"

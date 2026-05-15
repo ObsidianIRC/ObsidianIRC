@@ -51,7 +51,7 @@ msgstr "{0} skriver..."
 msgid "{0} older messages"
 msgstr "{0} äldre meddelanden"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} steg"
@@ -288,6 +288,7 @@ msgstr "Tillämpa filter och uppdatera"
 msgid "Applying..."
 msgstr "Tillämpar..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Godkänn"
@@ -1145,6 +1146,10 @@ msgstr "Bild {0} av {1}"
 msgid "Image preview"
 msgstr "Bildförhandsvisning"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "IN"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Info:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Valfria kraschrapporter för att förbättra appen"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "UT"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "utdata avkortad"
 
@@ -1974,6 +1984,7 @@ msgstr "Återanslut till server"
 msgid "Register for an account"
 msgstr "Registrera ett konto"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Avvisa"

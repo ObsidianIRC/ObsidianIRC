@@ -51,7 +51,7 @@ msgstr "{0} が入力中..."
 msgid "{0} older messages"
 msgstr "{0} 件の古いメッセージ"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} ステップ"
@@ -288,6 +288,7 @@ msgstr "フィルターを適用して更新"
 msgid "Applying..."
 msgstr "適用中..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "承認"
@@ -1145,6 +1146,10 @@ msgstr "{1}枚中{0}枚目の画像"
 msgid "Image preview"
 msgstr "画像プレビュー"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "入力"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "情報："
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "アプリ改善のための任意のクラッシュレポート"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "出力"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "出力は省略されました"
 
@@ -1974,6 +1984,7 @@ msgstr "サーバーに再接続"
 msgid "Register for an account"
 msgstr "アカウントを登録する"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "拒否"

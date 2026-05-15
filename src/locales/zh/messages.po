@@ -51,7 +51,7 @@ msgstr "{0} 正在输入..."
 msgid "{0} older messages"
 msgstr "{0} 条旧消息"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} 步"
@@ -288,6 +288,7 @@ msgstr "应用筛选并刷新"
 msgid "Applying..."
 msgstr "正在应用..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "批准"
@@ -1145,6 +1146,10 @@ msgstr "第 {0} 张，共 {1} 张"
 msgid "Image preview"
 msgstr "图片预览"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "输入"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "信息："
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "可选的崩溃报告以改善应用"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "输出"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "输出已截断"
 
@@ -1974,6 +1984,7 @@ msgstr "重新连接服务器"
 msgid "Register for an account"
 msgstr "注册账户"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "拒绝"

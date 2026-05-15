@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FaArrowRight,
   FaCheck,
@@ -129,11 +129,69 @@ const JsonBadges: React.FC<{ value: unknown }> = ({ value }) => {
   return <span className="font-mono text-xs">{String(value)}</span>;
 };
 
-// Render a single step the way Claude Code does: colored dot at the
-// start of the row, terse header line ("Tool: web-search"), then the
-// content payload in a monospace box if present. `isFirst` / `isLast`
-// clip the vertical connector line so it doesn't extend beyond the
-// first dot's top or the last dot's bottom.
+// Render an AiStep's content payload (string or JSON) in the same
+// monospace box style used everywhere else in the card.
+const ContentBox: React.FC<{ content: unknown }> = ({ content }) => {
+  if (content === undefined || content === null) return null;
+  if (typeof content === "string") {
+    return (
+      <pre className="text-xs leading-snug text-discord-text-normal whitespace-pre-wrap break-words font-mono bg-discord-dark-500/70 rounded px-2.5 py-1.5">
+        {content}
+      </pre>
+    );
+  }
+  // Tool-call args (and any other structured payload) — render as
+  // recursive badges. A flat <pre> JSON dump is hard to scan once
+  // arguments grow nested; a key→value chip tree mirrors how the
+  // model actually thought about the call.
+  return (
+    <div className="bg-discord-dark-500/70 rounded px-2.5 py-1.5">
+      <JsonBadges value={content} />
+    </div>
+  );
+};
+
+function stepStateGlyph(state: AiStep["state"]) {
+  switch (state) {
+    case "complete":
+      return <FaCheck className="text-green-400 text-[10px]" />;
+    case "failed":
+      return <FaTimesCircle className="text-red-400 text-[10px]" />;
+    case "cancelled":
+      return <FaTimes className="text-discord-text-muted text-[10px]" />;
+    case "pending-approval":
+      return <FaExclamationTriangle className="text-yellow-400 text-[10px]" />;
+    default:
+      return (
+        <FaSpinner className="text-discord-text-muted text-[10px] animate-spin" />
+      );
+  }
+}
+
+const StepRow: React.FC<{
+  accent: string;
+  isFirst: boolean;
+  isLast: boolean;
+  children: React.ReactNode;
+}> = ({ accent, isFirst, isLast, children }) => (
+  <div className="flex gap-2.5 py-2 pr-3 pl-2">
+    <div className="relative w-2 flex justify-center shrink-0" aria-hidden>
+      {/* Vertical connector line: spans the full row height so
+          consecutive rows visually join; clipped on the first /
+          last row so it doesn't hang past the outermost dots. */}
+      <span
+        className={`absolute left-1/2 -translate-x-1/2 w-px bg-discord-dark-400 ${
+          isFirst ? "top-[14px]" : "top-0"
+        } ${isLast ? "h-[6px]" : "bottom-0"}`}
+      />
+      <span className={`relative mt-1.5 w-2 h-2 rounded-full ${accent}`} />
+    </div>
+    <div className="flex-1 min-w-0">{children}</div>
+  </div>
+);
+
+// Render a single thinking / text step. Colored dot, terse header,
+// then the content payload in a mono box if present.
 const Step: React.FC<{
   step: AiStep;
   isFirst: boolean;
@@ -141,92 +199,146 @@ const Step: React.FC<{
 }> = ({ step, isFirst, isLast }) => {
   const accent = STEP_TYPE_ACCENT[step.type] ?? STEP_TYPE_ACCENT.text;
 
-  const headerLabel = useMemo(() => {
-    if (step.label) return step.label;
-    if (step.type === "tool-call" || step.type === "tool-result")
-      return step.tool ? `${step.tool}` : step.type;
-    if (step.type === "thinking") return "Thinking";
-    return "Text";
-  }, [step.label, step.tool, step.type]);
-
-  const contentRendered = useMemo(() => {
-    if (step.content === undefined || step.content === null) return null;
-    if (typeof step.content === "string") {
-      return (
-        <pre className="mt-1.5 text-xs leading-snug text-discord-text-normal whitespace-pre-wrap break-words font-mono bg-discord-dark-500/70 rounded px-2.5 py-1.5">
-          {step.content}
-        </pre>
-      );
-    }
-    // Tool-call args (and any other structured payload) — render as
-    // recursive badges. A flat <pre> JSON dump is hard to scan once
-    // arguments grow nested; a key→value chip tree mirrors how the
-    // model actually thought about the call.
-    return (
-      <div className="mt-1.5 bg-discord-dark-500/70 rounded px-2.5 py-1.5">
-        <JsonBadges value={step.content} />
-      </div>
-    );
-  }, [step.content]);
-
-  const stateGlyph = (() => {
-    switch (step.state) {
-      case "complete":
-        return <FaCheck className="text-green-400 text-[10px]" />;
-      case "failed":
-        return <FaTimesCircle className="text-red-400 text-[10px]" />;
-      case "cancelled":
-        return <FaTimes className="text-discord-text-muted text-[10px]" />;
-      case "pending-approval":
-        return (
-          <FaExclamationTriangle className="text-yellow-400 text-[10px]" />
-        );
-      default:
-        return (
-          <FaSpinner className="text-discord-text-muted text-[10px] animate-spin" />
-        );
-    }
-  })();
+  const headerKind =
+    step.type === "thinking" ? <Trans>Thinking</Trans> : <Trans>Text</Trans>;
 
   return (
-    <div className="flex gap-2.5 py-2 pr-3 pl-2">
-      <div className="relative w-2 flex justify-center shrink-0" aria-hidden>
-        {/* Vertical connector line: spans the full row height so
-            consecutive rows visually join; clipped on the first /
-            last row so it doesn't hang past the outermost dots. */}
-        <span
-          className={`absolute left-1/2 -translate-x-1/2 w-px bg-discord-dark-400 ${
-            isFirst ? "top-[14px]" : "top-0"
-          } ${isLast ? "h-[6px]" : "bottom-0"}`}
-        />
-        <span className={`relative mt-1.5 w-2 h-2 rounded-full ${accent}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] uppercase tracking-wide text-discord-text-muted">
-            {step.type === "tool-call" || step.type === "tool-result" ? (
-              <Trans>Tool</Trans>
-            ) : step.type === "thinking" ? (
-              <Trans>Thinking</Trans>
-            ) : (
-              <Trans>Text</Trans>
-            )}
-          </span>
+    <StepRow accent={accent} isFirst={isFirst} isLast={isLast}>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-wide text-discord-text-muted">
+          {headerKind}
+        </span>
+        {step.label && (
           <span className="text-sm font-medium text-white truncate">
-            {headerLabel}
+            {step.label}
           </span>
-          <span className="ml-auto shrink-0">{stateGlyph}</span>
-        </div>
-        {contentRendered}
-        {step.truncated && (
-          <div className="mt-1 text-[10px] text-yellow-400">
-            <Trans>output truncated</Trans>
-          </div>
         )}
+        <span className="ml-auto shrink-0">{stepStateGlyph(step.state)}</span>
       </div>
-    </div>
+      {step.content !== undefined && step.content !== null && (
+        <div className="mt-1.5">
+          <ContentBox content={step.content} />
+        </div>
+      )}
+      {step.truncated && (
+        <div className="mt-1 text-[10px] text-yellow-400">
+          <Trans>output truncated</Trans>
+        </div>
+      )}
+    </StepRow>
   );
 };
+
+// Render a tool-call together with its matching tool-result as a
+// single row -- one header (the tool name), then IN (call args) and
+// OUT (result) stacked below. Either side may be absent during the
+// in-between window after the call lands and before the result
+// arrives.
+const ToolPairStep: React.FC<{
+  call?: AiStep;
+  result?: AiStep;
+  isFirst: boolean;
+  isLast: boolean;
+}> = ({ call, result, isFirst, isLast }) => {
+  const accent = STEP_TYPE_ACCENT["tool-call"];
+  const primary = result ?? call;
+  const tool = primary?.tool ?? "tool";
+  const label = primary?.label;
+  const state = primary?.state ?? "running";
+  const truncated = call?.truncated || result?.truncated;
+
+  return (
+    <StepRow accent={accent} isFirst={isFirst} isLast={isLast}>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-wide text-discord-text-muted">
+          <Trans>Tool</Trans>
+        </span>
+        <span className="text-sm font-medium text-white truncate">{tool}</span>
+        {label && (
+          <span className="text-xs text-discord-text-muted truncate">
+            {label}
+          </span>
+        )}
+        <span className="ml-auto shrink-0">{stepStateGlyph(state)}</span>
+      </div>
+      {call?.content !== undefined && call?.content !== null && (
+        <div className="mt-1.5">
+          <div className="text-[9px] uppercase tracking-wider text-discord-text-muted/70 mb-0.5 ml-0.5">
+            <Trans>IN</Trans>
+          </div>
+          <ContentBox content={call.content} />
+        </div>
+      )}
+      {result?.content !== undefined && result?.content !== null && (
+        <div className="mt-1.5">
+          <div className="text-[9px] uppercase tracking-wider text-discord-text-muted/70 mb-0.5 ml-0.5">
+            <Trans>OUT</Trans>
+          </div>
+          <ContentBox content={result.content} />
+        </div>
+      )}
+      {truncated && (
+        <div className="mt-1 text-[10px] text-yellow-400">
+          <Trans>output truncated</Trans>
+        </div>
+      )}
+    </StepRow>
+  );
+};
+
+type RenderItem =
+  | { kind: "single"; key: string; step: AiStep }
+  | {
+      kind: "tool-pair";
+      key: string;
+      call?: AiStep;
+      result?: AiStep;
+      approvalSid?: string;
+    };
+
+function buildRenderItems(steps: AiStep[]): RenderItem[] {
+  const items: RenderItem[] = [];
+  const paired = new Set<number>();
+  for (let i = 0; i < steps.length; i++) {
+    if (paired.has(i)) continue;
+    const s = steps[i];
+    if (s.type === "tool-call") {
+      let result: AiStep | undefined;
+      for (let j = i + 1; j < steps.length; j++) {
+        if (paired.has(j)) continue;
+        const t = steps[j];
+        if (t.type === "tool-result" && t.tool === s.tool) {
+          result = t;
+          paired.add(j);
+          break;
+        }
+      }
+      items.push({
+        kind: "tool-pair",
+        key: s.sid,
+        call: s,
+        result,
+        approvalSid:
+          s.state === "pending-approval"
+            ? s.sid
+            : result?.state === "pending-approval"
+              ? result.sid
+              : undefined,
+      });
+    } else if (s.type === "tool-result") {
+      // tool-result with no preceding tool-call: render standalone
+      items.push({
+        kind: "tool-pair",
+        key: s.sid,
+        result: s,
+        approvalSid: s.state === "pending-approval" ? s.sid : undefined,
+      });
+    } else {
+      items.push({ kind: "single", key: s.sid, step: s });
+    }
+  }
+  return items;
+}
 
 export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
   const { t } = useLingui();
@@ -428,33 +540,68 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
               <Trans>Waiting for first step…</Trans>
             </div>
           ) : (
-            workflow.steps.map((step, i) => (
-              <div key={step.sid}>
-                <Step
-                  step={step}
-                  isFirst={i === 0}
-                  isLast={i === workflow.steps.length - 1}
-                />
-                {step.state === "pending-approval" && (
-                  <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
-                    <button
-                      type="button"
-                      onClick={() => onApprove(step.sid)}
-                      className="flex-1 px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-semibold"
-                    >
-                      <Trans>Approve</Trans>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onReject(step.sid)}
-                      className="flex-1 px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold"
-                    >
-                      <Trans>Reject</Trans>
-                    </button>
+            (() => {
+              const items = buildRenderItems(workflow.steps);
+              return items.map((item, i) => {
+                const isFirst = i === 0;
+                const isLast = i === items.length - 1;
+                return (
+                  <div key={item.key}>
+                    {item.kind === "single" ? (
+                      <Step
+                        step={item.step}
+                        isFirst={isFirst}
+                        isLast={isLast}
+                      />
+                    ) : (
+                      <ToolPairStep
+                        call={item.call}
+                        result={item.result}
+                        isFirst={isFirst}
+                        isLast={isLast}
+                      />
+                    )}
+                    {item.kind === "tool-pair" && item.approvalSid && (
+                      <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
+                        <button
+                          type="button"
+                          onClick={() => onApprove(item.approvalSid as string)}
+                          className="flex-1 px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-semibold"
+                        >
+                          <Trans>Approve</Trans>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onReject(item.approvalSid as string)}
+                          className="flex-1 px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold"
+                        >
+                          <Trans>Reject</Trans>
+                        </button>
+                      </div>
+                    )}
+                    {item.kind === "single" &&
+                      item.step.state === "pending-approval" && (
+                        <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
+                          <button
+                            type="button"
+                            onClick={() => onApprove(item.step.sid)}
+                            className="flex-1 px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-semibold"
+                          >
+                            <Trans>Approve</Trans>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onReject(item.step.sid)}
+                            className="flex-1 px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold"
+                          >
+                            <Trans>Reject</Trans>
+                          </button>
+                        </div>
+                      )}
                   </div>
-                )}
-              </div>
-            ))
+                );
+              });
+            })()
           )}
         </div>
       )}

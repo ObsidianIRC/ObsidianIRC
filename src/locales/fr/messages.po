@@ -51,7 +51,7 @@ msgstr "{0} est en train d'écrire..."
 msgid "{0} older messages"
 msgstr "{0} anciens messages"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} étape(s)"
@@ -288,6 +288,7 @@ msgstr "Appliquer les filtres & Actualiser"
 msgid "Applying..."
 msgstr "Application en cours..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Approuver"
@@ -1145,6 +1146,10 @@ msgstr "Image {0} sur {1}"
 msgid "Image preview"
 msgstr "Aperçu de l'image"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "ENT"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Info :"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Rapports de plantage optionnels pour améliorer l'application"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "SOR"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "sortie tronquée"
 
@@ -1974,6 +1984,7 @@ msgstr "Se reconnecter au serveur"
 msgid "Register for an account"
 msgstr "Créer un compte"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Rejeter"

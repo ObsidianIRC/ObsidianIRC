@@ -51,7 +51,7 @@ msgstr "{0} typt..."
 msgid "{0} older messages"
 msgstr "{0} oudere berichten"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} stappen"
@@ -288,6 +288,7 @@ msgstr "Filters toepassen en vernieuwen"
 msgid "Applying..."
 msgstr "Toepassen..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Goedkeuren"
@@ -1145,6 +1146,10 @@ msgstr "Afbeelding {0} van {1}"
 msgid "Image preview"
 msgstr "Afbeeldingsvoorbeeldweergave"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "IN"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Info:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Optionele crashrapporten om de app te verbeteren"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "UIT"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "uitvoer ingekort"
 
@@ -1974,6 +1984,7 @@ msgstr "Opnieuw verbinden met server"
 msgid "Register for an account"
 msgstr "Registreren voor een account"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Weigeren"

@@ -51,7 +51,7 @@ msgstr "{0}님이 입력 중..."
 msgid "{0} older messages"
 msgstr "이전 메시지 {0}개"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0}단계"
@@ -288,6 +288,7 @@ msgstr "필터 적용 및 새로 고침"
 msgid "Applying..."
 msgstr "적용 중..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "승인"
@@ -1145,6 +1146,10 @@ msgstr "{1}개 중 {0}번째 이미지"
 msgid "Image preview"
 msgstr "이미지 미리보기"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "입력"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "정보:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "앱 개선을 위한 선택적 충돌 보고서"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "출력"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "출력이 잘렸습니다"
 
@@ -1974,6 +1984,7 @@ msgstr "서버에 재연결"
 msgid "Register for an account"
 msgstr "계정 등록"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "거부"

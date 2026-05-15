@@ -145,6 +145,36 @@ export function encodeAiToolsValue(msg: AiToolsMessage): string {
   return JSON.stringify(msg);
 }
 
+// User-facing step count: "thinking" frames don't count (they're the
+// model muttering, not work), and a tool-call + matching tool-result
+// pair counts as a single step (they're the two sides of one tool
+// invocation, paired FIFO by tool name).
+export function countableSteps(
+  steps: readonly { type: string; tool?: string }[],
+): number {
+  const paired = new Set<number>();
+  let count = 0;
+  for (let i = 0; i < steps.length; i++) {
+    if (paired.has(i)) continue;
+    const s = steps[i];
+    if (s.type === "thinking") continue;
+    if (s.type === "tool-call") {
+      for (let j = i + 1; j < steps.length; j++) {
+        if (paired.has(j)) continue;
+        const t = steps[j];
+        if (t.type === "tool-result" && t.tool === s.tool) {
+          paired.add(j);
+          break;
+        }
+      }
+      count++;
+      continue;
+    }
+    count++;
+  }
+  return count;
+}
+
 // IRC tag-value escape — applied just before putting the value on the
 // wire. Mirrors the unescape in src/lib/ircUtils.tsx.
 export function escapeIrcTagValue(s: string): string {

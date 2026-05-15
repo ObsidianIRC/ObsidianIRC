@@ -51,7 +51,7 @@ msgstr "{0} píše..."
 msgid "{0} older messages"
 msgstr "{0} starších zpráv"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} kroků"
@@ -288,6 +288,7 @@ msgstr "Použít filtry a obnovit"
 msgid "Applying..."
 msgstr "Používám..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Schválit"
@@ -1145,6 +1146,10 @@ msgstr "Obrázek {0} z {1}"
 msgid "Image preview"
 msgstr "Náhled obrázku"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "VST"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Info:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Volitelné zprávy o pádu pro zlepšení aplikace"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "VÝST"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "výstup zkrácen"
 
@@ -1974,6 +1984,7 @@ msgstr "Znovu připojit k serveru"
 msgid "Register for an account"
 msgstr "Zaregistrovat účet"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Odmítnout"

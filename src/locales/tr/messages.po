@@ -51,7 +51,7 @@ msgstr "{0} yazıyor..."
 msgid "{0} older messages"
 msgstr "{0} eski mesaj"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} adım"
@@ -288,6 +288,7 @@ msgstr "Filtreleri Uygula ve Yenile"
 msgid "Applying..."
 msgstr "Uygulanıyor..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Onayla"
@@ -1145,6 +1146,10 @@ msgstr "{1} görselinden {0}. görsel"
 msgid "Image preview"
 msgstr "Görüntü önizlemesi"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "GİR"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Bilgi:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Uygulamayı geliştirmek için isteğe bağlı çökme raporları"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "ÇIK"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "çıktı kısaltıldı"
 
@@ -1974,6 +1984,7 @@ msgstr "Sunucuya yeniden bağlan"
 msgid "Register for an account"
 msgstr "Hesap kaydı oluştur"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Reddet"

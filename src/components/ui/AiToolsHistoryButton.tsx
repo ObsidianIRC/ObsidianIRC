@@ -7,6 +7,7 @@ import {
   FaSpinner,
   FaTimesCircle,
 } from "react-icons/fa";
+import { countableSteps } from "../../lib/aiTools";
 import type { AiWorkflow } from "../../store";
 import useStore from "../../store";
 
@@ -132,7 +133,7 @@ export const AiToolsHistoryButton: React.FC<AiToolsHistoryButtonProps> = ({
                       </div>
                     )}
                     <div className="text-[10px] text-discord-text-muted mt-0.5">
-                      <Trans>{w.steps.length} step(s)</Trans>
+                      <Trans>{countableSteps(w.steps)} step(s)</Trans>
                       {w.state !== "running" && w.state !== "start" && (
                         <span> · {w.state}</span>
                       )}

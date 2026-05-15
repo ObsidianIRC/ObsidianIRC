@@ -51,7 +51,7 @@ msgstr "{0} scrie..."
 msgid "{0} older messages"
 msgstr "{0} mesaje mai vechi"
 
-#. placeholder {0}: w.steps.length
+#. placeholder {0}: countableSteps(w.steps)
 #: src/components/ui/AiToolsHistoryButton.tsx
 msgid "{0} step(s)"
 msgstr "{0} pași"
@@ -288,6 +288,7 @@ msgstr "Aplică filtrele și actualizează"
 msgid "Applying..."
 msgstr "Se aplică..."
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Approve"
 msgstr "Aprobă"
@@ -1145,6 +1146,10 @@ msgstr "Imaginea {0} din {1}"
 msgid "Image preview"
 msgstr "Previzualizare imagine"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "INTR"
+
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
 msgstr "Info:"
@@ -1771,6 +1776,11 @@ msgid "Optional crash reports to improve the app"
 msgstr "Rapoarte opționale de erori pentru îmbunătățirea aplicației"
 
 #: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "IEȘ"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
 msgid "output truncated"
 msgstr "ieșire trunchiată"
 
@@ -1974,6 +1984,7 @@ msgstr "Reconectează-te la server"
 msgid "Register for an account"
 msgstr "Înregistrează un cont"
 
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/AiToolsCard.tsx
 msgid "Reject"
 msgstr "Respinge"
