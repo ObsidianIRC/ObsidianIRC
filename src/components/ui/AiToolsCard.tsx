@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FaArrowRight,
   FaCheck,
@@ -425,30 +425,32 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
     return () => clearTimeout(t);
   }, [secondsLeft, paused, dismiss, workflow.serverId, workflow.id]);
 
-  // Auto-scroll the expanded step list.  On initial expansion we
-  // force-scroll to the bottom -- both "card opened mid-run" and
-  // "card reopened after completion" should land the user at the
-  // freshest content, not at the top of a long step list.  After
-  // that, only auto-scroll while the user is parked at the bottom,
-  // so we don't yank them out of scroll-back during a long workflow.
+  // Auto-scroll the expanded step list.  We can't check "is the user
+  // at the bottom?" inside the content-update effect, because by the
+  // time the effect runs the new content has already grown
+  // scrollHeight and the old scrollTop no longer qualifies as
+  // bottom.  Instead, track stickiness via the scroll event: whenever
+  // the user scrolls (or we programmatically scroll), recompute
+  // whether they're at the bottom.  On content update, honour that
+  // flag.  Reset to sticky on each fresh expansion so a freshly-
+  // opened card always lands on the latest content.
   const bodyRef = useRef<HTMLDivElement>(null);
-  const hasInitialScrolled = useRef(false);
+  const isStickyToBottom = useRef(true);
+  const onBodyScroll = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const SCROLL_TOLERANCE = 24;
+    isStickyToBottom.current =
+      el.scrollHeight - (el.scrollTop + el.clientHeight) <= SCROLL_TOLERANCE;
+  }, []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: track step count + updatedAt because step content updates don't change the array reference
   useEffect(() => {
     const el = bodyRef.current;
     if (!el || workflow.collapsed) {
-      hasInitialScrolled.current = false;
+      isStickyToBottom.current = true;
       return;
     }
-    if (!hasInitialScrolled.current) {
-      el.scrollTop = el.scrollHeight;
-      hasInitialScrolled.current = true;
-      return;
-    }
-    const SCROLL_TOLERANCE = 24;
-    const atBottom =
-      el.scrollHeight - (el.scrollTop + el.clientHeight) <= SCROLL_TOLERANCE;
-    if (atBottom) {
+    if (isStickyToBottom.current) {
       el.scrollTop = el.scrollHeight;
     }
   }, [workflow.collapsed, workflow.steps.length, workflow.updatedAt]);
@@ -545,6 +547,7 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
       {!workflow.collapsed && (
         <div
           ref={bodyRef}
+          onScroll={onBodyScroll}
           className="border-t border-discord-dark-400 max-h-[420px] overflow-y-auto"
         >
           {workflow.steps.length === 0 ? (
