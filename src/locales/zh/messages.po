@@ -51,6 +51,16 @@ msgstr "{0} 正在输入..."
 msgid "{0} older messages"
 msgstr "{0} 条旧消息"
 
+#. placeholder {0}: countableSteps(w.steps)
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr "{0} 步"
+
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} 个步骤等待批准"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +288,11 @@ msgstr "应用筛选并刷新"
 msgid "Applying..."
 msgstr "正在应用..."
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "批准"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -310,6 +325,10 @@ msgstr "已验证账户"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Auto Fallback to Single Line"
 msgstr "自动回退到单行"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr "{secondsLeft} 秒后自动关闭"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -423,6 +442,10 @@ msgstr "取消连接"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "取消回复"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "取消工作流"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -780,6 +803,10 @@ msgstr "发现"
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "使用 ObsidianIRC 探索 IRC 的世界"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "关闭"
+
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
 msgstr "关闭通知"
@@ -1118,6 +1145,10 @@ msgstr "第 {0} 张，共 {1} 张"
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "图片预览"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "输入"
 
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
@@ -1744,6 +1775,15 @@ msgstr "Oper 用户名"
 msgid "Optional crash reports to improve the app"
 msgstr "可选的崩溃报告以改善应用"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "输出"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "输出已截断"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "频道所有者"
@@ -1944,6 +1984,11 @@ msgstr "重新连接服务器"
 msgid "Register for an account"
 msgstr "注册账户"
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "拒绝"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
 msgstr "宽松"
@@ -1984,10 +2029,22 @@ msgstr "在服务器上重命名此频道，所有用户都会看到新名称。
 msgid "Render markdown formatting in messages"
 msgstr "在消息中渲染 Markdown 格式"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr "重新打开生成此消息的工作流（{stepCount} 步）"
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
 msgstr "回复"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "已在聊天中回复"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "回复消息已不在视图中"
 
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
@@ -2027,6 +2084,10 @@ msgstr "已保存"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "正在保存..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "滚动到此回复"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2303,6 +2364,10 @@ msgstr "SoundCloud 播放器"
 msgid "Start Private Message"
 msgstr "发起私信"
 
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Starting workflow…"
+msgstr "正在启动工作流…"
+
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
@@ -2314,6 +2379,7 @@ msgid "Status Messages"
 msgstr "状态消息"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "停止"
@@ -2329,6 +2395,10 @@ msgstr "严格 – 更强的保护"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "系统"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "文本"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2423,14 @@ msgstr "此频道显示的主题，所有用户均可查看。"
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "用户将收到加入 {channelName} 的邀请。"
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr "生成此消息的工作流已不在状态中"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "思考中"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2486,10 @@ msgstr "切换通知"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "切换搜索"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "工具"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2625,6 +2707,10 @@ msgstr "有发言权的用户"
 msgid "Volume"
 msgstr "音量"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "等待第一步…"
+
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
 msgid "Warn User"
@@ -2682,6 +2768,19 @@ msgstr "宽泛 – 更广的保护范围"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "留空将默认显示\"无原因\""
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr "工作流历史"
+
+#. placeholder {0}: workflows.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history ({0})"
+msgstr "工作流历史 ({0})"
+
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Working…"
+msgstr "处理中…"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

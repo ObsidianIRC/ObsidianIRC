@@ -51,6 +51,16 @@ msgstr "{0} yazıyor..."
 msgid "{0} older messages"
 msgstr "{0} eski mesaj"
 
+#. placeholder {0}: countableSteps(w.steps)
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr "{0} adım"
+
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} adım onay bekliyor"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +288,11 @@ msgstr "Filtreleri Uygula ve Yenile"
 msgid "Applying..."
 msgstr "Uygulanıyor..."
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Onayla"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -310,6 +325,10 @@ msgstr "Doğrulanmış Hesap"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Auto Fallback to Single Line"
 msgstr "Otomatik Tek Satıra Dön"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr "{secondsLeft} sn sonra otomatik kapanır"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -423,6 +442,10 @@ msgstr "Bağlantıyı İptal Et"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Yanıtı iptal et"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "İş akışını iptal et"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -780,6 +803,10 @@ msgstr "Keşfet"
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "ObsidianIRC ile IRC dünyasını keşfedin"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Kapat"
+
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
 msgstr "Bildirimi kapat"
@@ -1118,6 +1145,10 @@ msgstr "{1} görselinden {0}. görsel"
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Görüntü önizlemesi"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "GİR"
 
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
@@ -1744,6 +1775,15 @@ msgstr "Oper Kullanıcı Adı"
 msgid "Optional crash reports to improve the app"
 msgstr "Uygulamayı geliştirmek için isteğe bağlı çökme raporları"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "ÇIK"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "çıktı kısaltıldı"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Sahip"
@@ -1944,6 +1984,11 @@ msgstr "Sunucuya yeniden bağlan"
 msgid "Register for an account"
 msgstr "Hesap kaydı oluştur"
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Reddet"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
 msgstr "Rahat"
@@ -1984,10 +2029,22 @@ msgstr "Bu kanalı sunucuda yeniden adlandır. Tüm kullanıcılar yeni adı gö
 msgid "Render markdown formatting in messages"
 msgstr "Mesajlarda markdown biçimlendirmesini işle"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr "Bu mesajı oluşturan iş akışını yeniden aç ({stepCount} adım)"
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
 msgstr "Yanıtla"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Sohbette yanıtladı"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Yanıt mesajı artık görünmüyor"
 
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
@@ -2027,6 +2084,10 @@ msgstr "Kaydedildi"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Kaydediliyor..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Bu yanıta kaydır"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2303,6 +2364,10 @@ msgstr "SoundCloud oynatıcı"
 msgid "Start Private Message"
 msgstr "Özel Mesaj Başlat"
 
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Starting workflow…"
+msgstr "İş akışı başlatılıyor…"
+
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
@@ -2314,6 +2379,7 @@ msgid "Status Messages"
 msgstr "Durum Mesajları"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Durdur"
@@ -2329,6 +2395,10 @@ msgstr "Katı - Daha agresif koruma"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Sistem"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Metin"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2423,14 @@ msgstr "Bu kanal için görüntülenecek konu. Tüm kullanıcılar konuyu göreb
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Kullanıcı {channelName} kanalına katılmak için davet alacak."
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr "Bu mesajı oluşturan iş akışı artık durumda değil"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Düşünüyor"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2486,10 @@ msgstr "Bildirimleri Aç/Kapat"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Aramayı aç/kapat"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Araç"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2625,6 +2707,10 @@ msgstr "Sesli Kullanıcı"
 msgid "Volume"
 msgstr "Ses Seviyesi"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "İlk adım bekleniyor…"
+
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
 msgid "Warn User"
@@ -2682,6 +2768,19 @@ msgstr "Geniş - Daha kapsamlı koruma alanı"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Boş bırakılırsa varsayılan olarak 'neden yok' kullanılır"
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr "İş akışı geçmişi"
+
+#. placeholder {0}: workflows.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history ({0})"
+msgstr "İş akışı geçmişi ({0})"
+
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Working…"
+msgstr "Çalışıyor…"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

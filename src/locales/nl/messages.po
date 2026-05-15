@@ -51,6 +51,16 @@ msgstr "{0} typt..."
 msgid "{0} older messages"
 msgstr "{0} oudere berichten"
 
+#. placeholder {0}: countableSteps(w.steps)
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr "{0} stappen"
+
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} stappen wachten op goedkeuring"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +288,11 @@ msgstr "Filters toepassen en vernieuwen"
 msgid "Applying..."
 msgstr "Toepassen..."
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Goedkeuren"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -310,6 +325,10 @@ msgstr "Geverifieerd account"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Auto Fallback to Single Line"
 msgstr "Automatisch terugvallen op één regel"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr "Automatisch sluiten over {secondsLeft} s"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -423,6 +442,10 @@ msgstr "Verbinding annuleren"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Antwoord annuleren"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Workflow annuleren"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -780,6 +803,10 @@ msgstr "Ontdekken"
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Ontdek de wereld van IRC met ObsidianIRC"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Sluiten"
+
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
 msgstr "Melding sluiten"
@@ -1118,6 +1145,10 @@ msgstr "Afbeelding {0} van {1}"
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Afbeeldingsvoorbeeldweergave"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "IN"
 
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
@@ -1744,6 +1775,15 @@ msgstr "Oper-gebruikersnaam"
 msgid "Optional crash reports to improve the app"
 msgstr "Optionele crashrapporten om de app te verbeteren"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "UIT"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "uitvoer ingekort"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Eigenaar"
@@ -1944,6 +1984,11 @@ msgstr "Opnieuw verbinden met server"
 msgid "Register for an account"
 msgstr "Registreren voor een account"
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Weigeren"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
 msgstr "Ontspannen"
@@ -1984,10 +2029,22 @@ msgstr "Dit kanaal op de server hernoemen. Alle gebruikers zien de nieuwe naam."
 msgid "Render markdown formatting in messages"
 msgstr "Markdown-opmaak in berichten weergeven"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr "Werkstroom die dit bericht heeft gemaakt opnieuw openen ({stepCount} stappen)"
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
 msgstr "Beantwoorden"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Geantwoord in chat"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Antwoord is niet meer zichtbaar"
 
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
@@ -2027,6 +2084,10 @@ msgstr "Opgeslagen"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Opslaan..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Naar dit antwoord scrollen"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2303,6 +2364,10 @@ msgstr "SoundCloud-speler"
 msgid "Start Private Message"
 msgstr "Privébericht starten"
 
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Starting workflow…"
+msgstr "Workflow starten…"
+
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
@@ -2314,6 +2379,7 @@ msgid "Status Messages"
 msgstr "Statusberichten"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Stoppen"
@@ -2329,6 +2395,10 @@ msgstr "Streng — Agressievere beveiliging"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Systeem"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Tekst"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2423,14 @@ msgstr "Het onderwerp dat voor dit kanaal wordt weergegeven. Alle gebruikers kun
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "De gebruiker ontvangt een uitnodiging om deel te nemen aan {channelName}."
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr "De werkstroom die dit bericht heeft gemaakt is niet meer in de status"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Denken"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2486,10 @@ msgstr "Meldingen aan/uit"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Zoeken aan/uit"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Hulpmiddel"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2625,6 +2707,10 @@ msgstr "Gebruiker met voice"
 msgid "Volume"
 msgstr "Volume"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Wachten op eerste stap…"
+
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
 msgid "Warn User"
@@ -2682,6 +2768,19 @@ msgstr "Breed — Ruimere beveiligingsscope"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Standaard 'geen reden' als leeggelaten"
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr "Workflowgeschiedenis"
+
+#. placeholder {0}: workflows.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history ({0})"
+msgstr "Workflowgeschiedenis ({0})"
+
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Working…"
+msgstr "Bezig…"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

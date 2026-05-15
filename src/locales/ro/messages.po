@@ -51,6 +51,16 @@ msgstr "{0} scrie..."
 msgid "{0} older messages"
 msgstr "{0} mesaje mai vechi"
 
+#. placeholder {0}: countableSteps(w.steps)
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr "{0} pași"
+
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} pași în așteptarea aprobării"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +288,11 @@ msgstr "Aplică filtrele și actualizează"
 msgid "Applying..."
 msgstr "Se aplică..."
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Aprobă"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -310,6 +325,10 @@ msgstr "Cont autentificat"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Auto Fallback to Single Line"
 msgstr "Revenire automată la o singură linie"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr "Închidere automată în {secondsLeft} s"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -423,6 +442,10 @@ msgstr "Anulează conexiunea"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Anulează răspunsul"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Anulează fluxul de lucru"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -780,6 +803,10 @@ msgstr "Descoperă"
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Descoperă lumea IRC cu ObsidianIRC"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Închide"
+
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
 msgstr "Respinge notificarea"
@@ -1118,6 +1145,10 @@ msgstr "Imaginea {0} din {1}"
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Previzualizare imagine"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "INTR"
 
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
@@ -1744,6 +1775,15 @@ msgstr "Nume utilizator operator"
 msgid "Optional crash reports to improve the app"
 msgstr "Rapoarte opționale de erori pentru îmbunătățirea aplicației"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "IEȘ"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "ieșire trunchiată"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Proprietar"
@@ -1944,6 +1984,11 @@ msgstr "Reconectează-te la server"
 msgid "Register for an account"
 msgstr "Înregistrează un cont"
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Respinge"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
 msgstr "Relaxat"
@@ -1984,10 +2029,22 @@ msgstr "Redenumiți acest canal pe server. Toți utilizatorii vor vedea noul num
 msgid "Render markdown formatting in messages"
 msgstr "Afișați formatarea Markdown în mesaje"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr "Redeschide fluxul de lucru care a generat acest mesaj ({stepCount} pași)"
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
 msgstr "Răspunde"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "A răspuns în chat"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Răspunsul nu mai este vizibil"
 
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
@@ -2027,6 +2084,10 @@ msgstr "Salvat"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Se salvează..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Derulează la acest răspuns"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2303,6 +2364,10 @@ msgstr "Player SoundCloud"
 msgid "Start Private Message"
 msgstr "Începe un mesaj privat"
 
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Starting workflow…"
+msgstr "Se pornește fluxul de lucru…"
+
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
@@ -2314,6 +2379,7 @@ msgid "Status Messages"
 msgstr "Mesaje de stare"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Oprește"
@@ -2329,6 +2395,10 @@ msgstr "Strict – Protecție mai agresivă"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Sistem"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Text"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2423,14 @@ msgstr "Subiectul afișat pentru acest canal. Toți utilizatorii îl pot vedea."
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Utilizatorul va primi o invitație să se alăture {channelName}."
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr "Fluxul de lucru care a generat acest mesaj nu mai este în stare"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Gândire"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2486,10 @@ msgstr "Comută notificările"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Comută căutarea"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Unealtă"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2625,6 +2707,10 @@ msgstr "Utilizator cu drept de vorbire"
 msgid "Volume"
 msgstr "Volum"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Se așteaptă primul pas…"
+
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
 msgid "Warn User"
@@ -2682,6 +2768,19 @@ msgstr "Larg – Domeniu de protecție mai amplu"
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Va fi implicit „niciun motiv\" dacă este lăsat gol"
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr "Istoric fluxuri de lucru"
+
+#. placeholder {0}: workflows.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history ({0})"
+msgstr "Istoric fluxuri de lucru ({0})"
+
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Working…"
+msgstr "Se lucrează…"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

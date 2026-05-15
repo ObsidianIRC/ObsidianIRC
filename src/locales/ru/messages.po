@@ -51,6 +51,16 @@ msgstr "{0} печатает..."
 msgid "{0} older messages"
 msgstr "{0} старых сообщений"
 
+#. placeholder {0}: countableSteps(w.steps)
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "{0} step(s)"
+msgstr "{0} шагов"
+
+#. placeholder {0}: pendingApprovals.length
+#: src/components/ui/AiToolsCard.tsx
+msgid "{0} step(s) awaiting approval"
+msgstr "{0} шагов ожидают одобрения"
+
 #. placeholder {0}: typingUsers[0].username
 #. placeholder {1}: typingUsers[1].username
 #. placeholder {2}: typingUsers[2].username
@@ -278,6 +288,11 @@ msgstr "Применить фильтры и обновить"
 msgid "Applying..."
 msgstr "Применяется..."
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Approve"
+msgstr "Одобрить"
+
 #: src/store/handlers/users.ts
 #: src/store/handlers/users.ts
 msgid "are now known as **{newNick}**"
@@ -310,6 +325,10 @@ msgstr "Аутентифицированный аккаунт"
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Auto Fallback to Single Line"
 msgstr "Автоматический возврат к однострочному режиму"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Auto-dismiss in {secondsLeft}s"
+msgstr "Автозакрытие через {secondsLeft} с"
 
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Automatically authenticate as operator on connect"
@@ -423,6 +442,10 @@ msgstr "Отменить подключение"
 #: src/components/message/MessageReply.tsx
 msgid "Cancel reply"
 msgstr "Отменить ответ"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Cancel workflow"
+msgstr "Отменить процесс"
 
 #: src/components/ui/QuickActions/uiActionConfig.tsx
 msgid "Change the channel name (operators only)"
@@ -780,6 +803,10 @@ msgstr "Обзор"
 msgid "Discover the world of IRC with ObsidianIRC"
 msgstr "Откройте мир IRC вместе с ObsidianIRC"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Dismiss"
+msgstr "Закрыть"
+
 #: src/components/ui/GlobalNotifications.tsx
 msgid "Dismiss notification"
 msgstr "Закрыть уведомление"
@@ -1118,6 +1145,10 @@ msgstr "Изображение {0} из {1}"
 #: src/components/ui/MediaViewerModal.tsx
 msgid "Image preview"
 msgstr "Предпросмотр изображения"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "IN"
+msgstr "ВХ"
 
 #: src/components/message/JsonLogMessage.tsx
 msgid "Info:"
@@ -1744,6 +1775,15 @@ msgstr "Имя пользователя оператора"
 msgid "Optional crash reports to improve the app"
 msgstr "Необязательные отчёты о сбоях для улучшения приложения"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "OUT"
+msgstr "ВЫХ"
+
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "output truncated"
+msgstr "вывод сокращён"
+
 #: src/components/ui/UserProfileModal.tsx
 msgid "Owner"
 msgstr "Владелец"
@@ -1944,6 +1984,11 @@ msgstr "Переподключиться к серверу"
 msgid "Register for an account"
 msgstr "Зарегистрировать аккаунт"
 
+#: src/components/ui/AiToolsCard.tsx
+#: src/components/ui/AiToolsCard.tsx
+msgid "Reject"
+msgstr "Отклонить"
+
 #: src/components/ui/ChannelSettingsModal.tsx
 msgid "Relaxed"
 msgstr "Мягкий"
@@ -1984,10 +2029,22 @@ msgstr "Переименовать этот канал на сервере. Вс
 msgid "Render markdown formatting in messages"
 msgstr "Отображать форматирование Markdown в сообщениях"
 
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "Reopen the workflow that produced this message ({stepCount} steps)"
+msgstr "Снова открыть рабочий процесс, создавший это сообщение ({stepCount} шагов)"
+
 #: src/components/message/MessageActions.tsx
 #: src/components/mobile/MessageBottomSheet.tsx
 msgid "Reply"
 msgstr "Ответить"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Responded in chat"
+msgstr "Ответил в чате"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Response message is no longer in view"
+msgstr "Сообщение с ответом больше не отображается"
 
 #: src/components/message/MessageStatusIndicator.tsx
 #: src/components/message/MessageStatusIndicator.tsx
@@ -2027,6 +2084,10 @@ msgstr "Сохранено"
 #: src/components/ui/FloodSettingsModal.tsx
 msgid "Saving..."
 msgstr "Сохранение..."
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Scroll chat to this response"
+msgstr "Перейти к этому ответу"
 
 #: src/components/ui/LinkSecurityWarningModal.tsx
 #: src/components/ui/ScrollToBottomButton.tsx
@@ -2303,6 +2364,10 @@ msgstr "Плеер SoundCloud"
 msgid "Start Private Message"
 msgstr "Начать личный чат"
 
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Starting workflow…"
+msgstr "Запуск рабочего процесса…"
+
 #: src/components/ui/UserProfileModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
@@ -2314,6 +2379,7 @@ msgid "Status Messages"
 msgstr "Статусные сообщения"
 
 #: src/components/message/MediaPreview.tsx
+#: src/components/ui/AiToolsCard.tsx
 #: src/components/ui/MiniMediaPlayer.tsx
 msgid "Stop"
 msgstr "Стоп"
@@ -2329,6 +2395,10 @@ msgstr "Строгий — более агрессивная защита"
 #: src/components/message/ActionMessage.tsx
 msgid "System"
 msgstr "Система"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Text"
+msgstr "Текст"
 
 #: src/components/layout/ChannelList.tsx
 msgid "Text Channels"
@@ -2353,6 +2423,14 @@ msgstr "Тема, которая будет отображаться для эт
 #: src/components/ui/InviteUserModal.tsx
 msgid "The user will receive an invitation to join {channelName}."
 msgstr "Пользователь получит приглашение вступить в {channelName}."
+
+#: src/components/message/AiToolsMessagePill.tsx
+msgid "The workflow that produced this message is no longer in state"
+msgstr "Рабочий процесс, создавший это сообщение, больше недоступен"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Thinking"
+msgstr "Размышление"
 
 #: src/lib/settings/registry.ts
 msgid "This field is required"
@@ -2408,6 +2486,10 @@ msgstr "Включить/выключить уведомления"
 #: src/components/layout/ChatHeader.tsx
 msgid "Toggle search"
 msgstr "Включить/выключить поиск"
+
+#: src/components/ui/AiToolsCard.tsx
+msgid "Tool"
+msgstr "Инструмент"
 
 #: src/components/ui/ChannelListModal.tsx
 msgid "Topic Set After (min ago)"
@@ -2625,6 +2707,10 @@ msgstr "Пользователь с голосом"
 msgid "Volume"
 msgstr "Громкость"
 
+#: src/components/ui/AiToolsCard.tsx
+msgid "Waiting for first step…"
+msgstr "Ожидание первого шага…"
+
 #: src/components/ui/ModerationModal.tsx
 #: src/components/ui/UserContextMenu.tsx
 msgid "Warn User"
@@ -2682,6 +2768,19 @@ msgstr "Широкий — более широкая область защиты
 #: src/components/ui/ModerationModal.tsx
 msgid "Will default to 'no reason' if left empty"
 msgstr "Если оставить пустым, будет использоваться «без причины»"
+
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history"
+msgstr "История рабочих процессов"
+
+#. placeholder {0}: workflows.length
+#: src/components/ui/AiToolsHistoryButton.tsx
+msgid "Workflow history ({0})"
+msgstr "История рабочих процессов ({0})"
+
+#: src/components/message/AiToolsPlaceholderBody.tsx
+msgid "Working…"
+msgstr "Работаю…"
 
 #: src/components/message/CollapsedEventMessage.tsx
 #: src/components/message/EventMessage.tsx

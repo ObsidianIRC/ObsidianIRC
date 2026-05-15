@@ -39,6 +39,7 @@ import useStore from "../../store";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
 import { MessageReply } from "../message/MessageReply";
+import { AiToolsTray } from "../ui/AiToolsTray";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
@@ -2059,8 +2060,14 @@ export const ChatArea: React.FC<{
               Embedded iframes (YouTube) are suspended by the browser, but we
               explicitly stop embed media on channel switch (see effect below). */}
           <div
-            className={`flex flex-col min-h-0 ${channelKey ? "flex-grow" : ""}`}
+            className={`relative flex flex-col min-h-0 ${channelKey ? "flex-grow" : ""}`}
           >
+            <AiToolsTray
+              serverId={selectedServerId}
+              channel={
+                selectedChannel?.name ?? selectedPrivateChat?.username ?? null
+              }
+            />
             {aliveChannels.map(
               ({
                 key,
