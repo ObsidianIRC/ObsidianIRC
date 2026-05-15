@@ -425,14 +425,26 @@ export const AiToolsCard: React.FC<AiToolsCardProps> = ({ workflow }) => {
     return () => clearTimeout(t);
   }, [secondsLeft, paused, dismiss, workflow.serverId, workflow.id]);
 
-  // Auto-scroll the expanded step list when new content arrives, but
-  // only if the user was already at (or near) the bottom -- so we
-  // don't yank them out of scroll-back while a long workflow runs.
+  // Auto-scroll the expanded step list.  On initial expansion we
+  // force-scroll to the bottom -- both "card opened mid-run" and
+  // "card reopened after completion" should land the user at the
+  // freshest content, not at the top of a long step list.  After
+  // that, only auto-scroll while the user is parked at the bottom,
+  // so we don't yank them out of scroll-back during a long workflow.
   const bodyRef = useRef<HTMLDivElement>(null);
+  const hasInitialScrolled = useRef(false);
   // biome-ignore lint/correctness/useExhaustiveDependencies: track step count + updatedAt because step content updates don't change the array reference
   useEffect(() => {
     const el = bodyRef.current;
-    if (!el || workflow.collapsed) return;
+    if (!el || workflow.collapsed) {
+      hasInitialScrolled.current = false;
+      return;
+    }
+    if (!hasInitialScrolled.current) {
+      el.scrollTop = el.scrollHeight;
+      hasInitialScrolled.current = true;
+      return;
+    }
     const SCROLL_TOLERANCE = 24;
     const atBottom =
       el.scrollHeight - (el.scrollTop + el.clientHeight) <= SCROLL_TOLERANCE;
