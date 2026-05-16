@@ -1,16 +1,19 @@
 // Slash-command suggestion popover, anchored above the chat input.
 //
-// Two sources feed into this:
-//   * obsidianirc/cmdslist (server-side capability) → a flat list of
-//     bare command names the user is permitted to invoke.
-//   * draft/bot-cmds (PushBot) → richer per-bot schemas with
-//     descriptions, parameter lists, and scope (channel vs server).
+// Three sources feed into this:
+//   * client → commands handled locally by the React app before they
+//     touch the wire (e.g. /me, /msg, /nick).  Defined in
+//     src/lib/clientCommands.ts; rendered with a "client" badge.
+//   * server → obsidianirc/cmdslist capability — the IRCd's set of
+//     commands the user is currently permitted to invoke (e.g. /op,
+//     /kick, /mode); rendered with a "server" badge.
+//   * bot → draft/bot-cmds — per-bot schemas with descriptions,
+//     options, scope.  "channel-bot" or "server-bot" badge.
 //
-// We render the same popover for both, badged by source.  Below the
-// command name the matching bot's description and parameter signature
-// are shown when known.  Once the user accepts a suggestion and starts
-// typing arguments, the popover yields to a param-hint footer (see
-// SlashParamHint) that follows the cursor through the options.
+// Below the command name we show the description and a `<required>` /
+// `[optional]` parameter signature.  Once the user accepts a
+// suggestion and starts typing arguments, the popover yields to the
+// param-hint footer (see SlashParamHint).
 //
 // Keyboard:
 //   ArrowUp / ArrowDown -- cycle highlighted suggestion
@@ -24,7 +27,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BotCommandOption } from "../../types";
 
 export type SlashSuggestionSource =
-  | { kind: "builtin" }
+  | { kind: "client" }
+  | { kind: "server" }
   | { kind: "bot"; botNick: string; scope?: "channel" | "server" };
 
 export interface SlashSuggestion {
@@ -67,19 +71,53 @@ export function formatOptions(options: BotCommandOption[] | undefined): string {
     .join(" ");
 }
 
+interface BadgeStyle {
+  label: string;
+  title: string;
+  className: string;
+}
+
+function badgeStyle(source: SlashSuggestionSource): BadgeStyle {
+  switch (source.kind) {
+    case "client":
+      return {
+        label: "client",
+        title: "Handled by ObsidianIRC before being sent",
+        className:
+          "bg-discord-dark-200 text-discord-text-muted border border-discord-dark-500",
+      };
+    case "server":
+      return {
+        label: "server",
+        title: "Command provided by the IRC server",
+        className:
+          "bg-emerald-700/40 text-emerald-300 border border-emerald-600/60",
+      };
+    case "bot":
+      return source.scope === "server"
+        ? {
+            label: "server-bot",
+            title: "Server-wide bot — reachable from any channel",
+            className:
+              "bg-discord-primary/30 text-discord-primary border border-discord-primary/40",
+          }
+        : {
+            label: "channel-bot",
+            title: "Channel bot — present in this channel",
+            className:
+              "bg-amber-700/30 text-amber-300 border border-amber-600/50",
+          };
+  }
+}
+
 function sourceBadge(source: SlashSuggestionSource): React.ReactNode {
-  if (source.kind === "builtin") return null;
-  const isServer = source.scope === "server";
+  const { label, title, className } = badgeStyle(source);
   return (
     <span
-      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-        isServer
-          ? "bg-discord-primary/30 text-discord-primary border border-discord-primary/40"
-          : "bg-discord-dark-200 text-discord-text-muted border border-discord-dark-500"
-      }`}
-      title={isServer ? "Server-wide bot" : "Channel bot"}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${className}`}
+      title={title}
     >
-      {isServer ? "server-bot" : "channel-bot"}
+      {label}
     </span>
   );
 }

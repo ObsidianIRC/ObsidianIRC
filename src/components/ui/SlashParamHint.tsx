@@ -14,14 +14,19 @@ import type React from "react";
 import { useMemo } from "react";
 import type { BotCommand } from "../../types";
 
+export interface SlashParamSchema {
+  command: BotCommand;
+  source: "client" | "bot";
+  /** Present iff source === "bot" */
+  botNick?: string;
+  scope: "channel" | "server" | "dm";
+}
+
 interface SlashParamHintProps {
   inputValue: string;
   cursorPosition: number;
   /** Map of command name → schema, lowercased keys. */
-  schemas: Record<
-    string,
-    { command: BotCommand; botNick: string; scope: "channel" | "server" | "dm" }
-  >;
+  schemas: Record<string, SlashParamSchema>;
   inputElement?: HTMLInputElement | HTMLTextAreaElement | null;
 }
 
@@ -100,8 +105,10 @@ export const SlashParamHint: React.FC<SlashParamHintProps> = ({
             </span>
           );
         })}
-        <span className="text-xs text-discord-text-muted">
-          via @{entry.botNick}
+        <span className="text-xs text-discord-text-muted ml-1">
+          {entry.source === "bot"
+            ? `via @${entry.botNick}`
+            : "(handled by ObsidianIRC)"}
         </span>
       </div>
       {opts[ctx.argIndex] && (

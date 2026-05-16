@@ -17,6 +17,7 @@ import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { waitForAuthToken } from "../../lib/authToken";
+import { CLIENT_COMMANDS } from "../../lib/clientCommands";
 import { useEmojiResolver } from "../../lib/customEmoji";
 import {
   emojiClickValue,
@@ -2367,17 +2368,40 @@ export const ChatArea: React.FC<{
               {(() => {
                 const srv = servers.find((s) => s.id === selectedServerId);
                 const suggestions: SlashSuggestion[] = [];
-                // Built-in commands (server permission list).  No
-                // schema, no description -- just names.
+                const seen = new Set<string>();
+
+                // 1. Client-side handlers (e.g. /me, /msg, /nick) —
+                // listed first because they own those names and the
+                // server's cmdslist may shadow them.
+                const inChannelView = !!selectedChannel;
+                for (const c of CLIENT_COMMANDS) {
+                  if (c.scope === "channel-only" && !inChannelView) continue;
+                  suggestions.push({
+                    name: c.name,
+                    description: c.description,
+                    options: c.options,
+                    source: { kind: "client" },
+                  });
+                  seen.add(c.name.toLowerCase());
+                }
+
+                // 2. Server-provided permission list (obsidianirc/cmdslist).
+                // No schema -- just names; skip anything the client
+                // already handles to avoid duplicate entries.
                 for (const name of srv?.cmdsAvailable ?? []) {
+                  if (seen.has(name.toLowerCase())) continue;
                   suggestions.push({
                     name,
-                    source: { kind: "builtin" },
+                    source: { kind: "server" },
                   });
+                  seen.add(name.toLowerCase());
                 }
-                // PushBot schemas: include channel-bots only when the
-                // bot is a member of the active channel; otherwise
-                // treat as server-wide (visible everywhere we know it).
+
+                // 3. PushBot schemas.  Channel bots only appear when
+                // the bot is a member of the active channel; the
+                // spec defers server-wide bots until the channel
+                // scope can't satisfy.  Users can always target a
+                // specific bot via /cmd@bot.
                 if (srv?.botCommands) {
                   const chanUsers = new Set<string>(
                     selectedChannel?.users.map((u) =>
@@ -2388,16 +2412,10 @@ export const ChatArea: React.FC<{
                     srv.botCommands,
                   )) {
                     const inChannel = chanUsers.has(botNick);
+                    if (!inChannel && selectedChannel) continue;
                     const scope: "channel" | "server" = inChannel
                       ? "channel"
                       : "server";
-                    if (!inChannel && selectedChannel) {
-                      // Skip server-wide bots when looking at a
-                      // channel they're not in: the spec defers them
-                      // until the channel scope can't satisfy the
-                      // command.  Users can still target via /cmd@bot.
-                      continue;
-                    }
                     for (const c of list) {
                       suggestions.push({
                         name: c.name,
@@ -2440,37 +2458,61 @@ export const ChatArea: React.FC<{
                 );
               })()}
 
-              {/* draft/bot-cmds: per-arg hint shown after the cmd name */}
+              {/* Per-arg hint shown after the cmd name + a space.
+                  Pulls schemas from both client-side commands and
+                  any cached PushBot schemas. */}
               {(() => {
                 const srv = servers.find((s) => s.id === selectedServerId);
-                if (!srv?.botCommands) return null;
-                const chanUsers = new Set<string>(
-                  selectedChannel?.users.map((u) => u.username.toLowerCase()) ??
-                    [],
-                );
                 const schemas: Record<
                   string,
                   {
                     command: import("../../types").BotCommand;
-                    botNick: string;
+                    source: "client" | "bot";
+                    botNick?: string;
                     scope: "channel" | "server" | "dm";
                   }
                 > = {};
-                for (const [botNick, list] of Object.entries(srv.botCommands)) {
-                  const inChannel = chanUsers.has(botNick);
-                  const scope: "channel" | "server" = inChannel
-                    ? "channel"
-                    : "server";
-                  for (const c of list) {
-                    // Last writer wins on name collision; in practice
-                    // the server enforces uniqueness per channel.
-                    schemas[c.name.toLowerCase()] = {
-                      command: c,
-                      botNick,
-                      scope,
-                    };
+
+                // Client-side commands first; bot schemas overwrite
+                // only if there's a real collision (none in practice
+                // because the client owns /me, /msg, etc).
+                for (const c of CLIENT_COMMANDS) {
+                  schemas[c.name.toLowerCase()] = {
+                    command: {
+                      name: c.name,
+                      description: c.description,
+                      options: c.options,
+                    },
+                    source: "client",
+                    scope: "dm",
+                  };
+                }
+
+                if (srv?.botCommands) {
+                  const chanUsers = new Set<string>(
+                    selectedChannel?.users.map((u) =>
+                      u.username.toLowerCase(),
+                    ) ?? [],
+                  );
+                  for (const [botNick, list] of Object.entries(
+                    srv.botCommands,
+                  )) {
+                    const inChannel = chanUsers.has(botNick);
+                    const scope: "channel" | "server" = inChannel
+                      ? "channel"
+                      : "server";
+                    for (const c of list) {
+                      schemas[c.name.toLowerCase()] = {
+                        command: c,
+                        source: "bot",
+                        botNick,
+                        scope,
+                      };
+                    }
                   }
                 }
+
+                if (Object.keys(schemas).length === 0) return null;
                 return (
                   <SlashParamHint
                     inputValue={messageTextRef.current ?? ""}
