@@ -598,6 +598,7 @@ export class IRCClient implements IRCClientContext {
     "labeled-response",
     "draft/read-marker",
     "obsidianirc/cmdslist",
+    "draft/bot-cmds",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 

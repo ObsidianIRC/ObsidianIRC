@@ -12,7 +12,112 @@ import {
 } from "../lib/messageFormatter";
 import { createBatchId, splitLongMessage } from "../lib/messageProtocol";
 import useStore, { serverSupportsMultiline } from "../store";
-import type { Channel, Message, PrivateChat, User } from "../types";
+import type { BotCommand, Channel, Message, PrivateChat, User } from "../types";
+
+/**
+ * Try to dispatch a slash command as a +draft/bot-cmd TAGMSG.
+ * Returns true if a matching bot command was found and the TAGMSG
+ * was sent.  Resolution order:
+ *   1) explicit `/cmd@botnick` syntax targets one bot
+ *   2) otherwise scan bots in the current channel for a matching name
+ *   3) DM target matches if its nick is a bot
+ *   4) server-wide bots (no channel) fall through last
+ */
+function tryDispatchBotCommand(
+  serverId: string,
+  channel: Channel | null,
+  privateChat: PrivateChat | null,
+  rawCmdName: string,
+  args: string[],
+): boolean {
+  const server = useStore.getState().servers.find((s) => s.id === serverId);
+  if (!server?.botCommands) return false;
+  const bots = server.botCommands;
+  let target = rawCmdName;
+  let cmdName = rawCmdName;
+  if (rawCmdName.includes("@")) {
+    const [c, t] = rawCmdName.split("@", 2);
+    cmdName = c;
+    target = t;
+  } else {
+    target = "";
+  }
+  const lowerCmd = cmdName.toLowerCase();
+
+  type Match = { bot: string; cmd: BotCommand };
+  const matches: Match[] = [];
+  // explicit target via /cmd@botnick
+  if (target) {
+    const list = bots[target.toLowerCase()];
+    if (list) {
+      const cmd = list.find((c) => c.name.toLowerCase() === lowerCmd);
+      if (cmd) matches.push({ bot: target, cmd });
+    }
+  }
+  // channel-bot search: any bot we know AND who's in the channel
+  if (!matches.length && channel) {
+    const nicksInChannel = new Set(
+      channel.users.map((u) => u.username.toLowerCase()),
+    );
+    for (const [bot, list] of Object.entries(bots)) {
+      if (!nicksInChannel.has(bot)) continue;
+      const cmd = list.find((c) => c.name.toLowerCase() === lowerCmd);
+      if (cmd) matches.push({ bot, cmd });
+    }
+  }
+  // DM with a bot
+  if (!matches.length && privateChat) {
+    const list = bots[privateChat.username.toLowerCase()];
+    if (list) {
+      const cmd = list.find((c) => c.name.toLowerCase() === lowerCmd);
+      if (cmd) matches.push({ bot: privateChat.username, cmd });
+    }
+  }
+  // server-wide bots (any bot we know that defines the command)
+  if (!matches.length) {
+    for (const [bot, list] of Object.entries(bots)) {
+      const cmd = list.find((c) => c.name.toLowerCase() === lowerCmd);
+      if (cmd) matches.push({ bot, cmd });
+    }
+  }
+  if (!matches.length) return false;
+  // First match wins (channel-scope already preferred over server-scope
+  // by virtue of the lookup ordering above).
+  const { bot, cmd } = matches[0];
+
+  // Naive arg parsing: map positional args onto declared options in
+  // order, leftovers concatenated onto the last string-typed option.
+  const options: Record<string, string | number | boolean> = {};
+  const opts = cmd.options ?? [];
+  for (let i = 0; i < opts.length && i < args.length; i++) {
+    const o = opts[i];
+    const isLast = i === opts.length - 1;
+    const raw = isLast ? args.slice(i).join(" ") : args[i];
+    if (o.type === "int") options[o.name] = Number.parseInt(raw, 10);
+    else if (o.type === "bool")
+      options[o.name] = raw === "true" || raw === "1" || raw === "yes";
+    else options[o.name] = raw;
+  }
+
+  const payload = { name: cmd.name, options };
+  const b64 = btoa(JSON.stringify(payload)).replace(/=+$/, ""); // strip trailing padding for IRCv3 tag-value friendliness
+  const isPublic = cmd.visibility !== "private";
+
+  if (channel && isPublic) {
+    ircClient.sendRaw(
+      serverId,
+      `@+draft/bot-cmd=${b64} TAGMSG ${channel.name}`,
+    );
+  } else if (channel && !isPublic) {
+    ircClient.sendRaw(
+      serverId,
+      `@+draft/bot-cmd=${b64};+draft/channel-context=${channel.name} TAGMSG ${bot}`,
+    );
+  } else {
+    ircClient.sendRaw(serverId, `@+draft/bot-cmd=${b64} TAGMSG ${bot}`);
+  }
+  return true;
+}
 
 /**
  * labeled-response is only useful when the server will also echo our
@@ -231,6 +336,16 @@ export function useMessageSending({
         }
       } else if (commandName === "back") {
         clearAway(selectedServerId);
+      } else if (
+        tryDispatchBotCommand(
+          selectedServerId,
+          selectedChannel,
+          selectedPrivateChat,
+          commandName,
+          args,
+        )
+      ) {
+        // bot-cmd dispatched, nothing else to do
       } else {
         const fullCommand =
           args.length > 0 ? `${commandName} ${args.join(" ")}` : commandName;

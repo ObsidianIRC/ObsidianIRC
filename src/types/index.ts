@@ -79,6 +79,27 @@ export interface Server {
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
   cmdsAvailable?: string[];
+
+  // draft/bot-cmds: per-bot command schemas keyed by bot nick (lowercased).
+  // Populated from TAGMSG `+draft/bot-cmds` responses.  Used to drive
+  // slash-command autocomplete + invocation routing.
+  botCommands?: Record<string, BotCommand[]>;
+}
+
+export interface BotCommandOption {
+  name: string;
+  type?: "string" | "int" | "bool" | "user" | "channel";
+  required?: boolean;
+  description?: string;
+  choices?: string[];
+}
+
+export interface BotCommand {
+  name: string;
+  description?: string;
+  visibility?: "public" | "private";
+  scopes?: ("channel" | "dm")[];
+  options?: BotCommandOption[];
 }
 
 export interface NamedModeSpec {
