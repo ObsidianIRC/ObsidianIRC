@@ -12,7 +12,7 @@
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
 import type { BotCommand } from "../../types";
-import type { AppState } from "../index";
+import useStore, { type AppState } from "../index";
 
 function decodeBotCmds(value: string): BotCommand[] | null {
   try {
@@ -87,4 +87,31 @@ export function registerPushBotHandlers(store: StoreApi<AppState>): void {
 /** Send a +draft/bot-cmds-query TAGMSG to <botNick>. */
 export function queryBotCommands(serverId: string, botNick: string): void {
   ircClient.sendRaw(serverId, `@+draft/bot-cmds-query=1 TAGMSG ${botNick}`);
+}
+
+/**
+ * Query bot-cmds for every isBot=true user in the channel that we
+ * don't already have a cached schema for.  Called from the chat input
+ * the first time the user starts typing a '/' so the popover has
+ * something to show even if WHO_END fired before our handler attached
+ * (e.g. cap negotiation happened between joining and registering).
+ */
+export function queryUncachedBotsInChannel(
+  serverId: string,
+  channelName: string,
+): void {
+  const state = useStore.getState();
+  const server = state.servers.find((s) => s.id === serverId);
+  if (!server) return;
+  const channel = server.channels.find(
+    (c) => c.name.toLowerCase() === channelName.toLowerCase(),
+  );
+  if (!channel) return;
+  const cache = server.botCommands ?? {};
+  for (const u of channel.users) {
+    if (!u.isBot) continue;
+    const key = u.username.toLowerCase();
+    if (cache[key]) continue;
+    queryBotCommands(serverId, u.username);
+  }
 }

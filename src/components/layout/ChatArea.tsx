@@ -36,6 +36,7 @@ import {
 } from "../../lib/messageFormatter";
 import { isMobileDevice, isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
+import { queryUncachedBotsInChannel } from "../../store/handlers/pushbot";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
 import { MessageReply } from "../message/MessageReply";
@@ -1473,6 +1474,13 @@ export const ChatArea: React.FC<{
       getActiveSlashQuery(newText, newCursorPosition) !== null;
     if (slashActive) {
       setSlashInputValue(newText);
+      // Lazy bot-cmds discovery: the first time the user starts a
+      // slash command in this channel, query any +B users we don't
+      // already have schemas for so the popover updates as soon as
+      // the response arrives.
+      if (!slashInputValue && selectedServerId && selectedChannel) {
+        queryUncachedBotsInChannel(selectedServerId, selectedChannel.name);
+      }
     } else if (slashInputValue !== "") {
       setSlashInputValue("");
     }
@@ -2353,10 +2361,37 @@ export const ChatArea: React.FC<{
                 inputElement={inputRef.current}
               />
 
-              {/* obsidianirc/cmdslist: slash-command suggestion popover */}
+              {/* obsidianirc/cmdslist + draft/bot-cmds: slash-command suggestion popover */}
               {(() => {
                 const srv = servers.find((s) => s.id === selectedServerId);
-                const cmds = srv?.cmdsAvailable ?? [];
+                const base = srv?.cmdsAvailable ?? [];
+                // Merge in commands published by any PushBot we share a
+                // channel with.  Channel-scoped bots only contribute their
+                // commands when the active channel is one they're in;
+                // server-scope bots show up everywhere we know about them.
+                const botCmds = new Set<string>();
+                if (srv?.botCommands) {
+                  const chanUsers = new Set<string>(
+                    selectedChannel?.users.map((u) =>
+                      u.username.toLowerCase(),
+                    ) ?? [],
+                  );
+                  for (const [botNick, list] of Object.entries(
+                    srv.botCommands,
+                  )) {
+                    const inChannel = chanUsers.has(botNick);
+                    for (const c of list) {
+                      // include if the bot is in this channel OR the
+                      // command declares "dm" scope so DMs work
+                      if (inChannel || !selectedChannel) {
+                        botCmds.add(c.name);
+                      }
+                    }
+                  }
+                }
+                const cmds = Array.from(
+                  new Set<string>([...base, ...botCmds]),
+                ).sort();
                 if (cmds.length === 0) return null;
                 const slashActive =
                   getActiveSlashQuery(
