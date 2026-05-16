@@ -116,6 +116,7 @@ describe("ChatHeader - Members Button", () => {
           onToggleNotificationVolume={() => {}}
           onOpenChannelSettings={() => {}}
           onOpenInviteUser={() => {}}
+          onOpenBots={() => {}}
         />,
       );
 
@@ -153,6 +154,7 @@ describe("ChatHeader - Members Button", () => {
           onToggleNotificationVolume={() => {}}
           onOpenChannelSettings={() => {}}
           onOpenInviteUser={() => {}}
+          onOpenBots={() => {}}
         />,
       );
 
@@ -193,6 +195,7 @@ describe("ChatHeader - Members Button", () => {
           onToggleNotificationVolume={() => {}}
           onOpenChannelSettings={() => {}}
           onOpenInviteUser={() => {}}
+          onOpenBots={() => {}}
         />,
       );
 
@@ -231,6 +234,7 @@ describe("ChatHeader - Members Button", () => {
           onToggleNotificationVolume={() => {}}
           onOpenChannelSettings={() => {}}
           onOpenInviteUser={() => {}}
+          onOpenBots={() => {}}
         />,
       );
 
@@ -269,6 +273,7 @@ describe("ChatHeader - Members Button", () => {
           onToggleNotificationVolume={() => {}}
           onOpenChannelSettings={() => {}}
           onOpenInviteUser={() => {}}
+          onOpenBots={() => {}}
         />,
       );
 
@@ -297,6 +302,7 @@ describe("ChatHeader - Members Button", () => {
           onToggleNotificationVolume={() => {}}
           onOpenChannelSettings={() => {}}
           onOpenInviteUser={() => {}}
+          onOpenBots={() => {}}
         />,
       );
 
@@ -323,6 +329,7 @@ describe("ChatHeader - Members Button", () => {
           onToggleNotificationVolume={() => {}}
           onOpenChannelSettings={() => {}}
           onOpenInviteUser={() => {}}
+          onOpenBots={() => {}}
         />,
       );
 

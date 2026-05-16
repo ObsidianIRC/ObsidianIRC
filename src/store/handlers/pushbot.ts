@@ -11,20 +11,35 @@
  */
 import type { StoreApi } from "zustand";
 import ircClient from "../../lib/ircClient";
-import type { BotCommand } from "../../types";
+import type { BotCommand, PushBotInfo } from "../../types";
 import useStore, { type AppState } from "../index";
 
-function decodeBotCmds(value: string): BotCommand[] | null {
+function decodeB64Json(value: string): unknown | null {
   try {
-    // unrealircd emits the value as base64-encoded JSON to avoid the
-    // pain of escaping IRCv3 tag-value characters.  Add padding before
-    // decoding because spec §7.2 lets the bot strip trailing '='.
     const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
-    const json = atob(padded);
-    const parsed = JSON.parse(json);
-    if (Array.isArray(parsed?.commands)) return parsed.commands as BotCommand[];
+    return JSON.parse(atob(padded));
   } catch (e) {
-    console.warn("[pushbot] failed to decode +draft/bot-cmds value", e);
+    console.warn("[pushbot] base64-JSON decode failed", e);
+    return null;
+  }
+}
+
+function decodeBotCmds(value: string): BotCommand[] | null {
+  const parsed = decodeB64Json(value);
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    Array.isArray((parsed as { commands?: unknown }).commands)
+  ) {
+    return (parsed as { commands: BotCommand[] }).commands;
+  }
+  return null;
+}
+
+function decodeBotInfo(value: string): PushBotInfo | null {
+  const parsed = decodeB64Json(value);
+  if (parsed && typeof parsed === "object" && (parsed as PushBotInfo).nick) {
+    return parsed as PushBotInfo;
   }
   return null;
 }
@@ -53,6 +68,39 @@ export function registerPushBotHandlers(store: StoreApi<AppState>): void {
   ircClient.on("TAGMSG", (response) => {
     const { serverId, sender, mtags } = response;
     if (!mtags) return;
+
+    // obby.world/bot-info: server-pushed bot directory entries
+    // (initial burst + per-bot 'add'/'update'/'remove' events).
+    // These arrive from the server itself, not from a bot.
+    if (mtags["obby.world/bot-info"]) {
+      const info = decodeBotInfo(mtags["obby.world/bot-info"]);
+      if (!info) return;
+      const event = info.commands === undefined ? "remove" : "add";
+      const evField = (info as unknown as { event?: string }).event ?? event;
+      const nickKey = info.nick.toLowerCase();
+      store.setState((state) => ({
+        servers: state.servers.map((s) => {
+          if (s.id !== serverId) return s;
+          const next = { ...(s.bots ?? {}) };
+          if (evField === "remove") {
+            delete next[nickKey];
+          } else {
+            next[nickKey] = info;
+          }
+          // Keep botCommands in sync so the slash popover picks it up
+          // without a separate +draft/bot-cmds-query.
+          const cmds = { ...(s.botCommands ?? {}) };
+          if (evField === "remove") {
+            delete cmds[nickKey];
+          } else if (Array.isArray(info.commands)) {
+            cmds[nickKey] = info.commands;
+          }
+          return { ...s, bots: next, botCommands: cmds };
+        }),
+      }));
+      return;
+    }
+
     const botNick = (sender || "").toLowerCase();
     if (!botNick) return;
 

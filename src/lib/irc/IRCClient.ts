@@ -599,6 +599,7 @@ export class IRCClient implements IRCClientContext {
     "draft/read-marker",
     "obsidianirc/cmdslist",
     "draft/bot-cmds",
+    "obby.world/channel-bots",
     // Note: unrealircd.org/link-security is informational only, don't request it
   ];
 

@@ -84,6 +84,29 @@ export interface Server {
   // Populated from TAGMSG `+draft/bot-cmds` responses.  Used to drive
   // slash-command autocomplete + invocation routing.
   botCommands?: Record<string, BotCommand[]>;
+
+  // obby.world/channel-bots: full bot directory.  Pushed in a BATCH
+  // at welcome time, plus per-bot 'add' / 'update' / 'remove' events
+  // as bots come online / register commands / get suspended.  Keyed
+  // by lowercased nick.
+  bots?: Record<string, PushBotInfo>;
+}
+
+export interface PushBotInfo {
+  bot_id: string;
+  nick: string;
+  realname: string;
+  scope: "channel" | "server";
+  transport: "gateway" | "webhook" | "both";
+  status: "active" | "pending" | "suspended" | "deleted";
+  online: boolean;
+  from_config: boolean;
+  channels: string[];
+  commands: BotCommand[];
+  /** Only present when the receiving user is an oper. */
+  webhook_url?: string;
+  webhook_suspended?: boolean;
+  webhook_failures?: number;
 }
 
 export interface BotCommandOption {

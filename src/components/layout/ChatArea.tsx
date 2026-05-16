@@ -43,6 +43,7 @@ import { MessageItem } from "../message/MessageItem";
 import { MessageReply } from "../message/MessageReply";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
+import BotsModal from "../ui/BotsModal";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
@@ -222,6 +223,7 @@ export const ChatArea: React.FC<{
     useState(false);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const [inviteUserModalOpen, setInviteUserModalOpen] = useState(false);
+  const [botsModalOpen, setBotsModalOpen] = useState(false);
   const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -2034,6 +2036,7 @@ export const ChatArea: React.FC<{
         onToggleNotificationVolume={handleToggleNotificationVolume}
         onOpenChannelSettings={() => setChannelSettingsModalOpen(true)}
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
+        onOpenBots={() => setBotsModalOpen(true)}
       />
 
       {topSlot && (
@@ -2618,6 +2621,13 @@ export const ChatArea: React.FC<{
           onClose={() => setInviteUserModalOpen(false)}
           serverId={selectedServerId}
           channelName={selectedChannel.name}
+        />
+      )}
+      {selectedServerId && (
+        <BotsModal
+          isOpen={botsModalOpen}
+          onClose={() => setBotsModalOpen(false)}
+          serverId={selectedServerId}
         />
       )}
       {selectedServerId && (

@@ -81,4 +81,87 @@ describe("pushbot store handler", () => {
     const server = useStore.getState().servers[0];
     expect(server.botCommands).toBeUndefined();
   });
+
+  // ─── obby.world/channel-bots ──────────────────────────────────────
+
+  function encodeBotInfo(info: object): string {
+    return Buffer.from(JSON.stringify(info), "utf8").toString("base64");
+  }
+
+  it("populates server.bots on obby.world/bot-info 'add'", () => {
+    ircClient.triggerEvent("TAGMSG", {
+      serverId: "srv-1",
+      sender: "obby.example.com",
+      channelName: "ourNick",
+      mtags: {
+        "obby.world/bot-info": encodeBotInfo({
+          event: "add",
+          bot_id: "pb1",
+          nick: "weather",
+          realname: "Weather Bot",
+          scope: "channel",
+          transport: "gateway",
+          status: "active",
+          online: true,
+          from_config: true,
+          channels: ["#weather"],
+          commands: [{ name: "forecast" }],
+        }),
+      },
+      timestamp: new Date(),
+    });
+    const server = useStore.getState().servers[0];
+    expect(server.bots?.weather?.nick).toBe("weather");
+    expect(server.bots?.weather?.online).toBe(true);
+    // also fills botCommands for the slash popover
+    expect(server.botCommands?.weather?.[0]?.name).toBe("forecast");
+  });
+
+  it("removes server.bots[nick] on obby.world/bot-info 'remove'", () => {
+    useStore.setState((s) => ({
+      servers: s.servers.map((srv) => ({
+        ...srv,
+        bots: {
+          weather: {
+            bot_id: "pb1",
+            nick: "weather",
+            realname: "Weather Bot",
+            scope: "channel",
+            transport: "gateway",
+            status: "active",
+            online: true,
+            from_config: true,
+            channels: [],
+            commands: [],
+          },
+        },
+        botCommands: { weather: [{ name: "forecast" }] },
+      })),
+    }));
+
+    ircClient.triggerEvent("TAGMSG", {
+      serverId: "srv-1",
+      sender: "obby.example.com",
+      channelName: "ourNick",
+      mtags: {
+        "obby.world/bot-info": encodeBotInfo({
+          event: "remove",
+          nick: "weather",
+          bot_id: "pb1",
+          realname: "",
+          scope: "channel",
+          transport: "gateway",
+          status: "deleted",
+          online: false,
+          from_config: false,
+          channels: [],
+          commands: [],
+        }),
+      },
+      timestamp: new Date(),
+    });
+    const server = useStore.getState().servers[0];
+    expect(server.bots?.weather).toBeUndefined();
+    expect(server.botCommands?.weather).toBeUndefined();
+  });
 });
