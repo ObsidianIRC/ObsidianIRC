@@ -361,6 +361,7 @@ msgstr "Borta-meddelande"
 msgid "Away:"
 msgstr "Frånvarande:"
 
+#: src/components/ui/BotsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "Back"
@@ -406,6 +407,7 @@ msgstr "Banningar"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChatHeader.tsx
+#: src/components/ui/BotsModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Bot"
@@ -417,6 +419,8 @@ msgstr ""
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
+#: src/components/ui/BotsModal.tsx
+#: src/components/ui/BotsModal.tsx
 msgid "Bots"
 msgstr ""
 
@@ -610,6 +614,9 @@ msgstr "Klientgräns (+l)"
 #: src/components/layout/ChannelList.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/message/ServerNoticesPopup.tsx
+#: src/components/ui/BotsModal.tsx
+#: src/components/ui/BotsModal.tsx
+#: src/components/ui/BotsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/MediaViewerModal.tsx
@@ -788,7 +795,7 @@ msgstr "Standard-nick"
 msgid "Delete"
 msgstr "Ta bort"
 
-#. placeholder {0}: selected.nick
+#. placeholder {0}: bot.nick
 #: src/components/ui/BotsModal.tsx
 msgid "Delete bot {0}?  This soft-deletes the database row; reuse the nick later only after a /REHASH."
 msgstr ""
@@ -2105,7 +2112,7 @@ msgid "Search"
 msgstr "Sök"
 
 #: src/components/ui/BotsModal.tsx
-msgid "Search by nick or description"
+msgid "Search bots"
 msgstr ""
 
 #: src/components/ui/GifSelector.tsx

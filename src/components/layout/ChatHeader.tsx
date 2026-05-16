@@ -16,6 +16,7 @@ import {
   FaList,
   FaMicrophone,
   FaPenAlt,
+  FaRobot,
   FaSearch,
   FaThumbtack,
   FaTimes,
@@ -324,7 +325,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     },
     {
       label: t`Bots`,
-      icon: <span aria-hidden="true">🤖</span>,
+      icon: <FaRobot />,
       onClick: onOpenBots,
       show: !!selectedServerId,
     },
@@ -599,12 +600,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <FaUserPlus />
               </button>
               <button
-                className="hidden md:block hover:text-discord-text-normal text-base leading-none"
+                className="hidden md:block hover:text-discord-text-normal"
                 onClick={onOpenBots}
                 title={t`Bots on this network`}
                 aria-label={t`Bots`}
               >
-                <span aria-hidden="true">🤖</span>
+                <FaRobot />
               </button>
               <button
                 className="hidden md:block hover:text-discord-text-normal"

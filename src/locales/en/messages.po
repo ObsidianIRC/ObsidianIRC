@@ -360,6 +360,7 @@ msgstr "Away Message"
 msgid "Away:"
 msgstr "Away:"
 
+#: src/components/ui/BotsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/UserSettings.tsx
 msgid "Back"
@@ -405,6 +406,7 @@ msgstr "Bans"
 
 #: src/components/layout/ChannelList.tsx
 #: src/components/layout/ChatHeader.tsx
+#: src/components/ui/BotsModal.tsx
 #: src/components/ui/UserSettings.tsx
 #: src/lib/settings/definitions/allSettings.ts
 msgid "Bot"
@@ -416,6 +418,8 @@ msgstr "Bot hasn't registered any slash commands yet."
 
 #: src/components/layout/ChatHeader.tsx
 #: src/components/layout/ChatHeader.tsx
+#: src/components/ui/BotsModal.tsx
+#: src/components/ui/BotsModal.tsx
 msgid "Bots"
 msgstr "Bots"
 
@@ -609,6 +613,9 @@ msgstr "Client Limit (+l)"
 #: src/components/layout/ChannelList.tsx
 #: src/components/message/ServerNoticesPopup.tsx
 #: src/components/message/ServerNoticesPopup.tsx
+#: src/components/ui/BotsModal.tsx
+#: src/components/ui/BotsModal.tsx
+#: src/components/ui/BotsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/ChannelSettingsModal.tsx
 #: src/components/ui/MediaViewerModal.tsx
@@ -787,7 +794,7 @@ msgstr "Default Nickname"
 msgid "Delete"
 msgstr "Delete"
 
-#. placeholder {0}: selected.nick
+#. placeholder {0}: bot.nick
 #: src/components/ui/BotsModal.tsx
 msgid "Delete bot {0}?  This soft-deletes the database row; reuse the nick later only after a /REHASH."
 msgstr "Delete bot {0}?  This soft-deletes the database row; reuse the nick later only after a /REHASH."
@@ -2104,8 +2111,8 @@ msgid "Search"
 msgstr "Search"
 
 #: src/components/ui/BotsModal.tsx
-msgid "Search by nick or description"
-msgstr "Search by nick or description"
+msgid "Search bots"
+msgstr "Search bots"
 
 #: src/components/ui/GifSelector.tsx
 msgid "Search for GIFs to get started"
