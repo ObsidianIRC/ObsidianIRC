@@ -26,10 +26,9 @@ import ircClient from "../../lib/ircClient";
 import {
   getChannelAvatarUrl,
   getChannelDisplayName,
-  isUrlFromFilehost,
   processMarkdownInText,
 } from "../../lib/ircUtils";
-import { mediaLevelToSettings } from "../../lib/mediaUtils";
+import { canShowAvatarUrl, mediaLevelToSettings } from "../../lib/mediaUtils";
 import { isTauriDesktop, isTauriMobile } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { PrivateChat, User } from "../../types";
@@ -71,7 +70,7 @@ export const ChannelList: React.FC<{
     );
   });
 
-  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+  const mediaSettings = mediaLevelToSettings(
     useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
@@ -658,17 +657,11 @@ export const ChannelList: React.FC<{
                                 const selectedServer = servers.find(
                                   (s) => s.id === selectedServerId,
                                 );
-                                const isFilehostAvatar =
-                                  avatarUrl &&
-                                  selectedServer?.filehost &&
-                                  isUrlFromFilehost(
-                                    avatarUrl,
-                                    selectedServer.filehost,
-                                  );
-                                const shouldShowAvatar =
-                                  avatarUrl &&
-                                  ((isFilehostAvatar && showSafeMedia) ||
-                                    showExternalContent);
+                                const shouldShowAvatar = canShowAvatarUrl(
+                                  avatarUrl,
+                                  selectedServer?.filehost,
+                                  mediaSettings,
+                                );
 
                                 return shouldShowAvatar ? (
                                   <img
@@ -714,16 +707,11 @@ export const ChannelList: React.FC<{
                                     const selectedServer = servers.find(
                                       (s) => s.id === selectedServerId,
                                     );
-                                    const isFilehostAvatar =
-                                      avatarUrl &&
-                                      selectedServer?.filehost &&
-                                      avatarUrl.startsWith(
-                                        selectedServer.filehost,
-                                      );
-                                    const shouldShowAvatar =
-                                      avatarUrl &&
-                                      ((isFilehostAvatar && showSafeMedia) ||
-                                        showExternalContent);
+                                    const shouldShowAvatar = canShowAvatarUrl(
+                                      avatarUrl,
+                                      selectedServer?.filehost,
+                                      mediaSettings,
+                                    );
                                     return shouldShowAvatar
                                       ? "none"
                                       : "inline-block";
@@ -1157,17 +1145,11 @@ export const ChannelList: React.FC<{
                               const selectedServer = servers.find(
                                 (s) => s.id === selectedServerId,
                               );
-                              const isFilehostAvatar =
-                                avatarUrl &&
-                                selectedServer?.filehost &&
-                                isUrlFromFilehost(
-                                  avatarUrl,
-                                  selectedServer.filehost,
-                                );
-                              const shouldShowAvatar =
-                                avatarUrl &&
-                                ((isFilehostAvatar && showSafeMedia) ||
-                                  showExternalContent);
+                              const shouldShowAvatar = canShowAvatarUrl(
+                                avatarUrl,
+                                selectedServer?.filehost,
+                                mediaSettings,
+                              );
 
                               return shouldShowAvatar ? (
                                 <img
@@ -1212,17 +1194,11 @@ export const ChannelList: React.FC<{
                               const selectedServer = servers.find(
                                 (s) => s.id === selectedServerId,
                               );
-                              const isFilehostAvatar =
-                                avatarUrl &&
-                                selectedServer?.filehost &&
-                                isUrlFromFilehost(
-                                  avatarUrl,
-                                  selectedServer.filehost,
-                                );
-                              const shouldShowAvatar =
-                                avatarUrl &&
-                                ((isFilehostAvatar && showSafeMedia) ||
-                                  showExternalContent);
+                              const shouldShowAvatar = canShowAvatarUrl(
+                                avatarUrl,
+                                selectedServer?.filehost,
+                                mediaSettings,
+                              );
 
                               return shouldShowAvatar ? (
                                 <FaUser
@@ -1696,20 +1672,17 @@ export const ChannelList: React.FC<{
                   const selectedServer = servers.find(
                     (s) => s.id === selectedServerId,
                   );
-                  const isFilehostAvatar =
-                    avatarUrl &&
-                    selectedServer?.filehost &&
-                    isUrlFromFilehost(avatarUrl, selectedServer.filehost);
                   const shouldShowAvatar =
-                    avatarUrl &&
-                    ((isFilehostAvatar && showSafeMedia) ||
-                      showExternalContent) &&
-                    !avatarLoadFailed;
+                    canShowAvatarUrl(
+                      avatarUrl,
+                      selectedServer?.filehost,
+                      mediaSettings,
+                    ) && !avatarLoadFailed;
 
                   return shouldShowAvatar ? (
                     <img
                       src={avatarUrl}
-                      alt={currentUser.username}
+                      alt={currentUser?.username}
                       className="w-8 h-8 rounded-full object-cover"
                       onError={() => {
                         setAvatarLoadFailed(true);
