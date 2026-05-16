@@ -59,7 +59,9 @@ import { ReactionPopover } from "../ui/ReactionPopover";
 import {
   getActiveSlashQuery,
   SlashCommandPopover,
+  type SlashSuggestion,
 } from "../ui/SlashCommandPopover";
+import { SlashParamHint } from "../ui/SlashParamHint";
 import { TextArea } from "../ui/TextInput";
 import { TopicMediaStrip } from "../ui/TopicMediaStrip";
 import {
@@ -2364,12 +2366,18 @@ export const ChatArea: React.FC<{
               {/* obsidianirc/cmdslist + draft/bot-cmds: slash-command suggestion popover */}
               {(() => {
                 const srv = servers.find((s) => s.id === selectedServerId);
-                const base = srv?.cmdsAvailable ?? [];
-                // Merge in commands published by any PushBot we share a
-                // channel with.  Channel-scoped bots only contribute their
-                // commands when the active channel is one they're in;
-                // server-scope bots show up everywhere we know about them.
-                const botCmds = new Set<string>();
+                const suggestions: SlashSuggestion[] = [];
+                // Built-in commands (server permission list).  No
+                // schema, no description -- just names.
+                for (const name of srv?.cmdsAvailable ?? []) {
+                  suggestions.push({
+                    name,
+                    source: { kind: "builtin" },
+                  });
+                }
+                // PushBot schemas: include channel-bots only when the
+                // bot is a member of the active channel; otherwise
+                // treat as server-wide (visible everywhere we know it).
                 if (srv?.botCommands) {
                   const chanUsers = new Set<string>(
                     selectedChannel?.users.map((u) =>
@@ -2380,19 +2388,27 @@ export const ChatArea: React.FC<{
                     srv.botCommands,
                   )) {
                     const inChannel = chanUsers.has(botNick);
+                    const scope: "channel" | "server" = inChannel
+                      ? "channel"
+                      : "server";
+                    if (!inChannel && selectedChannel) {
+                      // Skip server-wide bots when looking at a
+                      // channel they're not in: the spec defers them
+                      // until the channel scope can't satisfy the
+                      // command.  Users can still target via /cmd@bot.
+                      continue;
+                    }
                     for (const c of list) {
-                      // include if the bot is in this channel OR the
-                      // command declares "dm" scope so DMs work
-                      if (inChannel || !selectedChannel) {
-                        botCmds.add(c.name);
-                      }
+                      suggestions.push({
+                        name: c.name,
+                        description: c.description,
+                        options: c.options,
+                        source: { kind: "bot", botNick, scope },
+                      });
                     }
                   }
                 }
-                const cmds = Array.from(
-                  new Set<string>([...base, ...botCmds]),
-                ).sort();
-                if (cmds.length === 0) return null;
+                if (suggestions.length === 0) return null;
                 const slashActive =
                   getActiveSlashQuery(
                     slashInputValue,
@@ -2402,7 +2418,7 @@ export const ChatArea: React.FC<{
                   <SlashCommandPopover
                     isVisible={slashActive}
                     inputValue={slashInputValue}
-                    commands={cmds}
+                    commands={suggestions}
                     inputElement={inputRef.current}
                     onSelect={(cmd) => {
                       // Replace the partial command with /<cmd> + space
@@ -2420,6 +2436,47 @@ export const ChatArea: React.FC<{
                     onClose={() => {
                       setSlashInputValue("");
                     }}
+                  />
+                );
+              })()}
+
+              {/* draft/bot-cmds: per-arg hint shown after the cmd name */}
+              {(() => {
+                const srv = servers.find((s) => s.id === selectedServerId);
+                if (!srv?.botCommands) return null;
+                const chanUsers = new Set<string>(
+                  selectedChannel?.users.map((u) => u.username.toLowerCase()) ??
+                    [],
+                );
+                const schemas: Record<
+                  string,
+                  {
+                    command: import("../../types").BotCommand;
+                    botNick: string;
+                    scope: "channel" | "server" | "dm";
+                  }
+                > = {};
+                for (const [botNick, list] of Object.entries(srv.botCommands)) {
+                  const inChannel = chanUsers.has(botNick);
+                  const scope: "channel" | "server" = inChannel
+                    ? "channel"
+                    : "server";
+                  for (const c of list) {
+                    // Last writer wins on name collision; in practice
+                    // the server enforces uniqueness per channel.
+                    schemas[c.name.toLowerCase()] = {
+                      command: c,
+                      botNick,
+                      scope,
+                    };
+                  }
+                }
+                return (
+                  <SlashParamHint
+                    inputValue={messageTextRef.current ?? ""}
+                    cursorPosition={cursorPositionRef.current}
+                    schemas={schemas}
+                    inputElement={inputRef.current}
                   />
                 );
               })()}

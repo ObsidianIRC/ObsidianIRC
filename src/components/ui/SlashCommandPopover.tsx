@@ -1,9 +1,16 @@
 // Slash-command suggestion popover, anchored above the chat input.
 //
-// Activates when the input value starts with "/" and the user is still
-// typing the command name (no space yet).  Filters the server's
-// cmdsAvailable set (populated by the obsidianirc/cmdslist cap) by
-// prefix match.
+// Two sources feed into this:
+//   * obsidianirc/cmdslist (server-side capability) → a flat list of
+//     bare command names the user is permitted to invoke.
+//   * draft/bot-cmds (PushBot) → richer per-bot schemas with
+//     descriptions, parameter lists, and scope (channel vs server).
+//
+// We render the same popover for both, badged by source.  Below the
+// command name the matching bot's description and parameter signature
+// are shown when known.  Once the user accepts a suggestion and starts
+// typing arguments, the popover yields to a param-hint footer (see
+// SlashParamHint) that follows the cursor through the options.
 //
 // Keyboard:
 //   ArrowUp / ArrowDown -- cycle highlighted suggestion
@@ -14,11 +21,23 @@
 
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { BotCommandOption } from "../../types";
+
+export type SlashSuggestionSource =
+  | { kind: "builtin" }
+  | { kind: "bot"; botNick: string; scope?: "channel" | "server" };
+
+export interface SlashSuggestion {
+  name: string;
+  description?: string;
+  options?: BotCommandOption[];
+  source: SlashSuggestionSource;
+}
 
 interface SlashCommandPopoverProps {
   isVisible: boolean;
   inputValue: string;
-  commands: string[];
+  commands: SlashSuggestion[];
   inputElement?: HTMLInputElement | HTMLTextAreaElement | null;
   onSelect: (command: string) => void;
   onClose: () => void;
@@ -40,6 +59,31 @@ export function getActiveSlashQuery(
   return beforeCursor.slice(1).toLowerCase();
 }
 
+/** Compact "name <required> [optional]" rendering of an option list. */
+export function formatOptions(options: BotCommandOption[] | undefined): string {
+  if (!options || options.length === 0) return "";
+  return options
+    .map((o) => (o.required ? `<${o.name}>` : `[${o.name}]`))
+    .join(" ");
+}
+
+function sourceBadge(source: SlashSuggestionSource): React.ReactNode {
+  if (source.kind === "builtin") return null;
+  const isServer = source.scope === "server";
+  return (
+    <span
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+        isServer
+          ? "bg-discord-primary/30 text-discord-primary border border-discord-primary/40"
+          : "bg-discord-dark-200 text-discord-text-muted border border-discord-dark-500"
+      }`}
+      title={isServer ? "Server-wide bot" : "Channel bot"}
+    >
+      {isServer ? "server-bot" : "channel-bot"}
+    </span>
+  );
+}
+
 export const SlashCommandPopover: React.FC<SlashCommandPopoverProps> = ({
   isVisible,
   inputValue,
@@ -54,10 +98,10 @@ export const SlashCommandPopover: React.FC<SlashCommandPopoverProps> = ({
   const ref = useRef<HTMLDivElement>(null);
 
   const matches = useMemo(() => {
-    if (query === null) return [] as string[];
+    if (query === null) return [] as SlashSuggestion[];
     if (commands.length === 0) return [];
     return commands
-      .filter((c) => c.startsWith(query))
+      .filter((c) => c.name.toLowerCase().startsWith(query))
       .slice(0, MAX_SUGGESTIONS);
   }, [commands, query]);
 
@@ -85,7 +129,7 @@ export const SlashCommandPopover: React.FC<SlashCommandPopoverProps> = ({
         case "Enter":
           e.preventDefault();
           e.stopPropagation();
-          if (matches[selectedIndex]) onSelect(matches[selectedIndex]);
+          if (matches[selectedIndex]) onSelect(matches[selectedIndex].name);
           break;
         case "Escape":
           e.preventDefault();
@@ -100,38 +144,72 @@ export const SlashCommandPopover: React.FC<SlashCommandPopoverProps> = ({
 
   if (!isVisible || query === null || matches.length === 0) return null;
 
-  // Position above the input box, left-aligned.
+  // Position above the input box, left-aligned.  Row height is taller
+  // for entries that carry a description, so estimate based on whether
+  // any match has one.
   const inputRect = inputElement?.getBoundingClientRect();
+  const hasDetails = matches.some((m) => m.description || m.options?.length);
+  const rowHeight = hasDetails ? 52 : 32;
   const top = inputRect
-    ? inputRect.top + window.scrollY - matches.length * 32 - 32
+    ? inputRect.top + window.scrollY - matches.length * rowHeight - 36
     : 100;
   const left = inputRect ? inputRect.left + window.scrollX : 100;
 
   return (
     <div
       ref={ref}
-      className="fixed z-[9999] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl min-w-56 max-w-md"
+      className="fixed z-[9999] bg-discord-dark-300 border border-discord-dark-500 rounded-md shadow-xl min-w-72 max-w-lg"
       style={{ top, left }}
     >
-      <div className="py-1 max-h-60 overflow-y-auto">
+      <div className="py-1 max-h-72 overflow-y-auto">
         <div className="px-3 py-1 text-xs text-discord-text-muted font-semibold uppercase tracking-wide border-b border-discord-dark-500">
           Slash commands
         </div>
-        {matches.map((cmd, index) => (
-          <div
-            key={cmd}
-            data-cmd-index={index}
-            className={`px-3 py-1.5 cursor-pointer flex items-center gap-2 transition-colors duration-150 ${
-              index === selectedIndex
-                ? "bg-discord-text-link text-white"
-                : "text-discord-text-normal hover:bg-discord-dark-200 hover:text-white"
-            }`}
-            onClick={() => onSelect(cmd)}
-            onMouseEnter={() => setSelectedIndex(index)}
-          >
-            <span className="font-mono text-sm">/{cmd}</span>
-          </div>
-        ))}
+        {matches.map((cmd, index) => {
+          const sig = formatOptions(cmd.options);
+          const isSelected = index === selectedIndex;
+          return (
+            <div
+              key={`${cmd.source.kind}:${cmd.source.kind === "bot" ? cmd.source.botNick : ""}:${cmd.name}`}
+              data-cmd-index={index}
+              className={`px-3 py-1.5 cursor-pointer flex flex-col gap-0.5 transition-colors duration-150 ${
+                isSelected
+                  ? "bg-discord-text-link text-white"
+                  : "text-discord-text-normal hover:bg-discord-dark-200 hover:text-white"
+              }`}
+              onClick={() => onSelect(cmd.name)}
+              onMouseEnter={() => setSelectedIndex(index)}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-sm">
+                  /{cmd.name}
+                  {sig && (
+                    <span
+                      className={`ml-1 font-mono text-xs ${isSelected ? "text-white/70" : "text-discord-text-muted"}`}
+                    >
+                      {sig}
+                    </span>
+                  )}
+                </span>
+                {sourceBadge(cmd.source)}
+                {cmd.source.kind === "bot" && (
+                  <span
+                    className={`text-xs ${isSelected ? "text-white/70" : "text-discord-text-muted"}`}
+                  >
+                    @{cmd.source.botNick}
+                  </span>
+                )}
+              </div>
+              {cmd.description && (
+                <div
+                  className={`text-xs ${isSelected ? "text-white/85" : "text-discord-text-muted"}`}
+                >
+                  {cmd.description}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
