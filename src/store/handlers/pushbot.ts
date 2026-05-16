@@ -30,6 +30,26 @@ function decodeBotCmds(value: string): BotCommand[] | null {
 }
 
 export function registerPushBotHandlers(store: StoreApi<AppState>): void {
+  // When WHO completes for a channel, pre-fetch slash-command schemas
+  // for any +B users we now share a channel with so the autocomplete
+  // cache is warm by the time the user types '/'.
+  ircClient.on("WHO_END", ({ serverId, mask }) => {
+    if (!mask || !mask.startsWith("#")) return;
+    const server = store.getState().servers.find((s) => s.id === serverId);
+    if (!server) return;
+    const channel = server.channels.find(
+      (c) => c.name.toLowerCase() === mask.toLowerCase(),
+    );
+    if (!channel) return;
+    const cache = server.botCommands ?? {};
+    for (const u of channel.users) {
+      if (!u.isBot) continue;
+      const key = u.username.toLowerCase();
+      if (cache[key]) continue;
+      queryBotCommands(serverId, u.username);
+    }
+  });
+
   ircClient.on("TAGMSG", (response) => {
     const { serverId, sender, mtags } = response;
     if (!mtags) return;
