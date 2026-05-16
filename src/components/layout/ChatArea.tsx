@@ -17,6 +17,7 @@ import { isScrolledToBottom } from "../../hooks/useScrollToBottom";
 import { useTabCompletion } from "../../hooks/useTabCompletion";
 import { useTypingNotification } from "../../hooks/useTypingNotification";
 import { waitForAuthToken } from "../../lib/authToken";
+import { CLIENT_COMMANDS } from "../../lib/clientCommands";
 import { useEmojiResolver } from "../../lib/customEmoji";
 import {
   emojiClickValue,
@@ -36,11 +37,13 @@ import {
 } from "../../lib/messageFormatter";
 import { isMobileDevice, isTauriMobile } from "../../lib/platformUtils";
 import useStore from "../../store";
+import { queryUncachedBotsInChannel } from "../../store/handlers/pushbot";
 import type { Message as MessageType, User } from "../../types";
 import { MessageItem } from "../message/MessageItem";
 import { MessageReply } from "../message/MessageReply";
 import AutocompleteDropdown from "../ui/AutocompleteDropdown";
 import BlankPage from "../ui/BlankPage";
+import BotsModal from "../ui/BotsModal";
 import ChannelSettingsModal from "../ui/ChannelSettingsModal";
 import ColorPicker from "../ui/ColorPicker";
 import EmojiAutocompleteDropdown from "../ui/EmojiAutocompleteDropdown";
@@ -58,7 +61,9 @@ import { ReactionPopover } from "../ui/ReactionPopover";
 import {
   getActiveSlashQuery,
   SlashCommandPopover,
+  type SlashSuggestion,
 } from "../ui/SlashCommandPopover";
+import { SlashParamHint } from "../ui/SlashParamHint";
 import { TextArea } from "../ui/TextInput";
 import { TopicMediaStrip } from "../ui/TopicMediaStrip";
 import {
@@ -218,6 +223,7 @@ export const ChatArea: React.FC<{
     useState(false);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const [inviteUserModalOpen, setInviteUserModalOpen] = useState(false);
+  const [botsModalOpen, setBotsModalOpen] = useState(false);
   const [selectedProfileUsername, setSelectedProfileUsername] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1473,6 +1479,13 @@ export const ChatArea: React.FC<{
       getActiveSlashQuery(newText, newCursorPosition) !== null;
     if (slashActive) {
       setSlashInputValue(newText);
+      // Lazy bot-cmds discovery: the first time the user starts a
+      // slash command in this channel, query any +B users we don't
+      // already have schemas for so the popover updates as soon as
+      // the response arrives.
+      if (!slashInputValue && selectedServerId && selectedChannel) {
+        queryUncachedBotsInChannel(selectedServerId, selectedChannel.name);
+      }
     } else if (slashInputValue !== "") {
       setSlashInputValue("");
     }
@@ -2023,6 +2036,7 @@ export const ChatArea: React.FC<{
         onToggleNotificationVolume={handleToggleNotificationVolume}
         onOpenChannelSettings={() => setChannelSettingsModalOpen(true)}
         onOpenInviteUser={() => setInviteUserModalOpen(true)}
+        onOpenBots={() => setBotsModalOpen(true)}
       />
 
       {topSlot && (
@@ -2353,11 +2367,69 @@ export const ChatArea: React.FC<{
                 inputElement={inputRef.current}
               />
 
-              {/* obsidianirc/cmdslist: slash-command suggestion popover */}
+              {/* obsidianirc/cmdslist + draft/bot-cmds: slash-command suggestion popover */}
               {(() => {
                 const srv = servers.find((s) => s.id === selectedServerId);
-                const cmds = srv?.cmdsAvailable ?? [];
-                if (cmds.length === 0) return null;
+                const suggestions: SlashSuggestion[] = [];
+                const seen = new Set<string>();
+
+                // 1. Client-side handlers (e.g. /me, /msg, /nick) —
+                // listed first because they own those names and the
+                // server's cmdslist may shadow them.
+                const inChannelView = !!selectedChannel;
+                for (const c of CLIENT_COMMANDS) {
+                  if (c.scope === "channel-only" && !inChannelView) continue;
+                  suggestions.push({
+                    name: c.name,
+                    description: c.description,
+                    options: c.options,
+                    source: { kind: "client" },
+                  });
+                  seen.add(c.name.toLowerCase());
+                }
+
+                // 2. Server-provided permission list (obsidianirc/cmdslist).
+                // No schema -- just names; skip anything the client
+                // already handles to avoid duplicate entries.
+                for (const name of srv?.cmdsAvailable ?? []) {
+                  if (seen.has(name.toLowerCase())) continue;
+                  suggestions.push({
+                    name,
+                    source: { kind: "server" },
+                  });
+                  seen.add(name.toLowerCase());
+                }
+
+                // 3. PushBot schemas.  Channel bots only appear when
+                // the bot is a member of the active channel; the
+                // spec defers server-wide bots until the channel
+                // scope can't satisfy.  Users can always target a
+                // specific bot via /cmd@bot.
+                if (srv?.botCommands) {
+                  const chanUsers = new Set<string>(
+                    selectedChannel?.users.map((u) =>
+                      u.username.toLowerCase(),
+                    ) ?? [],
+                  );
+                  for (const [botNick, list] of Object.entries(
+                    srv.botCommands,
+                  )) {
+                    const inChannel = chanUsers.has(botNick);
+                    if (!inChannel && selectedChannel) continue;
+                    const scope: "channel" | "server" = inChannel
+                      ? "channel"
+                      : "server";
+                    for (const c of list) {
+                      suggestions.push({
+                        name: c.name,
+                        description: c.description,
+                        options: c.options,
+                        source: { kind: "bot", botNick, scope },
+                      });
+                    }
+                  }
+                }
+                if (suggestions.length === 0) return null;
                 const slashActive =
                   getActiveSlashQuery(
                     slashInputValue,
@@ -2367,7 +2439,7 @@ export const ChatArea: React.FC<{
                   <SlashCommandPopover
                     isVisible={slashActive}
                     inputValue={slashInputValue}
-                    commands={cmds}
+                    commands={suggestions}
                     inputElement={inputRef.current}
                     onSelect={(cmd) => {
                       // Replace the partial command with /<cmd> + space
@@ -2385,6 +2457,71 @@ export const ChatArea: React.FC<{
                     onClose={() => {
                       setSlashInputValue("");
                     }}
+                  />
+                );
+              })()}
+
+              {/* Per-arg hint shown after the cmd name + a space.
+                  Pulls schemas from both client-side commands and
+                  any cached PushBot schemas. */}
+              {(() => {
+                const srv = servers.find((s) => s.id === selectedServerId);
+                const schemas: Record<
+                  string,
+                  {
+                    command: import("../../types").BotCommand;
+                    source: "client" | "bot";
+                    botNick?: string;
+                    scope: "channel" | "server" | "dm";
+                  }
+                > = {};
+
+                // Client-side commands first; bot schemas overwrite
+                // only if there's a real collision (none in practice
+                // because the client owns /me, /msg, etc).
+                for (const c of CLIENT_COMMANDS) {
+                  schemas[c.name.toLowerCase()] = {
+                    command: {
+                      name: c.name,
+                      description: c.description,
+                      options: c.options,
+                    },
+                    source: "client",
+                    scope: "dm",
+                  };
+                }
+
+                if (srv?.botCommands) {
+                  const chanUsers = new Set<string>(
+                    selectedChannel?.users.map((u) =>
+                      u.username.toLowerCase(),
+                    ) ?? [],
+                  );
+                  for (const [botNick, list] of Object.entries(
+                    srv.botCommands,
+                  )) {
+                    const inChannel = chanUsers.has(botNick);
+                    const scope: "channel" | "server" = inChannel
+                      ? "channel"
+                      : "server";
+                    for (const c of list) {
+                      schemas[c.name.toLowerCase()] = {
+                        command: c,
+                        source: "bot",
+                        botNick,
+                        scope,
+                      };
+                    }
+                  }
+                }
+
+                if (Object.keys(schemas).length === 0) return null;
+                return (
+                  <SlashParamHint
+                    inputValue={messageTextRef.current ?? ""}
+                    cursorPosition={cursorPositionRef.current}
+                    schemas={schemas}
+                    inputElement={inputRef.current}
                   />
                 );
               })()}
@@ -2484,6 +2621,13 @@ export const ChatArea: React.FC<{
           onClose={() => setInviteUserModalOpen(false)}
           serverId={selectedServerId}
           channelName={selectedChannel.name}
+        />
+      )}
+      {selectedServerId && (
+        <BotsModal
+          isOpen={botsModalOpen}
+          onClose={() => setBotsModalOpen(false)}
+          serverId={selectedServerId}
         />
       )}
       {selectedServerId && (

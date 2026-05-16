@@ -7,6 +7,7 @@ import { registerConnectionHandlers } from "./connection";
 import { registerMessageHandlers } from "./messages";
 import { registerMetadataHandlers } from "./metadata";
 import { registerNamedModesHandlers } from "./named-modes";
+import { registerPushBotHandlers } from "./pushbot";
 import { registerReadMarkerHandlers } from "./readMarker";
 import { registerTicTacToeHandlers } from "./tictactoe";
 import { registerUserHandlers } from "./users";
@@ -24,4 +25,5 @@ export function registerAllHandlers(store: StoreApi<AppState>): void {
   registerNamedModesHandlers(store);
   registerReadMarkerHandlers(store);
   registerTicTacToeHandlers(store);
+  registerPushBotHandlers(store);
 }

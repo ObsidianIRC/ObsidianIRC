@@ -79,6 +79,50 @@ export interface Server {
   // currently invoke on this server.  Used to drive the slash-command
   // suggestion popover.  undefined = the cap is not negotiated.
   cmdsAvailable?: string[];
+
+  // draft/bot-cmds: per-bot command schemas keyed by bot nick (lowercased).
+  // Populated from TAGMSG `+draft/bot-cmds` responses.  Used to drive
+  // slash-command autocomplete + invocation routing.
+  botCommands?: Record<string, BotCommand[]>;
+
+  // obby.world/channel-bots: full bot directory.  Pushed in a BATCH
+  // at welcome time, plus per-bot 'add' / 'update' / 'remove' events
+  // as bots come online / register commands / get suspended.  Keyed
+  // by lowercased nick.
+  bots?: Record<string, PushBotInfo>;
+}
+
+export interface PushBotInfo {
+  bot_id: string;
+  nick: string;
+  realname: string;
+  scope: "channel" | "server";
+  transport: "gateway" | "webhook" | "both";
+  status: "active" | "pending" | "suspended" | "deleted";
+  online: boolean;
+  from_config: boolean;
+  channels: string[];
+  commands: BotCommand[];
+  /** Only present when the receiving user is an oper. */
+  webhook_url?: string;
+  webhook_suspended?: boolean;
+  webhook_failures?: number;
+}
+
+export interface BotCommandOption {
+  name: string;
+  type?: "string" | "int" | "bool" | "user" | "channel";
+  required?: boolean;
+  description?: string;
+  choices?: string[];
+}
+
+export interface BotCommand {
+  name: string;
+  description?: string;
+  visibility?: "public" | "private";
+  scopes?: ("channel" | "dm")[];
+  options?: BotCommandOption[];
 }
 
 export interface NamedModeSpec {

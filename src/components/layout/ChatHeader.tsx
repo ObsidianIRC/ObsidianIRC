@@ -16,6 +16,7 @@ import {
   FaList,
   FaMicrophone,
   FaPenAlt,
+  FaRobot,
   FaSearch,
   FaThumbtack,
   FaTimes,
@@ -56,6 +57,7 @@ interface ChatHeaderProps {
   onToggleNotificationVolume: () => void;
   onOpenChannelSettings: () => void;
   onOpenInviteUser: () => void;
+  onOpenBots: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -75,6 +77,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onToggleNotificationVolume,
   onOpenChannelSettings,
   onOpenInviteUser,
+  onOpenBots,
 }) => {
   const { t } = useLingui();
   const {
@@ -319,6 +322,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       icon: <FaUserPlus />,
       onClick: onOpenInviteUser,
       show: !!selectedChannel,
+    },
+    {
+      label: t`Bots`,
+      icon: <FaRobot />,
+      onClick: onOpenBots,
+      show: !!selectedServerId,
     },
     {
       label: "Play Tic-Tac-Toe",
@@ -589,6 +598,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 title={t`Invite User`}
               >
                 <FaUserPlus />
+              </button>
+              <button
+                className="hidden md:block hover:text-discord-text-normal"
+                onClick={onOpenBots}
+                title={t`Bots on this network`}
+                aria-label={t`Bots`}
+              >
+                <FaRobot />
               </button>
               <button
                 className="hidden md:block hover:text-discord-text-normal"
