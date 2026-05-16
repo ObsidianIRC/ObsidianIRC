@@ -1040,6 +1040,14 @@ export function hasOpPermission(userStatus?: string): boolean {
   );
 }
 
+/** Blocks relative paths, protocol-relative URLs, and non-http schemes that would
+ * resolve against the app origin or trigger unexpected fetches. Browsers strip
+ * leading whitespace and are scheme-case-insensitive, so we normalize the same way. */
+export function isAbsoluteHttpUrl(url: string): boolean {
+  const u = url.trimStart().toLowerCase();
+  return u.startsWith("https://") || u.startsWith("http://");
+}
+
 /**
  * Check if a URL is from a specific filehost using proper URL parsing
  * This is safer than using string.startsWith() as it properly handles URL components

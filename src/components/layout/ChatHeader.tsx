@@ -22,12 +22,8 @@ import {
   FaUser,
   FaUserPlus,
 } from "react-icons/fa";
-import {
-  getChannelAvatarUrl,
-  getChannelDisplayName,
-  isUrlFromFilehost,
-} from "../../lib/ircUtils";
-import { mediaLevelToSettings } from "../../lib/mediaUtils";
+import { getChannelAvatarUrl, getChannelDisplayName } from "../../lib/ircUtils";
+import { canShowAvatarUrl, mediaLevelToSettings } from "../../lib/mediaUtils";
 import { isTauriMobile } from "../../lib/platformUtils";
 import useStore, { loadSavedMetadata } from "../../store";
 import type { Channel, PrivateChat, User } from "../../types";
@@ -103,7 +99,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     (state) => state.ui.mobileViewActiveColumn,
   );
 
-  const { showSafeMedia, showExternalContent } = mediaLevelToSettings(
+  const mediaSettings = mediaLevelToSettings(
     useStore((state) => state.globalSettings.mediaVisibilityLevel),
   );
 
@@ -414,13 +410,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               const selectedServer = servers.find(
                 (s) => s.id === selectedServerId,
               );
-              const isFilehostAvatar =
-                avatarUrl &&
-                selectedServer?.filehost &&
-                isUrlFromFilehost(avatarUrl, selectedServer.filehost);
-              const shouldShowAvatar =
-                avatarUrl &&
-                ((isFilehostAvatar && showSafeMedia) || showExternalContent);
+              const shouldShowAvatar = canShowAvatarUrl(
+                avatarUrl,
+                selectedServer?.filehost,
+                mediaSettings,
+              );
 
               return shouldShowAvatar ? (
                 <img
@@ -459,15 +453,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       const selectedServer = servers.find(
                         (s) => s.id === selectedServerId,
                       );
-                      const isFilehostAvatar =
-                        avatarUrl &&
-                        selectedServer?.filehost &&
-                        isUrlFromFilehost(avatarUrl, selectedServer.filehost);
-                      const shouldShowAvatar =
-                        avatarUrl &&
-                        ((isFilehostAvatar && showSafeMedia) ||
-                          showExternalContent);
-                      return shouldShowAvatar ? "none" : "inline-block";
+                      return canShowAvatarUrl(
+                        avatarUrl,
+                        selectedServer?.filehost,
+                        mediaSettings,
+                      )
+                        ? "none"
+                        : "inline-block";
                     })(),
                   }}
                 />
@@ -674,15 +666,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 const selectedServer = servers.find(
                   (s) => s.id === selectedServerId,
                 );
-                const isFilehostAvatar =
-                  privateChatAvatar &&
-                  selectedServer?.filehost &&
-                  isUrlFromFilehost(privateChatAvatar, selectedServer.filehost);
                 const shouldShowAvatar =
-                  privateChatAvatar &&
-                  ((isFilehostAvatar && showSafeMedia) ||
-                    showExternalContent) &&
-                  !avatarLoadFailed;
+                  canShowAvatarUrl(
+                    privateChatAvatar,
+                    selectedServer?.filehost,
+                    mediaSettings,
+                  ) && !avatarLoadFailed;
 
                 return shouldShowAvatar ? (
                   <img
